@@ -1,0 +1,52 @@
+﻿@model CTSHIPDashboard.Models.Provider
+
+<div class="container-fluid py-5">
+    <div class="row justify-content-center">
+        <div class="col-12 col-md-8 col-lg-6">
+            <div class="card border-0 shadow-lg rounded-4">
+                <div class="card-header bg-danger text-white text-center py-5">
+                    <h2 class="fw-bold mb-0">DELETE PROVIDER</h2>
+                </div>
+
+                <div class="card-body p-5 text-center">
+                    <i class="bi bi-exclamation-triangle-fill text-danger" style="font-size: 5rem;"></i>
+
+                    <h3 class="mt-4 text-danger fw-bold">Are you sure?</h3>
+                    <p class="lead">You are about to delete:</p>
+
+                    <div class="bg-light rounded-4 p-4 mb-4 shadow">
+                        <h4 class="fw-bold">@Model.Name</h4>
+                        <p class="mb-1"><strong>Code:</strong> @Model.Code</p>
+                        <p class="mb-1"><strong>Level:</strong> @Model.Level</p>
+                        <p class="mb-1"><strong>State:</strong> @Model.State</p>
+                        <p class="mb-0">
+                            <strong>Status:</strong>
+                            <span class="badge @(Model.IsActive ? "bg-success" : "bg-secondary")">
+                                @(Model.IsActive ? "Active" : "Inactive")
+                            </span>
+                        </p>
+                    </div>
+
+                    <div class="text-danger fw-bold">
+                        This action <u>cannot be undone</u> and will affect all encounters and claims.
+                        </p>
+
+                        <form asp-action="Delete" method="post" class="d-inline">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" asp-for="Id" />
+                            <button type="submit" class="btn btn-danger btn-lg px-6 shadow-lg">
+                                YES, DELETE FOREVER
+                            </button>
+                        </form>
+                        <a asp-action="Index" class="btn btn-secondary btn-lg px-6 ms-3">
+                            Cancel
+                        </a>
+                    </div>
+
+                    <div class="bg-dark text-white text-center py-3">
+                        <small>CTSHIP • Universal Health Coverage • Federal Republic of Nigeria</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>

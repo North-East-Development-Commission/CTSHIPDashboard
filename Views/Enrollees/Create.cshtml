@@ -1,0 +1,136 @@
+﻿@model CTSHIPDashboard.Models.Enrollee
+
+<div class="container-fluid py-4">
+    <div class="card border-0 shadow-lg mx-auto" style="max-width: 900px; border-radius: 25px;">
+        <div class="card-header bg-success text-white text-center py-4">
+            <h2>Register New Enrollee</h2>
+        </div>
+        <div class="card-body p-5">
+            <form asp-action="Create" method="post" enctype="multipart/form-data">
+                @Html.AntiForgeryToken()
+
+                <div class="text-center mb-4">
+                    <img src="/images/default-avatar.png" id="photoPreview" class="rounded-circle shadow" style="width: 150px; height: 150px; object-fit: cover;" />
+                    <div class="mt-3">
+                        <input type="file" asp-for="PhotoFile" class="form-control" accept="image/*" onchange="previewImage(this)" id="PhotoFile" />
+                        <small class="text-muted">Upload passport photo (JPG/PNG)</small>
+                    </div>
+                </div>
+
+                <div class="row g-4">
+                    <div class="col-md-6">
+                        <label asp-for="FullName" class="form-label text-success fw-bold"></label>
+                        <input asp-for="FullName" class="form-control form-control-lg" required id="FullName"/>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label text-success fw-bold">Gender</label>
+                        <select asp-for="Gender" class="form-select form-select-lg" id="Gender">
+                            <option value="Male">Male</option>
+                            <option value="Female">Female</option>
+                        </select>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label asp-for="DateOfBirth" class="form-label text-success fw-bold"></label>
+                        <input asp-for="DateOfBirth" class="form-control form-control-lg" type="date" required id="DateOfBirth"/>
+                    </div>
+                    <div class="col-md-6">
+                        <label asp-for="Phone" class="form-label text-success fw-bold"></label>
+                        <input asp-for="Phone" class="form-control form-control-lg" required id="Phone"/>
+                    </div>
+                    <div class="col-md-6">
+                        <span asp-validation-for="NIN" class="text-bg-danger"></span>
+                        <label asp-for="NIN" class="form-label text-success fw-bold"></label>
+                        <input asp-for="NIN" class="form-control form-control-lg" required id="NIN" />
+                    </div>
+
+                    <div class="col-md-6">
+                        <label asp-for="State" class="form-label text-success fw-bold"></label>
+                        <select asp-for="State" class="form-select form-select-lg" id="State" required>
+                            <option value="">Select State</option>
+                            <option>Adamawa</option>
+                            <option>Bauchi</option>
+                            <option>Borno</option>
+                            <option>Gombe</option>
+                            <option>Taraba</option>
+                            <option>Yobe</option>
+                        </select>
+                    </div>
+                   
+                    <div class="col-md-6">
+                        <label asp-for="LGA" class="form-label text-success fw-bold"></label>
+                        <input asp-for="LGA" class="form-control form-control-lg" id="LGA" required />
+                    </div>
+                    <div class="col-md-6">
+                        <label asp-for="Ward" class="form-label text-success fw-bold"></label>
+                        <input asp-for="Ward" class="form-control form-control-lg" id="LGA" required />
+                    </div>
+                    <div class="col-md-6">
+                        <label asp-for="HmoId" class="form-label text-success fw-bold">Assigned HMO</label>
+                        <select asp-for="HmoId" class="form-select form-select-lg" id="HmoId" required>
+                            <option value="">Select HMO</option>
+                            @foreach (var hmo in ViewBag.Hmos ?? Enumerable.Empty<Hmo>())
+                            {
+                                @* Change @hmo.Id to @hmo.Value and @hmo.FullName to @hmo.Text *@
+                                <option value="@hmo.Value">@hmo.Text</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <label asp-for="ProviderId" class="form-label text-success fw-bold">Assigned Provider</label>
+                        <select asp-for="ProviderId" class="form-select form-select-lg" id="ProviderId" required>
+                            <option value="">Select Provider</option>
+                            @foreach (var pro in ViewBag.Provider)
+                            {
+                                @* Change @hmo.Id to @hmo.Value and @hmo.FullName to @hmo.Text *@
+                                <option value="@pro.Value">@pro.Text</option>
+                            }
+                        </select>
+                    </div>
+
+                    <div class="col-12">
+                        <label asp-for="Address" class="form-label text-success fw-bold"></label>
+                        <textarea asp-for="Address" class="form-control" rows="3" id="Address" required></textarea>
+                    </div>
+                    <div class="col-md-6">
+                        <label asp-for="Status" class="form-label text-success fw-bold"></label>
+                        <select asp-for="Status" class="form-select form-select-lg" id="Status" required>
+                            <option value="">Select Status</option>
+                            <option>Active</option>
+                            <option>Suspended</option>
+                            <option>Terminated</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="text-center mt-5">
+                    <button type="submit" class="btn btn-success btn-lg px-5 shadow-lg">
+                        REGISTER ENROLLEE
+                    </button>
+                    <a asp-action="Index" class="btn btn-secondary btn-lg px-5 ms-3">Cancel</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+<!-- 1. Load the main jQuery library FIRST -->
+<script src="~/lib/jquery/dist/jquery.min.js"></script>
+
+<!-- 2. Load plugins/scripts that depend on jQuery second -->
+<script src="~/lib/jquery-validation/dist/jquery.validate.min.js"></script>
+<script src="~/lib/jquery-validation-unobtrusive/jquery.validate.unobtrusive.min.js"></script>
+
+<!-- ... other scripts ... -->
+
+
+<script>
+    function previewImage(input) {
+        if (input.files && input.files[0]) {
+            var reader = new FileReader();
+            reader.onload = function(e) {
+                document.getElementById('photoPreview').src = e.target.result;
+            }
+            reader.readAsDataURL(input.files[0]);
+        }
+    }
+</script>

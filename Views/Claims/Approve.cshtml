@@ -1,0 +1,106 @@
+﻿@model CTSHIPDashboard.Models.Claim
+@{
+    ViewData["Title"] = "Final Payment Approval";
+}
+
+<div class="container-fluid py-5">
+    <div class="row justify-content-center">
+        <div class="col-12 col-lg-10 col-xl-8">
+            <div class="card border-0 shadow-lg rounded-4 overflow-hidden">
+                <!-- Header -->
+                <div class="bg-success text-white text-center py-5">
+                    <h1 class="display-5 fw-bold mb-3">FINAL PAYMENT APPROVAL</h1>
+                    <p class="lead mb-0 opacity-90">Claim #: <strong>@Model.ClaimNumber</strong> • Amount: ₦@Model.Amount</p>
+                </div>
+
+                <div class="card-body p-5">
+                    <div class="alert alert-success border-0 shadow-sm rounded-4">
+                        <i class="bi bi-check-circle-fill fs-3 me-2"></i>
+                        <strong>HMO has approved this claim</strong> — You are now authorizing final payment.
+                    </div>
+
+                    <!-- Claim Summary -->
+                    <div class="row g-4 mb-5">
+                        <div class="col-md-6">
+                            <div class="card border-success shadow-sm">
+                                <div class="card-body">
+                                    <h5 class="text-success fw-bold">Enrollee</h5>
+                                    <p class="mb-1 fw-bold">@Model.Enrollee?.FullName</p>
+                                    <p class="mb-1">ID: @Model.Enrollee?.EnrollmentNumber</p>
+                                    <p class="mb-0">HMO: @Model.Enrollee?.Hmo?.Name</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card border-info shadow-sm">
+                                <div class="card-body">
+                                    <h5 class="text-info fw-bold">Provider</h5>
+                                    <p class="mb-0">@Model.Provider?.Name - @Model.Provider?.State</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row g-4 mb-5">
+                        <div class="col-12">
+                            <div class="card shadow-sm">
+                                <div class="card-body">
+                                    <h5 class="text-success fw-bold">Diagnosis</h5>
+                                    <p class="fs-5">@Model.Diagnosis</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <div class="card shadow-sm">
+                                <div class="card-body">
+                                    <h5 class="text-success fw-bold">Treatment Given</h5>
+                                    <p class="fs-5">@Model.Treatment</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Payment Form -->
+                    <form asp-action="Approve" method="post">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" asp-for="Id" />
+
+                        <div class="row g-4">
+                            <div class="col-md-6">
+                                <label class="form-label text-success fw-bold fs-5">Payment Reference (Optional)</label>
+                                <input name="paymentRef" class="form-control form-control-lg rounded-3"
+                                       placeholder="e.g., GIFMIS-2025-123456 or NHIA-BULK-DEC2025" />
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label text-success fw-bold fs-5">Final Approval Notes</label>
+                                <textarea name="notes" class="form-control form-control-lg rounded-3" rows="4"
+                                          placeholder="e.g., Claim verified and approved for immediate payment"></textarea>
+                            </div>
+                        </div>
+
+                        <hr class="my-5 border-success opacity-75 border-2" />
+
+                        <div class="text-center">
+                            <button name="action" value="pay" class="btn btn-success btn-lg px-7 shadow-lg fw-bold fs-4">
+                                PAY CLAIM NOW
+                            </button>
+                            <button name="action" value="reject" class="btn btn-danger btn-lg px-6 shadow-lg fw-bold ms-3">
+                                REJECT PAYMENT
+                            </button>
+                            <a asp-action="Index" class="btn btn-secondary btn-lg px-6 ms-3">
+                                Cancel
+                            </a>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Footer -->
+                <div class="bg-dark text-white text-center py-4">
+                    <p class="mb-0 small fw-bold">
+                        CTSHIP • North East Development Commission • Federal Republic of Nigeria
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

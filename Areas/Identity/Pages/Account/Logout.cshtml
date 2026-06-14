@@ -1,0 +1,90 @@
+﻿@page
+@model LogoutModel
+@{
+    ViewData["Title"] = "Logout";
+}
+<style>
+    .card {
+        max-width: 500px;
+        margin: 0 auto;
+    }
+
+    .btn-success {
+        background-color: #198754;
+        border-color: #198754;
+    }
+
+        .btn-success:hover {
+            background-color: #157347;
+            border-color: #146c43;
+        }
+
+    .bg-success {
+        background-color: #198754 !important;
+    }
+
+    .text-success {
+        color: #198754 !important;
+    }
+
+    .bi-check-circle-fill {
+        font-size: 4.5rem;
+    }
+</style>
+<div class="container my-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6 col-lg-5">
+            <!-- Card wrapper -->
+            <div class="card shadow border-0 rounded-4 overflow-hidden">
+                <!-- Green header -->
+                <div class="bg-success text-white text-center py-4">
+                    <h3 class="mb-0 fw-bold">@ViewData["Title"]</h3>
+                </div>
+
+                <div class="card-body p-5 text-center">
+                    @if (User.Identity?.IsAuthenticated ?? false)
+                    {
+                        <p class="lead text-muted mb-4">
+                            You're about to sign out of your account.
+                        </p>
+                        <p class="text-muted mb-5">
+                            Click the button below to securely log out.
+                        </p>
+
+                        <form asp-area="Identity" asp-page="/Account/Logout"
+                              asp-route-returnUrl="@Url.Page("/", new { area = "" })"
+                              method="post">
+                            <button type="submit"
+                                    class="btn btn-success btn-lg fw-semibold shadow-sm px-5">
+                                Log out
+                            </button>
+                        </form>
+                    }
+                    else
+                    {
+                        <div class="py-4">
+                            <i class="bi bi-check-circle-fill text-success" style="font-size: 4rem;"></i>
+                            <h4 class="mt-4 mb-3 text-success fw-bold">
+                                You've been successfully logged out
+                            </h4>
+                            <p class="text-muted mb-4">
+                                Thank you for using the application.<br>
+                                Come back anytime!
+                            </p>
+                            <a asp-area="" asp-page="/Index" class="btn btn-outline-success">
+                                Return to home page
+                            </a>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <!-- If you need any JS, add here -->
+}
+
+<!-- Optional: Add to your _Layout or page-specific Styles section -->
+   

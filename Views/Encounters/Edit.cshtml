@@ -1,0 +1,186 @@
+﻿@model CTSHIPDashboard.Models.Encounter
+@{
+    ViewData["Title"] = "Edit Encounter - " + Model.EncounterNumber;
+}
+
+<div class="container-fluid py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-11">
+            <div class="card border-0 shadow-lg" style="border-radius: 25px; overflow: hidden;">
+                <!-- Header -->
+                <div class="bg-warning text-dark text-center py-5">
+                    <h1 class="display-5 fw-bold mb-2">EDIT ENCOUNTER</h1>
+                    <p class="lead mb-0 opacity-90">Encounter #: <strong class="text-primary">@Model.EncounterNumber</strong></p>
+                </div>
+
+                <div class="card-body p-5">
+                    @if (TempData["Success"] != null)
+                    {
+                        <div class="alert alert-success alert-dismissible fade show rounded-4">
+                            <i class="bi bi-check-circle-fill"></i> @TempData["Success"]
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                    }
+
+                    <form asp-action="Edit" method="post">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" asp-for="Id" />
+                        <input type="hidden" asp-for="EncounterNumber" />
+                        <input type="hidden" asp-for="EnrolleeId" />
+                        <input type="hidden" asp-for="ClaimId" />
+
+                        <!-- ENROLLEE INFO (READ-ONLY) -->
+                        <div class="row g-4 mb-4">
+                            <div class="col-12">
+                                <div class="card border-success border-3 shadow">
+                                    <div class="card-body d-flex align-items-center p-4">
+                                        <img src="@(Model.Enrollee?.PhotoPath ?? "/img/icon-192.png")"
+                                             class="rounded me-4 shadow" style="width:120px;height:120px;object-fit:cover;border:5px solid white;" />
+                                        <div>
+                                            <h4 class="text-success fw-bold mb-1">@Model.Enrollee?.FullName</h4>
+                                            <p class="mb-1"><strong>ID:</strong> @Model.Enrollee?.EnrollmentNumber</p>
+                                            <p class="mb-1"><strong>HMO:</strong> @Model.Enrollee?.Hmo?.Name</p>
+                                            <p class="mb-0"><strong>State:</strong> @Model.Enrollee?.State</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row g-4">
+                            <!-- VISIT DETAILS -->
+                            <div class="col-md-4">
+                                <label asp-for="VisitDate" class="form-label text-success fw-bold">Visit Date & Time</label>
+                                <input asp-for="VisitDate" class="form-control form-control-lg" type="datetime-local" required />
+                            </div>
+
+                            <div class="col-md-4">
+                                <label asp-for="VisitType" class="form-label text-success fw-bold">Visit Type</label>
+                                <input asp-for="VisitType" class="form-control form-control-lg" required />
+                            </div>
+
+                            <div class="col-md-4">
+                                <label class="form-label text-success fw-bold">Status</label>
+                                <select asp-for="Status" class="form-select form-select-lg" asp-items="ViewBag.Statuses">
+                                    <option value="">Select Status</option>
+                                </select>
+                            </div>
+
+                            <div class="col-md-6">
+                                <label asp-for="ProviderId" class="form-label text-success fw-bold">Facility</label>
+                                <select asp-for="ProviderId" class="form-select form-select-lg" asp-items="ViewBag.Providers">
+                                    <option value="">Select Facility</option>
+                                </select>
+                            </div>
+
+                            <div class="col-md-4">
+                                <label asp-for="SeenBy" class="form-label text-success fw-bold">Attended By</label>
+                                <textarea asp-for="SeenBy" class="form-control form-control-lg" required></textarea>
+                            </div>
+                            <div class="col-md-4">
+                                <label asp-for="Rank" class="form-label text-success fw-bold">Rank</label>
+                                <textarea asp-for="Rank" class="form-control form-control-lg" required></textarea>
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label text-success fw-bold">Recorded By</label>
+                                <input asp-for="AttendedBy" class="form-control form-control-lg  readOnly" />
+                            </div>
+
+                            <!-- VITALS -->
+                            <div class="col-md-4">
+                                <label asp-for="Temperature" class="form-label text-success fw-bold">Temperature (°C)</label>
+                                <input asp-for="Temperature" class="form-control form-control-lg" type="number" step="0.1" />
+                            </div>
+                            <div class="col-md-4">
+                                <label asp-for="BloodPressure" class="form-label text-success fw-bold">Blood Pressure</label>
+                                <input asp-for="BloodPressure" class="form-control form-control-lg" placeholder="e.g., 120/80" />
+                            </div>
+                            <div class="col-md-4">
+                                <label asp-for="PulseRate" class="form-label text-success fw-bold">Pulse Rate</label>
+                                <input asp-for="PulseRate" class="form-control form-control-lg" type="number" />
+                            </div>
+
+                            <!-- CLINICAL -->
+                            <div class="col-12">
+                                <label asp-for="ChiefComplaint" class="form-label text-success fw-bold">Chief Complaint</label>
+                                <textarea asp-for="ChiefComplaint" class="form-control form-control-lg" rows="3" ></textarea>
+                            </div>
+
+                            <div class="col-12">
+                                <label asp-for="Diagnosis" class="form-label text-success fw-bold">Diagnosis</label>
+                                <textarea asp-for="Diagnosis" class="form-control form-control-lg" rows="4" ></textarea>
+                            </div>
+
+                            <div class="col-12">
+                                <label asp-for="TreatmentGiven" class="form-label text-success fw-bold">Treatment Given</label>
+                                <textarea asp-for="TreatmentGiven" class="form-control form-control-lg" rows="5" ></textarea>
+                            </div>
+
+                            <!-- FEES -->
+                            <div class="col-md-4">
+                                <label asp-for="ConsultationFee" class="form-label text-success fw-bold">Consultation Fee (₦)</label>
+                                <input asp-for="ConsultationFee" class="form-control form-control-lg text-end" type="number" step="100" />
+                            </div>
+                            <div class="col-md-4">
+                                <label asp-for="LabFee" class="form-label text-success fw-bold">Lab Fee (₦)</label>
+                                <input asp-for="LabFee" class="form-control form-control-lg text-end" type="number" step="100" />
+                            </div>
+                            <div class="col-md-4">
+                                <label asp-for="DrugFee" class="form-label text-success fw-bold">Drug Fee (₦)</label>
+                                <input asp-for="DrugFee" class="form-control form-control-lg text-end" type="number" step="100" />
+                            </div>
+
+                            <div class="col-12">
+                                <div class="alert alert-success text-center fs-3 fw-bold py-4">
+                                    Total Amount: ₦<span id="totalAmount">@Model.TotalAmount:</span>
+                                </div>
+                            </div>
+
+                            <div class="col-12">
+                                <label asp-for="Notes" class="form-label text-success fw-bold">Additional Notes</label>
+                                <textarea asp-for="Notes" class="form-control form-control-lg" rows="3"></textarea>
+                            </div>
+                        </div>
+
+                        <!-- SUBMIT -->
+                        <div class="text-center mt-5 pt-4 border-top">
+                            <button type="submit" class="btn btn-success btn-lg px-6 shadow-lg fw-bold fs-4">
+                                UPDATE ENCOUNTER
+                            </button>
+                            <a asp-action="Details" asp-route-id="@Model.Id" class="btn btn-info btn-lg px-6 ms-3">
+                                View Details
+                            </a>
+                            <a asp-action="Index" class="btn btn-secondary btn-lg px-6 ms-3">
+                                Back to List
+                            </a>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="bg-dark text-white text-center py-3">
+                    <small>CTSHIP • Universal Health Coverage • Powered by North East Development Commission</small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        // Auto-calculate total amount
+        function updateTotal() {
+            const consultation = parseFloat(document.querySelector('[asp-for="ConsultationFee"]').value) || 0;
+            const lab = parseFloat(document.querySelector('[asp-for="LabFee"]').value) || 0;
+            const drug = parseFloat(document.querySelector('[asp-for="DrugFee"]').value) || 0;
+            document.getElementById('totalAmount').textContent = (consultation + lab + drug).toLocaleString();
+        }
+
+        document.querySelectorAll('input[type="number"]').forEach(input => {
+            input.addEventListener('input', updateTotal);
+        });
+
+        // Run on load
+        updateTotal();
+    </script>
+}

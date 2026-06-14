@@ -1,0 +1,142 @@
+﻿@model Enrollee
+@{
+    ViewData["Title"] = "My Health Card";
+}
+
+<div class="container-fluid py-4">
+    <div class="row justify-content-center">
+        <div class="col-12 col-md-10 col-lg-8 col-xl-6">
+            <!-- DIGITAL CARD -->
+            <div class="card border-0 shadow-lg rounded-4 overflow-hidden" style="background: linear-gradient(135deg, #006400, #004d00); color: white;">
+
+                <!-- Header -->
+                <div class="p-4 text-center">
+                    <img src="/img/coat.jpeg" alt="Nigeria" class="mb-3" style="height:60px;" />
+                    <h6 class="fw-bold mb-1">FEDERAL REPUBLIC OF NIGERIA</h6>
+                    <h6 class="fw-bold opacity-90">NORTH EAST DEVELOPMENT COMMISSION</h6>
+                    <h6 class="display-6 fw-bold mt-3">CTSHIP DIGITAL HEALTH CARD</h6>
+                </div>
+
+                <div class="bg-white text-dark">
+                    <div class="row g-0">
+                        <!-- Left: Photo + Info -->
+                        <div class="col-12 col-md-5 p-4 text-center">
+                            @if (!string.IsNullOrEmpty(Model.PhotoPath))
+                            {
+                                <img src="@Model.PhotoPath" alt="Photo" class="rounded-3 shadow" style="width:160px; height:180px; object-fit:cover;" />
+                            }
+                            else
+                            {
+                                <div class="bg-light rounded-3 d-flex align-items-center justify-content-center border" style="width:160px; height:180px; margin:0 auto;">
+                                    <img src="@(Model.PhotoPath ?? "/img/icon-192.png")" />
+
+                                </div>
+                            }
+
+                            <!-- QR CODE -->
+                            <div class="mt-4 p-3 bg-light rounded-3">
+                                <img src="@ViewBag.QrCodeImage" alt="QR Code" class="img-fluid" style="max-width:140px;" />
+                                <small class="d-block text-muted mt-2">Scan to verify identity</small>
+                            </div>
+                        </div>
+
+                        <!-- Right: Details -->
+                        <div class="col-10 col-md-6 p-1">
+                            <table class="table table-borderless text-dark mb-0">
+                                <tr>
+                                    <td class="fw-bold text-success">Full Name</td>
+                                    <td class="text-end fw-bold">@Model.FullName.ToUpper()</td>
+                                </tr>
+                                <tr>
+                                    <td class="fw-bold text-success">Enrollment No.</td>
+                                    <td class="text-end fw-bold fs-10 text-primary">@Model.EnrollmentNumber</td>
+                                </tr>
+                                <tr>
+                                    <td class="fw-bold text-success">Date of Birth</td>
+                                    <td class="text-end">@Model.DateOfBirth.ToString("MMM dd, yyyy")</td>
+                                </tr>
+                                <tr>
+                                    <td class="fw-bold text-success">Gender</td>
+                                    <td class="text-end">@Model.Gender</td>
+                                </tr>
+                                <tr>
+                                    <td class="fw-bold text-success">HMO</td>
+                                    <td class="text-end">@Model.Hmo?.Name</td>
+                                </tr>
+                                <tr>
+                                    <td class="fw-bold text-success">Blood Group</td>
+                                    <td class="text-end">O+</td>
+                                </tr>
+                                <tr>
+                                    <td class="fw-bold text-success">State</td>
+                                    <td class="text-end">@Model.State</td>
+                                </tr>
+                                <tr>
+                                    <td class="fw-bold text-success">LGA</td>
+                                    <td class="text-end">@Model.LGA</td>
+                                </tr>
+                                <tr>
+                                    <td class="fw-bold text-success">Ward</td>
+                                    <td class="text-end">@Model.Ward</td>
+                                </tr>
+                                <tr>
+                                    <td class="fw-bold text-success">Valid Until</td>
+                                    <td class="text-end text-danger fw-bold">31 DEC 2026</td>
+                                </tr>
+                            </table>
+
+                            <div class="text-center mt-4">
+                                <span class="badge bg-success fs-6 px-4 py-2">ACTIVE COVERAGE</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Footer -->
+                <div class="text-center">
+                    <p class=" small opacity-90">
+                        Universal Health Coverage • One Nigeria • One Health | For support: 0800-CTSHIP-HELP | www.ctship.gov.ng
+                    </p>
+
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="text-center mt-4">
+                <a href="javascript:window.print()" class="btn btn-success btn-lg px-5 shadow">
+                    Print Card
+                </a>
+                <a asp-action="EnrolleeDashboard" class="btn btn-outline-secondary btn-lg px-5 ms-3">
+                    Back to List
+                </a>
+            </div>
+
+            <div class="text-center mt-4 text-muted small">
+                This is your official CTSHIP Digital Health Card • Present at any accredited hospital nationwide
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    @@media print {
+        body * {
+            visibility: hidden;
+        }
+
+        .card, .card * {
+            visibility: visible;
+        }
+
+        .card {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+        }
+
+        .btn, nav, footer {
+            display: none !important;
+        }
+    }
+</style>

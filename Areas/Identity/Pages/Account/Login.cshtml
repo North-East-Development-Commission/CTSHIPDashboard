@@ -1,0 +1,60 @@
+﻿@page
+@model LoginModel
+
+@{
+    ViewData["Title"] = "";
+}
+
+<h1>@ViewData["Title"]</h1>
+<div class="container-fluid">
+       <div class="card border-0 shadow-sm">
+        <div class="col-6 offset-5">
+            <img src="~/images/nedcL.jpg" alt="Company Logo" width="200" height="200" />
+        </div>        
+        <h2 class="text-center">NORTH EAST DEVELOPMENT COMMISSION</h2>
+        <h3 class="text-center">COMMUNITY TARGETED SOCIAL HEALTH INSURANCE PROGRAM</h3>
+        <div class="card-header bg-success text-white">
+            <h5 class="mb-0 text-center"><i class="bi bi-person-plus-fill"></i> LOGIN</h5>
+        </div>
+        <div class="card-body">
+            <div class="col-6 offset-3">
+                <form id="account" method="post">
+                    <hr />
+                    <div asp-validation-summary="ModelOnly" class="text-danger" role="alert"></div>
+                    <div class="form-floating mb-3">
+                        <input asp-for="Input.Email" class="form-control" autocomplete="username" aria-required="true" placeholder="name@example.com" />
+                        <label asp-for="Input.Email" class="form-label">Email</label>
+                        <span asp-validation-for="Input.Email" class="text-danger"></span>
+                    </div>
+                    <div class="form-floating mb-3">
+                        <input asp-for="Input.Password" class="form-control" autocomplete="current-password" aria-required="true" placeholder="password" />
+                        <label asp-for="Input.Password" class="form-label">Password</label>
+                        <span asp-validation-for="Input.Password" class="text-danger"></span>
+                    </div>
+                    <div class="checkbox mb-3">
+                        <label asp-for="Input.RememberMe" class="form-label">
+                            <input class="form-check-input" asp-for="Input.RememberMe" />
+                            @Html.DisplayNameFor(m => m.Input.RememberMe)
+                        </label>
+                    </div>
+                    <div>
+                        <button id="login-submit" type="submit" class="w-100 btn btn-lg btn-success">Log in</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    @* At the very bottom of Login.cshtml (before closing </body> or in Scripts section) *@
+    @if (User.Identity?.IsAuthenticated == true)
+    {
+        <script>
+            // Send a tiny request to log login (silent)
+            fetch('/Admin/LogLogin', { method: 'POST', headers: { 'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value } })
+                .catch(() => {}); // silent
+        </script>
+    }
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

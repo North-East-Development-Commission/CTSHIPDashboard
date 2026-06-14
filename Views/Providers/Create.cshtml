@@ -1,0 +1,149 @@
+﻿@model CTSHIPDashboard.Models.Provider
+@{
+    ViewData["Title"] = "Add New Healthcare Provider";
+}
+
+<div class="container-fluid py-5">
+    <div class="row justify-content-center">
+        <div class="col-12 col-lg-10 col-xl-8">
+            <div class="card border-0 shadow-lg rounded-4 overflow-hidden">
+                <div class="bg-success text-white text-center py-5">
+                    <h1 class="display-5 fw-bold mb-2">ADD NEW PROVIDER</h1>
+                    <p class="lead mb-0 opacity-90">NEDC CTSHIP Accredited Health Facility</p>
+                </div>
+
+                <div class="card-body p-4 p-md-5">
+                    <form asp-action="Create" method="post">
+                        @Html.AntiForgeryToken()
+
+                        <div class="row g-4">
+                            <!-- Provider Code -->
+                          
+
+                            <!-- Facility Name -->
+                            <div class="col-md-6">
+                                <label asp-for="Name" class="form-label text-success fw-bold fs-5"></label>
+                                <input asp-for="Name" class="form-control form-control-lg rounded-3"
+                                       placeholder="Full hospital/clinic name" required />
+                                <span asp-validation-for="Name" class="text-danger"></span>
+                            </div>
+
+                            <div class="col-md-6">
+                                <label asp-for="State" class="form-label fw-bold">State <span class="text-danger">*</span></label>
+                                <select asp-for="State" class="form-select form-select-lg" asp-items="ViewBag.States" required>
+                                    <option value="">-- Select State --</option>
+                                </select>
+                                <span asp-validation-for="State" class="text-danger"></span>
+                            </div>
+
+                            <div class="col-md-6">
+                                <label asp-for="Level" class="form-label fw-bold">Facility Level <span class="text-danger">*</span></label>
+                                <select asp-for="Level" class="form-select form-select-lg" asp-items="ViewBag.Levels" required>
+                                    <option value="">-- Select Facility Level --</option>
+                                </select>
+                                <span asp-validation-for="Level" class="text-danger"></span>
+                            </div>
+
+                            <!-- Full Address -->
+                            <div class="col-12">
+                                <label asp-for="Location" class="form-label text-success fw-bold fs-5">Full Address</label>
+                                <textarea asp-for="Location" class="form-control form-control-lg rounded-3"
+                                          rows="3" placeholder="Street, LGA, Town/City" required></textarea>
+                                <span asp-validation-for="Location" class="text-danger"></span>
+                            </div>
+
+                            <!-- Coordinates (Optional) -->
+                            <div class="col-md-6">
+                                <label asp-for="Latitude" class="form-label">Latitude (Optional)</label>
+                                <input asp-for="Latitude" class="form-control" step="any" placeholder="e.g. 11.9819" />
+                                <span asp-validation-for="Latitude" class="text-danger"></span>
+                            </div>
+                            <div class="col-md-6">
+                                <label asp-for="Longitude" class="form-label">Longitude (Optional)</label>
+                                <input asp-for="Longitude" class="form-control" step="any" placeholder="e.g. 8.5373" />
+                                <span asp-validation-for="Longitude" class="text-danger"></span>
+                            </div>
+
+                            <!-- Contact Info -->
+                            <div class="col-md-6">
+                                <label asp-for="Phone" class="form-label text-success fw-bold fs-5">Phone Number</label>
+                                <input asp-for="Phone" class="form-control form-control-lg rounded-3" placeholder="080xxxxxxxx"/>
+                                <span asp-validation-for="Phone" class="text-danger"></span>
+                            </div>
+                            <div class="col-md-6">
+                                <label asp-for="Email" class="form-label text-success fw-bold fs-5">Email Address</label>
+                                <input asp-for="Email" type="email" class="form-control form-control-lg rounded-3" />
+                                <span asp-validation-for="Email" class="text-danger"></span>
+                            </div>
+
+                            <!-- Active Status -->
+                            <div class="col-12">
+                                <div class="form-check form-switch">
+                                    <input asp-for="IsActive" class="form-check-input" type="checkbox"
+                                           id="isActiveSwitch" checked style="width:60px;height:30px;" />
+                                    <label class="form-check-label text-success fw-bold fs-5" for="isActiveSwitch">
+                                        Active Facility (Can receive patients)
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="text-center mt-5 pt-4 border-top">
+
+                            <button type="submit" class="btn btn-success btn-lg px-6 ms-4">
+                                CREATE PROVIDER
+                                </button>
+
+                            
+                            @if (User.IsInRole("HMO"))
+                            {
+                                <a asp-controller="Hmo" asp-action="MyProviders" class="btn btn-secondary btn-lg px-6 ms-3">
+                                    Cancel
+                                </a>
+                            }
+                            @if (User.IsInRole("Admin"))
+                            {
+                                <a asp-action="Index" class="btn btn-secondary btn-lg px-6 ms-3">
+                                    Cancel
+                                </a>
+                            }
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+
+    <script>
+        // Live preview of provider code
+        document.querySelector('[asp-for="Name"]').addEventListener('input', updatePreview);
+        document.querySelector('[asp-for="State"]').addEventListener('change', updatePreview);
+
+        function updatePreview() {
+            const name = document.querySelector('[asp-for="Name"]').value.trim().toUpperCase();
+            const state = document.querySelector('[asp-for="State"]').value;
+
+            if (!name || !state) {
+                document.getElementById('previewCode').textContent = "—";
+                return;
+            }
+
+            const words = name.split(' ');
+            let code = "";
+            if (words.length >= 2) {
+                code = words[0].substring(0, 3) + words[1].substring(0, 1);
+            } else {
+                code = name.substring(0, 4);
+            }
+
+            const stateCode = state.substring(0, 2).toUpperCase();
+            document.getElementById('previewCode').textContent = `${code}-${stateCode}-XXX`;
+        }
+    </script>
+}

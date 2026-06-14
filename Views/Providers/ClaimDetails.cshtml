@@ -1,0 +1,129 @@
+﻿@model CTSHIPDashboard.Models.Claim
+@{
+    ViewData["Title"] = "Claim Details - " + Model.ClaimNumber;
+}
+
+<div class="container-fluid py-5">
+    <div class="row justify-content-center">
+        <div class="col-12 col-lg-11 col-xl-10">
+            <div class="card border-0 shadow-lg rounded-4 overflow-hidden">
+                <!-- Header with Status Color -->
+                <div class=" @(Model.Status == "Paid" ? "bg-success" :
+                                                                        Model.Status == "Approved" ? "bg-info" :
+                                                                        Model.Status == "Submitted" ? "bg-warning text-dark" : "bg-danger")
+                              text-white text-center py-5">
+                    <h1 class="display-5 fw-bold mb-3">@Model.ClaimNumber</h1>
+                    <h3 class="mb-0">
+                        <span class="badge fs-3 px-5 py-3 @(Model.Status == "Paid" ? "bg-white text-success" :
+                                                                                                                        Model.Status == "Approved" ? "bg-dark" :
+                                                                                                                        Model.Status == "Submitted" ? "bg-dark" : "bg-white text-danger")">
+                            @Model.Status.ToUpper()
+                        </span>
+                    </h3>
+                </div>
+
+                <div class="card-body p-5">
+                    <div class="row g-5">
+                        <!-- Enrollee Card -->
+                        <div class="col-lg-5">
+                            <div class="card border-success shadow-lg h-100">
+                                <div class="card-body text-center p-4">
+                                    <img src="@(Model.Enrollee?.PhotoPath ?? "/img/icon-192.png")"
+                                         class="rounded-circle shadow mb-4" style="width:150px; height:150px; object-fit:cover; border:6px solid #006400;" />
+                                    <h4 class="fw-bold">@Model.Enrollee?.FullName</h4>
+                                    <p class="mb-1"><strong>ID:</strong> @Model.Enrollee?.EnrollmentNumber</p>
+                                    <p class="mb-1"><strong>HMO:</strong> @Model.Enrollee?.Hmo?.Name</p>
+                                    <p class="mb-0"><strong>State:</strong> @Model.Enrollee?.State</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Provider & Financial -->
+                        <div class="col-lg-7">
+                            <div class="row g-4">
+                                <div class="col-12">
+                                    <div class="card border-info shadow-sm">
+                                        <div class="card-body">
+                                            <h5 class="text-info fw-bold">Provider</h5>
+                                            <p class="mb-0">@Model.Provider?.Name - @Model.Provider?.State</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-6">
+                                    <div class="card bg-primary text-white shadow-lg">
+                                        <div class="card-body text-center py-4">
+                                            <h5>Claim Amount</h5>
+                                            <h2 class="display-5 fw-bold">₦@Model.Amount</h2>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="card @(Model.Status == "Paid" ? "bg-success" : "bg-secondary") text-white shadow-lg">
+                                        <div class="card-body text-center py-4">
+                                            <h5>Status</h5>
+                                            <h4 class="fw-bold">@Model.Status</h4>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="row g-4 mt-4">
+                                <div class="col-12">
+                                    <div class="card shadow-sm">
+                                        <div class="card-body">
+                                            <h5 class="text-success fw-bold">Diagnosis</h5>
+                                            <p class="fs-5">@Model.Diagnosis</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-12">
+                                    <div class="card shadow-sm">
+                                        <div class="card-body">
+                                            <h5 class="text-success fw-bold">Treatment Given</h5>
+                                            <p class="fs-5">@Model.Treatment</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            @if (Model.Status == "Paid")
+                            {
+                                <div class="alert alert-success mt-4">
+                                    <strong>Payment Completed</strong><br>
+                                    Paid By: @Model.PaidBy<br>
+                                    Date Paid: @Model.DatePaid?.ToString("dd MMMM yyyy")<br>
+                                    Reference: @Model.PaymentReference
+                                </div>
+                            }
+
+                            @if (Model.Status == "Rejected")
+                            {
+                                <div class="alert alert-danger mt-4">
+                                    <strong>Claim Rejected</strong><br>
+                                    Reason: @Model.RejectionReason<br>
+                                    Rejected By: @Model.RejectedBy on @Model.DateRejected?.ToString("dd MMM yyyy")
+                                </div>
+                            }
+                        </div>
+                    </div>
+
+                    <hr class="my-5 border-success opacity-75 border-2" />
+
+                    <div class="text-center">
+                        <a asp-action="MyClaims" class="btn btn-secondary btn-lg px-6">
+                            Back 
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Footer -->
+                <div class="bg-dark text-white text-center py-4">
+                    <p class="mb-0 small fw-bold">
+                        CTSHIP • Universal Health Coverage • Federal Republic of Nigeria
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

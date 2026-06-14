@@ -1,0 +1,240 @@
+﻿@model CTSHIPDashboard.ViewModels.ProviderDashboardViewModel
+
+@{
+    ViewData["Title"] = $"{Model.ProviderName} - Provider Dashboard";
+}
+
+<!-- Custom Styles -->
+<style>
+    body {
+        background: linear-gradient(135deg, #f5f7fa 0%, #e4efe9 100%);
+        min-height: 100vh;
+    }
+    .dashboard-card {
+        border: none;
+        border-radius: 16px;
+        box-shadow: 0 10px 30px rgba(0, 100, 0, 0.1);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+        overflow: hidden;
+    }
+    .dashboard-card:hover {
+        transform: translateY(-10px);
+        box-shadow: 0 20px 40px rgba(0, 100, 0, 0.15);
+    }
+    .kpi-card {
+        background: linear-gradient(135deg, var(--bg-start), var(--bg-end));
+        color: white;
+        border-radius: 16px;
+        padding: 2rem;
+        text-align: center;
+        height: 100%;
+    }
+    .kpi-icon {
+        font-size: 3rem;
+        opacity: 0.9;
+        margin-bottom: 1rem;
+    }
+    .section-header {
+        background: linear-gradient(90deg, #006400, #228B22);
+        color: white;
+        border-radius: 16px 16px 0 0;
+        padding: 1.5rem;
+        text-align: center;
+        font-weight: bold;
+    }
+    .table-modern {
+        background: white;
+        border-radius: 0 0 16px 16px;
+        overflow: hidden;
+    }
+    .table-modern thead {
+        background: #f1f8f1;
+    }
+    .doctor-rank {
+        width: 40px;
+        height: 40px;
+        background: #006400;
+        color: white;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+    }
+    .footer-brand {
+        background: linear-gradient(135deg, #003300, #006400);
+        border-radius: 16px;
+        padding: 3rem;
+        color: white;
+    }
+</style>
+
+<div class="container-fluid py-5">
+    <!-- Header -->
+    <div class="text-center mb-5">
+        <h1 class="display-4 fw-bold text-success mb-3">@Model.ProviderName</h1>
+        <p class="lead text-primary fw-bold fs-4">Facility Code: <strong>@Model.ProviderCode</strong></p>
+        <p class="text-muted fs-5">@Model.Level • @Model.State</p>
+    </div>
+
+    <!-- KPI CARDS -->
+    <div class="row g-4 mb-5">
+        <div class="col-xl-3 col-md-6">
+            <div class="dashboard-card kpi-card" style="--bg-start:#006400; --bg-end:#228B22;">
+                <div class="kpi-icon">
+                    <i class="bi bi-people"></i>
+                </div>
+                <h5>Patients</h5>
+                <h2 class="display-5 fw-bold mb-0">@Model.TotalUniqueEnrollees</h2>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="dashboard-card kpi-card" style="--bg-start:#17a2b8; --bg-end:#20c997;">
+                <div class="kpi-icon">
+                    <i class="bi bi-journal-medical"></i>
+                </div>
+                <h5>Total Encounters</h5>
+                <h2 class="display-5 fw-bold mb-0">@Model.TotalEncounters</h2>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="dashboard-card kpi-card" style="--bg-start:#ffc107; --bg-end:#fd7e14;">
+                <div class="kpi-icon">
+                    <i class="bi bi-hourglass-split"></i>
+                </div>
+                <h5>Pending Claims</h5>
+                <h2 class="display-5 fw-bold mb-0">@Model.PendingClaims</h2>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="dashboard-card kpi-card" style="--bg-start:#007bff; --bg-end:#6610f2;">
+                <div class="kpi-icon">
+                    <i class="bi bi-journal"></i>
+                </div>
+                <h5>Claims Value</h5>
+                <h2 class="display-5 fw-bold mb-0">₦@((int)Model.TotalClaimAmount)</h2>
+            </div>
+        </div>
+    </div>
+
+    <!-- TOP DOCTORS & RECENT ENCOUNTERS -->
+    <div class="row g-5 mb-5">
+        <!-- TOP DOCTORS -->
+        <div class="col-lg-6">
+            <div class="dashboard-card">
+                <div class="section-header">
+                    <h3 class="fw-bold mb-0">Top Doctors by Encounters</h3>
+                </div>
+                <div class="card-body p-4">
+                    @if (!Model.TopDoctors.Any())
+                    {
+                        <div class="text-center py-5 text-muted">
+                            <i class="bi bi-person-x fs-1"></i>
+                            <p class="mt-3 fs-5">No doctor activity recorded yet</p>
+                        </div>
+                    }
+                    else
+                    {
+                        <ol class="list-group list-group-numbered">
+                            @foreach (var doc in Model.TopDoctors)
+                            {
+                                <li class="list-group-item d-flex justify-content-between align-items-center py-3 border-0">
+                                    <div class="d-flex align-items-center">
+                                        <div class="doctor-rank me-3">@(Model.TopDoctors.IndexOf(doc) + 1)</div>
+                                        <div>
+                                            <strong class="fs-5">@doc.DoctorName</strong>
+                                            <br><small class="text-muted">@doc.EncounterCount encounters</small>
+                                        </div>
+                                    </div>
+                                    <span class="badge bg-success rounded-pill fs-5 px-4 py-2">
+                                        ₦@((int)doc.TotalAmount)
+                                    </span>
+                                </li>
+                            }
+                        </ol>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <!-- RECENT ENCOUNTERS -->
+        <div class="col-lg-6">
+            <div class="dashboard-card">
+                <div class="section-header">
+                    <h3 class="fw-bold mb-0">Recent Patient Encounters</h3>
+                </div>
+                <div class="table-modern">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Patient</th>
+                                    <th>AttendedBy</th>
+                                    <th>Amount</th>
+                                    <th>Status</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @if (!Model.RecentEncounters.Any())
+                                {
+                                    <tr>
+                                        <td colspan="6" class="text-center py-5 text-muted fs-4">
+                                            No recent encounters
+                                        </td>
+                                    </tr>
+                                }
+                                else
+                                {
+                                    @foreach (var e in Model.RecentEncounters)
+                                    {
+                                        <tr>
+                                            <td>@e.VisitDate</td>
+                                            <td>
+                                                <strong>@e.Enrollee?.FullName</strong><br>
+                                                <small class="text-muted">@e.Enrollee?.EnrollmentNumber</small>
+                                            </td>
+                                            <td>
+                                                <strong>@(string.IsNullOrEmpty(e.SeenBy) ? "—" : e.SeenBy)</strong>
+                                            </td>
+                                            <td class="fw-bold text-success">₦@((int)e.TotalAmount)</td>
+                                            <td>
+                                                @if (e.ClaimId == null)
+                                                {
+                                                    <span class="badge bg-warning px-3 py-2">Not Claimed</span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="badge bg-success px-3 py-2">Claimed</span>
+                                                }
+                                            </td>
+                                            <td>
+                                                @if (e.ClaimId == null)
+                                                {
+                                                    <a asp-action="CreateClaim" asp-route-id="@e.Id"
+                                                       class="btn btn-primary btn-sm rounded-pill px-4">Create Claim</a>
+                                                }
+                                                else
+                                                {
+                                                    <a asp-action="ClaimDetails" asp-route-id="@e.ClaimId"
+                                                       class="btn btn-info btn-sm rounded-pill px-4">View Claim</a>
+                                                }
+                                            </td>
+                                        </tr>
+                                    }
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer-brand">
+        <p class="display-6 fw-bold mb-3">Excellence in Healthcare Delivery</p>
+        <p class="lead mb-0">CTSHIP — Partnering with Providers for Universal Coverage</p>
+    </div>
+</div>

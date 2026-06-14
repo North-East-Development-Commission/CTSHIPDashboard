@@ -1,0 +1,66 @@
+﻿@model CTSHIPDashboard.Models.Enrollee
+
+<div class="container-fluid py-5">
+    <div class="row justify-content-center">
+        <div class="col-12 col-md-8 col-lg-6">
+            <div class="card border-0 shadow-lg rounded-4">
+                <div class="card-header bg-danger text-white text-center py-5">
+                    <h2 class="fw-bold mb-0">DELETE ENROLLEE</h2>
+                </div>
+
+                <div class="card-body p-5 text-center">
+                    <div class="text-center mb-4">
+                        <img src="@(Model.PhotoPath ?? "/img/default-avatar.png")"
+                             class="rounded-circle shadow" style="width:150px;height:150px;object-fit:cover;" />
+                    </div>
+
+                    <h4 class="fw-bold text-danger">@Model.FullName</h4>
+                    <p><strong>ID:</strong> @Model.EnrollmentNumber</p>
+                    <p><strong>HMO:</strong> @Model.Hmo?.Name</p>
+                    <p><strong>State:</strong> @Model.State</p>
+
+                    @if (ViewBag.HasEncounters || ViewBag.HasClaims)
+                    {
+                        <div class="alert alert-warning mt-4">
+                            <i class="bi bi-exclamation-triangle-fill fs-3"></i><br><br>
+                            <strong>CANNOT DELETE</strong><br>
+                            This enrollee has:
+                            <ul class="list-unstyled mt-3">
+                                @if (ViewBag.HasEncounters)
+                                {
+                                    <li>Encounters (clinical records)</li>
+                                }
+                                @if (ViewBag.HasClaims)
+                                {
+                                    <li>Submitted claims</li>
+                                }
+                            </ul>
+                            <p class="mb-0">Please delete those records first.</p>
+                        </div>
+
+                        <a asp-action="Index" class="btn btn-secondary btn-lg px-5">Back to List</a>
+                    }
+                    else
+                    {
+                        <p class="lead text-danger fw-bold">This action cannot be undone.</p>
+
+                        <form asp-action="Delete" method="post" class="d-inline">
+                            @Html.AntiForgeryToken()
+                            <input type="hidden" asp-for="Id" />
+                            <button type="submit" class="btn btn-danger btn-lg px-6 shadow-lg">
+                                YES, DELETE PERMANENTLY
+                            </button>
+                        </form>
+                        <a asp-action="Index" class="btn btn-secondary btn-lg px-5 ms-3">
+                            Cancel
+                        </a>
+                    }
+                </div>
+
+                <div class="bg-dark text-white text-center py-3">
+                    <small>CTHIP • Universal Health Coverage • Federal Republic of Nigeria</small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

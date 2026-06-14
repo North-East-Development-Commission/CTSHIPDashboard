@@ -1,0 +1,33 @@
+﻿@using Microsoft.AspNetCore.Identity
+@model IdentityRole
+
+<div class="container-fluid py-5">
+    <div class="row justify-content-center">
+        <div class="col-12 col-lg-8">
+            <div class="card border-0 shadow-lg rounded-4">
+                <div class="bg-info text-white text-center py-5">
+                    <h1 class="display-5 fw-bold mb-2">@Model.Name</h1>
+                    <p class="lead mb-0">System Role</p>
+                </div>
+                <div class="card-body p-5">
+                    <dl class="row">
+                        <dt class="col-sm-4 fw-bold">Role Name</dt>
+                        <dd class="col-sm-8">@Model.Name</dd>
+
+                        <dt class="col-sm-4 fw-bold">Normalized Name</dt>
+                        <dd class="col-sm-8"><code>@Model.NormalizedName</code></dd>
+
+                        <dt class="col-sm-4 fw-bold">Role ID</dt>
+                        <dd class="col-sm-8"><small>@Model.Id</small></dd>
+                    </dl>
+
+                    <div class="text-center mt-5">
+                        <a asp-action="Index" class="btn btn-secondary btn-lg px-6">
+                            Back to Roles
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,147 @@
+﻿@model Enrollee
+@{
+    ViewData["Title"] = "Enrollee Details";
+}
+
+<div class="container-fluid py-5">
+    <div class="row justify-content-center">
+        <div class="col-xl-10">
+            <!-- Header Card -->
+            <div class="card border-0 shadow-lg mb-4" style="border-radius: 30px; overflow:hidden;">
+                <div class="bg-success text-white py-5 text-center">
+                    <h1 class="display-5 fw-bold mb-3">@Model.FullName</h1>
+                    <p class="lead mb-0 opacity-90">CTSHIP Digital Health Record • Federal Republic of Nigeria</p>
+                </div>
+            </div>
+
+            <div class="row g-4">
+                <!-- Profile Card -->
+                <div class="col-lg-4">
+                    <div class="card border-0 shadow-lg h-100" style="border-radius: 25px;">
+                        <div class="card-body text-center p-5">
+                            @if (!string.IsNullOrEmpty(Model.PhotoPath))
+                            {
+                                <img src="@Model.PhotoPath" alt="@Model.FullName"
+                                     class="rounded-circle mb-4 shadow" style="width:180px; height:180px; object-fit:cover; border:6px solid #006400;" />
+                            }
+                            else
+                            {
+                                <div class="bg-success rounded-circle d-flex align-items-center justify-content-center text-white mb-4 shadow"
+                                     style="width:180px; height:180px; margin:0 auto; font-size:4rem; border:6px solid #006400;">
+                                    @(Model.FullName.Length > 0 ? Model.FullName.Split(' ')[0][0] : "?")
+                                </div>
+                            }
+
+                            <h3 class="fw-bold text-success">@Model.EnrollmentNumber</h3>
+                            <p class="text-muted mb-3">Enrollment ID</p>
+
+                            <div class="d-grid gap-2 mb-4">
+                                <a asp-action="Card" asp-route-id="@Model.Id" target="_blank"
+                                   class="btn btn-success btn-lg shadow">
+                                    View Digital Card
+                                </a>
+                            </div>
+
+                            <!-- Quick Stats -->
+                            <div class="row text-center mt-4">
+                                <div class="col-6 border-end">
+                                    <h4 class="text-success fw-bold">@ViewBag.TotalClaims</h4>
+                                    <small class="text-muted">Total Claims</small>
+                                </div>
+                                <div class="col-6">
+                                    <h4 class="text-success fw-bold">@ViewBag.PaidClaims</h4>
+                                    <small class="text-muted">Paid Claims</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Details Card -->
+                <div class="col-lg-8">
+                    <div class="card border-0 shadow-lg h-100" style="border-radius: 25px;">
+                        <div class="card-header bg-success text-white py-4">
+                            <h4 class="mb-0 fw-bold">Personal & Coverage Information</h4>
+                        </div>
+                        <div class="card-body p-5">
+                            <div class="row g-4">
+                                <div class="col-md-6">
+                                    <p class="text-muted mb-1">Full Name</p>
+                                    <h5 class="fw-bold">@Model.FullName</h5>
+                                </div>
+                                <div class="col-md-6">
+                                    <p class="text-muted mb-1">Gender</p>
+                                    <h5 class="fw-bold">@Model.Gender</h5>
+                                </div>
+                                <div class="col-md-6">
+                                    <p class="text-muted mb-1">Date of Birth</p>
+                                    <h5 class="fw-bold">@Model.DateOfBirth.ToString("MMM dd, yyyy")</h5>
+                                    <small class="text-muted">Age: @((DateTime.Now - Model.DateOfBirth).Days / 365) years</small>
+                                </div>
+                                <div class="col-md-6">
+                                    <p class="text-muted mb-1">Phone Number</p>
+                                    <h5 class="fw-bold">@Model.Phone</h5>
+                                </div>
+                                <div class="col-md-6">
+                                    <p class="text-muted mb-1">State of Residence</p>
+                                    <h5 class="fw-bold">@Model.State</h5>
+                                </div>
+                                <div class="col-md-6">
+                                    <p class="text-muted mb-1">NIN</p>
+                                    <h5 class="fw-bold">@Model.NIN</h5>
+                                </div>
+                                <div class="col-md-6">
+                                    <p class="text-muted mb-1">Local Government Area</p>
+                                    <h5 class="fw-bold">@Model.LGA</h5>
+                                </div>
+                                <div class="col-md-6">
+                                    <p class="text-muted mb-1">Ward</p>
+                                    <h5 class="fw-bold">@Model.Ward</h5>
+                                </div>
+                                <div class="col-6">
+                                    <p class="text-muted mb-1">Residential Address</p>
+                                    <h5 class="fw-bold">@Model.Address</h5>
+                                </div>
+                                <div class="col-6">
+                                    <p class="text-muted mb-1">Provider</p>
+                                    <h5 class="fw-bold">@(Model.provider?.Name ?? "Not Assigned")</h5>
+                                </div>
+                                <div class="col-md-6">
+                                    <p class="text-muted mb-1">Health Maintenance Organization</p>
+                                    <h5 class="fw-bold text-success">@(Model.Hmo?.Name ?? "Not Assigned")</h5>
+                                </div>
+                                <div class="col-md-6">
+                                    <p class="text-muted mb-1">Status</p>
+                                    <span class="badge @(Model.Status == "Active" ? "bg-success" : "bg-danger") fs-5 px-4 py-2">
+                                        @Model.Status
+                                    </span>
+                                </div>
+                                <div class="col-md-6">
+                                    <p class="text-muted mb-1">Date Registered</p>
+                                    <h5 class="fw-bold">@Model.DateRegistered</h5>
+                                </div>
+                                <div class="col-md-6">
+                                    <p class="text-muted mb-1">Registered By</p>
+                                    <h5 class="fw-bold">@Model.RegisteredBy</h5>
+                                </div>
+                            </div>
+
+                            <hr class="my-5 border-success" />
+
+                            <div class="text-center">
+                                <a asp-action="EditEnrollee" asp-route-id="@Model.Id" class="btn btn-warning btn-lg px-5 shadow me-3">
+                                    Edit Profile
+                                </a>
+                                <a asp-action="EnrolleeDashboard" class="btn btn-secondary btn-lg px-5">
+                                    Back to List
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+
+        </div>
+    </div>
+</div>

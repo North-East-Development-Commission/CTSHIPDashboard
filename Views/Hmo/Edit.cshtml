@@ -1,0 +1,68 @@
+﻿@model CTSHIPDashboard.Models.Hmo
+@{
+    ViewData["Title"] = "Edit HMO - " + Model.Name;
+}
+
+<div class="container-fluid py-4 py-md-5">
+    <div class="row justify-content-center">
+        <div class="col-12 col-lg-8">
+            <div class="card border-0 shadow-lg rounded-4">
+                <div class="bg-warning text-dark text-center py-5">
+                    <h1 class="display-5 fw-bold mb-2">EDIT HMO</h1>
+                    <p class="lead mb-0">Code: <strong class="text-primary">@Model.RegistrationNumber</strong></p>
+                </div>
+
+                <div class="card-body p-5">
+                    <form asp-action="Edit" method="post">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" asp-for="Id" />
+                        <input type="hidden" asp-for="RegistrationNumber" />
+
+                        <div class="row g-4">
+                            <div class="col-12">
+                                <label asp-for="Name" class="form-label text-success fw-bold fs-5">HMO Name</label>
+                                <input asp-for="Name" class="form-control form-control-lg rounded-3" required />
+                            </div>
+
+                            <div class="col-md-6">
+                                <label asp-for="Email" class="form-label text-success fw-bold fs-5">Email</label>
+                                <input asp-for="Email" type="email" class="form-control form-control-lg rounded-3" />
+                            </div>
+
+                            <div class="col-md-6">
+                                <label asp-for="Phone" class="form-label text-success fw-bold fs-5">Phone</label>
+                                <input asp-for="Phone" class="form-control form-control-lg rounded-3" />
+                            </div>
+
+                            <div class="col-12">
+                                <label asp-for="Address" class="form-label text-success fw-bold fs-5">Address</label>
+                                <textarea asp-for="Address" class="form-control form-control-lg rounded-3" rows="3"></textarea>
+                            </div>
+
+                            <div class="col-12">
+                                <div class="form-check form-switch">
+                                    <input asp-for="Status" class="form-check-input" type="checkbox" />
+                                    <label asp-for="Status" class="form-check-label text-success fw-bold fs-5">
+                                        Active HMO (Can receive enrollees)
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="text-center mt-5 pt-4 border-top">
+                            <button type="submit" class="btn btn-success btn-lg px-7 shadow-lg fw-bold fs-4">
+                                UPDATE HMO
+                            </button>
+                            <a asp-action="Details" asp-route-id="@Model.Id" class="btn btn-info btn-lg px-6 ms-3">
+                                View Details
+                            </a>
+                            <a asp-action="Index" class="btn btn-secondary btn-lg px-6 ms-3">
+                                Back
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

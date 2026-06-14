@@ -1,0 +1,42 @@
+﻿@model CTSHIPDashboard.Models.NewsUpdate
+@{
+    ViewData["Title"] = "Add News Update";
+}
+
+<div class="container-fluid">
+    <div class="card border-0 shadow-sm">
+        <div class="card-header bg-success text-white">
+            <h5 class="mb-0"><i class="bi bi-newspaper"></i> Add New Update</h5>
+        </div>
+        <div class="card-body">
+            <form asp-action="AddNews" method="post">
+                <div class="form-group mb-3">
+                    <label asp-for="Title" class="form-label text-success fw-bold"></label>
+                    <input asp-for="Title" class="form-control border-success" placeholder="Enter news title" />
+                    <span asp-validation-for="Title" class="text-danger"></span>
+                </div>
+
+                <div class="form-group mb-3">
+                    <label asp-for="Content" class="form-label text-success fw-bold"></label>
+                    <textarea asp-for="Content" class="form-control border-success" rows="5" placeholder="Write the news content..."></textarea>
+                    <span asp-validation-for="Content" class="text-danger"></span>
+                </div>
+
+                <div class="form-group mb-3">
+                    <label asp-for="Date" class="form-label text-success fw-bold"></label>
+                    <input asp-for="Date" type="date" class="form-control border-success" />
+                    <span asp-validation-for="Date" class="text-danger"></span>
+                </div>
+
+                <div class="d-flex justify-content-end">
+                    <button type="submit" class="btn btn-success me-2">
+                        <i class="bi bi-save"></i> Publish News
+                    </button>
+                    <a asp-action="Index" class="btn btn-outline-secondary">
+                        <i class="bi bi-arrow-left"></i> Cancel
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

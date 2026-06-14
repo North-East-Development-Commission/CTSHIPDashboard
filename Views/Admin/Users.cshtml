@@ -1,0 +1,77 @@
+﻿@model List<UserViewModel>
+
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="text-success fw-bold display-6">User Management Directory</h2>
+        <a asp-action="CreateUser" class="btn btn-success btn-lg shadow">
+            Register New User
+        </a>
+    </div>
+
+    <!-- Search -->
+    <form asp-action="Users" method="get" class="mb-4">
+        <div class="input-group">
+            <input type="text" name="search" value="@ViewBag.Search" class="form-control form-control-lg" placeholder="Search by name or email..." />
+            <button class="btn btn-success btn-lg">Search</button>
+        </div>
+    </form>
+
+    <div class="table-responsive">
+        <table class="table table-hover align-middle shadow-sm">
+            <thead class="bg-success text-white">
+                <tr>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Organization</th>
+                    <th>Roles</th>
+                    <th>State</th>
+                    <th>Phone</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var user in Model)
+                {
+                    <tr>
+                        <td><strong>@user.FullName</strong></td>
+                        <td>@user.Email</td>
+                        <td>
+                            @if (user.organization != null)
+                            {
+                                @user.organization.Name
+                            }
+                            else
+                            {
+                                <span class="text-muted">No Organization</span>
+                            }
+                        </td>
+                        <td>
+                            @if (user.Roles.Any())
+                            {
+                                foreach (var role in user.Roles)
+                                {
+                                    <span class="badge bg-primary me-1">@role</span>
+                                }
+                            }
+                            else
+                            {
+                                <span class="text-muted">No role</span>
+                            }
+                        </td>
+                        <td>@(user.State ?? "-")</td>
+                        <td>@(user.ContactInfo ?? "-")</td>
+                        <td>
+                            <a asp-action="AssignRole" asp-route-id="@user.Id" class="btn btn-warning btn-sm">Roles</a>
+                        </td>
+                        <td>
+                            <a asp-action="EditUser" asp-route-id="@user.Id" class="btn btn-success btn-sm">Edit</a>
+                        </td>
+                        <td>
+                            <a asp-action="DeleteUser" asp-route-id="@user.Id" class="btn btn-danger btn-sm">Delete</a>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

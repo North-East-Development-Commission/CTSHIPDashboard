@@ -1,0 +1,170 @@
+﻿@using CTSHIPDashboard.Models.ViewModels
+@model List<ProviderListViewModel>
+@{
+    ViewData["Title"] = "Healthcare Providers Directory";
+}
+
+<div class="container-fluid py-5">
+    <!-- Header -->
+    <div class="row align-items-center mb-5">
+        <div class="col">
+            <h1 class="display-5 text-success fw-bold mb-2">
+                Healthcare Providers Directory
+            </h1>
+            <p class="lead text-muted">
+                All accredited hospitals & clinics under CTHIP • North East Development Commission
+            </p>
+        </div>
+        <div class="col-auto">
+            <a asp-action="Create" class="btn btn-success btn-lg shadow-lg px-5">
+                Add New Provider
+            </a>
+        </div>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="row g-4 mb-5">
+        <div class="col-md-3">
+            <div class="card border-0 shadow-lg text-white bg-success">
+                <div class="card-body text-center py-4">
+                    <h3 class="fw-bold">@ViewBag.TotalProviders</h3>
+                    <p class="mb-0">Total Providers</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-lg text-white" style="background: #006400;">
+                <div class="card-body text-center py-4">
+                    <h3 class="fw-bold">@ViewBag.ActiveProviders</h3>
+                    <p class="mb-0">Active Facilities</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-lg text-white bg-primary">
+                <div class="card-body text-center py-4">
+                    <h3 class="fw-bold">@ViewBag.TotalEnrollees</h3>
+                    <p class="mb-0">Enrollees Served</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-lg text-white bg-warning">
+                <div class="card-body text-center py-4">
+                    <h3 class="fw-bold">@ViewBag.TotalEncounters</h3>
+                    <p class="mb-0">Patient Visits</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <form asp-action="Index" method="get" class="mb-4">
+        <div class="row g-3 align-items-end">
+            <div class="col-md-4">
+                <input type="text" name="search" value="@ViewBag.Search" class="form-control form-control-lg"
+                       placeholder="Search by name or code..." />
+            </div>
+            <div class="col-md-2">
+                <select name="state" class="form-select form-select-lg" asp-items="ViewBag.States">
+                </select>
+            </div>
+            <div class="col-md-2">
+                <select name="level" class="form-select form-select-lg" asp-items="ViewBag.Levels">
+                </select>
+            </div>
+            <div class="col-md-2">
+                <select name="status" class="form-select form-select-lg">
+                    <option value="all">All Status</option>
+                    <option value="active" selected="@(ViewBag.Status == "active")">Active Only</option>
+                    <option value="inactive" selected="@(ViewBag.Status == "inactive")">Inactive Only</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-success btn-lg w-100 shadow">
+                    Filter
+                </button>
+            </div>
+        </div>
+    </form>
+
+    <!-- Providers Table -->
+    <div class="card border-0 shadow-lg">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="bg-success text-white">
+                    <tr>
+                        <th>Code</th>
+                        <th>Hospital / Clinic</th>
+                        <th>State</th>
+                        <th>Level</th>
+                        <th>Visits</th>
+                        <th>Enrollees</th>
+                        <th>Claims</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var p in Model)
+                    {
+                        <tr>
+                            <td><span class="badge bg-dark">@p.Code</span></td>
+                            <td><strong>@p.Name</strong></td>
+                            <td>@p.State</td>
+                            <td>
+                                <span class="badge bg-danger">@p.Level</span>
+                            </td>
+                            <td class="text-center fw-bold text-primary">@p.EnrolleeCount</td>
+                            <td class="text-center fw-bold text-info">@p.EncounterCount</td>
+                            <td class="text-center fw-bold text-warning">@p.ClaimCount</td>
+                            <td>
+                                <span class="badge @(p.IsActive ? "bg-success" : "bg-danger")">
+                                    @(p.IsActive ? "Active" : "Inactive")
+                                </span>
+                            </td>
+                            <td>
+                                <a asp-action="Details" asp-route-id="@p.Id" class="btn btn-info btn-sm">View</a>
+                                <a asp-action="Edit" asp-route-id="@p.Id" class="btn btn-warning btn-sm">Edit</a>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        <div class="card-footer bg-light">
+            <nav>
+                <ul class="pagination justify-content-center mb-0">
+                    <li class="page-item @(ViewBag.CurrentPage == 1 ? "disabled" : "")">
+                        <a class="page-link" asp-action="Index"
+                           asp-all-route-data="@(new Dictionary<string, string> {
+                                                          {"search", ViewBag.Search}, {"state", ViewBag.State},
+                                                          {"level", ViewBag.Level}, {"status", ViewBag.Status},
+                                                          {"page", (ViewBag.CurrentPage - 1).ToString()} })">Previous</a>
+                    </li>
+                    @for (int i = 1; i <= ViewBag.TotalPages; i++)
+                    {
+                        <li class="page-item @(i == ViewBag.CurrentPage ? "active" : "")">
+                            <a class="page-link" asp-action="Index"
+                               asp-all-route-data="@(new Dictionary<string, string> {
+                                                              {"search", ViewBag.Search}, {"state", ViewBag.State},
+                                                              {"level", ViewBag.Level}, {"status", ViewBag.Status},
+                                                              {"page", i.ToString()} })">@i</a>
+                    </li>
+                                        }
+                    <li class="page-item @(ViewBag.CurrentPage == ViewBag.TotalPages ? "disabled" : "")">
+                        <a class="page-link" asp-action="Index"
+                           asp-all-route-data="@(new Dictionary<string, string> {
+                                                          {"search", ViewBag.Search}, {"state", ViewBag.State},
+                                                          {"level", ViewBag.Level}, {"status", ViewBag.Status},
+                                                          {"page", (ViewBag.CurrentPage + 1).ToString()} })">Next</a>
+                    </li>
+                </ul>
+            </nav>
+        </div>
+    </div>
+</div>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />

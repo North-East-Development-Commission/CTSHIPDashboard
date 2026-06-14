@@ -1,0 +1,192 @@
+﻿@using CTSHIPDashboard.Models.ViewModels
+@model List<EnrolleeListViewModel>
+
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="text-success fw-bold display-6">Enrollee Directory</h2>
+        <a asp-action="Create" class="btn btn-success btn-lg shadow">
+            Register New Enrollee
+        </a>
+    </div>
+
+    <!-- Search & Filter -->
+    <form asp-action="Index" method="get" class="row g-3 mb-4">
+        <div class="col-lg-4">
+            <input type="text" name="search" value="@ViewBag.Search"
+                   class="form-control form-control-lg" placeholder="Search name, phone, NIN, enrollment..." />
+        </div>
+        <div class="col-lg-2">
+            <select name="status" class="form-select form-select-lg" asp-items="ViewBag.StatusList">
+                <option value="">All Status</option>
+            </select>
+        </div>
+        <div class="col-lg-2">
+            <select name="state" class="form-select form-select-lg" asp-items="ViewBag.StateList">
+                <option value="">All States</option>
+            </select>
+        </div>
+        <div class="col-lg-2">
+            <select name="hmo" class="form-select form-select-lg" asp-items="ViewBag.HmoList">
+                <option value="">All HMOs</option>
+            </select>
+        </div>
+        <div class="col-lg-2">
+            <button type="submit" class="btn btn-success btn-lg w-100">
+                Filter
+            </button>
+        </div>
+    </form>
+
+    <!-- Stats -->
+    <div class="alert alert-success text-center fw-bold fs-5 mb-4">
+        Total Enrollees: @ViewBag.TotalRecords |
+        Showing Page @ViewBag.CurrentPage of @ViewBag.TotalPages
+    </div>
+
+    <!-- Table -->
+    <div class="card shadow-lg border-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-4">
+                <thead class="bg-success text-white">
+                    <tr>
+                        <th>Photo</th>
+                        <th>Name</th>
+                        <th>Enrollment ID</th>
+                        <th>Gender</th>
+                        <th>Phone</th>
+                        <th>State</th>
+                        <th>NIN</th>
+                        <th>HMO</th>
+                        <th>Status</th>
+                        <th>Registered</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var e in Model)
+                    {
+                        <tr>
+                            <td>
+                                @if (!string.IsNullOrEmpty(e.PhotoPath))
+                                {
+                                    <img src="@e.PhotoPath" class="rounded-circle" style="width:50px;height:50px;object-fit:cover;" />
+                                }
+                                else
+                                {
+                                    <div class="bg-secondary rounded-circle d-flex align-items-center justify-content-center text-white fw-bold"
+                                         style="width:50px;height:50px;">
+                                        @(e.FullName.Length > 0 ? e.FullName[0].ToString().ToUpper() : "?")
+                                    </div>
+                                }
+                            </td>
+                            <td><strong>@e.FullName</strong></td>
+                            <td><span class="badge bg-primary fs-6">@e.EnrollmentNumber</span></td>
+                            <td>@e.Gender</td>
+                            <td>@e.Phone</td>
+                            <td>@e.State</td>
+                            <td>@e.NIN</td>
+                            <td><strong>@e.HmoName</strong></td>
+                            <td>
+                                <span class="badge @(e.Status == "Active" ? "bg-success" : "bg-danger")">
+                                    @e.Status
+                                </span>
+                            </td>
+                            <td>@e.DateRegistered.ToString("MMM dd, yyyy")</td>
+                            <td>
+                                <a asp-action="Details" asp-route-id="@e.Id" class="btn btn-info btn-sm">View</a>
+                                <a asp-action="Edit" asp-route-id="@e.Id" class="btn btn-warning btn-sm">Edit</a>
+                                <a asp-action="Delete" asp-route-id="@e.Id" class="btn btn-danger btn-sm">Delete</a>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+            
+        </div>
+
+        <!-- Pagination -->
+        @if (ViewBag.TotalPages > 1)
+        {
+            <nav class="mt-5">
+                <ul class="pagination justify-content-center flex-wrap">
+
+                    <!-- Previous Button -->
+                    <li class="page-item @(ViewBag.CurrentPage == 1 ? "disabled" : "")">
+                        <a class="page-link rounded-start-3"
+                           asp-action="Index"
+                           asp-route-search="@ViewBag.Search"
+                           asp-route-status="@ViewBag.Status"
+                           asp-route-page="@(ViewBag.CurrentPage - 1)"
+                           tabindex="@(ViewBag.CurrentPage == 1 ? "-1" : null)">
+                            Previous
+                        </a>
+                    </li>
+
+                    <!-- First Page -->
+                    @if (ViewBag.CurrentPage > 4)
+                    {
+                        <li class="page-item">
+                            <a class="page-link"
+                               asp-action="Index"
+                               asp-route-search="@ViewBag.Search"
+                               asp-route-status="@ViewBag.Status"
+                               asp-route-page="1">1</a>
+                        </li>
+                        @if (ViewBag.CurrentPage > 5)
+                        {
+                            <li class="page-item disabled"><span class="page-link">...</span></li>
+                        }
+                    }
+
+                    <!-- Page Numbers Around Current -->
+                    @{
+                        int start = Math.Max(1, ViewBag.CurrentPage - 2);
+                        int end = Math.Min(ViewBag.TotalPages, ViewBag.CurrentPage + 2);
+                    }
+
+                    @for (int i = start; i <= end; i++)
+                    {
+                        <li class="page-item @(i == ViewBag.CurrentPage ? "active" : "")">
+                            <a class="page-link"
+                               asp-action="Index"
+                               asp-route-search="@ViewBag.Search"
+                               asp-route-status="@ViewBag.Status"
+                               asp-route-page="@i">@i</a>
+                        </li>
+                    }
+
+                    <!-- Last Page -->
+                    @if (ViewBag.CurrentPage < ViewBag.TotalPages - 3)
+                    {
+                        @if (ViewBag.CurrentPage < ViewBag.TotalPages - 4)
+                        {
+                            <li class="page-item disabled"><span class="page-link">...</span></li>
+                        }
+                        <li class="page-item">
+                            <a class="page-link"
+                               asp-action="Index"
+                               asp-route-search="@ViewBag.Search"
+                               asp-route-status="@ViewBag.Status"
+                               asp-route-page="@ViewBag.TotalPages">
+                                @ViewBag.TotalPages
+                            </a>
+                        </li>
+                    }
+
+                    <!-- Next Button -->
+                    <li class="page-item @(ViewBag.CurrentPage == ViewBag.TotalPages ? "disabled" : "")">
+                        <a class="page-link rounded-end-3"
+                           asp-action="Index"
+                           asp-route-search="@ViewBag.Search"
+                           asp-route-status="@ViewBag.Status"
+                           asp-route-page="@(ViewBag.CurrentPage + 1)"
+                           tabindex="@(ViewBag.CurrentPage == ViewBag.TotalPages ? "-1" : null)">
+                            Next
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+        }
+       
+    </div>
+</div>

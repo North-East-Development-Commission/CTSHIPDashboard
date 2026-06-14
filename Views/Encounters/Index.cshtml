@@ -1,0 +1,195 @@
+﻿@model IEnumerable<CTSHIPDashboard.Models.Encounter>
+
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="display-5 text-success fw-bold mb-0">Patient Encounters</h1>
+            <p class="text-muted mb-0">
+                Total: <strong>@ViewBag.TotalItems</strong> |
+                Showing @(((ViewBag.CurrentPage - 1) * 20) + 1) -
+                @Math.Min(ViewBag.CurrentPage * 20, ViewBag.TotalItems) of @ViewBag.TotalItems
+            </p>
+        </div>
+        <a asp-action="Create" class="btn btn-success btn-lg shadow-lg">
+            New Encounter
+        </a>
+    </div>
+
+    <!-- Search & Filter -->
+    <form asp-action="Index" method="get" class="mb-4">
+        <div class="row g-3 align-items-end">
+            <div class="col-md-5">
+                <input type="text" name="search" value="@ViewBag.Search"
+                       class="form-control form-control-lg rounded-3"
+                       placeholder="Search by name, ID, or encounter number..." />
+            </div>
+            <div class="col-md-4">
+                <select name="status" class="form-select form-select-lg rounded-3">
+                    <option value="All">All Status</option>
+                    <option value="Completed" selected="@(ViewBag.Status == "Completed")">Completed</option>
+                    <option value="Pending" selected="@(ViewBag.Status == "Pending")">Pending</option>
+                    <option value="Claimed" selected="@(ViewBag.Status == "Claimed")">Claimed</option>
+                    <option value="Cancelled" selected="@(ViewBag.Status == "Cancelled")">Cancelled</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <button type="submit" class="btn btn-success btn-lg w-100 rounded-3">
+                    Apply Filters
+                </button>
+            </div>
+        </div>
+    </form>
+
+    <!-- Encounters Table -->
+    <div class="table-responsive">
+        <table class="table table-hover align-middle">
+            <thead class="bg-success text-white">
+                <tr>
+                    <th>Encounter #</th>
+                    <th>Enrollee</th>
+                    <th>Provider</th>
+                    <th>Date</th>
+                    <th>Amount</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (!Model.Any())
+                {
+                    <tr>
+                        <td colspan="7" class="text-center py-5 text-muted">
+                            <i class="bi bi-inbox fs-1"></i>
+                            <p class="mt-3 fs-4">No encounters found</p>
+                        </td>
+                    </tr>
+                }
+                else
+                {
+                    @foreach (var e in Model)
+                    {
+                        <tr>
+                            <td><strong class="text-primary">@e.EncounterNumber</strong></td>
+                            <td>
+                                <strong>@e.Enrollee?.FullName</strong><br>
+                                <small class="text-muted">
+                                    @e.Enrollee?.EnrollmentNumber<br>
+                                    <span class="badge bg-info">@e.Enrollee?.Hmo?.Name</span>
+                                </small>
+                            </td>
+                            <td>@e.Provider?.Name</td>
+                            <td>@e.VisitDate</td>
+                            <td class="fw-bold text-success">₦@((int)e.TotalAmount)</td>
+                            <td>
+                                <span class="badge px-4 py-2 fs-6
+                                            @(e.Status == "Completed" ? "bg-success" :
+                                                                            e.Status == "Pending" ? "bg-warning text-dark" :
+                                                                            e.Status == "Claimed" ? "bg-primary" :
+                                                                            e.Status == "Cancelled" ? "bg-danger" :
+                                                                            "bg-secondary")">
+                            @e.Status
+                        </span>
+                    </td>
+                    <td>
+                        <a asp-action="Details" asp-route-id="@e.Id" class="btn btn-info btn-sm">View</a>
+                        <a asp-action="Edit" asp-route-id="@e.Id" class="btn btn-warning btn-sm">Edit</a>
+                        @if (e.ClaimId == null && e.Status != "Cancelled")
+                                {
+                                    <a asp-action="CreateClaim" asp-route-id="@e.Id" class="btn btn-primary btn-sm">Create Claim</a>
+                                }
+                                else if (e.ClaimId != null)
+                                {
+                                    <span class="badge bg-success">Claimed</span>
+                                }
+                                <a asp-action="Delete" asp-route-id="@e.Id" class="btn btn-danger btn-sm">Delete</a>
+                            </td>
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+        </div>
+    <!-- PAGINATION -->
+    @if (ViewBag.TotalPages > 1)
+    {
+        <nav class="mt-5">
+            <ul class="pagination justify-content-center flex-wrap">
+
+                <!-- Previous Button -->
+                <li class="page-item @(ViewBag.CurrentPage == 1 ? "disabled" : "")">
+                    <a class="page-link rounded-start-3"
+                       asp-action="Index"
+                       asp-route-search="@ViewBag.Search"
+                       asp-route-status="@ViewBag.Status"
+                       asp-route-page="@(ViewBag.CurrentPage - 1)"
+                       tabindex="@(ViewBag.CurrentPage == 1 ? "-1" : null)">
+                        Previous
+                    </a>
+                </li>
+
+                <!-- First Page -->
+                @if (ViewBag.CurrentPage > 4)
+                {
+                    <li class="page-item">
+                        <a class="page-link"
+                           asp-action="Index"
+                           asp-route-search="@ViewBag.Search"
+                           asp-route-status="@ViewBag.Status"
+                           asp-route-page="1">1</a>
+                    </li>
+                    @if (ViewBag.CurrentPage > 5)
+                    {
+                        <li class="page-item disabled"><span class="page-link">...</span></li>
+                    }
+                }
+
+                <!-- Page Numbers Around Current -->
+                @{
+                    int start = Math.Max(1, ViewBag.CurrentPage - 2);
+                    int end = Math.Min(ViewBag.TotalPages, ViewBag.CurrentPage + 2);
+                }
+
+                @for (int i = start; i <= end; i++)
+                {
+                    <li class="page-item @(i == ViewBag.CurrentPage ? "active" : "")">
+                        <a class="page-link"
+                           asp-action="Index"
+                           asp-route-search="@ViewBag.Search"
+                           asp-route-status="@ViewBag.Status"
+                           asp-route-page="@i">@i</a>
+                    </li>
+                }
+
+                <!-- Last Page -->
+                @if (ViewBag.CurrentPage < ViewBag.TotalPages - 3)
+                {
+                    @if (ViewBag.CurrentPage < ViewBag.TotalPages - 4)
+                    {
+                        <li class="page-item disabled"><span class="page-link">...</span></li>
+                    }
+                    <li class="page-item">
+                        <a class="page-link"
+                           asp-action="Index"
+                           asp-route-search="@ViewBag.Search"
+                           asp-route-status="@ViewBag.Status"
+                           asp-route-page="@ViewBag.TotalPages">
+                            @ViewBag.TotalPages
+                        </a>
+                    </li>
+                }
+
+                <!-- Next Button -->
+                <li class="page-item @(ViewBag.CurrentPage == ViewBag.TotalPages ? "disabled" : "")">
+                    <a class="page-link rounded-end-3"
+                       asp-action="Index"
+                       asp-route-search="@ViewBag.Search"
+                       asp-route-status="@ViewBag.Status"
+                       asp-route-page="@(ViewBag.CurrentPage + 1)"
+                       tabindex="@(ViewBag.CurrentPage == ViewBag.TotalPages ? "-1" : null)">
+                        Next
+                    </a>
+                </li>
+            </ul>
+        </nav>
+    }
+</div>

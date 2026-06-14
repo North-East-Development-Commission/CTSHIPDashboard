@@ -1,0 +1,199 @@
+﻿@model CTSHIPDashboard.Models.Enrollee
+
+@{
+    ViewData["Title"] = "Edit Enrollee - " + Model.EnrollmentNumber;
+}
+
+<div class="container-fluid py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <div class="card border-0 shadow-lg" style="border-radius: 25px; overflow: hidden;">
+                <!-- Header -->
+                <div class="bg-success text-white py-4 px-5 text-center">
+                    <h2 class="mb-2 fw-bold">Edit Enrollee Profile</h2>
+                    <h4 class="mb-0">
+                        Enrollment Number:
+                        <span class="badge bg-white text-success fs-4 px-4 py-2">@Model.EnrollmentNumber</span>
+                    </h4>
+                </div>
+
+                <div class="card-body p-5">
+                    <form asp-action="Edit" method="post" enctype="multipart/form-data">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" asp-for="Id" />
+                        <input type="hidden" asp-for="EnrollmentNumber" />
+                        <input type="hidden" asp-for="DateRegistered" />
+
+                        <div class="row g-5">
+                            <!-- Photo Section -->
+                            <div class="col-md-4 text-center">
+                                <div class="position-relative">
+                                    <img src="@(Model.PhotoPath ?? "/images/default-avatar.png")"
+                                         id="photoPreview"
+                                         class="img-fluid rounded shadow-lg mb-4"
+                                         style="width: 280px; height: 320px; object-fit: cover; border: 8px solid #006400;"
+                                         alt="@Model.FullName" />
+
+                                    <div class="position-absolute bottom-0 start-50 translate-middle-x mb-3">
+                                        <input type="file" asp-for="PhotoFile" class="form-control form-control-lg"
+                                               accept="image/*" onchange="previewImage(this)" />
+                                        <small class="text-muted">Update passport photo</small>
+                                    </div>
+                                </div>
+
+                                <div class="mt-4">
+                                    <a asp-action="Card" asp-route-id="@Model.Id" target="_blank"
+                                       class="btn btn-success btn-lg shadow-lg w-100">
+                                        Print Updated ID Card
+                                    </a>
+                                </div>
+                            </div>
+
+                            <!-- Form Fields -->
+                            <div class="col-md-8">
+                                <div class="row g-4">
+                                    <div class="col-md-6">
+                                        <label asp-for="FullName" class="form-label text-success fw-bold fs-5"></label>
+                                        <input asp-for="FullName" class="form-control form-control-lg" required />
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label text-success fw-bold fs-5">Gender</label>
+                                        <select asp-for="Gender" class="form-select form-select-lg">
+                                            <option value="Male">Male</option>
+                                            <option value="Female">Female</option>
+                                        </select>
+                                    </div>
+
+                                    <div class="col-md-6">
+                                        <label asp-for="DateOfBirth" class="form-label text-success fw-bold fs-5"></label>
+                                        <input asp-for="DateOfBirth" class="form-control form-control-lg" type="date" required />
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label asp-for="Phone" class="form-label text-success fw-bold fs-5"></label>
+                                        <input asp-for="Phone" class="form-control form-control-lg" required />
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label asp-for="NIN" class="form-label text-success fw-bold fs-5"></label>
+                                        <input asp-for="NIN" class="form-control form-control-lg" required />
+                                    </div>
+
+                                    <div class="col-md-6">
+                                        <label asp-for="State" class="form-label text-success fw-bold fs-5"></label>
+                                        <select asp-for="State" class="form-select form-select-lg" required>
+                                            <option value="">Select State</option>
+                                            <option>Adamawa</option>
+                                            <option>Bauchi</option>
+                                            <option>Borno</option>
+                                            <option>Gombe</option>
+                                            <option>Taraba</option>
+                                            <option>Yobe</option>
+                                        </select>
+                                    </div>
+                                  
+                                    <div class="col-md-6">
+                                        <label class="form-label text-success fw-bold fs-5">LGA</label>
+                                        <input asp-for="LGA" class="form-control form-control-lg" placeholder="e.g. Fagge, Ikeja" />
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label text-success fw-bold fs-5">Ward</label>
+                                        <input asp-for="Ward" class="form-control form-control-lg" placeholder="e.g. Fagge, Ikeja" />
+                                    </div>
+
+                                    <div class="col-md-8">
+                                        <label asp-for="HmoId" class="form-label text-success fw-bold fs-5">Assigned HMO</label>
+                                        <select asp-for="HmoId" class="form-select form-select-lg" id="HmoId" required>
+                                            <option value="">Select HMO</option>
+                                            @foreach (var hmo in ViewBag.Hmos)
+                                            {
+                                                @* Change @hmo.Id to @hmo.Value and @hmo.FullName to @hmo.Text *@
+                                                <option value="@hmo.Value">@hmo.Text</option>
+                                            }
+                                        </select>
+                                    </div>
+                                    <div class="col-md-8">
+                                        <label asp-for="ProviderId" class="form-label text-success fw-bold fs-5">Assigned Provider</label>
+                                        <select asp-for="ProviderId" class="form-select form-select-lg" required>
+                                            <option value="">Select Provider</option>
+                                            @foreach (var pro in ViewBag.Provider)
+                                            {
+                                                <option value="@pro.Value">@pro.Text</option>
+
+                                            }
+                                        </select>
+                                    </div>
+
+                                    <div class="col-md-4">
+                                        <label class="form-label text-success fw-bold fs-5">Status</label>
+                                        <select asp-for="Status" class="form-select form-select-lg">
+                                            <option value="Active">Active</option>
+                                            <option value="Suspended">Suspended</option>
+                                            <option value="Terminated">Terminated</option>
+                                        </select>
+                                    </div>
+
+                                    <div class="col-12">
+                                        <label asp-for="Address" class="form-label text-success fw-bold fs-5"></label>
+                                        <textarea asp-for="Address" class="form-control form-control-lg" rows="3" required></textarea>
+                                    </div>
+                                </div>
+
+                                <!-- Action Buttons -->
+                                <div class="mt-5 pt-4 border-top">
+                                    <div class="text-center">
+                                        <button type="submit" class="btn btn-success btn-lg px-5 shadow-lg fw-bold">
+                                            UPDATE ENROLLEE
+                                        </button>
+                                        <a asp-action="Details" asp-route-id="@Model.Id" class="btn btn-info btn-lg px-5 ms-3 shadow">
+                                            View Details
+                                        </a>
+                                        <a asp-action="Index" class="btn btn-secondary btn-lg px-5 ms-3 shadow">
+                                            Back to List
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Footer -->
+                <div class="bg-dark text-white text-center py-3">
+                    <small>
+                        North East Development Commission • CTSHIP Enrollment System
+                        <br />Last Updated: @DateTime.Now
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function previewImage(input) {
+        if (input.files && input.files[0]) {
+            var reader = new FileReader();
+            reader.onload = function(e) {
+                document.getElementById('photoPreview').src = e.target.result;
+            }
+            reader.readAsDataURL(input.files[0]);
+        }
+    }
+</script>
+
+<style>
+    .form-control, .form-select {
+        border-radius: 15px;
+    }
+
+    .btn {
+        border-radius: 20px;
+    }
+
+    .text-success {
+        color: #006400 !important;
+    }
+
+    .card {
+        background: linear-gradient(135deg, #f8fff8 0%, #ffffff 100%);
+    }
+</style>

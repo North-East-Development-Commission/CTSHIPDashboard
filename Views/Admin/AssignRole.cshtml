@@ -1,0 +1,55 @@
+﻿@using CTSHIPDashboard.Models
+@using CTSHIPDashboard.Models.ViewModels
+@model AssignRoleViewModel
+
+<div class="container py-5">
+    <div class="card mx-auto shadow-lg border-0" style="max-width: 800px; border-radius: 25px;">
+        <div class="card-header bg-success text-white text-center py-4">
+            <h2>Assign Roles</h2>
+            <h4>@Model.FullName</h4>
+            <p class="mb-0">@Model.Email</p>
+        </div>
+
+        <div class="card-body p-5">
+            <form asp-action="AssignRole" method="post">
+                @Html.AntiForgeryToken()
+                <input type="hidden" asp-for="UserId" />
+
+                <div class="mb-4">
+                    <label class="form-label text-success fw-bold fs-5">Current Roles</label>
+                    <div>
+                        @if (Model.CurrentRoles.Any())
+                        {
+                            foreach (var role in Model.CurrentRoles)
+                            {
+                                <span class="badge bg-primary fs-6 me-2 p-2">@role</span>
+                            }
+                        }
+                        else
+                        {
+                            <span class="text-muted">No roles assigned</span>
+                        }
+                    </div>
+                </div>
+
+                <div class="mb-4">
+                    <label asp-for="SelectedRoles" class="form-label text-success fw-bold fs-5"></label>
+                    <select asp-for="SelectedRoles" multiple class="form-select form-select-lg" size="10">
+                        @foreach (var role in Model.AllRoles)
+                        {
+                            <option value="@role" selected="@Model.SelectedRoles.Contains(role)">@role</option>
+                        }
+                    </select>
+                    <small class="text-muted">Hold Ctrl (Windows) or Cmd (Mac) to select multiple roles</small>
+                </div>
+
+                <div class="text-center mt-5">
+                    <button type="submit" class="btn btn-success btn-lg px-5 shadow-lg">
+                        UPDATE ROLES
+                    </button>
+                    <a asp-action="Users" class="btn btn-secondary btn-lg px-5 ms-3">Cancel</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

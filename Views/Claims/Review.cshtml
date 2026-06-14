@@ -1,0 +1,89 @@
+﻿@model CTSHIPDashboard.Models.Claim
+
+<div class="container-fluid py-5">
+    <div class="row justify-content-center">
+        <div class="col-12 col-lg-10 col-xl-8">
+            <div class="card border-0 shadow-lg rounded-4 overflow-hidden">
+                <div class="bg-primary text-white text-center py-5">
+                    <h1 class="display-5 fw-bold mb-3">HMO CLAIM REVIEW</h1>
+                    <p class="lead mb-0">Claim #: <strong>@Model.ClaimNumber</strong> • Amount: ₦@((int)Model.Amount)</p>
+                </div>
+
+                <div class="card-body p-5">
+                    <div class="row g-4 mb-5">
+                        <div class="col-md-6">
+                            <div class="card border-success shadow-sm">
+                                <div class="card-body">
+                                    <h5 class="text-success fw-bold">Enrollee</h5>
+                                    <p class="mb-1"><strong>@Model.Enrollee?.FullName</strong></p>
+                                    <p class="mb-1">ID: @Model.Enrollee?.EnrollmentNumber</p>
+                                    <p class="mb-0">HMO: @Model.Enrollee?.Hmo?.Name</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card border-info shadow-sm">
+                                <div class="card-body">
+                                    <h5 class="text-info fw-bold">Provider</h5>
+                                    <p class="mb-0">@Model.Provider?.Name - @Model.Provider?.State</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row g-4 mb-5">
+                        <div class="col-12">
+                            <div class="card shadow-sm">
+                                <div class="card-body">
+                                    <h5 class="text-success fw-bold">Diagnosis</h5>
+                                    <p class="fs-5">@Model.Diagnosis</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <div class="card shadow-sm">
+                                <div class="card-body">
+                                    <h5 class="text-success fw-bold">Treatment Given</h5>
+                                    <p class="fs-5">@Model.Treatment</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <form asp-action="Review" method="post">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" asp-for="Id" />
+
+                        <div class="mb-4">
+                            <label class="form-label text-success fw-bold fs-5">Review Notes <span class="text-danger">*</span></label>
+                            <textarea name="notes" class="form-control form-control-lg" rows="5"
+                                      placeholder="Enter your review comments..." required></textarea>
+                        </div>
+
+                        <div class="text-center">
+                            <button name="action" value="approve" class="btn btn-success btn-lg px-6 shadow-lg fw-bold">
+                                APPROVE FOR PAYMENT
+                            </button>
+                            <button name="action" value="reject" class="btn btn-danger btn-lg px-6 shadow-lg fw-bold ms-3">
+                                REJECT CLAIM
+                            </button>
+
+                            @if (User.IsInRole("HMO"))
+                            {
+                                <a asp-action="Dashboard" class="btn btn-secondary btn-lg px-6 ms-3">
+                                    Cancel
+                                </a>
+                            }
+                            @if (User.IsInRole("Admin"))
+                            {
+                                <a asp-action="Index" class="btn btn-secondary btn-lg px-6 ms-3">
+                                    Cancel
+                                </a>
+                            }
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

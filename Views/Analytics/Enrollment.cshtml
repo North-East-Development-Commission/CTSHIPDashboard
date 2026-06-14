@@ -1,0 +1,142 @@
+﻿@using CTSHIPDashboard.Models.ViewModels
+@model EnrollmentAnalyticsViewModel
+@{
+    ViewData["Title"] = "National Enrollment Analytics";
+}
+
+<div class="container-fluid py-4">
+    <!-- Hero Header -->
+    <div class="text-center mb-5 bg-success text-white py-5 rounded shadow-lg">
+        <h1 class="display-3 fw-bold mb-3">
+            CTSHIP NATIONAL ENROLLMENT DASHBOARD
+        </h1>
+        <p class="lead fs-3 mb-0">
+            Real-time Universal Health Coverage Intelligence • Nigeria
+        </p>
+    </div>
+
+    <!-- KPI Cards -->
+    <div class="row g-4 mb-5">
+        <div class="col-xl-3 col-md-6">
+            <div class="card bg-primary text-white shadow-lg h-100">
+                <div class="card-body text-center py-5">
+                    <h5>Total Enrollees</h5>
+                    <h1 class="display-3 fw-bold">@Model.TotalEnrollees.ToString("N0")</h1>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="card bg-success text-white shadow-lg h-100">
+                <div class="card-body text-center py-5">
+                    <h5>Active Coverage</h5>
+                    <h1 class="display-3 fw-bold">@Model.ActiveEnrollees.ToString("N0")</h1>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="card @(Model.FemalePercentage >= 50 ? "bg-pink" : "bg-info") text-white shadow-lg h-100">
+                <div class="card-body text-center py-5">
+                    <h5>Female Enrollees</h5>
+                    <h1 class="display-3 fw-bold">@Model.FemalePercentage%</h1>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="card bg-warning text-dark shadow-lg h-100">
+                <div class="card-body text-center py-5">
+                    <h5>National Coverage</h5>
+                    <h1 class="display-3 fw-bold">@Model.CoverageRate%</h1>
+                    <small>of 220 million Nigerians</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts -->
+    <div class="row g-4 mb-5">
+        <div class="col-lg-8">
+            <div class="card shadow-lg border-0">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0">Top 10 States by Enrollment</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="stateChart" height="320"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card shadow-lg border-0 h-100">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0">Age Distribution</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="ageChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-lg-6">
+            <div class="card shadow-lg border-0">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0">Monthly Registration Trend</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="trendChart" height="280"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-6">
+            <div class="card shadow-lg border-0">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0">Top HMOs by Enrollment</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="hmoChart" height="280"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="text-center mt-5 py-4 bg-dark text-white rounded">
+        <h4>North East Development Commission</h4>
+        <p class="mb-0">Delivering Universal Health Coverage to Every Nigerian • One Enrollee at a Time</p>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        // State Chart
+        new Chart(document.getElementById('stateChart'), {
+            type: 'bar',
+            data: {
+                labels: [@Html.Raw(string.Join(",", Model.EnrollmentByState.Select(s => $"'{s.Label}'")))],
+                datasets: [{
+                    label: 'Enrollees',
+                    data: [@Html.Raw(string.Join(",", Model.EnrollmentByState.Select(s => s.Value)))],
+                    backgroundColor: '#006400'
+                }]
+            },
+            options: { responsive: true, plugins: { legend: { display: false } } }
+        });
+
+        // Age Chart
+        new Chart(document.getElementById('ageChart'), {
+            type: 'doughnut',
+            data: {
+                labels: [@Html.Raw(string.Join(",", Model.AgeGroups.Keys.Select(k => $"'{k}'")))],
+                datasets: [{
+                    data: [@Html.Raw(string.Join(",", Model.AgeGroups.Values))],
+                    backgroundColor: ['#28a745', '#007bff', '#ffc107', '#dc3545', '#6f42c1']
+                }]
+            }
+        });
+
+        // Trend & HMO Charts similar...
+    </script>
+}

@@ -1,0 +1,206 @@
+﻿@model CTSHIPDashboard.Models.Encounter
+
+<div class="container-fluid py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-11">
+            <div class="card border-0 shadow-lg" style="border-radius: 25px; overflow: hidden;">
+                <!-- Header -->
+                <div class="bg-success text-white text-center py-5">
+                    <h1 class="display-5 fw-bold mb-2">NEW PATIENT ENCOUNTER</h1>
+                    <p class="lead mb-0 opacity-90">CTSHIP Digital Hospital System • Federal Republic of Nigeria</p>
+                </div>
+
+                <div class="card-body p-5">
+                    <form asp-action="Create" method="post">
+                        @Html.AntiForgeryToken()
+
+                        <div class="row g-4">
+                            <!-- ENROLLEE SEARCH -->
+                            <div class="col-12">
+                                <label class="form-label text-success fw-bold fs-5">
+                                    Search Enrollee by Enrollment Number <span class="text-danger">*</span>
+                                </label>
+                                <div class="input-group input-group-lg">
+                                    <input type="text" id="enrollmentSearch" class="form-control rounded-start-3"
+                                           placeholder="e.g., CTH-2025-LA-001234" required />
+                                    <button type="button" class="btn btn-success rounded-end-3" onclick="searchEnrollee()">
+                                        <i class="bi bi-search"></i>
+                                    </button>
+                                </div>
+                                <small class="text-muted">Type full number and press Search or Enter</small>
+                            </div>
+
+                            <!-- ENROLLEE PREVIEW -->
+                            <div class="col-12" id="enrolleePreview" style="display:none;">
+                                <div class="card border-success border-4 shadow">
+                                    <div class="card-body d-flex align-items-center p-4">
+                                        <img id="previewPhoto" src="/img/icon-192.png" class="rounded me-4 shadow"
+                                             style="width:130px;height:130px;object-fit:cover;border:5px solid white;" />
+                                        <div>
+                                            <h4 id="previewName" class="text-success fw-bold mb-1">—</h4>
+                                            <p class="mb-1"><strong>ID:</strong> <span id="previewNumber" class="text-primary fw-bold fs-5">—</span></p>
+                                            <p class="mb-1"><strong>HMO:</strong> <span id="previewHmo">—</span></p>
+                                            <p class="mb-0"><strong>State:</strong> <span id="previewState">—</span></p>
+                                            <input type="hidden" asp-for="EnrolleeId" id="selectedEnrolleeId" />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- VISIT DETAILS -->
+                            <div class="col-md-4">
+                                <label asp-for="VisitDate" class="form-label text-success fw-bold">Visit Date & Time</label>
+                                <input asp-for="VisitDate" class="form-control form-control" type="datetime-local" required />
+                            </div>
+
+                            <div class="col-md-4">
+                                <label asp-for="VisitType" class="form-label text-success fw-bold">Visit Type</label>
+                                <input asp-for="VisitType" class="form-control form-control" placeholder="e.g., Emergency, ANC, Follow-up" required />
+                            </div>
+                            <div class="col-md-4">
+                                <label asp-for="BloodPressure" class="form-label text-success fw-bold">Blood Pressure</label>
+                                <input asp-for="BloodPressure"
+                                       class="form-control"
+                                       placeholder="e.g., 120/80"
+                                       pattern="^\d{2,3}\/\d{2,3}$" />
+                            </div>
+
+                            <!-- STATUS DROPDOWN — ADDED! -->
+                            <div class="col-md-4">
+                                <label asp-for="Status" class="form-label text-success fw-bold">Status</label>
+                                <select asp-for="Status" class="form-select form-select-lg" asp-items="ViewBag.Statuses" required>
+                                    <option value="">Select Status</option>
+                                </select>
+                            </div>
+
+                            <div class="col-md-4">
+                                <label asp-for="ProviderId" class="form-label text-success fw-bold fs-5">Facility</label>
+                                <select asp-for="ProviderId" class="form-select form-select-lg w-100" asp-items="ViewBag.Providers" required>
+                                    <option value="">Select Facility</option>
+                                </select>
+                            </div>
+
+                            <div class="col-md-4">
+                                <label asp-for="SeenBy" class="form-label text-success fw-bold">Attended By</label>
+                                <input asp-for="SeenBy" class="form-control form-control" required />
+                            </div>
+                            <div class="col-md-4">
+                                <label asp-for="Rank" class="form-label text-success fw-bold">Rank</label>
+                                <input asp-for="Rank" class="form-control form-control" required />
+                            </div>
+
+                            <!-- VITALS -->
+                            <div class="col-md-4">
+                                <label asp-for="Temperature" class="form-label text-success fw-bold">Temperature (°C)</label>
+                                <input asp-for="Temperature" class="form-control form-control" type="number" step="0.1" />
+                            </div>
+                        
+                            <div class="col-md-4">
+                                <label asp-for="PulseRate" class="form-label text-success fw-bold">Pulse Rate</label>
+                                <input asp-for="PulseRate" class="form-control form-control" type="number" />
+                            </div>
+
+                            <!-- CLINICAL -->
+                            <div class="col-12">
+                                <label asp-for="ChiefComplaint" class="form-label text-success fw-bold">Complaint</label>
+                                <textarea asp-for="ChiefComplaint" class="form-control form-control" required></textarea>
+                            </div>
+
+                            <div class="col-12">
+                                <label asp-for="Diagnosis" class="form-label text-success fw-bold">Diagnosis</label>
+                                <textarea asp-for="Diagnosis" class="form-control form-control" required></textarea>
+                            </div>
+
+                            <div class="col-12">
+                                <label asp-for="TreatmentGiven" class="form-label text-success fw-bold">Treatment Given</label>
+                                <textarea asp-for="TreatmentGiven" class="form-control form-control" required></textarea>
+                            </div>
+
+                            <!-- FEES -->
+                            <div class="col-md-4">
+                                <label asp-for="ConsultationFee" class="form-label text-success fw-bold">Consultation Fee (₦)</label>
+                                <input asp-for="ConsultationFee" class="form-control form-control-lg text-end" type="number"" />
+                            </div>
+                            <div class="col-md-4">
+                                <label asp-for="LabFee" class="form-label text-success fw-bold">Lab Fee (₦)</label>
+                                <input asp-for="LabFee" class="form-control form-control-lg text-end" type="number" value="0" />
+                            </div>
+                            <div class="col-md-4">
+                                <label asp-for="DrugFee" class="form-label text-success fw-bold">Drug Fee (₦)</label>
+                                <input asp-for="DrugFee" class="form-control form-control-lg text-end" type="number" value="0" />
+                            </div>
+                        </div>
+
+                        <!-- Submit -->
+                        <div class="text-center mt-5 pt-4 border-top">
+                            <button type="submit" class="btn btn-success btn-lg px-5 shadow-lg fw-bold fs-4" id="submitBtn" disabled>
+                                SAVE ENCOUNTER
+                            </button>
+                            @if (User.IsInRole("Provider"))
+                            {
+                                <a asp-controller="Providers" asp-action="MyEncounters" class="btn btn-secondary btn-lg px-6 ms-3">
+                                    Cancel
+                                </a>
+                            }
+                            @if (User.IsInRole("Admin"))
+                            {
+                                <a asp-action="Index" class="btn btn-secondary btn-lg px-6 ms-3">
+                                    Cancel
+                                </a>
+                            }
+                         
+                        </div>
+                    </form>
+                </div>
+
+                <div class="bg-dark text-white text-center py-3">
+                    <small>
+                        CTSHIP • Universal Health Coverage • Powered by North East Development Commission
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+
+    <script>
+        async function searchEnrollee() {
+            const query = document.getElementById('enrollmentSearch').value.trim();
+            if (!query) return Swal.fire('Error', 'Enter Enrollment Number', 'error');
+
+            try {
+                const res = await fetch(`/Encounters/SearchEnrollee?q=${encodeURIComponent(query)}`);
+                const data = await res.json();
+
+                if (data.success && data.enrollee) {
+                    const e = data.enrollee;
+                    document.getElementById('previewPhoto').src = e.photoPath;
+                    document.getElementById('previewName').textContent = e.fullName;
+                    document.getElementById('previewNumber').textContent = e.enrollmentNumber;
+                    document.getElementById('previewHmo').textContent = e.hmoName;
+                    document.getElementById('previewState').textContent = e.state;
+                    document.getElementById('selectedEnrolleeId').value = e.id;
+
+                    document.getElementById('enrolleePreview').style.display = 'block';
+                    document.getElementById('submitBtn').disabled = false;
+                } else {
+                    Swal.fire('Not Found', 'No enrollee with that number', 'warning');
+                    document.getElementById('enrolleePreview').style.display = 'none';
+                    document.getElementById('submitBtn').disabled = true;
+                }
+            } catch {
+                Swal.fire('Error', 'Search failed', 'error');
+                document.getElementById('enrolleePreview').style.display = 'none';
+                document.getElementById('submitBtn').disabled = true;
+            }
+        }
+
+        document.getElementById('enrollmentSearch')
+            .addEventListener('keypress', e => e.key === 'Enter' && (e.preventDefault(), searchEnrollee()));
+    </script>
+  
+}

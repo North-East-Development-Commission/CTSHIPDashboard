@@ -1,0 +1,23 @@
+﻿@model CTSHIPDashboard.Models.Feedback
+@{
+    ViewData["Title"] = "Edit Feedback";
+}
+<h2>Edit Feedback</h2>
+
+<form asp-action="Edit" method="post">
+    <input type="hidden" asp-for="Id" />
+    <!-- Same fields as Create.cshtml -->
+    <div class="form-group">
+        <label>Enrollee</label>
+        <select asp-for="EnrolleeId" class="form-control">
+            @foreach (var e in ViewBag.Enrollees)
+            {
+                <option value="@e.Id" selected="@(e.Id == Model.EnrolleeId)">@e.Name</option>
+            }
+        </select>
+    </div>
+    <!-- Repeat Provider dropdown, score, comments, resolved -->
+    <!-- ... same as Create ... -->
+    <button type="submit" class="btn btn-primary">Update</button>
+    <a asp-action="Index" class="btn btn-secondary">Cancel</a>
+</form>

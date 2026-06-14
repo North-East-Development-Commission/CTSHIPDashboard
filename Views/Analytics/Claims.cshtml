@@ -1,0 +1,228 @@
+﻿@model AnalyticsViewModel
+@{
+    ViewData["Title"] = "CTSHIP Claims Analytics";
+}
+
+<div class="container-fluid py-4">
+    <!-- HERO HEADER -->
+    <div class="text-center mb-5 bg-success text-white py-5 rounded-4 shadow-lg">
+        <h1 class="display-3 fw-bold mb-3">
+            CTSHIP CLAIMS ANALYTICS
+        </h1>
+        <p class="lead fs-2 mb-0 opacity-90">
+            Real-Time Health Insurance Intelligence • Federal Republic of Nigeria
+        </p>
+        <small class="fs-5">Last updated: @DateTime.Now</small>
+    </div>
+
+    <!-- KPI CARDS -->
+    <div class="row g-4 mb-5 text-center">
+        <div class="col-xl-3 col-md-6">
+            <div class="card bg-primary text-white shadow-lg h-100 border-0">
+                <div class="card-body py-5">
+                    <h5 class="mb-3">Total Claims</h5>
+                    <h1 class="display-3 fw-bold">@Model.TotalClaims</h1>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="card bg-success text-white shadow-lg h-100 border-0">
+                <div class="card-body py-5">
+                    <h5 class="mb-3">Total Amount Claimed</h5>
+                    <h1 class="display-5 fw-bold">₦@((int)Model.PaidAmount)</h1>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="card bg-info text-white shadow-lg h-100 border-0">
+                <div class="card-body py-5">
+                    <h5 class="mb-3">Amount Paid</h5>
+                    <h1 class="display-5 fw-bold">₦@((int)Model.PaidAmount)</h1>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="card @(Model.ApprovalRate >= 85 ? "bg-success" : Model.ApprovalRate >= 60 ? "bg-warning text-dark" : "bg-danger") text-white shadow-lg h-100 border-0">
+                <div class="card-body py-5">
+                    <h5 class="mb-3">Approval Rate</h5>
+                    <h1 class="display-3 fw-bold">@Model.ApprovalRate%</h1>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- CHARTS ROW 1 -->
+    <div class="row g-4 mb-5">
+        <!-- Top States Bar Chart -->
+        <div class="col-lg-8">
+            <div class="card shadow-lg border-0">
+                <div class="card-header bg-success text-white py-4">
+                    <h4 class="mb-0 fw-bold">Top 10 States by Claims Volume</h4>
+                </div>
+                <div class="card-body">
+                    <canvas id="stateChart" height="380"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Status Distribution - NOW USING ONLY YOUR VIEWMODEL DATA -->
+        <div class="col-lg-4">
+            <div class="card shadow-lg border-0 h-100">
+                <div class="card-header bg-success text-white py-4">
+                    <h4 class="mb-0 fw-bold">Claims Status Distribution (₦)</h4>
+                </div>
+                <div class="card-body">
+                    <canvas id="statusChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- CHARTS ROW 2 -->
+    <div class="row g-4 mb-4">
+        <div class="col-lg-6">
+            <div class="card shadow-lg border-0">
+                <div class="card-header bg-success text-white py-4">
+                    <h4 class="mb-0 fw-bold">Monthly Claims Trend (Last 12 Months)</h4>
+                </div>
+                <div class="card-body">
+                    <canvas id="monthlyChart" height="320"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-6">
+            <div class="card shadow-lg border-0">
+                <div class="card-header bg-success text-white py-4">
+                    <h4 class="mb-0 fw-bold">Top 8 Diagnoses</h4>
+                </div>
+                <div class="card-body">
+                    <canvas id="diagnosisChart" height="320"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- AVERAGE PROCESSING TIME -->
+    <div class="text-center mt-5">
+        <div class="card bg-dark text-white shadow-lg mx-auto" style="max-width: 700px;">
+            <div class="card-body py-5">
+                <h3 class="mb-3">Average Claim Processing Time</h3>
+                <h1 class="display-1 fw-bold text-warning">@Model.AverageProcessingDays days</h1>
+                <p class="lead">From submission to payment • NHIA Target: less than 30 days</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- FOOTER -->
+    <div class="text-center mt-5 py-5 bg-dark text-white rounded">
+        <h3>North East Development Commission</h3>
+        <p class="lead mb-0">Universal Health Coverage • Transparency • Accountability</p>
+        <small>© @DateTime.Now.Year CTSHIP National Digital Health Platform • Made with Pride in Nigeria</small>
+    </div>
+</div>
+
+<!-- 100% WORKING CHART.JS — ONLY USING YOUR AnalyticsViewModel -->
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            // 1. Top 10 States - Bar Chart
+            new Chart(document.getElementById('stateChart'), {
+                type: 'bar',
+                data: {
+                    labels: [@Html.Raw(string.Join(",", Model.ClaimsByState.Select(s => $"\"{s.Label}\"")))],
+                    datasets: [{
+                        label: 'Number of Claims',
+                        data: [@Html.Raw(string.Join(",", Model.ClaimsByState.Select(s => s.Value)))],
+                        backgroundColor: '#006400',
+                        borderColor: 2,
+                        borderRadius: 8
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: { legend: { display: false } },
+                    scales: { y: { beginAtZero: true } }
+                }
+            });
+
+            // 2. Status Distribution - Doughnut Chart (USING YOUR AMOUNTS)
+            new Chart(document.getElementById('statusChart'), {
+                type: 'doughnut',
+                data: {
+                    labels: ['Paid', 'Pending', 'Rejected'],
+                    datasets: [{
+                        data: [
+                            @Model.PaidAmount,
+                            @Model.PendingAmount,
+                            @Model.RejectedAmount
+                        ],
+                        backgroundColor: ['#28a745', '#ffc107', '#dc3545'],
+                        borderColor: '#fff',
+                        borderWidth: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: { position: 'bottom' },
+                        tooltip: {
+                            callbacks: {
+                                label: ctx => `${ctx.label}: ₦${Number(ctx.raw).toLocaleString()}`
+                            }
+                        }
+                    }
+                }
+            });
+
+            // 3. Monthly Trend - Line Chart
+            new Chart(document.getElementById('monthlyChart'), {
+                type: 'line',
+                data: {
+                    labels: [@Html.Raw(string.Join(",", Model.ClaimsByMonth.Select(m => $"\"{m.Label}\"")))],
+                    datasets: [{
+                        label: 'Claims Amount (₦)',
+                        data: [@Html.Raw(string.Join(",", Model.ClaimsByMonth.Select(m => m.Value)))],
+                        borderColor: '#006400',
+                        backgroundColor: 'rgba(0, 100, 0, 0.1)',
+                        tension: 0.4,
+                        fill: true,
+                        pointRadius: 6,
+                        pointBackgroundColor: '#fff'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: { callback: value => '₦' + value.toLocaleString().replace(/\B(?=(\d{3})+(?!\d))/g, ",") }
+                        }
+                    }
+                }
+            });
+
+            // 4. Top Diagnoses - Horizontal Bar
+            new Chart(document.getElementById('diagnosisChart'), {
+                type: 'bar',
+                data: {
+                    labels: [@Html.Raw(string.Join(",", Model.TopDiagnoses.Select(d => $"\"{d.Label}\"")))],
+                    datasets: [{
+                        label: 'Number of Cases',
+                        data: [@Html.Raw(string.Join(",", Model.TopDiagnoses.Select(d => d.Value)))],
+                        backgroundColor: '#006400',
+                        borderRadius: 10
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    plugins: { legend: { display: false } },
+                    scales: { x: { beginAtZero: true, ticks: { stepSize: 1 } } }
+                }
+            });
+        });
+    </script>
+}

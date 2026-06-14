@@ -1,0 +1,68 @@
+﻿@using CTSHIPDashboard.Data
+@model IEnumerable<Hmo>
+@inject ApplicationDbContext _context
+
+
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="text-success fw-bold">HMO Management</h2>
+        <a asp-action="Create" class="btn btn-success btn-lg shadow">
+            Register New HMO
+        </a>
+    </div>
+
+    <div class="card shadow-lg border-0">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="bg-success text-white">
+                        <tr>
+                            <th>Logo</th>
+                            <th>HMO Name</th>
+                            <th>Registration No.</th>
+                            <th>Email</th>
+                            <th>State</th>
+                            <th>Status</th>
+                            <th>Enrollees</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var hmo in Model)
+                        {
+                            <tr>
+                                <td>
+                                    @if (!string.IsNullOrEmpty(hmo.LogoPath))
+                                    {
+                                        <img src="@hmo.LogoPath" alt="@hmo.Name" style="width:50px; height:50px; object-fit:contain;" />
+                                    }
+                                    else
+                                    {
+                                        <div class="bg-light border rounded-circle d-inline-flex align-items-center justify-content-center" style="width:50px;height:50px;">
+                                            <strong>@hmo.Name.Substring(0, 2)</strong>
+                                        </div>
+                                    }
+                                </td>
+                                <td><strong>@hmo.Name</strong></td>
+                                <td><span class="badge bg-primary">@hmo.RegistrationNumber</span></td>
+                                <td>@hmo.Email</td>
+                                <td>@hmo.State</td>
+                                <td>
+                                    <span class="badge @(hmo.Status == "Active" ? "bg-success" : "bg-danger")">
+                                        @hmo.Status
+                                    </span>
+                                </td>
+                                <td class="text-center fw-bold">@_context.Enrollees.Count(e => e.HmoId == hmo.Id)</td>
+                                <td>
+                                    <a asp-action="Details" asp-route-id="@hmo.Id" class="btn btn-info btn-sm">View</a>
+                                    <a asp-action="Edit" asp-route-id="@hmo.Id" class="btn btn-warning btn-sm">Edit</a>
+                                    <a asp-action="Delete" asp-route-id="@hmo.Id" class="btn btn-danger btn-sm">Delete</a>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>

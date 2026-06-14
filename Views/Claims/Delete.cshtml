@@ -1,0 +1,42 @@
+﻿@model CTSHIPDashboard.Models.Claim
+
+<div class="container py-5">
+    <div class="card border-0 shadow-lg mx-auto" style="max-width: 700px; border-radius: 25px;">
+        <div class="card-header @(Model.Status == "Paid" ? "bg-success" : "bg-danger") text-white text-center py-4">
+            <h3>PERMANENTLY DELETE CLAIM</h3>
+        </div>
+        <div class="card-body text-center p-5">
+            <div class="mb-4">
+                <h1 class="text-danger fw-bold">@Model.ClaimNumber</h1>
+                <h4>Amount: <span class="text-primary fw-bold">₦@Model.Amount:N0</span></h4>
+            </div>
+
+            <div class="bg-light rounded p-4 mb-4">
+                <p><strong>Enrollee:</strong> @Model.Enrollee?.FullName</p>
+                <p><strong>Diagnosis:</strong> @Model.Diagnosis</p>
+                <p>
+                    <strong>Status:</strong>
+                    <span class="badge @(Model.Status == "Paid" ? "bg-success" : "bg-warning text-dark") px-4 py-2 fs-5">
+                        @Model.Status
+                    </span>
+                </p>
+            </div>
+
+            <div class="alert alert-danger border-danger">
+                <h4>This action CANNOT be undone</h4>
+                <p>This will permanently delete the claim and remove it from all records.</p>
+            </div>
+
+            <form asp-action="DeleteConfirmed" method="post" class="d-inline">
+                @Html.AntiForgeryToken()
+                <input type="hidden" asp-for="Id" />
+                <button type="submit" class="btn btn-danger btn-lg px-5 shadow-lg fw-bold">
+                    YES, DELETE FOREVER
+                </button>
+            </form>
+            <a asp-action="Details" asp-route-id="@Model.Id" class="btn btn-secondary btn-lg px-5 ms-3">
+                Cancel - Keep Claim
+            </a>
+        </div>
+    </div>
+</div>

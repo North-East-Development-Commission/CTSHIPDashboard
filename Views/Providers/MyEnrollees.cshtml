@@ -1,0 +1,140 @@
+﻿@model IEnumerable<CTSHIPDashboard.Models.Enrollee>
+
+@{
+    ViewData["Title"] = $"Patients at {ViewBag.ProviderName}";
+}
+
+<div class="container-fluid py-5">
+    <div class="text-center mb-5">
+        <h1 class="display-4 fw-bold text-success mb-3">
+            My Patients
+        </h1>
+        <h2 class="display-5 text-primary fw-bold">@ViewBag.ProviderName</h2>
+        <p class="lead text-muted">Facility Code: <strong>@ViewBag.ProviderCode</strong></p>
+        <p class="fs-4">Total Unique Patients: <strong class="text-success">@ViewBag.TotalEnrollees</strong></p>
+    </div>
+    <div class="text-end mb-4">
+        <a asp-action="ExportEnrollees" asp-route-providerId="@ViewBag.ProviderId"
+           class="btn btn-success btn-lg shadow-lg px-5">
+            <i class="bi bi-file-earmark-excel me-2"></i> Export to Excel
+        </a>
+    </div>
+    <!-- SEARCH -->
+    <div class="card border-0 shadow-lg mb-5 rounded-4">
+        <div class="card-body p-4">
+            <form asp-action="MyEnrollees" method="get">
+                <div class="row g-3 align-items-end">
+                    <div class="col-md-9">
+                        <label class="form-label fw-bold text-success">Search Patient</label>
+                        <input type="text" name="search" value="@ViewBag.Search"
+                               class="form-control form-control-lg rounded-3"
+                               placeholder="Name, Enrollment ID, or Phone..." />
+                    </div>
+                    <div class="col-md-3">
+                        <button type="submit" class="btn btn-success btn-lg w-100 rounded-3 shadow">
+                            Search
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- PATIENTS TABLE -->
+    <div class="card border-0 shadow-lg rounded-4">
+        <div class="card-header bg-success text-white text-center py-4">
+            <h3 class="fw-bold mb-0">List of Patients Treated (@ViewBag.TotalEnrollees total)</h3>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="bg-light">
+                        <tr>
+                            <th>Photo</th>
+                            <th>Full Name</th>
+                            <th>Enrollment ID</th>
+                            <th>HMO</th>
+                            <th>Phone</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (!Model.Any())
+                        {
+                            <tr>
+                                <td colspan="7" class="text-center py-5 text-muted fs-4">
+                                    No patients treated yet
+                                </td>
+                            </tr>
+                        }
+                        else
+                        {
+                            @foreach (var e in Model)
+                            {
+                               
+
+                                <tr>
+                                    <td>
+                                        <img src="@(e.PhotoPath ?? "/img/icon-192.png")"
+                                             class="rounded-circle shadow"
+                                             style="width:60px;height:60px;object-fit:cover;" />
+                                    </td>
+                                    <td class="fw-bold">@e.FullName</td>
+                                    <td><span class="text-primary fw-bold">@e.EnrollmentNumber</span></td>
+                                    <td>
+                                        <span class="badge bg-info px-3 py-2">@e.Hmo?.Name</span>
+                                    </td>
+                                    <td>@e.Phone</td>
+                                    
+                                    <td>
+                                        <a asp-action="EnDetails" asp-route-id="@e.Id"
+                                           class="btn btn-info btn-sm rounded-pill px-4">View Profile</a>
+                                    </td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- PAGINATION -->
+    @if (ViewBag.TotalPages > 1)
+    {
+        <nav class="mt-5">
+            <ul class="pagination justify-content-center">
+                <li class="page-item @(ViewBag.CurrentPage == 1 ? "disabled" : "")">
+                    <a class="page-link"
+                       asp-action="MyEnrollees"
+                       asp-route-search="@ViewBag.Search"
+                       asp-route-page="@(ViewBag.CurrentPage - 1)">Previous</a>
+                </li>
+
+                @for (int i = 1; i <= ViewBag.TotalPages; i++)
+                {
+                    <li class="page-item @(i == ViewBag.CurrentPage ? "active" : "")">
+                        <a class="page-link"
+                           asp-action="MyEnrollees"
+                           asp-route-search="@ViewBag.Search"
+                           asp-route-page="@i">@i</a>
+                    </li>
+                }
+
+                <li class="page-item @(ViewBag.CurrentPage == ViewBag.TotalPages ? "disabled" : "")">
+                    <a class="page-link"
+                       asp-action="MyEnrollees"
+                       asp-route-search="@ViewBag.Search"
+                       asp-route-page="@(ViewBag.CurrentPage + 1)">Next</a>
+                </li>
+            </ul>
+        </nav>
+    }
+
+    <!-- Dashboard Button -->
+    <div class="text-center mt-5">
+        <a asp-action="Dashboard" class="btn btn-primary btn-lg px-7 shadow-lg fw-bold fs-4">
+            BACK TO DASHBOARD
+        </a>
+    </div>
+</div>

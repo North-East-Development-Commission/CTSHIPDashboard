@@ -1,0 +1,374 @@
+﻿
+
+@{
+    ViewData["Title"] = "National Analytics Dashboard";
+}
+
+<div class="container-fluid py-4 py-md-5">
+    <!-- Header -->
+    <div class="text-center mb-5">
+        <h1 class="display-4 fw-bold text-success mb-3">
+            NORTH EAST DEVELOPMENT COMMISSION CTSHIP ANALYTICS
+        </h1>
+        <p class="lead text-muted">NEDC • CTSHIP • Federal Republic of Nigeria</p>
+        <p class="text-primary fw-bold fs-4">Real-time Dashboard • @DateTime.Now</p>
+    </div>
+
+    <!-- KPI ROW 1 -->
+    <div class="row g-4 mb-5">
+        <div class="col-xl-3 col-md-6">
+            <div class="card border-0 shadow-lg bg-primary text-white h-100">
+                <div class="card-body text-center py-5">
+                    <i class="bi bi-people fs-1 mb-3"></i>
+                    <h5 class="fw-bold">Total Enrollees</h5>
+                    <h2 class="display-5 fw-bold">@ViewBag.TotalEnrollees</h2>
+                    <p class="mb-0 opacity-90">Registered</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6">
+            <div class="card border-0 shadow-lg bg-success text-white h-100">
+                <div class="card-body text-center py-5">
+                    <i class="bi bi-person-check fs-1 mb-3"></i>
+                    <h5 class="fw-bold">Active Enrollees</h5>
+                    <h2 class="display-5 fw-bold">@ViewBag.ActiveEnrollees</h2>
+                    <p class="mb-0 opacity-90">@ViewBag.ActivePercentage% Active</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6">
+            <div class="card border-0 shadow-lg bg-info text-white h-100">
+                <div class="card-body text-center py-5">
+                    <i class="bi bi-hospital fs-1 mb-3"></i>
+                    <h5 class="fw-bold">Accredited Providers</h5>
+                    <h2 class="display-5 fw-bold">@ViewBag.TotalProviders</h2>
+                    <p class="mb-0 opacity-90">Hospitals & Clinics</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6">
+            <div class="card border-0 shadow-lg bg-warning text-dark h-100">
+                <div class="card-body text-center py-5">
+                    <i class="bi bi-building fs-1 mb-3"></i>
+                    <h5 class="fw-bold">Registered HMOs</h5>
+                    <h2 class="display-5 fw-bold">@ViewBag.TotalHmos</h2>
+                    <p class="mb-0 opacity-90">Managing Coverage</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- KPI ROW 2 - CLAIMS -->
+    <div class="row g-4 mb-5">
+        <div class="col-xl-3 col-md-6">
+            <div class="card border-0 shadow-lg bg-dark text-white h-100">
+                <div class="card-body text-center py-5">
+                    <i class="bi bi-file-medical fs-1 mb-3"></i>
+                    <h5 class="fw-bold">Total Claims</h5>
+                    <h2 class="display-5 fw-bold">@ViewBag.TotalClaims</h2>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6">
+            <div class="card border-0 shadow-lg bg-success text-white h-100">
+                <div class="card-body text-center py-5">
+                    <i class="bi bi-check-circle-fill fs-1 mb-3"></i>
+                    <h5 class="fw-bold">Approved Claims</h5>
+                    <h2 class="display-5 fw-bold">@ViewBag.PaidClaims</h2>
+                    <p class="mb-0 opacity-90">@ViewBag.PaidPercentage% Success</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6">
+            <div class="card border-0 shadow-lg bg-primary text-white h-100">
+                <div class="card-body text-center py-5">
+                    <i class="bi bi-currency-exchange fs-1 mb-3"></i>
+                    <h5 class="fw-bold">Total Paid Out</h5>
+                    <h2 class="display-6 fw-bold">₦@((int)ViewBag.TotalPaid)</h2>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-3 col-md-6">
+            <div class="card border-0 shadow-lg bg-danger text-white h-100">
+                <div class="card-body text-center py-5">
+                    <i class="bi bi-hourglass-split fs-1 mb-3"></i>
+                    <h5 class="fw-bold">Pending Claims</h5>
+                    <h2 class="display-5 fw-bold">@ViewBag.PendingClaims</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- RANKED LISTS -->
+    <div class="row g-5 mb-5">
+        <!-- ENROLLEES BY STATE -->
+        <div class="col-lg-4">
+            <div class="card border-0 shadow-lg h-100">
+                <div class="card-header bg-success text-white text-center py-4">
+                    <h3 class="fw-bold mb-0">Enrollees Distribution by State</h3>
+                </div>
+                <div class="card-body p-0">
+                    <ol class="list-group list-group-flush">
+                        @foreach (var state in ViewBag.EnrolleesByState ?? new List<dynamic>())
+                        {
+                            <li class="list-group-item d-flex justify-content-between align-items-center py-3 px-4">
+                                <span class="fw-bold fs-5">@state.State</span>
+                                <span class="badge bg-success rounded-pill fs-5 px-4">@state.Count</span>
+                            </li>
+                        }
+                        @if (!(ViewBag.EnrolleesByState?.Count > 0))
+                        {
+                            <li class="list-group-item text-center text-muted py-5">
+                                <i class="bi bi-people fs-1"></i>
+                                <p class="mt-3">No enrollees registered yet</p>
+                            </li>
+                        }
+                    </ol>
+                </div>
+            </div>
+        </div>
+
+        <!-- TOP 5 HMOS -->
+        <div class="col-lg-4">
+            <div class="card border-0 shadow-lg h-100">
+                <div class="card-header bg-warning text-dark text-center py-4">
+                    <h3 class="fw-bold mb-0">Top 5 HMOs by Enrollees</h3>
+                </div>
+                <div class="card-body p-0">
+                    <ol class="list-group list-group-flush">
+                        @foreach (var hmo in ViewBag.TopHmos ?? new List<dynamic>())
+                        {
+                            <li class="list-group-item d-flex justify-content-between align-items-center py-3 px-4">
+                                <span class="fw-bold fs-5">@hmo.Name</span>
+                                <span class="badge bg-warning text-dark rounded-pill fs-5 px-4">@hmo.Count</span>
+                            </li>
+                        }
+                        @if (!(ViewBag.TopHmos?.Count > 0))
+                        {
+                            <li class="list-group-item text-center text-muted py-5">
+                                <i class="bi bi-building fs-1"></i>
+                                <p class="mt-3">No HMO data available</p>
+                            </li>
+                        }
+                    </ol>
+                </div>
+            </div>
+        </div>
+
+        <!-- TOP 5 PROVIDERS BY CLAIMS VALUE -->
+        <div class="col-lg-4">
+            <div class="card border-0 shadow-lg h-100">
+                <div class="card-header bg-primary text-white text-center py-4">
+                    <h3 class="fw-bold mb-0">Top 5 Providers by Claims (₦)</h3>
+                </div>
+                <div class="card-body p-0">
+                    <ol class="list-group list-group-flush">
+                        @foreach (var provider in ViewBag.TopProviders ?? new List<dynamic>())
+                        {
+                            <li class="list-group-item d-flex justify-content-between align-items-center py-3 px-4">
+                                <span class="fw-bold fs-5">@provider.Name</span>
+                                <span class="badge bg-primary rounded-pill fs-5 px-4">₦@((int)provider.Total)</span>
+                            </li>
+                        }
+                        @if (!(ViewBag.TopProviders?.Count > 0))
+                        {
+                            <li class="list-group-item text-center text-muted py-5">
+                                <i class="bi bi-hospital fs-1"></i>
+                                <p class="mt-3">No paid claims yet</p>
+                            </li>
+                        }
+                    </ol>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="text-center mt-5 py-5 bg-dark text-white rounded-4">
+        <p class="display-6 fw-bold mb-3">NEDC CTSHIP Digital System.</p>
+        <p class="lead mb-0">NEDC CTSHIP — Delivering Universal Health Coverage to Millions Of Nigerians</p>
+        <p class="small mt-3 opacity-75">Powered by North East Development Commission</p>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const ctx = document.getElementById('enrolleesByStateChart').getContext('2d');
+            const rawData = @Html.Raw(Json.Serialize(ViewBag.EnrolleesByState ?? new List<object>()));
+
+            // Safety check: if no data, show a friendly message
+            if (!rawData || rawData.length === 0) {
+                ctx.canvas.parentNode.innerHTML = `
+                    <div class="text-center py-5">
+                        <i class="bi bi-pie-chart-fill text-muted" style="font-size: 4rem;"></i>
+                        <p class="mt-3 text-muted fs-4">No enrollee data available yet</p>
+                        <p class="text-muted">Start registering enrollees to see the distribution by state</p>
+                    </div>`;
+                return;
+            }
+
+            const labels = rawData.map(s => s.State );
+            const data = rawData.map(s => s.Count || 0);
+
+            new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: data,
+                        backgroundColor: [
+                            '#006400', '#228B22', '#32CD32', '#3CB371', '#90EE90',
+                            '#98FB98', '#8FBC8F', '#ADFF2F', '#7CFC00', '#008000',
+                            '#556B2F', '#2E8B57', '#9ACD32', '#6B8E23', '#808000'
+                        ],
+                        borderColor: '#fff',
+                        borderWidth: 3
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'right',
+                            labels: {
+                                font: { size: 14 },
+                                padding: 20
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const value = context.parsed || 0;
+                                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                    const percentage = total > 0 ? Math.round((value / total) * 100) : 0;
+                                    return `${context.label}: ${value.toLocaleString()} (${percentage}%)`;
+                                }
+                            }
+                        },
+                        datalabels: {
+                            color: '#fff',
+                            font: {
+                                weight: 'bold',
+                                size: 13
+                            },
+                            formatter: (value, context) => {
+                                if (!value || value === 0) return null;
+
+                                const total = context.dataset.data.reduce((a, b) => (a || 0) + (b || 0), 0);
+                                if (total === 0) return null;
+
+                                const percentage = Math.round((value / total) * 100);
+                                const label = context.chart.data.labels[context.dataIndex];
+
+                                // Only show label if slice is big enough (optional)
+                                if (percentage < 3) return `${label}\n(${percentage}%)`;
+
+                                return `${label}\n${value.toLocaleString()}\n(${percentage}%)`;
+                            }
+                        }
+                    }
+                },
+                plugins: [ChartDataLabels]
+            });
+        });
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            // Helper: format numbers with commas
+            const formatNumber = (num) => num.toLocaleString();
+
+            // ==== CHART 1: ENROLLEES BY STATE ====
+            const enrolleeCtx = document.getElementById('enrolleesByStateChart').getContext('2d');
+            const enrolleeData = @Html.Raw(Json.Serialize(ViewBag.EnrolleesByState ?? new List<object>()));
+
+            if (enrolleeData.length === 0) {
+                enrolleeCtx.canvas.parentNode.innerHTML = '<div class="text-center py-5 text-muted"><p class="fs-4">No enrollee data yet</p></div>';
+            } else {
+                new Chart(enrolleeCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: enrolleeData.map(s => s.State),
+                        datasets: [{
+                            label: 'Enrollees',
+                            data: enrolleeData.map(s => s.Count),
+                            backgroundColor: '#006400',
+                            borderColor: '#004d00',
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: {
+                                callbacks: {
+                                    label: ctx => `Enrollees: ${formatNumber(ctx.parsed.y)}`
+                                }
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: { callback: value => formatNumber(value) }
+                            }
+                        }
+                    }
+                });
+            }
+
+            // ==== CHART 2: CLAIMS PAID BY STATE ====
+            const claimsCtx = document.getElementById('claimsByStateChart').getContext('2d');
+            const claimsData = @Html.Raw(Json.Serialize(ViewBag.ClaimsByState ?? new List<object>()));
+
+            if (claimsData.length === 0) {
+                claimsCtx.canvas.parentNode.innerHTML = '<div class="text-center py-5 text-muted"><p class="fs-4">No paid claims yet</p></div>';
+            } else {
+                new Chart(claimsCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: claimsData.map(c => c.State),
+                        datasets: [{
+                            label: 'Amount Paid (₦)',
+                            data: claimsData.map(c => c.TotalPaid),
+                            backgroundColor: '#0064b7',
+                            borderColor: '#004080',
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: {
+                                callbacks: {
+                                    label: ctx => `Paid: ₦${formatNumber(Math.round(ctx.parsed.y))}`
+                                }
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    callback: value => '₦' + formatNumber(Math.round(value))
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+        });
+    </script>
+}

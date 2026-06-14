@@ -1,0 +1,93 @@
+﻿@model CTSHIPDashboard.Models.Hmo
+
+<div class="container-fluid py-5">
+    <div class="row justify-content-center">
+        <div class="col-12 col-lg-10">
+            <div class="card border-0 shadow-lg rounded-4 overflow-hidden">
+                <div class="bg-primary text-white text-center py-5">
+                    <h1 class="display-4 fw-bold mb-2">@Model.Name</h1>
+                    <p class="lead mb-0 opacity-90">Health Maintenance Organization • @Model.RegistrationNumber</p>
+                </div>
+
+                <div class="card-body p-5">
+                    <div class="text-center mb-4">
+                        <span class="badge fs-3 px-5 py-3 @(Model.Status == "Active" ? "bg-success" : "bg-danger")">
+                            @(Model.Status == "Active" ? "ACTIVE" : "INACTIVE")
+                        </span>
+                    </div>
+
+                    <div class="row g-5">
+                        <div class="col-lg-6">
+                            <div class="card border-primary shadow-lg h-100">
+                                <div class="card-body p-4">
+                                    <h3 class="text-primary fw-bold mb-4">HMO Information</h3>
+                                    <table class="table table-borderless">
+                                        <tr><td class="fw-bold">Code</td><td class="text-end"><strong class="text-primary fs-5">@Model.RegistrationNumber</strong></td></tr>
+                                        <tr><td class="fw-bold">Name</td><td class="text-end">@Model.Name</td></tr>
+                                        <tr><td class="fw-bold">Email</td><td class="text-end">@Model.Email</td></tr>
+                                        <tr><td class="fw-bold">Phone</td><td class="text-end">@Model.Phone</td></tr>
+                                        <tr><td class="fw-bold">Address</td><td class="text-end">@Model.Address</td></tr>
+                                        <tr>
+                                            <td class="fw-bold">Status</td>
+                                            <td class="text-end">
+                                                <span class="badge @(Model.Status == "Active" ? "bg-success" : "bg-danger") fs-5">
+                                                    @(Model.Status == "Active" ? "Active" : "Inactive")
+                                                </span>
+                                            </td>
+                                        </tr>
+                                        <tr><td class="fw-bold">Registered</td><td class="text-end">@Model.DateRegistered.Date</td></tr>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-lg-6">
+                            <h3 class="text-primary fw-bold mb-4 text-center">Performance Summary</h3>
+                            <div class="row g-4 text-center">
+                                <div class="col-md-6">
+                                    <div class="card bg-info text-white shadow">
+                                        <div class="card-body py-5">
+                                            <i class="bi bi-people fs-1 mb-3"></i>
+                                            <h5>Enrollees</h5>
+                                            <h2 class="display-5 fw-bold">@ViewBag.TotalEnrollees</h2>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="card bg-primary text-white shadow">
+                                        <div class="card-body py-5">
+                                            <i class="bi bi-file-medical fs-1 mb-3"></i>
+                                            <h5>Claims</h5>
+                                            <h2 class="display-5 fw-bold">@ViewBag.TotalClaims</h2>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-12">
+                                    <div class="card bg-success text-white shadow">
+                                        <div class="card-body py-5 text-center">
+                                            <i class="bi bi-currency-naira fs-1 mb-3"></i>
+                                            <h5>Total Claims Value</h5>
+                                            <h2 class="display-4 fw-bold">₦@ViewBag.TotalClaimAmount</h2>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="text-center mt-5">
+                        <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-warning btn-lg px-6 shadow">
+                            Edit HMO
+                        </a>
+                        <a asp-action="Delete" asp-route-id="@Model.Id" class="btn btn-danger btn-lg px-6 shadow ms-3">
+                            Delete HMO
+                        </a>
+                        <a asp-action="Index" class="btn btn-secondary btn-lg px-6 ms-3">
+                            Back to List
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

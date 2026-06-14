@@ -1,0 +1,71 @@
+@model CTSHIPDashboard.Models.ViewModels.StateOfficeDashboardViewModel
+@using Microsoft.AspNetCore.Mvc.Rendering
+
+@{
+    ViewBag.Title = $"State Dashboard - {Model.StateName}";
+}
+
+<h2>@ViewBag.Title</h2> 
+
+@if (ViewBag.States != null)
+{           
+    <form method="get" class="mb-3">
+        <label>Select state: </label>
+        <select name="state" class="form-select w-auto d-inline-block">
+            @foreach (SelectListItem s in (SelectList)ViewBag.States)
+            {
+                var sel = s.Value == Model.StateName ? " selected" : "";
+                @Html.Raw($"<option value=\"{s.Value}\"{sel}>{s.Text}</option>")
+            }
+        </select>
+        <button class="btn btn-sm btn-primary ms-2">Go</button>
+    </form>
+}
+
+<div class="row mb-3">
+    <div class="col-md-3">
+        <div class="card p-3 mb-3">
+            <h5>Total Enrollees</h5>
+            <h3>@Model.TotalEnrollees</h3>
+            <small>Active: @Model.ActiveEnrollees</small>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card p-3 mb-3">
+            <h5>Total Claims</h5>
+            <h3>@Model.TotalClaims</h3>
+            <small>Paid: @Model.PaidClaims</small>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card p-3 mb-3">
+            <h5>HMOs Covering State</h5>
+            <h3>@Model.HmoCount</h3>
+        </div>
+    </div>
+</div>
+
+<h4>Recent Enrollees</h4>
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>Enrollment #</th>
+            <th>Name</th>
+            <th>HMO</th>
+            <th>Registered</th>
+            <th>Status</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var e in Model.RecentEnrollees)
+        {
+            <tr>
+                <td>@e.EnrollmentNumber</td>
+                <td>@e.FullName</td>
+                <td>@e.HmoName</td>
+                <td>@e.DateRegistered.ToString("yyyy-MM-dd")</td>
+                <td>@e.Status</td>
+            </tr>
+        }
+    </tbody>
+</table>

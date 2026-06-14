@@ -1,0 +1,370 @@
+﻿@using Microsoft.AspNetCore.Identity
+@inject SignInManager<ApplicationUser> SignInManager // Replace IdentityUser with your custom user class if applicable
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - NEDC CTHIP Dashboard</title>
+
+    <!-- Bootstrap 5 + Custom Nigeria Green Theme -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
+    <!-- Optional: Make it feel like a real app (PWA) -->
+<link rel="manifest" href="/manifest.json">
+<link rel="apple-touch-icon" href="/img/icon-192.png">
+
+    <style>
+        .footer-brand {
+            background: linear-gradient(135deg, #003300, #006400);
+            border-radius: 16px;
+            padding: 3rem;
+            color: white;
+            text-align:center;
+        }
+        .select2-results__options {
+            max-height: 200px !important;
+            overflow-y: auto !important;
+        }
+        /* SIDEBAR STYLES - MOBILE FIRST */
+        .sidebar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 100vh;
+            width: 280px;
+            background: linear-gradient(180deg, #006400 0%, #004d00 100%);
+            color: white;
+            transition: all 0.3s ease;
+            z-index: 1050;
+            overflow-y: auto;
+            padding-top: 80px; /* Space for fixed navbar */
+        }
+
+            .sidebar.collapsed {
+                width: 70px;
+                overflow: hidden;
+            }
+
+            .sidebar .nav-link {
+                color: rgba(255,255,255,0.9);
+                padding: 12px 20px;
+                border-radius: 0;
+                transition: all 0.2s;
+            }
+
+                .sidebar .nav-link:hover, .sidebar .nav-link.active {
+                    background: rgba(255,255,255,0.2);
+                    color: white;
+                }
+
+                .sidebar .nav-link i {
+                    width: 30px;
+                    font-size: 1.3rem;
+                }
+
+            .sidebar .nav-text {
+                opacity: 1;
+                transition: opacity 0.2s;
+            }
+
+            .sidebar.collapsed .nav-text {
+                opacity: 0;
+            }
+
+        .content {
+            margin-left: 280px;
+            transition: margin-left 0.3s ease;
+        }
+
+            .content.collapsed {
+                margin-left: 70px;
+            }
+
+        /* MOBILE: Hide sidebar by default, show as offcanvas */
+        @@media (max-width: 992px) {
+            .sidebar
+
+        {
+            width: 0;
+            overflow: hidden;
+        }
+
+        .sidebar.show {
+            width: 280px;
+        }
+
+        .content, .content.collapsed {
+            margin-left: 0 !important;
+        }
+
+        .navbar-toggler {
+            z-index: 1060;
+        }
+
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-dark bg-success fixed-top shadow-lg">
+        <div class="container-fluid">
+            <button class="btn btn-success navbar-toggler" type="button" data-bs-toggle="offcanvas" data-bs-target="#sidebar">
+                <i class="bi bi-list fs-3"></i>
+            </button>
+            <a class="navbar-brand fw-bold mx-auto" href="/">
+                <span class="d-none d-sm-inline">NORTH EAST DEVELOPMENT COMMISSION - COMMUNITY TARGERTED HEALTH INSURANCE PROGRAM</span>
+                <span class="d-inline d-sm-none">NEDC CTSHIP DIGITAL SYSTEM</span>
+            </a>
+            <div class="d-flex align-items-center">
+              
+                <a asp-area="Identity" asp-page="/Account/Manage/Index" class="navbar-brand fw-bold mx-auto">
+                   <span class="text-white me-3 small d-none d-md-block">
+                    <span class="text-muted">
+                        Welcome, <strong>
+                        </strong>
+                    </span>@User.Identity?.Name
+                </span>
+                </a>
+            </div>
+        </div>
+    </nav>
+    <!-- Sidebar -->
+    <div class="sidebar offcanvas offcanvas-start text-white" id="sidebar" tabindex="-1">
+        <div class="offcanvas-header border-bottom border-light border-opacity-25">
+            <h5 class="offcanvas-title text-white fw-bold">NEDC CTSHIP PROGRAM</h5>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas"></button>
+        </div>
+        <div class="offcanvas-body p-0">
+        <nav class="nav flex-column">
+            @if (User.IsInRole("NHIA"))
+            {
+                <a asp-page="/Nhia/Index" class="nav-link">
+                    <i class="bi bi-speedometer2"></i> NHIA Dashboard
+                </a>
+                <a asp-controller="Enrollees" asp-action="BulkUpload" class="nav-link">
+                    <i class="bi bi-person-plus-fill"></i> Bulk Enrolment with Excel
+                </a>
+            }
+
+            @if (User.IsInRole("HMO"))
+            {
+                    <a asp-controller="Hmo" asp-action="Dashboard" class="nav-link text-white">
+                        <i class="bi bi-people-fill"></i> Dashboard
+                    </a>
+                    <a asp-controller="Hmo" asp-action="EnrolleeDashboard" class="nav-link text-white">
+                        <i class="bi bi-people-fill"></i> My Enrollees
+                    </a>
+                    <a asp-controller="Claims" asp-action="Dashboard" class="nav-link text-white">
+                        <i class="bi bi-people-fill"></i> My Claims
+                    </a>
+                    <a asp-controller="Hmo" asp-action="MyProviders" class="nav-link">
+                        <i class="bi bi-hospital-fill"></i> My Providers
+                    </a>
+                    <a asp-controller="Enrollees" asp-action="BulkUpload" class="nav-link">
+                        <i class="bi bi-person-plus-fill"></i> Bulk Enrolment with Excel
+                    </a>
+            }
+
+            @if (User.IsInRole("SSHIA"))
+            {
+                <a asp-controller="Providers" asp-action="Index" class="nav-link">
+                    <i class="bi bi-hospital-fill"></i> Providers
+                </a>
+                   
+            }
+
+           @if (User.IsInRole("Provider"))
+           {
+                    <a asp-controller="Providers" asp-action="Dashboard" class="nav-link">
+                        <i class="bi bi-house-door-fill"></i> Providers Dashboard
+                    </a>
+                    <a asp-controller="Providers" asp-action="MyEncounters" class="nav-link text-white">
+                        <i class="bi bi-people-fill"></i> Patients Encounters
+                    </a>
+                    <a asp-controller="Providers" asp-action="MyEnrollees" class="nav-link text-white">
+                        <i class="bi bi-people-fill"></i> My Enrollees
+                    </a>
+                    <a asp-controller="Providers" asp-action="MyClaims" class="nav-link">
+                        <i class="bi bi-file-medical-fill"></i> My Claims
+                    </a>
+           }
+                <a asp-controller="Feedback" asp-action="Index" class="nav-link">
+                    <i class="bi bi-chat-dots-fill"></i> Feedback
+                </a>
+
+            @if (User.IsInRole("Admin"))
+            {
+                <a asp-controller="Home" asp-action="Index" class="nav-link">
+                    <i class="bi bi-house-door-fill"></i> Dashboard
+                </a>
+                <a asp-controller="Analytics" asp-action="Index" class="nav-link">
+                    <i class="bi bi-graph-up-arrow"></i> Analytics
+                </a>
+                 <a asp-controller="Enrollees" asp-action="Index" class="nav-link">
+                    <i class="bi bi-person-plus-fill"></i>Enrolment
+                </a>
+                <a asp-controller="Enrollees" asp-action="BulkUpload" class="nav-link">
+                    <i class="bi bi-person-plus-fill"></i>Bulk Enrolment with Excel
+                </a>
+                <a asp-controller="Admin" asp-action="Users" class="nav-link">
+                    <i class="bi bi-people-fill"></i> Manage Users
+                </a>
+                <a asp-controller="Encounters" asp-action="Index" class="nav-link text-white">
+                    <i class="bi bi-people-fill"></i> Patient Encounters
+                </a>
+                <a asp-controller="Hmo" asp-action="Index" class="nav-link text-white">
+                    <i class="bi bi-people-fill"></i> HMO Management
+                </a>
+                <a asp-controller="Providers" asp-action="Index" class="nav-link">
+                    <i class="bi bi-hospital-fill"></i> Providers
+                </a>
+                    <a asp-controller="Organizations" asp-action="Index" class="nav-link">
+                        <i class="bi bi-hospital-fill"></i> Organizations
+                    </a>
+                <a asp-controller="Hmo" asp-action="Analytics" class="nav-link text-white">
+                    <i class="bi bi-people-fill"></i> HMO Analytics
+                </a>
+                <a asp-controller="Admin" asp-action="EnrolleesPerProvider" class="nav-link text-white">
+                    <i class="bi bi-people-fill"></i> Enrollees Per Provider
+                </a>
+                <a asp-controller="Role" asp-action="Index" class="nav-link text-white">
+                    <i class="bi bi-people-fill"></i> Manage Roles
+                    </a>
+                <a asp-controller="Claims" asp-action="Index" class="nav-link">
+                    <i class="bi bi-file-medical-fill"></i> Claims
+                </a>
+                 <hr class="bg-white mx-3">
+                <a asp-area="Identity" asp-page="/Account/Manage/Index" class="nav-link">
+                    <i class="bi bi-person-gear"></i> Admin Settings
+                </a>
+                <a asp-controller="Admin" asp-action="AuditLogs" class="nav-link">
+                    <i class="bi bi-graph-up-arrow"></i> AuditLogs
+                </a>
+                <a asp-controller="Admin" asp-action="UserActivity" class="nav-link">
+                    <i class="bi bi-person-gear"></i> User Activity Reports
+                </a>
+                <a href="/Nhia" class="nav-link">
+                    <i class="bi bi-speedometer2"></i> NHIA Dashboard
+                </a>
+                
+            }
+            @if (User.IsInRole("NEDCAdmin"))
+            {
+                <a asp-controller="Analytics" asp-action="Index" class="nav-link">
+                    <i class="bi bi-graph-up-arrow"></i> Analytics
+                </a>
+            }
+            @if (SignInManager.IsSignedIn(User))
+            {
+                <a asp-area="Identity" asp-page="/Account/Logout" class="nav-link">
+                    <i class="bi bi-box-arrow-right"></i> Logout
+                </a>
+            }
+
+            @if (User.IsInRole("StateOffice"))
+            {
+                <a asp-controller="StateOffice" asp-action="Index" class="nav-link">
+                    <i class="bi bi-building"></i> State Dashboard
+                </a>
+                <a asp-controller="Providers" asp-action="Index" class="nav-link">
+                     <i class="bi bi-hospital-fill"></i> Providers
+                 </a>
+             }
+         
+        </nav>
+    </div>
+  </div>
+    <!-- Main Content -->
+    <div class="main-content">
+        <div class="container-fluid pt-5 mt-3"> 
+        @RenderBody()
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer-brand">
+        <p class="mb-0 small fw-bold">
+            ©@DateTime.Today.Year CTSHIP - Community Targeted Social Health Insurance Project | Powered by North East Development Commission
+        </p>
+    </div>
+        <!-- 3. jQuery Validation -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+        <script src="~/lib/jquery-validation/dist/jquery.validate.min.js"></script>
+        <script src="~/lib/jquery-validation-unobtrusive/dist/jquery.validate.unobtrusive.min.js"></script>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
+        <!-- 2. Bootstrap Bundle (includes Popper) -->
+        <!-- 4. Select2 Plugin (and any others) -->
+        @* Verify this path is correct in your wwwroot/lib folder *@
+
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+        <!-- 4. Select2 -->
+
+        <!-- 5. SignalR -->
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.0/signalr.min.js"></script>
+
+        <!-- 6. Chart.js -->
+        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+        <!-- 7. Leaflet -->
+        <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+        <script src="https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js"></script>
+   
+    <script>
+        // Auto-close sidebar when clicking a link on mobile
+        document.querySelectorAll('.sidebar .nav-link').forEach(link => {
+            link.addEventListener('click', () => {
+                if (window.innerWidth < 992) {
+                    const offcanvas = bootstrap.Offcanvas.getInstance('#sidebar');
+                    if (offcanvas) offcanvas.hide();
+                }
+            });
+        });
+    </script>
+    <script>
+        $(document).ready(function () {
+            $('.select2').select2();
+
+            // Active menu highlight
+            $('.nav-link').each(function () {
+                if (this.href === window.location.href) {
+                    $(this).addClass('active');
+                }
+            });
+
+            // Success messages
+            @if (TempData["Success"] != null)
+            {
+                    @:Swal.fire('Success!', '@TempData["Success"]', 'success');
+            }
+        });
+    </script>
+        <script>
+            $(document).ready(function () {
+                // Initialize Select2 on all <select multiple> or class="select2"
+                $('select[multiple], .select2').select2({
+                    theme: 'bootstrap-5',
+                    placeholder: "Select options...",
+                    width: '100%'
+                });
+
+                // Optional: Make single selects also beautiful
+                $('select').not('[multiple]').select2({
+                    theme: 'bootstrap-5',
+                    minimumResultsForSearch: Infinity
+                });
+            });
+        </script>
+
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

@@ -1,0 +1,53 @@
+﻿@model CTSHIPDashboard.Models.ViewModels.FeedbackViewModel
+
+@{
+    ViewData["Title"] = "Beneficiary Feedback";
+}
+
+<h1>Feedback Reporting</h1>
+
+<p>Average Satisfaction: @Model.AverageSatisfaction.ToString("F2")</p>
+<p>Feedback Resolution Index: @Model.ResolutionIndex.ToString("F2")%</p>
+
+<h2>Scores Distribution</h2>
+<canvas id="scoresChart" width="400" height="200"></canvas>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    var ctx = document.getElementById('scoresChart').getContext('2d');
+    var chart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: [@string.Join(",", Model.ScoresDistribution.Keys)],
+            datasets: [{
+                label: 'Count',
+                data: [@string.Join(",", Model.ScoresDistribution.Values)]
+            }]
+        }
+    });
+</script>
+
+<h2>Feedback List</h2>
+<table>
+    <thead><tr><th>Enrollee</th><th>Provider</th><th>Score</th><th>Comments</th><th>Resolved</th><th>Actions</th></tr></thead>
+    <tbody>
+        @foreach (var feedback in Model.Feedbacks)
+        {
+            <tr>
+                <td>@feedback.Enrollee.FullName</td>
+                <td>@feedback.Provider.Name</td>
+                <td>@feedback.SatisfactionScore</td>
+                <td>@feedback.Comments</td>
+                <td>@feedback.Resolved</td>
+                <td>
+                    <a asp-action="Edit" asp-route-id="@feedback.Id">Edit</a> |
+                    <form asp-action="Delete" asp-route-id="@feedback.Id" method="post" style="display:inline;">
+                        <button type="submit">Delete</button>
+                    </form>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+<a asp-action="Create">Submit New Feedback</a>
+<a asp-action="ImportFromScore4Care">Import from Score4Care</a>

@@ -1,0 +1,110 @@
+﻿@model CTSHIPDashboard.Models.Provider
+@{
+    ViewData["Title"] = "Edit Provider - " + Model.Name;
+}
+
+<div class="container-fluid py-5">
+    <div class="row justify-content-center">
+        <div class="col-12 col-lg-10 col-xl-8">
+            <div class="card border-0 shadow-lg rounded-4 overflow-hidden">
+                <div class="bg-warning text-dark text-center py-5">
+                    <h1 class="display-5 fw-bold mb-2">EDIT PROVIDER</h1>
+                    <p class="lead mb-0 opacity-90">@Model.Code • @Model.State</p>
+                </div>
+
+                <div class="card-body p-4 p-md-5">
+                    <form asp-action="Edit" method="post">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" asp-for="Id" />
+                        <input type="hidden" asp-for="DateRegistered" />
+
+                        <div class="row g-4">
+                            <div class="col-md-4 form-group">
+                                <label asp-for="Code" class="form-label text-success fw-bold fs-5"></label>
+                                <input asp-for="Code" class="form-control form-control-lg bg-light" readonly />
+                            </div>
+                            <div class="col-md-8">
+                                <label asp-for="Name" class="form-label text-success fw-bold fs-5"></label>
+                                <input asp-for="Name" class="form-control form-control-lg rounded-3" required />
+                                <span asp-validation-for="Name" class="text-danger"></span>
+                            </div>
+
+                            <div class="col-md-6">
+                                <label asp-for="State" class="form-label text-success fw-bold fs-5">State</label>
+                                <select asp-for="State" class="form-select form-select-lg"
+                                        asp-items="ViewBag.States" required></select>
+                                <span asp-validation-for="State" class="text-danger"></span>
+                            </div>
+
+                            <div class="col-md-6">
+                                <label asp-for="Level" class="form-label text-success fw-bold fs-5">Facility Level</label>
+                                <select asp-for="Level" class="form-select form-select-lg" required>
+                                    <option value="">-- Select Level --</option>
+                                    <option value="Primary" selected="@(Model.Level == "Primary")">
+                                        Primary Health Center (PHC)
+                                    </option>
+                                    <option value="Secondary" selected="@(Model.Level == "Secondary")">
+                                        Secondary Health Care (General Hospital)
+                                    </option>
+                                    <option value="Tertiary" selected="@(Model.Level == "Tertiary")">
+                                        Tertiary / Teaching Hospital
+                                    </option>
+                                    <option value="Private" selected="@(Model.Level == "Private")">
+                                        Private Clinic / Hospital
+                                    </option>
+                                </select>
+                                <span asp-validation-for="Level" class="text-danger"></span>
+                            </div>
+
+                            <div class="col-12">
+                                <label asp-for="Location" class="form-label text-success fw-bold fs-5">Full Address</label>
+                                <textarea asp-for="Location" class="form-control form-control-lg rounded-3" rows="3" required></textarea>
+                                <span asp-validation-for="Location" class="text-danger"></span>
+                            </div>
+                            <div class="col-md-6">
+                                <label asp-for="Latitude" class="form-label">Latitude (Optional)</label>
+                                <input asp-for="Latitude" class="form-control" step="any" placeholder="e.g. 11.9819" />
+                            </div>
+                            <div class="col-md-6 form-group">
+                                <label asp-for="Longitude" class="form-label">Longitude (Optional)</label>
+                                <input asp-for="Longitude" class="form-control" step="any" placeholder="e.g. 8.5373" />
+                            </div>
+                            <div class="col-md-6 form-group">
+                                <label asp-for="PatientRatio"></label>
+                                <input asp-for="PatientRatio" class="form-control" type="number" />
+                            </div>
+
+                            <div class="col-md-6">
+                                <label asp-for="Phone" class="form-label text-success fw-bold fs-5">Phone</label>
+                                <input asp-for="Phone" class="form-control form-control-lg rounded-3" />
+                            </div>
+                            <div class="col-md-6">
+                                <label asp-for="Email" class="form-label text-success fw-bold fs-5">Email</label>
+                                <input asp-for="Email" type="email" class="form-control form-control-lg rounded-3" />
+                            </div>
+
+                            <div class="col-12">
+                                <div class="form-check form-switch">
+                                    <input asp-for="IsActive" class="form-check-input" type="checkbox"
+                                           id="activeSwitch" style="width:60px;height:30px;" />
+                                    <label class="form-check-label text-success fw-bold fs-5" for="activeSwitch">
+                                        Active Facility (Can receive patients)
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="text-center mt-5 pt-4 border-top">
+                            <button type="submit" class="btn btn-success btn-lg px-6 shadow-lg fw-bold fs-4">
+                                UPDATE PROVIDER
+                            </button>
+                            <a asp-action="Index" class="btn btn-secondary btn-lg px-6 ms-3">
+                                Cancel
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,78 @@
+﻿Pages/Nhia/Index.cshtml
+@model CTSHIPDashboard.Pages.Nhia.Index
+@using System.Globalization
+
+<h2>NHIA Dashboard — Key Performance Indicators</h2>
+
+<div class="row mb-3">
+    <div class="col-md-3">
+        <div class="card p-3">
+            <h6>Total Enrollees</h6>
+            <h3>@Model.Kpis.TotalEnrollees</h3>
+            <small>Active: @Model.Kpis.ActiveEnrollees</small>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card p-3">
+            <h6>Total Claims</h6>
+            <h3>@Model.Kpis.TotalClaims</h3>
+            <small>Paid: @Model.Kpis.PaidClaims</small>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card p-3">
+            <h6>Total Paid (Amount)</h6>
+            <h3>@Model.Kpis.TotalPaidAmount.ToString("C", CultureInfo.CurrentCulture)</h3>
+            <small>Pending: @Model.Kpis.PendingClaims</small>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card p-3">
+            <h6>Providers / HMOs</h6>
+            <h3>@Model.Kpis.TotalProviders / @Model.Kpis.TotalHmos</h3>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <h5>Enrollees by State (Top)</h5>
+        <table class="table table-sm">
+            <thead><tr><th>State</th><th>Count</th></tr></thead>
+            <tbody>
+            @foreach(var kv in Model.Kpis.EnrolleesByState)
+            {
+                <tr><td>@kv.Key</td><td>@kv.Value</td></tr>
+            }
+            </tbody>
+        </table>
+    </div>
+
+    <div class="col-md-6">
+        <h5>Top HMOs by Enrollees</h5>
+        <table class="table table-sm">
+            <thead><tr><th>HMO</th><th>Enrollees</th></tr></thead>
+            <tbody>
+            @foreach(var kv in Model.Kpis.TopHmos)
+            {
+                <tr><td>@kv.Key</td><td>@kv.Value</td></tr>
+            }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="row mt-3">
+    <div class="col-md-12">
+        <h5>Claims by State (Top)</h5>
+        <table class="table table-sm">
+            <thead><tr><th>State</th><th>Claims</th></tr></thead>
+            <tbody>
+            @foreach(var kv in Model.Kpis.ClaimsByState)
+            {
+                <tr><td>@kv.Key</td><td>@kv.Value</td></tr>
+            }
+            </tbody>
+        </table>
+    </div>
+</div>

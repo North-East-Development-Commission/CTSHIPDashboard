@@ -1,0 +1,81 @@
+﻿@model CTSHIPDashboard.Models.Encounter
+
+<div class="container-fluid py-5">
+    <div class="row justify-content-center">
+        <div class="col-12 col-lg-10">
+            <div class="card border-0 shadow-lg rounded-4">
+                <div class="bg-success text-white text-center py-5">
+                    <h1 class="display-5 fw-bold mb-2">ENCOUNTER DETAILS</h1>
+                    <p class="lead mb-0">@Model.EncounterNumber</p>
+                </div>
+
+                <div class="card-body p-5">
+                    <div class="row g-5">
+                        <div class="col-md-5">
+                            <div class="card border-success shadow">
+                                <div class="card-body text-center p-4">
+                                    <img src="@(Model.Enrollee?.PhotoPath ?? "/img/icon-192.png")"
+                                         class="rounded-circle shadow" style="width:180px;height:180px;object-fit:cover;border:6px solid #006400;" />
+                                    <h4 class="mt-4 fw-bold">@Model.Enrollee?.FullName</h4>
+                                    <p>ID: @Model.Enrollee?.EnrollmentNumber</p>
+                                    <p>HMO: @Model.Enrollee?.Hmo?.Name</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-7">
+                            <div class="row g-4">
+                                <div class="col-12">
+                                    <div class="card shadow-sm">
+                                        <div class="card-body">
+                                            <h5 class="text-success fw-bold">Visit Information</h5>
+                                            <p><strong>Date:</strong> @Model.VisitDate</p>
+                                            <p><strong>Type:</strong> @Model.VisitType</p>
+                                            <p><strong>Provider:</strong> @Model.Provider?.Name</p>
+                                            <p>
+                                                <strong>Status:</strong>
+                                                <span class="badge bg-success fs-6">@Model.Status</span>
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="col-12">
+                                    <div class="card shadow-sm">
+                                        <div class="card-body">
+                                            <h5 class="text-success fw-bold">Clinical Details</h5>
+                                            <p><strong>Chief Complaint:</strong> @Model.ChiefComplaint</p>
+                                            <p><strong>Diagnosis:</strong> @Model.Diagnosis</p>
+                                            <p><strong>Treatment:</strong> @Model.TreatmentGiven</p>
+                                            <p><strong>AttendedBy:</strong> @Model.AttendedBy</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="col-12">
+                                    <div class="card @(Model.ClaimId == null ? "border-warning" : "border-success") shadow-sm">
+                                        <div class="card-body text-center py-4">
+                                            <h5>Total Amount</h5>
+                                            <h2 class="display-5 fw-bold text-success">₦@Model.TotalAmount</h2>
+                                            @if (Model.ClaimId == null)
+                                            {
+                                                <p class="text-warning fw-bold">Not yet claimed</p>
+                                            }
+                                            else
+                                            {
+                                                <p class="text-success fw-bold">Claim Submitted</p>
+                                            }
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="text-center mt-5">
+                        <a asp-action="MyProviders" class="btn btn-secondary btn-lg px-6">Back to List</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

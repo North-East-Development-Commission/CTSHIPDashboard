@@ -1,0 +1,74 @@
+﻿@model CTSHIPDashboard.Models.Claim
+@{
+    ViewData["Title"] = "Edit Claim - " + Model.ClaimNumber;
+}
+
+<div class="container-fluid py-4">
+    <div class="row justify-content-center">
+        <div class="col-12 col-lg-10 col-xl-8">
+            <div class="card border-0 shadow-lg rounded-4 overflow-hidden">
+                <div class="bg-warning text-dark text-center py-5">
+                    <h1 class="display-5 fw-bold mb-3">EDIT PENDING CLAIM</h1>
+                    <p class="lead mb-0">Claim #: <strong class="text-primary">@Model.ClaimNumber</strong></p>
+                </div>
+
+                <div class="card-body p-4 p-md-5">
+                    <div class="alert alert-warning">
+                        <strong>Note:</strong> Only <u>Pending</u> claims can be edited. Current status: <span class="badge bg-warning text-dark">@Model.Status</span>
+                    </div>
+
+                    <form asp-action="Edit" method="post">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" asp-for="Id" />
+                        <input type="hidden" asp-for="ClaimNumber" />
+                        <input type="hidden" asp-for="DateSubmitted" />
+                        <input type="hidden" asp-for="EnrolleeId" />
+                        <input type="hidden" asp-for="SubmittedBy" />
+
+                        <div class="row g-4">
+                            <div class="col-md-6">
+                                <label class="form-label text-success fw-bold">Enrollee</label>
+                                <input value="@Model.Enrollee?.FullName (@Model.Enrollee?.EnrollmentNumber)" class="form-control form-control-lg bg-light" disabled />
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label text-success fw-bold">Provider</label>
+                                <select asp-for="ProviderId" class="form-select form-select-lg rounded-3" asp-items="ViewBag.Providers" required>
+                                    <option value="">Select Facility</option>
+                                </select>
+                            </div>
+
+                            <div class="col-12">
+                                <label asp-for="Diagnosis" class="form-label text-success fw-bold">Diagnosis <span class="text-danger">*</span></label>
+                                <textarea asp-for="Diagnosis" class="form-control form-control-lg rounded-3" rows="3" required></textarea>
+                            </div>
+
+                            <div class="col-12">
+                                <label asp-for="Treatment" class="form-label text-success fw-bold">Treatment Given <span class="text-danger">*</span></label>
+                                <textarea asp-for="Treatment" class="form-control form-control-lg rounded-3" rows="5" required></textarea>
+                            </div>
+
+                            <div class="col-md-6">
+                                <label asp-for="Amount" class="form-label text-success fw-bold">Claim Amount (₦) <span class="text-danger">*</span></label>
+                                <input asp-for="Amount" class="form-control form-control-lg rounded-3 text-end fw-bold fs-3" type="number" step="100" required />
+                            </div>
+                        </div>
+
+                        <hr class="my-5 border-success opacity-75 border-2" />
+
+                        <div class="text-center">
+                            <button type="submit" class="btn btn-success btn-lg px-6 shadow-lg fw-bold fs-4">
+                                UPDATE CLAIM
+                            </button>
+                            <a asp-action="Details" asp-route-id="@Model.Id" class="btn btn-info btn-lg px-6 ms-3">
+                                View Details
+                            </a>
+                            <a asp-action="Index" class="btn btn-secondary btn-lg px-6 ms-3">
+                                Back to Claims
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

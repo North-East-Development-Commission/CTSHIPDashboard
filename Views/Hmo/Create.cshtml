@@ -1,0 +1,56 @@
+﻿@model Hmo
+
+<div class="container py-5">
+    <div class="card mx-auto shadow-lg" style="max-width: 900px; border-radius: 25px;">
+        <div class="bg-success text-white text-center py-5">
+            <h1 class="display-5 fw-bold">REGISTER NEW HMO</h1>
+        </div>
+
+        <div class="card-body p-5">
+            <form asp-action="Create" method="post" enctype="multipart/form-data">
+                @Html.AntiForgeryToken()
+
+                <div class="row g-4">
+                    <div class="col-md-8">
+                        <label asp-for="Name" class="form-label text-success fw-bold fs-5">HMO Name</label>
+                        <input asp-for="Name" class="form-control form-control-lg" required />
+                    </div>
+
+                    <div class="col-md-4">
+                        <label class="form-label text-success fw-bold fs-5">HMO Logo</label>
+                        <input type="file" name="logo" accept="image/*" class="form-control form-control-lg" />
+                    </div>
+
+                    <div class="col-md-6">
+                        <label asp-for="Email" class="form-label text-success fw-bold">Email</label>
+                        <input asp-for="Email" class="form-control form-control-lg" type="email" required />
+                    </div>
+
+                    <div class="col-md-6">
+                        <label asp-for="Phone" class="form-label text-success fw-bold">Phone</label>
+                        <input asp-for="Phone" class="form-control form-control-lg" required />
+                    </div>
+
+                    <div class="col-12">
+                        <label asp-for="Address" class="form-label text-success fw-bold">Office Address</label>
+                        <textarea asp-for="Address" class="form-control form-control-lg" rows="3" required></textarea>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label asp-for="State" class="form-label text-success fw-bold">State of Operation</label>
+                        <select asp-for="State" class="form-select form-select-lg" asp-items="ViewBag.States" required>
+                            <option value="">Select State</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="text-center mt-5">
+                    <button type="submit" class="btn btn-success btn-lg px-5 shadow-lg fw-bold fs-4">
+                        REGISTER HMO
+                    </button>
+                    <a asp-action="Index" class="btn btn-secondary btn-lg px-5 ms-3">Cancel</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

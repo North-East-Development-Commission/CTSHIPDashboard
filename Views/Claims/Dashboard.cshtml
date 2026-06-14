@@ -1,0 +1,200 @@
+﻿@model IEnumerable<CTSHIPDashboard.Models.Claim>
+@{
+    ViewData["Title"] = $"{ViewBag.HmoName} - Claims Dashboard";
+}
+
+<div class="container-fluid py-5">
+    <div class="text-center mb-5">
+        <h1 class="display-4 fw-bold text-primary mb-3">
+            @ViewBag.HmoName
+        </h1>
+        <p class="lead text-success fw-bold">Claims Management Dashboard</p>
+        <p class="text-muted fs-4">Real-time claims data • @DateTime.Now</p>
+    </div>
+
+    <!-- KPI CARDS -->
+    <div class="row g-4 mb-5 text-center">
+        <div class="col-xl-3 col-md-6">
+            <div class="card bg-info text-white shadow-lg h-100">
+                <div class="card-body py-3">
+                    <i class="bi bi-file-medical fs-1 mb-3"></i>
+                    <h5>Total Claims</h5>
+                    <h2 class="display-5 fw-bold">@ViewBag.TotalClaims</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-2 col-md-6">
+            <div class="card bg-warning text-dark shadow-lg h-100">
+                <div class="card-body py-3">
+                    <i class="bi bi-hourglass-split fs-1 mb-3"></i>
+                    <h5>Submitted</h5>
+                    <h2 class="display-5 fw-bold">@ViewBag.PendingClaims</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-2 col-md-6">
+            <div class="card bg-danger text-dark shadow-lg h-100">
+                <div class="card-body py-3">
+                    <i class="bi bi-hourglass-split fs-1 mb-3"></i>
+                    <h5>Rejected</h5>
+                    <h2 class="display-5 fw-bold">@ViewBag.RejectedClaims</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-2 col-md-6">
+            <div class="card bg-success text-white shadow-lg h-100">
+                <div class="card-body py-2">
+                    <i class="bi bi-check-circle fs-1 mb-3"></i>
+                    <h5>Approved</h5>
+                    <h2 class="display-5 fw-bold">@ViewBag.ApprovedClaims</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="card bg-primary text-white shadow-lg h-100">
+                <div class="card-body py-3">
+                    <i class="bi bi-file-medical fs-1 mb-3"></i>
+                    <h5>Total Value</h5>
+                    <h2 class="display-5 fw-bold">₦@((int)ViewBag.TotalAmount)</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="mb-3">
+        <a asp-controller="Hmo" asp-action="ExportClaims" class="btn btn-success btn-lg shadow-lg px-5">
+            <i class="bi bi-file-earmark-excel me-2"></i> Export to Excel
+        </a>
+    </div>
+
+    <!-- SEARCH & FILTER -->
+    <div class="card border-0 shadow mb-4">
+        <div class="card-body">
+            <form asp-action="Dashboard" method="get">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <input type="text" name="search" value="@ViewBag.Search"
+                               class="form-control form-control-lg rounded-3"
+                               placeholder="Search claim number, enrollee name, or ID..." />
+                    </div>
+                    <div class="col-md-3">
+                        <select name="status" class="form-select form-select-lg rounded-3">
+                            <option value="All">All Status</option>
+                            <option value="Submitted" selected="@(ViewBag.Status == "Submitted")">Submitted</option>
+                            <option value="Approved" selected="@(ViewBag.Status == "Approved")">Approved</option>
+                            <option value="Paid" selected="@(ViewBag.Status == "Paid")">Paid</option>
+                            <option value="Rejected" selected="@(ViewBag.Status == "Rejected")">Rejected</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <button type="submit" class="btn btn-success btn-lg w-100 rounded-3">
+                            Filter
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- CLAIMS TABLE -->
+    <div class="card border-0 shadow-lg">
+        <div class="card-header bg-primary text-white text-center py-4">
+            <h3 class="fw-bold mb-0">Claims Under @ViewBag.HmoName (@ViewBag.TotalClaims)</h3>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="bg-light">
+                        <tr>
+                            <th>Claim #</th>
+                            <th>Enrollee</th>
+                            <th>Provider</th>
+                            <th>Amount</th>
+                            <th>Submitted</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (!Model.Any())
+                        {
+                            <tr>
+                                <td colspan="7" class="text-center py-5 text-muted fs-4">
+                                    No claims found
+                                </td>
+                            </tr>
+                        }
+                        else
+                        {
+                            @foreach (var c in Model)
+                            {
+                                <tr>
+                                    <td><strong class="text-primary">@c.ClaimNumber</strong></td>
+                                    <td>
+                                        <strong>@c.Enrollee?.FullName</strong><br>
+                                        <small class="text-muted">@c.Enrollee?.EnrollmentNumber</small>
+                                    </td>
+                                    <td>@c.Provider?.Name</td>
+                                    <td class="fw-bold text-success">₦@c.Amount</td>
+                                    <td>@c.DateSubmitted</td>
+                                    <td>
+                                        <span class="badge px-2 py-2 
+                                                    @(c.Status == "Paid" ? "bg-success" :
+                                                      c.Status == "Approved" ? "bg-info" :
+                                                      c.Status == "Submitted" ? "bg-warning text-dark" :
+                                                      "bg-danger")" >@c.Status
+                                        </span>
+                            </td>
+                            <td>
+                                <a asp-action="Details" asp-route-id="@c.Id" class="btn btn-info btn-sm">View</a>
+                                        @if (c.Status == "Submitted")
+                                        {
+                                            <a asp-action="Review" asp-route-id="@c.Id" class="btn btn-primary btn-sm">Review</a>
+                                        }
+
+                                        @if (c.Status == "Approved" && User.IsInRole("HMO"))
+                                        {
+                                            <a asp-action="Approve" asp-route-id="@c.Id" class="btn btn-success btn-sm">Pay</a>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- PAGINATION -->
+    @if (ViewBag.TotalPages > 1)
+    {
+        <nav class="mt-5">
+            <ul class="pagination justify-content-center">
+                <li class="page-item @(ViewBag.CurrentPage == 1 ? "disabled" : "")">
+                    <a class="page-link"
+                       asp-action="Dashboard"
+                       asp-route-search="@ViewBag.Search"
+                       asp-route-status="@ViewBag.Status"
+                       asp-route-page="@(ViewBag.CurrentPage - 1)">Previous</a>
+                </li>
+                @for (int i = 1; i <= ViewBag.TotalPages; i++)
+                {
+                    <li class="page-item @(i == ViewBag.CurrentPage ? "active" : "")">
+                        <a class="page-link"
+                           asp-action="Dashboard"
+                           asp-route-search="@ViewBag.Search"
+                           asp-route-status="@ViewBag.Status"
+                           asp-route-page="@i">@i</a>
+                    </li>
+                }
+                <li class="page-item @(ViewBag.CurrentPage == ViewBag.TotalPages ? "disabled" : "")">
+                    <a class="page-link"
+                       asp-action="Dashboard"
+                       asp-route-search="@ViewBag.Search"
+                       asp-route-status="@ViewBag.Status"
+                       asp-route-page="@(ViewBag.CurrentPage + 1)">Next</a>
+                </li>
+            </ul>
+        </nav>
+    }
+</div>

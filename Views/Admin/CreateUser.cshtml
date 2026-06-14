@@ -1,0 +1,147 @@
+﻿@model CreateUserViewModel
+@{
+    ViewData["Title"] = "Create New User";
+}
+
+<div class="container-fluid py-4 py-md-5">
+    <div class="row justify-content-center">
+        <div class="col-12 col-lg-10 col-xl-8">
+            <div class="card border-0 shadow-lg rounded-4 overflow-hidden">
+                <div class="bg-success text-white text-center py-4">
+                    <h3 class="fw-bold mb-0"><i class="bi bi-person-plus-fill"></i> CREATE NEW USER</h3>
+                </div>
+
+                <div class="card-body p-4 p-md-5">
+                    @if (TempData["Success"] != null)
+                    {
+                        <div class="alert alert-success alert-dismissible fade show">
+                            <i class="bi bi-check-circle"></i> @TempData["Success"]
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                    }
+
+                    <form asp-action="CreateUser" method="post">
+                        <div class="row g-4">
+                            <div class="col-12 col-md-6">
+                                <label asp-for="FullName" class="form-label text-success fw-bold">Full Name <span class="text-danger">*</span></label>
+                                <input asp-for="FullName" class="form-control form-control-lg rounded-3" placeholder="Dr. Fatima Yusuf" required />
+                                <span asp-validation-for="FullName" class="text-danger small"></span>
+                            </div>
+
+                            <div class="col-12 col-md-6">
+                                <label asp-for="Email" class="form-label text-success fw-bold">Email <span class="text-danger">*</span></label>
+                                <input asp-for="Email" class="form-control form-control-lg rounded-3" placeholder="user@nhia.gov.ng" required />
+                                <span asp-validation-for="Email" class="text-danger small"></span>
+                            </div>
+
+                            <div class="col-12 col-md-6">
+                                <label asp-for="Password" class="form-label text-success fw-bold">Password <span class="text-danger">*</span></label>
+                                <input asp-for="Password" type="password" class="form-control form-control-lg rounded-3" required />
+                                <span asp-validation-for="Password" class="text-danger small"></span>
+                            </div>
+
+                            <div class="col-12 col-md-6">
+                                <label asp-for="ContactInfo" class="form-label text-success fw-bold">Contact Phone</label>
+                                <input asp-for="ContactInfo" class="form-control form-control-lg rounded-3" placeholder="0803 123 4567" />
+                            </div>
+
+                            <div class="col-12 col-md-6">
+                                <label asp-for="State" class="form-label text-success fw-bold">State</label>
+                                <select asp-for="State" class="form-select form-select-lg rounded-3" asp-items="@ViewBag.States">
+                                </select>
+                                <span asp-validation-for="State" class="text-danger small"></span>
+                            </div>
+                            <div class="col-12 col-md-6" id="typeSelector">
+                                <label asp-for="OrganizationId" class="form-label text-success fw-bold">Organization Type</label>
+                                <!-- Added id="typeSelector" -->
+                                <select asp-for="OrganizationId" class="form-select form-select-lg rounded-3" asp-items="@ViewBag.Oga">
+                                    <option value="">-- Select Type --</option>
+                                </select>
+                            </div>
+
+                            <!-- Wrapped in divs with IDs and hidden by default -->
+                            <div class="col-12 col-md-6" id="ProviderWrapper" style="display:none;">
+                                <label asp-for="ProviderId" class="form-label text-success fw-bold">Provider</label>
+                                <select asp-for="ProviderId" class="form-select form-select-lg rounded-3" asp-items="@ViewBag.Provider"></select>
+                            </div>
+
+                            <div class="col-12 col-md-6" id="HmoWrapper" style="display:none;">
+                                <label asp-for="HmoId" class="form-label text-success fw-bold">Hmo</label>
+                                <select asp-for="HmoId" class="form-select form-select-lg rounded-3" asp-items="@ViewBag.Hmos"></select>
+                            </div>
+
+
+                            <div class="col-12 col-md-6">
+                                <label class="form-label text-success fw-bold">
+                                    User Roles <span class="text-danger">*</span>
+                                </label>
+                                <small class="text-muted d-block mb-2">Hold Ctrl/Cmd to select multiple</small>
+                                <select asp-for="SelectedRoles"
+                                        class="form-select form-select-lg rounded-3"
+                                        asp-items="@ViewBag.AllRoles"
+                                        multiple required
+                                        style="height: 180px;">
+                                </select>
+                                <span asp-validation-for="SelectedRoles" class="text-danger small"></span>
+                            </div>
+                        </div>
+
+                        <hr class="my-5 border-success opacity-75" />
+
+                        <div class="d-grid d-md-flex justify-content-end gap-3">
+                            <button type="submit" class="btn btn-success btn-lg px-5 shadow fw-bold">
+                                <i class="bi bi-save"></i> CREATE USER
+                            </button>
+                            <a asp-action="Users" asp-controller="Admin" class="btn btn-outline-secondary btn-lg px-5">
+                                <i class="bi bi-arrow-left"></i> Cancel
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const typeSelector = document.getElementById("OrganizationId");
+            const providerWrapper = document.getElementById("ProviderWrapper"); // Updated ID
+            const hmoWrapper = document.getElementById("HmoWrapper");
+
+            function toggleFields() {
+                // 1. Get the text and convert to lowercase for safer comparison
+                const selectedOption = typeSelector.options[typeSelector.selectedIndex];
+                if (!selectedOption) return;
+
+                const selectedText = selectedOption.text.toLowerCase().trim();
+
+                // 2. Hide everything by default
+                providerWrapper.style.display = "none";
+                hmoWrapper.style.display = "none";
+
+                // 3. Show based on partial matches in the text
+                if (selectedText.includes("Provider")) {
+                    providerWrapper.style.display = "block";
+                } 
+                else if (selectedText.includes("Health Maintenance Organisation") || selectedText.includes("hmo")) {
+                    hmoWrapper.style.display = "block";
+                }
+            }
+
+            // Trigger on dropdown change
+            typeSelector.addEventListener("change", toggleFields);
+
+            // Trigger on page load (important if the page reloads due to a validation error)
+            toggleFields();
+        });
+    </script>
+}
+
+
+}

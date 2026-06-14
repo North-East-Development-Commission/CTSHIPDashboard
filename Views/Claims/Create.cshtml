@@ -1,0 +1,158 @@
+﻿@model CTSHIPDashboard.Models.Claim
+@{
+    ViewData["Title"] = "Submit New Claim";
+}
+
+<div class="container-fluid py-4 py-md-5">
+    <div class="row justify-content-center">
+        <div class="col-12 col-lg-10 col-xl-8">
+            <div class="card border-0 shadow-lg rounded-4 overflow-hidden">
+                <!-- Header -->
+                <div class="bg-success text-white text-center py-5">
+                    <h1 class="display-5 fw-bold mb-3">SUBMIT NEW CLAIM</h1>
+                    <p class="lead mb-0 opacity-90">NEDC CTSHIP Claims Portal • Federal Republic of Nigeria</p>
+                </div>
+
+                <div class="card-body p-4 p-md-5">
+                    @if (TempData["Success"] != null)
+                    {
+                        <div class="alert alert-success alert-dismissible fade show rounded-4">
+                            <i class="bi bi-check-circle-fill"></i> @TempData["Success"]
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                    }
+
+                    <form asp-action="Create" method="post">
+                        @Html.AntiForgeryToken()
+
+                        <div class="row g-4">
+                            <!-- ENROLLEE SEARCH -->
+                            <div class="col-12">
+                                <label class="form-label text-success fw-bold fs-5">
+                                    Search Enrollee by Enrollment Number <span class="text-danger">*</span>
+                                </label>
+                                <div class="input-group input-group-lg">
+                                    <input type="text" id="enrollmentSearch" class="form-control rounded-start-3"
+                                           placeholder="e.g., CTH-2025-LA-001234" required />
+                                    <button type="button" class="btn btn-success rounded-end-3" onclick="searchEnrollee()">
+                                        <i class="bi bi-search"></i>
+                                    </button>
+                                </div>
+                                <small class="text-muted">Type full number and press Search or Enter</small>
+                            </div>
+
+                            <!-- ENROLLEE PREVIEW -->
+                            <div class="col-12" id="enrolleePreview" style="display:none;">
+                                <div class="card border-success border-4 shadow">
+                                    <div class="card-body d-flex align-items-center p-4">
+                                        <img id="previewPhoto" src="/img/default-avatar.png" class="rounded me-4 shadow"
+                                             style="width:130px;height:130px;object-fit:cover;border:5px solid white;" />
+                                        <div>
+                                            <h4 id="previewName" class="text-success fw-bold mb-1">—</h4>
+                                            <p class="mb-1"><strong>ID:</strong> <span id="previewNumber" class="text-primary fw-bold fs-5">—</span></p>
+                                            <p class="mb-1"><strong>HMO:</strong> <span id="previewHmo">—</span></p>
+                                            <p class="mb-0"><strong>State:</strong> <span id="previewState">—</span></p>
+                                            <input type="hidden" asp-for="EnrolleeId" id="selectedEnrolleeId" />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- PROVIDER -->
+                            <div class="col-12 col-md-6">
+                                <label asp-for="ProviderId" class="form-label text-success fw-bold">
+                                    Healthcare Provider <span class="text-danger">*</span>
+                                </label>
+                                <select asp-for="ProviderId" class="form-select form-select-lg rounded-3" asp-items="ViewBag.Providers" required>
+                                    <option value="">Select Facility</option>
+                                </select>
+                            </div>
+
+                            <!-- DIAGNOSIS -->
+                            <div class="col-12">
+                                <label asp-for="Diagnosis" class="form-label text-success fw-bold">
+                                    Diagnosis <span class="text-danger">*</span>
+                                </label>
+                                <textarea asp-for="Diagnosis" class="form-control form-control-lg rounded-3" rows="3"
+                                          placeholder="e.g., Malaria with Severe Anemia (RDT Positive)" required></textarea>
+                            </div>
+
+                            <!-- TREATMENT -->
+                            <div class="col-12">
+                                <label asp-for="Treatment" class="form-label text-success fw-bold">
+                                    Treatment Given <span class="text-danger">*</span>
+                                </label>
+                                <textarea asp-for="Treatment" class="form-control form-control-lg rounded-3" rows="5"
+                                          placeholder="e.g., IV Artesunate 2.4mg/kg + Paracetamol + Blood Transfusion" required></textarea>
+                            </div>
+
+                            <!-- AMOUNT -->
+                            <div class="col-12 col-md-6">
+                                <label asp-for="Amount" class="form-label text-success fw-bold">
+                                    Claim Amount (₦) <span class="text-danger">*</span>
+                                </label>
+                                <input asp-for="Amount" class="form-control form-control-lg rounded-3 text-end fw-bold fs-3"
+                                       type="number" step="100" min="1000" required />
+                            </div>
+                        </div>
+
+                        <hr class="my-5 border-success opacity-75 border-2" />
+
+                        <div class="text-center">
+                            <button type="submit" class="btn btn-success btn-lg px-7 shadow-lg fw-bold fs-4"
+                                    id="submitBtn" disabled>
+                                SUBMIT CLAIM
+                            </button>
+                            <a asp-action="Index" class="btn btn-outline-secondary btn-lg px-6 ms-3">
+                                Cancel
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <script>
+        async function searchEnrollee() {
+            const query = document.getElementById('enrollmentSearch').value.trim();
+            if (!query) return Swal.fire('Error', 'Enter Enrollment Number', 'error');
+
+            try {
+                const res = await fetch(`/Claims/SearchEnrollee?q=${encodeURIComponent(query)}`);
+                const data = await res.json();
+
+                if (data.success && data.enrollee) {
+                    const e = data.enrollee;
+                    document.getElementById('previewPhoto').src = e.photoPath;
+                    document.getElementById('previewName').textContent = e.fullName;
+                    document.getElementById('previewNumber').textContent = e.enrollmentNumber;
+                    document.getElementById('previewHmo').textContent = e.hmoName;
+                    document.getElementById('previewState').textContent = e.state;
+                    document.getElementById('selectedEnrolleeId').value = e.id;
+
+                    document.getElementById('enrolleePreview').style.display = 'block';
+                    document.getElementById('submitBtn').disabled = false;
+                } else {
+                    Swal.fire('Not Found', 'No enrollee with that number', 'warning');
+                    document.getElementById('enrolleePreview').style.display = 'none';
+                    document.getElementById('submitBtn').disabled = true;
+                }
+            } catch {
+                Swal.fire('Error', 'Search failed', 'error');
+                document.getElementById('enrolleePreview').style.display = 'none';
+                document.getElementById('submitBtn').disabled = true;
+            }
+        }
+
+        document.getElementById('enrollmentSearch')
+            .addEventListener('keypress', e => e.key === 'Enter' && (e.preventDefault(), searchEnrollee()));
+    </script>
+}

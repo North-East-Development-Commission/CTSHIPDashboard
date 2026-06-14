@@ -1,0 +1,117 @@
+﻿@model CTSHIPDashboard.Models.ViewModels.HomeViewModel
+@{
+    ViewData["Title"] = "CSTHIP Dashboard";
+}
+
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="text-success">
+            <i class="bi bi-speedometer2"></i> NEDC CTSHIP Dashboard
+        </h2>
+    </div>
+
+    <!-- KPI Cards -->
+    <div class="row g-4 mb-5">
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body text-center">
+                    <i class="bi bi-people text-success fs-1"></i>
+                    <h5 class="mt-3 text-success">Total Enrollees</h5>
+                    <h2 class="text-success fw-bold">@Model.TotalEnrollees.ToString("N0")</h2>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body text-center">
+                    <i class="bi bi-hospital text-success fs-1"></i>
+                    <h5 class="mt-3 text-success">Accredited Providers</h5>
+                    <h2 class="text-success fw-bold">@Model.AccreditedProviders</h2>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body text-center">
+                    <i class="bi bi-currency-exchange text-success fs-1"></i>
+                    <h5 class="mt-3 text-success">Capitation Paid</h5>
+                    <h2 class="text-success fw-bold">₦@Model.TotalCapitationPaid</h2>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body text-center">
+                    <i class="bi bi-check-circle text-success fs-1"></i>
+                    <h5 class="mt-3 text-success">Claims Processed</h5>
+                    <h2 class="text-success fw-bold">@Model.TotalClaimsProcessed</h2>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body text-center">
+                    <i class="bi bi-check-circle text-success fs-1"></i>
+                    <h5 class="mt-3 text-success">Total Funds Managed</h5>
+                    <h2 class="text-success fw-bold">@Model.TotalFundsManaged</h2>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-12">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body text-center">
+                    <i class="bi bi-check-circle text-success fs-1"></i>
+                    <h5 class="mt-3 text-success">Quick Chart for KPIs</h5>
+                    <canvas id="kpiChart" width="400" height="200"></canvas>
+                    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+                    <script>
+                        var ctx = document.getElementById('kpiChart').getContext('2d');
+                        new Chart(ctx, {
+                            type: 'bar',
+                            data: {
+                                labels: ['Enrollees', 'Providers', 'Claims Processed'],
+                                datasets: [{ data: [@Model.TotalEnrollees, @Model.AccreditedProviders, @Model.TotalClaimsProcessed] }]
+                            }
+                        });
+                    </script>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- News Section -->
+    <div class="card border-0 shadow-sm">
+        <div class="card-header bg-success text-white">
+            <h5 class="mb-0"><i class="bi bi-newspaper"></i> Latest News & Updates</h5>
+        </div>
+        <div class="card-body">
+            @if (Model.News?.Any() == true)
+            {
+                foreach (var news in Model.News)
+                {
+                    <div class="border-bottom pb-3 mb-3">
+                        <h6 class="text-success fw-bold">@news.Title</h6>
+                        <p class="text-muted small">@news.Date.ToString("dd MMM yyyy")</p>
+                        <p>@news.Content</p>
+                    </div>
+                }
+            }
+            else
+            {
+                <p class="text-muted">No news available.</p>
+            }
+            @if (User.IsInRole("Admin"))
+            {
+                <a asp-action="AddNews" class="btn btn-outline-success btn-sm">
+                    <i class="bi bi-plus-circle"></i> Add News
+                </a>
+            }
+        </div>
+    </div>
+</div>

@@ -1,0 +1,32 @@
+﻿@using Microsoft.AspNetCore.Identity
+@model IdentityRole
+
+<div class="container-fluid py-5">
+    <div class="row justify-content-center">
+        <div class="col-12 col-md-8 col-lg-6">
+            <div class="card border-0 shadow-lg rounded-4">
+                <div class="card-header bg-danger text-white text-center py-5">
+                    <h2 class="fw-bold mb-0">DELETE ROLE</h2>
+                </div>
+                <div class="card-body p-5 text-center">
+                    <i class="bi bi-exclamation-triangle-fill text-danger" style="font-size: 5rem;"></i>
+                    <h3 class="mt-4 text-danger fw-bold">Are you sure?</h3>
+                    <p class="lead">You want to delete role:</p>
+                    <h4 class="fw-bold text-primary">@Model.Name</h4>
+                    <p class="text-danger fw-bold">This action cannot be undone.</p>
+
+                    <form asp-action="Delete" method="post">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" asp-for="Id" />
+                        <button type="submit" class="btn btn-danger btn-lg px-6 shadow-lg">
+                            YES, DELETE ROLE
+                        </button>
+                        <a asp-action="Index" class="btn btn-secondary btn-lg px-6 ms-3">
+                            Cancel
+                        </a>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

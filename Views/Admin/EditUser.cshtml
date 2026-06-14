@@ -1,0 +1,157 @@
+﻿@model EditUserViewModel
+@{
+    ViewData["Title"] = "Edit User";
+}
+
+<div class="container-fluid py-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-10 col-xl-8">
+            <div class="card border-0 shadow-lg" style="border-radius: 25px; overflow: hidden;">
+                <!-- Header -->
+                <div class="bg-success text-white text-center py-5">
+                    <h1 class="display-5 fw-bold mb-2">EDIT USER ACCOUNT</h1>
+                    <p class="lead mb-0 opacity-90">CTSHIP National Digital Health Platform • Federal Republic of Nigeria</p>
+                </div>
+
+                <div class="card-body p-5">
+                    @if (TempData["Success"] != null)
+                    {
+                        <div class="alert alert-success alert-dismissible fade show">
+                            <strong>Success!</strong> @TempData["Success"]
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                    }
+
+                    <form asp-action="EditUser" method="post">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" asp-for="Id" />
+
+                        <div class="row g-4">
+                            <!-- Full Name -->
+                            <div class="col-md-6">
+                                <label asp-for="FullName" class="form-label text-success fw-bold fs-5">Full Name</label>
+                                <input asp-for="FullName" class="form-control form-control-lg" required />
+                                <span asp-validation-for="FullName" class="text-danger"></span>
+                            </div>
+
+                            <!-- Email (Read-only) -->
+                            <div class="col-md-6">
+                                <label asp-for="Email" class="form-label text-success fw-bold fs-5">Email Address</label>
+                                <input asp-for="Email" class="form-control form-control-lg bg-light" readonly />
+                            </div>
+
+                            <!-- Phone -->
+                            <div class="col-md-6">
+                                <label asp-for="ContactInfo" class="form-label text-success fw-bold fs-5">Phone Number</label>
+                                <input asp-for="ContactInfo" class="form-control form-control-lg" placeholder="0803-xxx-xxxx" />
+                            </div>
+
+                            <!-- State Dropdown -->
+                            <div class="col-md-6">
+                                <label asp-for="State" class="form-label text-success fw-bold fs-5">State of Operation</label>
+                                <select asp-for="State" class="form-select form-select-lg" asp-items="ViewBag.States">
+                                    <option value="">— Select State —</option>
+                                </select>
+                            </div>
+                            <div class="col-12 col-md-6">
+                                <label asp-for="OrganizationId" class="form-label text-success fw-bold">Organization Type</label>
+                                <!-- Added id="typeSelector" -->
+                                <select id="typeSelector" asp-for="OrganizationId" class="form-select form-select-lg rounded-3" asp-items="@ViewBag.Oga">
+                                    <option value="">-- Select Type --</option>
+                                </select>
+                            </div>
+
+                            <!-- Wrapped in divs with IDs and hidden by default -->
+                            <div class="col-12 col-md-6" id="providerWrapper" style="display:none;">
+                                <label asp-for="ProviderId" class="form-label text-success fw-bold">Provider</label>
+                                <select asp-for="ProviderId" class="form-select form-select-lg rounded-3" asp-items="@ViewBag.Provider"></select>
+                            </div>
+
+                            <div class="col-12 col-md-6" id="hmoWrapper" style="display:none;">
+                                <label asp-for="HmoId" class="form-label text-success fw-bold">Hmo</label>
+                                <select asp-for="HmoId" class="form-select form-select-lg rounded-3" asp-items="@ViewBag.Hmos"></select>
+                            </div>
+
+                            <!-- Multiple Role Selection -->
+                            <div class="col-12">
+                                <label class="form-label text-success fw-bold fs-5">
+                                    Assign Roles <span class="text-muted fs-6">(Hold Ctrl/Cmd to select multiple)</span>
+                                </label>
+                                <select name="SelectedRoles" multiple class="form-select form-select-lg" size="10">
+                                    @foreach (var role in Model.AllRoles)
+                                    {
+                                        <option value="@role"
+                                                selected="@(Model.CurrentRoles.Contains(role))">
+                                            @role
+                                        </option>
+                                    }
+                                </select>
+                                <div class="mt-2">
+                                    <small class="text-muted">
+                                        <strong>Current roles:</strong>
+                                        @if (Model.CurrentRoles.Any())
+                                        {
+                                            foreach (var role in Model.CurrentRoles)
+                                            {
+                                                <span class="badge bg-primary me-1">@role</span>
+                                            }
+                                        }
+                                        else
+                                        {
+                                            <em>None</em>
+                                        }
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Buttons -->
+                        <div class="text-center mt-5 pt-4 border-top">
+                            <button type="submit" class="btn btn-success btn-lg px-5 shadow-lg fw-bold fs-4">
+                                UPDATE USER
+                            </button>
+                            <a asp-action="Users" class="btn btn-secondary btn-lg px-5 ms-3">
+                                Cancel
+                            </a>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Footer -->
+                <div class="bg-dark text-white text-center py-4">
+                    <p class="mb-0">
+                        <strong>North East Development Commission</strong><br>
+                        Universal Health Coverage • Transparency • Excellence
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+
+    <script>
+        $(document).ready(function () {
+            $('#typeSelector').change(function () {
+                // Get the selected text (or use .val() if you know the ID)
+                var selectedText = $(this).find("option:selected").text().trim();
+
+                // Hide both initially
+                $('#providerWrapper').hide();
+                $('#hmoWrapper').hide();
+
+                // Show based on selection
+                if (selectedText === "Provider") {
+                    $('#providerWrapper').show();
+                }
+                else if (selectedText === "Health Maintenance Organization") {
+                    $('#hmoWrapper').show();
+                }
+            });
+        });
+    </script>
+}

@@ -1,0 +1,136 @@
+﻿@page
+@model IndexModel
+@{
+    ViewData["Title"] = "My Profile";
+    ViewData["ActivePage"] = ManageNavPages.Index;
+}
+
+<div class="container-fluid py-5">
+    <div class="row justify-content-center">
+        <div class="col-12 col-lg-10 col-xl-8">
+            <div class="card border-0 shadow-lg rounded-4 overflow-hidden">
+                <!-- Header -->
+                <div class="bg-success text-white text-center py-5">
+                    <h1 class="display-5 fw-bold mb-3">MY PROFILE</h1>
+                    <p class="lead mb-0 opacity-90">CTHIP National Health Insurance Platform</p>
+                </div>
+
+                <div class="card-body p-5">
+                    <!-- Status Message -->
+                    <partial name="_StatusMessage" for="StatusMessage" />
+
+                    <!-- Profile Layout -->
+                    <div class="row g-5 align-items-start">
+                        <!-- Left: Photo & Info -->
+                        <div class="col-lg-4 text-center">
+                            <div class="card border-success shadow h-100">
+                                <div class="card-body p-4">
+                                    <img src="@(Model.Input.PhotoPath ?? "/img/icon-192.png")"
+                                         class="rounded-circle shadow"
+                                         style="width:200px;height:200px;object-fit:cover;border:6px solid #006400;"
+                                         alt="Profile Photo" />
+
+                                    <h4 class="mt-4 fw-light text-success" style="font-size:larger">@Model.Username</h4>
+                                    <p class="text-primary fw-bold fs-5">@Model.Input.FullName</p>
+
+
+                                    @if (!string.IsNullOrEmpty(Model.Input.Role))
+                                    {
+                                        <p class="badge bg-primary fs-5 px-4 py-2 mt-2">@Model.Input.Role</p>
+                                    }
+
+                                    @if (!string.IsNullOrEmpty(Model.Input.HmoName))
+                                    {
+                                        <p class="mt-3"><strong>HMO:</strong> @Model.Input.HmoName</p>
+                                    }
+
+                                    @if (!string.IsNullOrEmpty(Model.Input.ProviderName))
+                                    {
+                                        <p class="mt-3"><strong>Facility:</strong> @Model.Input.ProviderName</p>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Right: Edit Form -->
+                        <div class="col-lg-8">
+                            <div class="card shadow h-100">
+                                <div class="card-body p-4">
+                                    <h4 class="text-success fw-bold mb-4">Update Profile</h4>
+
+                                    <form id="profile-form" method="post" enctype="multipart/form-data">
+                                        <div asp-validation-summary="ModelOnly" class="text-danger mb-3" role="alert"></div>
+
+                                        <div class="row g-4">
+                                            <div class="col-md-6">
+                                                <div class="form-floating mb-3">
+                                                    <input asp-for="Input.FullName" class="form-control form-control-lg rounded-3"
+                                                           placeholder="Full Name" />
+                                                    <label asp-for="Input.FullName" class="form-label">Full Name</label>
+                                                    <span asp-validation-for="Input.FullName" class="text-danger"></span>
+                                                </div>
+                                            </div>
+
+                                            <div class="col-md-6">
+                                                <div class="form-floating mb-3">
+                                                    <input asp-for="Input.PhoneNumber" class="form-control form-control-lg rounded-3"
+                                                           placeholder="Phone Number" />
+                                                    <label asp-for="Input.PhoneNumber" class="form-label">Phone Number</label>
+                                                    <span asp-validation-for="Input.PhoneNumber" class="text-danger"></span>
+                                                </div>
+                                            </div>
+
+                                            <div class="col-12">
+                                                <label class="form-label text-success fw-bold">Profile Photo</label>
+                                                <input type="file" name="photo" accept="image/*" class="form-control form-control-lg rounded-3" />
+                                                <small class="text-muted">JPG, PNG • Max 2MB</small>
+                                            </div>
+                                        </div>
+
+                                        <div class="text-center mt-5">
+                                            <button id="update-profile-button" type="submit"
+                                                    class="btn btn-success btn-lg px-7 shadow-lg fw-bold fs-4">
+                                                SAVE CHANGES
+                                            </button>
+                                        </div>
+                                    </form>
+
+                                    <hr class="border-success opacity-50 my-5">
+
+                                    <h5 class="text-success fw-bold mb-4">Security</h5>
+                                    <div class="d-grid gap-3">
+                                        <a asp-page="./ChangePassword" class="btn btn-warning btn-lg shadow">
+                                            Change Password
+                                        </a>
+                                       <!-- <a asp-page="./PersonalData" class="btn btn-secondary btn-lg shadow">
+                                            Download My Data
+                                        </a>
+                                        -->
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Dashboard Button
+                    <div class="text-center mt-5">
+                        <a asp-page="./Dashboard" class="btn btn-primary btn-lg px-7 shadow-lg fw-bold fs-4">
+                            GO TO MY DASHBOARD
+                        </a>-->
+                    </div>
+                </div>
+
+                <!-- Footer -->
+                <div class="bg-dark text-white text-center py-4">
+                    <p class="mb-0 small fw-bold">
+                        NEDC CTSHIP • Universal Health Coverage • Federal Republic of Nigeria
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

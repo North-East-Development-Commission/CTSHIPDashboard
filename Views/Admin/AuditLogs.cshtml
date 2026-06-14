@@ -1,0 +1,47 @@
+﻿@model List<CTSHIPDashboard.Models.AuditLog>
+
+<div class="container-fluid py-4">
+    <h2 class="text-success mb-4">Audit Log History</h2>
+    <div class="card border-0 shadow">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead class="table-success">
+                        <tr>
+                            <th>Time</th>
+                            <th>Admin</th>
+                            <th>Action</th>
+                            <th>Target User</th>
+                            <th>Details</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var log in Model.OrderByDescending(l => l.Timestamp))
+                        {
+                            <tr>
+                                <td>@log.Timestamp.ToString()</td>
+                                <td><strong>@log.PerformedBy</strong></td>
+                                <td>
+                                    @if (log.Action == "UserCreated")
+                                    {
+                                        <span class="badge bg-success">CREATED</span>
+                                    }
+                                    @if (log.Action == "RolesUpdated")
+                                    {
+                                        <span class="badge bg-warning">ROLES CHANGED</span>
+                                    }
+                                    @if (log.Action == "UserDeleted")
+                                    {
+                                        <span class="badge bg-danger">DELETED</span>
+                                    }
+                                </td>
+                                <td>@(log.TargetUserEmail ?? "-")</td>
+                                <td><small>@log.Details</small></td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>

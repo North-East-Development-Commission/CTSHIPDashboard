@@ -1,0 +1,142 @@
+﻿@model IEnumerable<CTSHIPDashboard.Models.Enrollee>
+
+@{
+    ViewData["Title"] = $"Enrollees at {ViewBag.ProviderName}";
+}
+
+<div class="container-fluid py-5">
+    <div class="text-center mb-5">
+        <h1 class="display-4 fw-bold text-success mb-3">
+            Enrollees per Provider
+        </h1>
+        <p class="lead text-primary fw-bold">@ViewBag.ProviderName</p>
+        <p class="text-muted fs-4">Total Unique Enrollees: <strong>@ViewBag.TotalEnrollees</strong></p>
+    </div>
+
+    <!-- FILTERS -->
+    <div class="card border-0 shadow-lg mb-5 rounded-4">
+        <div class="card-body p-4">
+            <form asp-action="EnrolleesPerProvider" method="get">
+                <div class="row g-3 align-items-end">
+                    <div class="col-md-4">
+                        <label class="form-label fw-bold text-success">Select Provider</label>
+                        <select name="providerId" class="form-select form-select-lg rounded-3" asp-items="ViewBag.Providers">
+                            <option value="">All Providers</option>
+                        </select>
+                    </div>
+                    <div class="col-md-5">
+                        <label class="form-label fw-bold text-success">Search Enrollee</label>
+                        <input type="text" name="search" value="@ViewBag.Search"
+                               class="form-control form-control-lg rounded-3"
+                               placeholder="Name, ID, or Phone..." />
+                    </div>
+                    <div class="col-md-3">
+                        <button type="submit" class="btn btn-success btn-lg w-100 rounded-3 shadow">
+                            Apply Filters
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ENROLLEES TABLE -->
+    <div class="card border-0 shadow-lg rounded-4">
+        <div class="card-header bg-success text-white text-center py-4">
+            <h3 class="fw-bold mb-0">List of Enrollees (@ViewBag.TotalEnrollees total)</h3>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="bg-light">
+                        <tr>
+                            <th>Photo</th>
+                            <th>Name</th>
+                            <th>Enrollment ID</th>
+                            <th>HMO</th>
+                            <th>Phone</th>
+                            <th>State</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (!Model.Any())
+                        {
+                            <tr>
+                                <td colspan="8" class="text-center py-5 text-muted fs-4">
+                                    No enrollees found for selected filters
+                                </td>
+                            </tr>
+                        }
+                        else
+                        {
+                            @foreach (var e in Model)
+                            {
+                                <tr>
+                                    <td>
+                                        <img src="@(e.PhotoPath ?? "/img/icon-192.png")"
+                                             class="rounded-circle shadow"
+                                             style="width:60px;height:60px;object-fit:cover;" />
+                                    </td>
+                                    <td class="fw-bold">@e.FullName</td>
+                                    <td><span class="text-primary fw-bold">@e.EnrollmentNumber</span></td>
+                                    <td>
+                                        <span class="badge bg-info px-3 py-2">@e.Hmo?.Name</span>
+                                    </td>
+                                    <td>@e.Phone</td>
+                                    <td>@e.State</td>
+
+                                    <td>
+                                        <a asp-controller="Enrollees" asp-action="Details" asp-route-id="@e.Id"
+                                           class="btn btn-info btn-sm rounded-pill">View Profile</a>
+                                    </td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- PAGINATION -->
+    @if (ViewBag.TotalPages > 1)
+    {
+        <nav class="mt-5">
+            <ul class="pagination justify-content-center">
+                <li class="page-item @(ViewBag.CurrentPage == 1 ? "disabled" : "")">
+                    <a class="page-link"
+                       asp-action="EnrolleesPerProvider"
+                       asp-route-providerId="@ViewBag.SelectedProviderId"
+                       asp-route-search="@ViewBag.Search"
+                       asp-route-page="@(ViewBag.CurrentPage - 1)">Previous</a>
+                </li>
+
+                @for (int i = 1; i <= ViewBag.TotalPages; i++)
+                {
+                    <li class="page-item @(i == ViewBag.CurrentPage ? "active" : "")">
+                        <a class="page-link"
+                           asp-action="EnrolleesPerProvider"
+                           asp-route-providerId="@ViewBag.SelectedProviderId"
+                           asp-route-search="@ViewBag.Search"
+                           asp-route-page="@i">@i</a>
+                    </li>
+                }
+
+                <li class="page-item @(ViewBag.CurrentPage == ViewBag.TotalPages ? "disabled" : "")">
+                    <a class="page-link"
+                       asp-action="EnrolleesPerProvider"
+                       asp-route-providerId="@ViewBag.SelectedProviderId"
+                       asp-route-search="@ViewBag.Search"
+                       asp-route-page="@(ViewBag.CurrentPage + 1)">Next</a>
+                </li>
+            </ul>
+        </nav>
+    }
+
+    <!-- Footer -->
+    <div class="text-center mt-5 py-5 bg-dark text-white rounded-4">
+        <p class="display-6 fw-bold mb-3">Patient Distribution Across Providers</p>
+        <p class="lead mb-0">CTSHIP — Ensuring Equitable Access to Healthcare</p>
+    </div>
+</div>
