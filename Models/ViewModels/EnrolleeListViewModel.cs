@@ -9,6 +9,8 @@
         public string Phone { get; set; } = string.Empty;
         public string State { get; set; } = string.Empty;
         public string HmoName { get; set; } = string.Empty;
+        public string HmoCode { get; set; } = string.Empty;
+
         public string Status { get; set; } = "Active";
         public DateTime DateRegistered { get; set; }
         public string? PhotoPath { get; set; }
@@ -34,5 +36,6 @@
             "pending" => "Pending Approval",
             _ => Status ?? "Unknown"
         };
+        public EnrolleeDeathStatusViewModel DeathStatus { get; set; } = EnrolleeDeathStatusViewModel.Active();
     }
 }

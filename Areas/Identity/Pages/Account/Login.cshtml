@@ -11,8 +11,8 @@
         <div class="col-6 offset-5">
             <img src="~/images/nedcL.jpg" alt="Company Logo" width="200" height="200" />
         </div>        
-        <h2 class="text-center">NORTH EAST DEVELOPMENT COMMISSION</h2>
-        <h3 class="text-center">COMMUNITY TARGETED SOCIAL HEALTH INSURANCE PROGRAM</h3>
+        <h1 class="text-center" style="color:#C9A247">NORTH EAST DEVELOPMENT COMMISSION (NEDC)</h1>
+        <h5 class="text-center" style="color:#C9A247">COMMUNITY TARGETED SOCIAL HEALTH INSURANCE PROGRAM (CTSHIP)</h5>
         <div class="card-header bg-success text-white">
             <h5 class="mb-0 text-center"><i class="bi bi-person-plus-fill"></i> LOGIN</h5>
         </div>
@@ -32,7 +32,7 @@
                         <span asp-validation-for="Input.Password" class="text-danger"></span>
                     </div>
                     <div class="checkbox mb-3">
-                        <label asp-for="Input.RememberMe" class="form-label">
+                        <label asp-for="Input.RememberMe" class="form-label" style="color:#C9A247">
                             <input class="form-check-input" asp-for="Input.RememberMe" />
                             @Html.DisplayNameFor(m => m.Input.RememberMe)
                         </label>
@@ -44,15 +44,6 @@
             </div>
         </div>
     </div>
-    @* At the very bottom of Login.cshtml (before closing </body> or in Scripts section) *@
-    @if (User.Identity?.IsAuthenticated == true)
-    {
-        <script>
-            // Send a tiny request to log login (silent)
-            fetch('/Admin/LogLogin', { method: 'POST', headers: { 'RequestVerificationToken': document.querySelector('input[name="__RequestVerificationToken"]').value } })
-                .catch(() => {}); // silent
-        </script>
-    }
 </div>
 
 @section Scripts {

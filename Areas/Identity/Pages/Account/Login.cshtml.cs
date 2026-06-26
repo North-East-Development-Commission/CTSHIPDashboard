@@ -15,6 +15,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.Extensions.Logging;
 using CTSHIPDashboard.Models;
+using CTSHIPDashboard.Data;
 
 namespace CTSHIPDashboard.Areas.Identity.Pages.Account
 {
@@ -22,67 +23,41 @@ namespace CTSHIPDashboard.Areas.Identity.Pages.Account
     {
         private readonly SignInManager<ApplicationUser> _signInManager;
         private readonly UserManager<ApplicationUser> _userManager;
+        private readonly ApplicationDbContext _context;
         private readonly ILogger<LoginModel> _logger;
 
-        public LoginModel(SignInManager<ApplicationUser> signInManager, ILogger<LoginModel> logger, UserManager<ApplicationUser> userManager)
+        public LoginModel(
+            SignInManager<ApplicationUser> signInManager,
+            ILogger<LoginModel> logger,
+            UserManager<ApplicationUser> userManager,
+            ApplicationDbContext context)
         {
             _signInManager = signInManager;
             _logger = logger;
             _userManager = userManager;
+            _context = context;
         }
 
-        /// <summary>
-        ///     This API supports the ASP.NET Core Identity default UI infrastructure and is not intended to be used
-        ///     directly from your code. This API may change or be removed in future releases.
-        /// </summary>
         [BindProperty]
         public InputModel Input { get; set; }
 
-        /// <summary>
-        ///     This API supports the ASP.NET Core Identity default UI infrastructure and is not intended to be used
-        ///     directly from your code. This API may change or be removed in future releases.
-        /// </summary>
         public IList<AuthenticationScheme> ExternalLogins { get; set; }
 
-        /// <summary>
-        ///     This API supports the ASP.NET Core Identity default UI infrastructure and is not intended to be used
-        ///     directly from your code. This API may change or be removed in future releases.
-        /// </summary>
         public string ReturnUrl { get; set; }
 
-        /// <summary>
-        ///     This API supports the ASP.NET Core Identity default UI infrastructure and is not intended to be used
-        ///     directly from your code. This API may change or be removed in future releases.
-        /// </summary>
         [TempData]
         public string ErrorMessage { get; set; }
 
-        /// <summary>
-        ///     This API supports the ASP.NET Core Identity default UI infrastructure and is not intended to be used
-        ///     directly from your code. This API may change or be removed in future releases.
-        /// </summary>
         public class InputModel
         {
-            /// <summary>
-            ///     This API supports the ASP.NET Core Identity default UI infrastructure and is not intended to be used
-            ///     directly from your code. This API may change or be removed in future releases.
-            /// </summary>
             [Required]
             [EmailAddress]
             public string Email { get; set; }
 
-            /// <summary>
-            ///     This API supports the ASP.NET Core Identity default UI infrastructure and is not intended to be used
-            ///     directly from your code. This API may change or be removed in future releases.
-            /// </summary>
             [Required]
             [DataType(DataType.Password)]
             public string Password { get; set; }
 
-            /// <summary>
-            ///     This API supports the ASP.NET Core Identity default UI infrastructure and is not intended to be used
-            ///     directly from your code. This API may change or be removed in future releases.
-            /// </summary>
             [Display(Name = "Remember me?")]
             public bool RememberMe { get; set; }
         }
@@ -96,7 +71,6 @@ namespace CTSHIPDashboard.Areas.Identity.Pages.Account
 
             returnUrl ??= Url.Content("~/");
 
-            // Clear the existing external cookie to ensure a clean login process
             await HttpContext.SignOutAsync(IdentityConstants.ExternalScheme);
 
             ExternalLogins = (await _signInManager.GetExternalAuthenticationSchemesAsync()).ToList();
@@ -112,27 +86,75 @@ namespace CTSHIPDashboard.Areas.Identity.Pages.Account
 
             if (ModelState.IsValid)
             {
-                // This doesn't count login failures towards account lockout
-                // To enable password failures to trigger account lockout, set lockoutOnFailure: true
+                // 1. Check if user is active BEFORE attempting sign in
+                var user = await _userManager.FindByEmailAsync(Input.Email);
+                if (user != null && user.GetType().GetProperty("IsActive") != null)
+                {
+                    bool isActive = (bool?)user.GetType().GetProperty("IsActive")?.GetValue(user, null) ?? true;
+                    if (!isActive)
+                    {
+                        ModelState.AddModelError(string.Empty, "Your account has been deactivated. Please contact support.");
+                        return Page();
+                    }
+                }
+
                 var result = await _signInManager.PasswordSignInAsync(Input.Email, Input.Password, Input.RememberMe, lockoutOnFailure: false);
+
                 if (result.Succeeded)
                 {
-                    var user = await _userManager.FindByEmailAsync(Input.Email);
                     if (user != null)
                     {
+                        var now = DateTime.Now;
+                        var actor = string.IsNullOrWhiteSpace(user.FullName)
+                            ? user.Email ?? user.UserName ?? user.Id
+                            : $"{user.FullName} ({user.Email ?? user.UserName})";
+
+                        _context.UserActivities.Add(new UserActivity
+                        {
+                            UserId = user.Id,
+                            Action = "Login",
+                            IpAddress = HttpContext.Connection.RemoteIpAddress?.ToString(),
+                            DeviceInfo = Request.Headers.UserAgent.ToString(),
+                            Timestamp = now
+                        });
+                        _context.AuditLogs.Add(new AuditLog
+                        {
+                            Action = "Account.Login",
+                            PerformedBy = actor,
+                            Details = $"Successful login; IP {HttpContext.Connection.RemoteIpAddress}",
+                            Timestamp = now
+                        });
+                        await _context.SaveChangesAsync();
+
                         var roles = await _userManager.GetRolesAsync(user);
 
-                        // REDIRECT BASED ON ROLE
+                        // 2. Explicit and consistent clean path routing fallback mechanics
                         if (roles.Contains("Admin"))
-                            return RedirectToPage("/Analytics/Dashboard");           // Admin dashboard
+                            return RedirectToAction("Index", "Analytics", new { area = "" });
+
+                        else if (roles.Contains("NEDCAdmin") || roles.Contains("SSHIA"))
+                            return RedirectToAction("Index", "Analytics", new { area = "" });
+
                         else if (roles.Contains("HMO"))
-                            return LocalRedirect("/HMO/Dashboard");             // HMO dashboard
+                            return RedirectToAction("Dashboard", "HMO", new { area = "" });
+
                         else if (roles.Contains("Provider"))
-                            return LocalRedirect("/Providers/Dashboard");        // Provider dashboard
+                            return RedirectToAction("Dashboard", "Providers", new { area = "" });
+
                         else if (roles.Contains("Finance"))
-                            return LocalRedirect("/Finance/Dashboard");         // Finance dashboard
+                            return RedirectToAction("Dashboard", "Finance", new { area = "" });
+
+                        else if (roles.Contains("StateOffice"))
+                            return RedirectToAction("Index", "StateOffice", new { area = "" });
+
+                        else if (roles.Contains("NHIA"))
+                            return RedirectToAction("Dashboard", "NHIA", new { area = "" });
+
+                        else if (roles.Contains("Monitoring"))
+                            return RedirectToAction("Index", "Monitoring", new { area = "" });
+
                         else
-                            return RedirectToPage("/Home/Dashboard");        // Default for others
+                            return LocalRedirect(returnUrl);
                     }
                 }
                 if (result.RequiresTwoFactor)
@@ -151,7 +173,6 @@ namespace CTSHIPDashboard.Areas.Identity.Pages.Account
                 }
             }
 
-            // If we got this far, something failed, redisplay form
             return Page();
         }
     }

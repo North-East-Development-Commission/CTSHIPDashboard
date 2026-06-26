@@ -1,0 +1,52 @@
+@model CTSHIPDashboard.Models.ViewModels.ComplaintMetricsViewModel
+
+<div class="row g-3 mb-4">
+    <div class="col-xl-2 col-md-4 col-6">
+        <div class="card h-100 border-success shadow-sm">
+            <div class="card-body">
+                <div class="fw-bold">Total Complaints</div>
+                <div class="h2 fw-bold text-success mb-0">@Model.TotalComplaints.ToString("N0")</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-2 col-md-4 col-6">
+        <div class="card h-100 border-warning shadow-sm">
+            <div class="card-body">
+                <div class="fw-bold">Open</div>
+                <div class="h2 fw-bold text-warning-emphasis mb-0">@Model.OpenComplaints.ToString("N0")</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-2 col-md-4 col-6">
+        <div class="card h-100 shadow-sm" style="border-color: #C9A247;">
+            <div class="card-body">
+                <div class="fw-bold">In Progress</div>
+                <div class="h2 fw-bold mb-0" style="color: #8a6819;">@Model.InProgressComplaints.ToString("N0")</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-2 col-md-4 col-6">
+        <div class="card h-100 border-success shadow-sm">
+            <div class="card-body">
+                <div class="fw-bold">Resolved</div>
+                <div class="h2 fw-bold text-success mb-0">@Model.ResolvedComplaints.ToString("N0")</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-2 col-md-4 col-6">
+        <div class="card h-100 border-danger shadow-sm">
+            <div class="card-body">
+                <div class="fw-bold">Critical</div>
+                <div class="h2 fw-bold text-danger mb-0">@Model.CriticalComplaints.ToString("N0")</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-2 col-md-4 col-6">
+        <div class="card h-100 border-success shadow-sm">
+            <div class="card-body">
+                <div class="fw-bold">Resolution Rate</div>
+                <div class="h2 fw-bold text-success mb-0">@Model.ResolutionRate%</div>
+            </div>
+        </div>
+    </div>
+</div>

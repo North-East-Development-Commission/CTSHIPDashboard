@@ -1,6 +1,9 @@
 ﻿using CTSHIPDashboard.Data;
 using CTSHIPDashboard.Models;
+using CTSHIPDashboard.Models.Enums;
 using CTSHIPDashboard.Models.ViewModels;
+using CTSHIPDashboard.Services;
+using CTSHIPDashboard.Helpers;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -17,12 +20,275 @@ public class HmoController : Controller
     private readonly ApplicationDbContext _context;
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly IWebHostEnvironment _hostEnvironment;
+    private readonly IDeathRegisterService _deathRegisterService;
+    private readonly CTSHIPDashboard.Services.IAuditService _auditService;
 
-    public HmoController(ApplicationDbContext context, UserManager<ApplicationUser> userManager, IWebHostEnvironment hostEnvironment)
+    public HmoController(ApplicationDbContext context, UserManager<ApplicationUser> userManager, IWebHostEnvironment hostEnvironment, IDeathRegisterService deathRegisterService, CTSHIPDashboard.Services.IAuditService auditService)
     {
         _context = context;
         _userManager = userManager;
         _hostEnvironment = hostEnvironment;
+        _auditService = auditService;
+        _deathRegisterService = deathRegisterService;
+    }
+
+
+    //death register service injection
+    private async Task ApplyDeathStatusToEnrolleeListAsync(List<EnrolleeListViewModel> enrollees, CancellationToken cancellationToken = default)
+    {
+        Dictionary<int, EnrolleeDeathStatusViewModel> statusById = await _deathRegisterService.GetDeathStatusMapAsync(
+            enrollees.Select(x => x.Id),
+            cancellationToken);
+
+        Dictionary<string, EnrolleeDeathStatusViewModel> statusByNumber = await _deathRegisterService.GetDeathStatusMapByEnrolleeNumberAsync(
+            enrollees.Select(x => x.EnrollmentNumber),
+            cancellationToken);
+
+        foreach (EnrolleeListViewModel enrollee in enrollees)
+        {
+            if (statusById.TryGetValue(enrollee.Id, out EnrolleeDeathStatusViewModel? statusFromId))
+            {
+                enrollee.DeathStatus = statusFromId;
+                continue;
+            }
+
+            if (!string.IsNullOrWhiteSpace(enrollee.EnrollmentNumber)
+                && statusByNumber.TryGetValue(enrollee.EnrollmentNumber, out EnrolleeDeathStatusViewModel? statusFromNumber))
+            {
+                enrollee.DeathStatus = statusFromNumber;
+                continue;
+            }
+
+            enrollee.DeathStatus = EnrolleeDeathStatusViewModel.Active();
+        }
+    }
+
+
+    [Authorize(Roles = "HMO,Admin")]
+    public async Task<IActionResult> DisburseMonthly()
+    {
+        var currentUser = await _userManager.GetUserAsync(User);
+        if (currentUser?.HmoId == null)
+        {
+            TempData["Error"] = "Your account is not linked to an HMO.";
+            return RedirectToAction("Index", "Home");
+        }
+
+        HmoBulkDisbursementViewModel model = await BuildDisbursementViewModelAsync(
+            currentUser.HmoId.Value,
+            new HmoBulkDisbursementViewModel());
+
+        return View(model);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [Authorize(Roles = "HMO,Admin")]
+    public async Task<IActionResult> DisburseMonthly(HmoBulkDisbursementViewModel model)
+    {
+        var currentUser = await _userManager.GetUserAsync(User);
+        if (currentUser?.HmoId == null)
+        {
+            TempData["Error"] = "Your account is not linked to an HMO.";
+            return RedirectToAction("Index", "Home");
+        }
+
+        int hmoId = currentUser.HmoId.Value;
+        model = await BuildDisbursementViewModelAsync(hmoId, model);
+
+        HmoDisbursementStatusOptionViewModel? selectedStatus = model.StatusOptions
+            .FirstOrDefault(option => string.Equals(option.Value, model.Status?.Trim(), StringComparison.OrdinalIgnoreCase));
+        string? selectedCategory = model.CategoryOptions
+            .FirstOrDefault(category => string.Equals(category, model.Category?.Trim(), StringComparison.OrdinalIgnoreCase));
+
+        if (selectedStatus == null)
+        {
+            ModelState.AddModelError(nameof(model.Status), "Select a valid enrollee status.");
+        }
+        else
+        {
+            model.Status = selectedStatus.Value;
+        }
+
+        if (selectedCategory == null)
+        {
+            ModelState.AddModelError(nameof(model.Category), "Select a valid disbursement category.");
+        }
+        else
+        {
+            model.Category = selectedCategory;
+        }
+
+        if (!ModelState.IsValid)
+        {
+            return View(model);
+        }
+
+        IQueryable<Enrollee> eligibleQuery = _context.Enrollees
+            .Where(enrollee => enrollee.HmoId == hmoId);
+
+        if (!string.Equals(model.Status, "All", StringComparison.OrdinalIgnoreCase))
+        {
+            eligibleQuery = eligibleQuery.Where(enrollee => enrollee.Status == model.Status);
+        }
+
+        List<int> enrolleeIds = await eligibleQuery
+            .Select(enrollee => enrollee.Id)
+            .ToListAsync();
+
+        if (enrolleeIds.Count == 0)
+        {
+            ModelState.AddModelError(nameof(model.Status), $"There are no {model.Status.ToLowerInvariant()} enrollees eligible for this disbursement.");
+            return View(model);
+        }
+
+        DateTime disbursedAt = DateTime.UtcNow;
+        List<EnrolleeWallet> existingWallets = await _context.EnrolleeWallets
+            .Where(wallet => enrolleeIds.Contains(wallet.EnrolleeId))
+            .ToListAsync();
+
+        Dictionary<int, EnrolleeWallet> walletsByEnrollee = existingWallets
+            .GroupBy(wallet => wallet.EnrolleeId)
+            .ToDictionary(group => group.Key, group => group.OrderBy(wallet => wallet.Id).First());
+        bool isMonthlyAllocation = string.Equals(
+            model.Category,
+            "Monthly Allocation",
+            StringComparison.OrdinalIgnoreCase);
+
+        foreach (int enrolleeId in enrolleeIds)
+        {
+            if (!walletsByEnrollee.TryGetValue(enrolleeId, out EnrolleeWallet? wallet))
+            {
+                wallet = new EnrolleeWallet
+                {
+                    EnrolleeId = enrolleeId,
+                    Balance = model.AmountPerEnrollee,
+                    MonthlyAllocation = isMonthlyAllocation ? model.AmountPerEnrollee : 0m,
+                    LastDisbursedAt = disbursedAt
+                };
+                _context.EnrolleeWallets.Add(wallet);
+                walletsByEnrollee[enrolleeId] = wallet;
+            }
+            else
+            {
+                wallet.Balance += model.AmountPerEnrollee;
+                if (isMonthlyAllocation)
+                {
+                    wallet.MonthlyAllocation = model.AmountPerEnrollee;
+                }
+
+                wallet.LastDisbursedAt = disbursedAt;
+            }
+        }
+
+        await using var databaseTransaction = await _context.Database.BeginTransactionAsync();
+        try
+        {
+            await _context.SaveChangesAsync();
+
+            string statusLabel = string.Equals(model.Status, "All", StringComparison.OrdinalIgnoreCase)
+                ? "All Statuses"
+                : model.Status;
+
+            _context.WalletTransactions.AddRange(enrolleeIds.Select(enrolleeId => new WalletTransaction
+            {
+                EnrolleeWalletId = walletsByEnrollee[enrolleeId].Id,
+                Amount = model.AmountPerEnrollee,
+                Type = "Disburse",
+                Reference = $"HMO {model.Category} - {statusLabel}",
+                Timestamp = disbursedAt
+            }));
+
+            await _context.SaveChangesAsync();
+            await databaseTransaction.CommitAsync();
+        }
+        catch
+        {
+            await databaseTransaction.RollbackAsync();
+            ModelState.AddModelError(string.Empty, "The bulk disbursement could not be completed. No funds were disbursed.");
+            model = await BuildDisbursementViewModelAsync(hmoId, model);
+            return View(model);
+        }
+
+        try
+        {
+            var actor = User.Identity?.Name ?? "Unknown";
+            decimal totalAmount = model.AmountPerEnrollee * enrolleeIds.Count;
+            await _auditService.LogAsync(
+                "HmoBulkDisbursement",
+                actor,
+                currentUser.Email,
+                $"HmoId:{hmoId}; Category:{model.Category}; Status:{model.Status}; AmountPerEnrollee:{model.AmountPerEnrollee:C}; Total:{totalAmount:C}; Count:{enrolleeIds.Count}");
+        }
+        catch { }
+
+        string fundedStatus = string.Equals(model.Status, "All", StringComparison.OrdinalIgnoreCase)
+            ? "all statuses"
+            : model.Status;
+        TempData["Success"] = $"{model.Category}: successfully disbursed ₦{model.AmountPerEnrollee:N2} each to {enrolleeIds.Count:N0} {fundedStatus} enrollee(s).";
+        return RedirectToAction(nameof(DisburseMonthly));
+    }
+
+    private async Task<HmoBulkDisbursementViewModel> BuildDisbursementViewModelAsync(
+        int hmoId,
+        HmoBulkDisbursementViewModel model)
+    {
+        var statusGroups = await _context.Enrollees
+            .Where(enrollee => enrollee.HmoId == hmoId)
+            .GroupBy(enrollee => enrollee.Status)
+            .Select(group => new
+            {
+                Status = group.Key,
+                Count = group.Count()
+            })
+            .ToListAsync();
+
+        List<HmoDisbursementStatusOptionViewModel> statusOptions = statusGroups
+            .Where(group => !string.IsNullOrWhiteSpace(group.Status))
+            .OrderBy(group => string.Equals(group.Status, "Active", StringComparison.OrdinalIgnoreCase) ? 0 : 1)
+            .ThenBy(group => group.Status)
+            .Select(group => new HmoDisbursementStatusOptionViewModel
+            {
+                Value = group.Status,
+                Label = group.Status,
+                EligibleCount = group.Count
+            })
+            .ToList();
+
+        statusOptions.Insert(0, new HmoDisbursementStatusOptionViewModel
+        {
+            Value = "All",
+            Label = "All Statuses",
+            EligibleCount = statusGroups.Sum(group => group.Count)
+        });
+
+        model.HmoName = await _context.Hmos
+            .Where(hmo => hmo.Id == hmoId)
+            .Select(hmo => hmo.Name)
+            .FirstOrDefaultAsync() ?? "Your HMO";
+        model.CategoryOptions = new List<string>
+        {
+            "Monthly Allocation",
+            "Quarterly Allocation",
+            "Supplementary Allocation",
+            "Special Intervention Fund"
+        };
+        model.StatusOptions = statusOptions;
+
+        if (string.IsNullOrWhiteSpace(model.Category))
+        {
+            model.Category = "Monthly Allocation";
+        }
+
+        if (string.IsNullOrWhiteSpace(model.Status))
+        {
+            model.Status = statusOptions.Any(option =>
+                string.Equals(option.Value, "Active", StringComparison.OrdinalIgnoreCase))
+                ? "Active"
+                : "All";
+        }
+
+        return model;
     }
 
     // LIST ALL HMOs
@@ -319,6 +585,28 @@ public class HmoController : Controller
         ViewBag.PendingClaims = hmo.Claims?.Count(c => c.Status == "Submitted" || c.Status == "Review Approved") ?? 0;
         ViewBag.PaidClaims = hmo.Claims?.Count(c => c.Status == "Paid") ?? 0;
         ViewBag.ApprovedClaims = hmo.Claims?.Count(c => c.Status == "Approved") ?? 0;
+        ViewBag.ComplaintMetrics = await ComplaintMetricsService.BuildAsync(
+            _context.Complaints.Where(complaint => complaint.HmoId == hmo.Id));
+
+        // Death registers for this HMO
+        string hmoCode = hmo.RegistrationNumber ?? string.Empty;
+        var deaths = await _context.DeathRegisters.CountAsync(d => !d.IsDeleted && d.HmoCode == hmoCode && d.Status == DeathRegisterStatus.Audited);
+        ViewBag.DeathCount = deaths;
+        ViewBag.DeathRatePerThousand = (ViewBag.EnrolleeCount > 0) ? Math.Round((double)deaths / (double)ViewBag.EnrolleeCount * 1000.0, 2) : 0;
+
+        // Wallet statistics for this HMO (sum/avg of wallets for enrollees belonging to this HMO)
+        var enrolleeIds = hmo.Enrollees?.Select(e => e.Id).ToList() ?? new List<int>();
+        if (enrolleeIds.Any())
+        {
+            var walletQuery = _context.EnrolleeWallets.Where(w => enrolleeIds.Contains(w.EnrolleeId));
+            ViewBag.TotalWalletBalance = await walletQuery.SumAsync(w => (decimal?)w.Balance) ?? 0m;
+            ViewBag.AverageWalletBalance = await walletQuery.AverageAsync(w => (decimal?)w.Balance) ?? 0m;
+        }
+        else
+        {
+            ViewBag.TotalWalletBalance = 0m;
+            ViewBag.AverageWalletBalance = 0m;
+        }
 
         ViewBag.Providers = hmo.Providers ?? new List<Provider>();
 
@@ -353,7 +641,6 @@ public class HmoController : Controller
         // Stats for the view
         ViewBag.TotalEncounters = provider.Encounters?.Count ?? 0;
         ViewBag.TotalClaims = provider.Claims?.Count ?? 0;
-        ViewBag.TotalClaimAmount = provider.Claims?.Sum(c => c.Amount) ?? 0;
 
         return View(provider);
     }
@@ -589,6 +876,15 @@ public class HmoController : Controller
         // Remove EnrollmentNumber from validation (we generate it)
         ModelState.Remove("EnrollmentNumber");
 
+        if (!NorthEastLocationData.IsValidState(enrollee.State))
+        {
+            ModelState.AddModelError(nameof(enrollee.State), "Select a valid North-East state.");
+        }
+        else if (!NorthEastLocationData.IsValidLga(enrollee.State, enrollee.LGA))
+        {
+            ModelState.AddModelError(nameof(enrollee.LGA), "Select an LGA belonging to the selected state.");
+        }
+
         if (ModelState.IsValid)
         {
             // 1. Upload Photo (if provided)
@@ -692,70 +988,169 @@ public class HmoController : Controller
     [Authorize(Roles = "Admin,HMO")]
     public async Task<IActionResult> EditEnrollee(int id)
     {
-        var enrollee = await _context.Enrollees.FindAsync(id);
+        var enrollee = await _context.Enrollees.AsNoTracking().FirstOrDefaultAsync(e => e.Id == id);
         if (enrollee == null) return NotFound();
 
-        ViewBag.States = GetNigerianStates();
-        ViewBag.Provider = await _context.Providers.Select(h => new SelectListItem
+        ApplicationUser? currentUser = await _userManager.GetUserAsync(User);
+        if (User.IsInRole("HMO")
+            && (!(currentUser?.HmoId.HasValue ?? false) || enrollee.HmoId != currentUser!.HmoId))
         {
-            Value = h.Id.ToString(),
-            Text = h.Name
-        }).ToListAsync();
+            return Forbid();
+        }
 
-        ViewBag.Hmos = await _context.Hmos.Select(h => new SelectListItem
-        {
-            Value = h.Id.ToString(),
-            Text = h.Name
-        }).ToListAsync();
+        await PopulateEnrolleeEditDropdownsAsync(
+            enrollee,
+            User.IsInRole("HMO") ? currentUser?.HmoId : null);
         return View(enrollee);
     }
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    [Authorize(Roles = "Admin,HMO")]
     public async Task<IActionResult> EditEnrollee(int id, Enrollee enrollee)
     {
         if (id != enrollee.Id) return NotFound();
+        ModelState.Remove(nameof(Enrollee.EnrollmentNumber));
+
+        Enrollee? existing = await _context.Enrollees.FirstOrDefaultAsync(e => e.Id == id);
+        if (existing == null) return NotFound();
+
+        ApplicationUser? currentUser = await _userManager.GetUserAsync(User);
+        int? restrictedHmoId = User.IsInRole("HMO") ? currentUser?.HmoId : null;
+        if (User.IsInRole("HMO")
+            && (!restrictedHmoId.HasValue || existing.HmoId != restrictedHmoId))
+        {
+            return Forbid();
+        }
+
+        if (await _context.Enrollees.AnyAsync(e => e.NIN == enrollee.NIN && e.Id != id))
+        {
+            ModelState.AddModelError(nameof(Enrollee.NIN), "Another enrollee already uses this NIN.");
+        }
+
+        if (enrollee.DateOfBirth >= DateTime.Today)
+        {
+            ModelState.AddModelError(nameof(Enrollee.DateOfBirth), "Date of birth must be earlier than today.");
+        }
+
+        string[] allowedStatuses = ["Active", "Suspended", "Terminated"];
+        if (!allowedStatuses.Contains(enrollee.Status, StringComparer.OrdinalIgnoreCase))
+        {
+            ModelState.AddModelError(nameof(Enrollee.Status), "Select a valid enrollee status.");
+        }
+
+        int? requestedHmoId = existing.HmoId;
+        if (enrollee.ProviderId.HasValue
+            && !await _context.Providers.AnyAsync(p =>
+                p.Id == enrollee.ProviderId.Value
+                && (!requestedHmoId.HasValue || p.HmoId == requestedHmoId.Value)))
+        {
+            ModelState.AddModelError(nameof(Enrollee.ProviderId), "Select a provider assigned to this HMO.");
+        }
 
         if (ModelState.IsValid)
         {
-            // Handle photo update
             if (enrollee.PhotoFile != null)
             {
-                // Delete old photo
-                if (!string.IsNullOrEmpty(enrollee.PhotoPath))
+                try
                 {
-                    var oldPath = Path.Combine(_hostEnvironment.WebRootPath, enrollee.PhotoPath.TrimStart('/'));
-                    if (System.IO.File.Exists(oldPath)) System.IO.File.Delete(oldPath);
+                    existing.PhotoPath = await EnrolleePhotoStorage.SaveAsync(
+                        enrollee.PhotoFile,
+                        existing.EnrollmentNumber,
+                        existing.PhotoPath,
+                        _hostEnvironment,
+                        HttpContext.RequestAborted);
                 }
-
-                var uploadsFolder = Path.Combine(_hostEnvironment.WebRootPath, "uploads/enrollees");
-                var uniqueFileName = $"{enrollee.EnrollmentNumber}_{enrollee.PhotoFile.FileName}";
-                var filePath = Path.Combine(uploadsFolder, uniqueFileName);
-
-                using (var stream = new FileStream(filePath, FileMode.Create))
+                catch (InvalidOperationException exception)
                 {
-                    await enrollee.PhotoFile.CopyToAsync(stream);
+                    ModelState.AddModelError(nameof(Enrollee.PhotoFile), exception.Message);
                 }
-
-                enrollee.PhotoPath = "/uploads/enrollees/" + uniqueFileName;
             }
 
-            _context.Update(enrollee);
-            await _context.SaveChangesAsync();
+            if (ModelState.IsValid)
+            {
+                ApplyEnrolleeEditableFields(existing, enrollee);
+                existing.HmoId = requestedHmoId;
+                existing.ProviderId = enrollee.ProviderId;
+                existing.Status = enrollee.Status;
 
-            TempData["Success"] = "Enrollee updated successfully!";
-            if (User.IsInRole("HMO"))
-            {
-                return RedirectToAction("EnrolleeDashboard", "Hmo");
-            }
-            else if (User.IsInRole("Admin"))
-            {
+                await _context.SaveChangesAsync();
+
+                TempData["Success"] = "Enrollee updated successfully!";
+                if (User.IsInRole("HMO"))
+                {
+                    return RedirectToAction("EnrolleeDashboard", "Hmo");
+                }
+
                 return RedirectToAction("Index", "Enrollees");
             }
-            return RedirectToAction(nameof(Index));
         }
 
+        enrollee.EnrollmentNumber = existing.EnrollmentNumber;
+        enrollee.DateRegistered = existing.DateRegistered;
+        enrollee.PhotoPath = existing.PhotoPath;
+        enrollee.HmoId = requestedHmoId;
+        await PopulateEnrolleeEditDropdownsAsync(enrollee, restrictedHmoId);
         return View(enrollee);
+    }
+
+    private async Task PopulateEnrolleeEditDropdownsAsync(
+        Enrollee enrollee,
+        int? restrictedHmoId = null)
+    {
+        ViewBag.States = GetNigerianStates();
+        ViewBag.CanChangeHmo = false;
+
+        IQueryable<Hmo> hmoQuery = _context.Hmos.AsNoTracking();
+        if (enrollee.HmoId.HasValue)
+        {
+            hmoQuery = hmoQuery.Where(h => h.Id == enrollee.HmoId.Value);
+        }
+
+        ViewBag.Hmos = await hmoQuery
+            .OrderBy(h => h.Name)
+            .Select(h => new SelectListItem
+            {
+                Value = h.Id.ToString(),
+                Text = h.Name,
+                Selected = h.Id == enrollee.HmoId
+            })
+            .ToListAsync();
+
+        int? providerHmoId = restrictedHmoId ?? enrollee.HmoId;
+        IQueryable<Provider> providerQuery = _context.Providers.AsNoTracking();
+        if (providerHmoId.HasValue)
+        {
+            providerQuery = providerQuery.Where(p => p.HmoId == providerHmoId.Value);
+        }
+
+        ViewBag.Provider = await providerQuery
+            .Where(p => p.IsActive || p.Id == enrollee.ProviderId)
+            .OrderBy(p => p.Name)
+            .Select(p => new SelectListItem
+            {
+                Value = p.Id.ToString(),
+                Text = p.Name,
+                Selected = p.Id == enrollee.ProviderId
+            })
+            .ToListAsync();
+    }
+
+    private static void ApplyEnrolleeEditableFields(Enrollee target, Enrollee source)
+    {
+        target.FullName = source.FullName.Trim();
+        target.Gender = source.Gender;
+        target.DateOfBirth = source.DateOfBirth;
+        target.Phone = source.Phone.Trim();
+        target.NIN = source.NIN;
+        target.State = source.State;
+        target.LGA = source.LGA.Trim();
+        target.Ward = source.Ward.Trim();
+        target.Address = source.Address.Trim();
+        target.IsPregnant = source.IsPregnant;
+        target.HasDisability = source.HasDisability;
+        target.IsIdp = source.IsIdp;
+        target.OtherVulnerableCategory = source.OtherVulnerableCategory?.Trim();
     }
 
     [Authorize(Roles = "Admin,HMO")]
@@ -766,8 +1161,6 @@ public class HmoController : Controller
             .Include(e => e.provider)
             .Include(e => e.MedicalHistories)
             .FirstOrDefaultAsync(e => e.Id == id);
-        var currentUser = await _userManager.GetUserAsync(User);
-        enrollee.RegisteredBy = currentUser?.Email ?? "Unknown User";
         if (enrollee == null) return NotFound();
         return View(enrollee);
     }
@@ -852,25 +1245,14 @@ public class HmoController : Controller
     [Authorize(Roles = "Admin,HMO")]
     public IActionResult BulkUpload()
     {
-        ViewBag.Hmos = _context.Hmos.Select(h => new SelectListItem
-        {
-            Value = h.Id.ToString(),
-            Text = h.Name
-        }).ToList();
-        ViewBag.Pros = _context.Providers.Select(h => new SelectListItem
-        {
-            Value = h.Id.ToString(),
-            Text = h.Name
-        }).ToList();
-
-        return View();
+        return RedirectToAction("BulkUpload", "Enrollees");
     }
 
     // POST: Enrollee/BulkUpload
     [HttpPost]
     [ValidateAntiForgeryToken]
     [Authorize(Roles = "Admin,HMO")]
-    public async Task<IActionResult> BulkUpload(IFormFile excelFile, int hmoId, int providersId)
+    private async Task<IActionResult> LegacyBulkUpload(IFormFile excelFile, int hmoId, int providersId)
     {
         if (excelFile == null || excelFile.Length == 0)
         {

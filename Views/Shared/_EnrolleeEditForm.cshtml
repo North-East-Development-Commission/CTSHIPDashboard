@@ -1,0 +1,137 @@
+@model CTSHIPDashboard.Models.Enrollee
+
+<div class="row g-5">
+    <div class="col-lg-4 text-center">
+        <img src="@(Model.PhotoPath ?? "/img/icon-192.png")"
+             id="photoPreview"
+             class="ct-enrollee-editor__photo mb-4"
+             alt="@Model.FullName" />
+
+        <input type="file"
+               asp-for="PhotoFile"
+               class="form-control form-control-lg"
+               accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
+               onchange="previewImage(this)" />
+        <small class="text-muted d-block mt-2">JPG, PNG, or WebP. Maximum size: 5 MB.</small>
+        <span asp-validation-for="PhotoFile" class="d-block"></span>
+
+        <a asp-action="Card"
+           asp-route-id="@Model.Id"
+           target="_blank"
+           class="btn btn-success btn-lg shadow w-100 mt-4">
+            Print Updated ID Card
+        </a>
+    </div>
+
+    <div class="col-lg-8">
+        <div class="row g-4">
+            <div class="col-md-6">
+                <label asp-for="FullName" class="form-label fs-5"></label>
+                <input asp-for="FullName" class="form-control form-control-lg" />
+                <span asp-validation-for="FullName"></span>
+            </div>
+            <div class="col-md-6">
+                <label asp-for="Gender" class="form-label fs-5"></label>
+                <select asp-for="Gender" class="form-select form-select-lg">
+                    <option value="">Select gender</option>
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
+                </select>
+                <span asp-validation-for="Gender"></span>
+            </div>
+
+            <div class="col-md-6">
+                <label asp-for="DateOfBirth" class="form-label fs-5"></label>
+                <input asp-for="DateOfBirth"
+                       class="form-control form-control-lg"
+                       type="date"
+                       max="@DateTime.Today.ToString("yyyy-MM-dd")" />
+                <span asp-validation-for="DateOfBirth"></span>
+            </div>
+            <div class="col-md-6">
+                <label asp-for="Phone" class="form-label fs-5"></label>
+                <input asp-for="Phone" class="form-control form-control-lg" />
+                <span asp-validation-for="Phone"></span>
+            </div>
+
+            <div class="col-md-6">
+                <label asp-for="NIN" class="form-label fs-5"></label>
+                <input asp-for="NIN" class="form-control form-control-lg" inputmode="numeric" />
+                <span asp-validation-for="NIN"></span>
+            </div>
+            <div class="col-md-6">
+                <label asp-for="State" class="form-label fs-5"></label>
+                <select asp-for="State" class="form-select form-select-lg">
+                    <option value="">Select state</option>
+                    <option>Adamawa</option>
+                    <option>Bauchi</option>
+                    <option>Borno</option>
+                    <option>Gombe</option>
+                    <option>Taraba</option>
+                    <option>Yobe</option>
+                </select>
+                <span asp-validation-for="State"></span>
+            </div>
+
+            <div class="col-md-6">
+                <label asp-for="LGA" class="form-label fs-5"></label>
+                <input asp-for="LGA" class="form-control form-control-lg" />
+                <span asp-validation-for="LGA"></span>
+            </div>
+            <div class="col-md-6">
+                <label asp-for="Ward" class="form-label fs-5"></label>
+                <input asp-for="Ward" class="form-control form-control-lg" />
+                <span asp-validation-for="Ward"></span>
+            </div>
+
+            <div class="col-md-8">
+                <label asp-for="HmoId" class="form-label fs-5">Assigned HMO</label>
+                @if (ViewBag.CanChangeHmo == true)
+                {
+                    <select asp-for="HmoId"
+                            asp-items="ViewBag.Hmos"
+                            class="form-select form-select-lg">
+                        <option value="">Select HMO</option>
+                    </select>
+                }
+                else
+                {
+                    <input type="hidden" asp-for="HmoId" />
+                    <div class="form-control form-control-lg bg-light">
+                        @(((IEnumerable<Microsoft.AspNetCore.Mvc.Rendering.SelectListItem>)ViewBag.Hmos).FirstOrDefault()?.Text)
+                    </div>
+                    <small class="text-muted">HMO reassignment is managed separately.</small>
+                }
+                <span asp-validation-for="HmoId"></span>
+            </div>
+
+            <div class="col-md-8">
+                <label asp-for="ProviderId" class="form-label fs-5">Assigned Provider</label>
+                <select asp-for="ProviderId"
+                        asp-items="ViewBag.Provider"
+                        class="form-select form-select-lg">
+                    <option value="">Select provider</option>
+                </select>
+                <span asp-validation-for="ProviderId"></span>
+            </div>
+
+            <div class="col-md-4">
+                <label asp-for="Status" class="form-label fs-5"></label>
+                <select asp-for="Status" class="form-select form-select-lg">
+                    <option value="Active">Active</option>
+                    <option value="Suspended">Suspended</option>
+                    <option value="Terminated">Terminated</option>
+                </select>
+                <span asp-validation-for="Status"></span>
+            </div>
+
+            <div class="col-12">
+                <label asp-for="Address" class="form-label fs-5"></label>
+                <textarea asp-for="Address" class="form-control form-control-lg" rows="3"></textarea>
+                <span asp-validation-for="Address"></span>
+            </div>
+
+            <partial name="_VulnerabilityFields" model="Model" />
+        </div>
+    </div>
+</div>

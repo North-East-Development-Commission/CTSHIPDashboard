@@ -1,0 +1,58 @@
+﻿@model CTSHIPDashboard.Models.ViewModels.DeathRegisterVerificationViewModel
+
+@{
+    ViewData["Title"] = "Verify Death Register";
+}
+
+<div class="ct-page">
+<div class="ct-page-header">
+    <h2>Verify Death Register</h2>
+    <p class="mb-0">Confirm or reject the provider-submitted death register record.</p>
+</div>
+
+<div class="card mb-3">
+    <div class="card-body row g-3">
+        <div class="col-md-3"><strong>Enrollee No.</strong><br />@Model.EnrolleeNumber</div>
+        <div class="col-md-3"><strong>Full Name</strong><br />@Model.EnrolleeFullName</div>
+        <div class="col-md-3"><strong>Provider</strong><br />@Model.ProviderName</div>
+        <div class="col-md-3"><strong>Date of Death</strong><br />@Model.DateOfDeath.ToString("dd MMM yyyy")</div>
+        <div class="col-md-12"><strong>Cause of Death</strong><br />@Model.CauseOfDeath</div>
+    </div>
+</div>
+
+<form asp-controller="HmoDeathRegisters" asp-action="Verify" asp-route-id="@Model.Id" method="post">
+    @Html.AntiForgeryToken()
+    <input asp-for="Id" type="hidden" />
+    <input asp-for="EnrolleeNumber" type="hidden" />
+    <input asp-for="EnrolleeFullName" type="hidden" />
+    <input asp-for="ProviderName" type="hidden" />
+    <input asp-for="DateOfDeath" type="hidden" />
+    <input asp-for="CauseOfDeath" type="hidden" />
+
+    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+    <div class="mb-3">
+        <label asp-for="IsVerified" class="form-label"></label>
+        <select asp-for="IsVerified" class="form-select">
+            <option value="true">Verify</option>
+            <option value="false">Reject</option>
+        </select>
+        <span asp-validation-for="IsVerified" class="text-danger"></span>
+    </div>
+
+    <div class="mb-3">
+        <label asp-for="HmoVerificationNote" class="form-label"></label>
+        <textarea asp-for="HmoVerificationNote" class="form-control" rows="4"></textarea>
+        <span asp-validation-for="HmoVerificationNote" class="text-danger"></span>
+    </div>
+
+    <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-success">Save Verification</button>
+        <a asp-controller="HmoDeathRegisters" asp-action="Details" asp-route-id="@Model.Id" class="btn btn-outline-secondary">Back</a>
+    </div>
+</form>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

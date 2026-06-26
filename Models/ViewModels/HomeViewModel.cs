@@ -11,5 +11,6 @@
         public int TotalClaimsProcessed { get; set; }
         public decimal TotalFundsManaged { get; set; } // e.g., Sum of all claims amounts
         public int TotalEnrollees { get; set; } // Already had, but explicit
+        public ComplaintMetricsViewModel ComplaintMetrics { get; set; } = new();
     }
 }

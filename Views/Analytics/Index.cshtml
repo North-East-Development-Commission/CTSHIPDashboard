@@ -1,374 +1,456 @@
-﻿
+@model CTSHIPDashboard.Models.ViewModels.MonitoringDashboardViewModel
 
 @{
     ViewData["Title"] = "National Analytics Dashboard";
 }
 
-<div class="container-fluid py-4 py-md-5">
-    <!-- Header -->
-    <div class="text-center mb-5">
-        <h1 class="display-4 fw-bold text-success mb-3">
-            NORTH EAST DEVELOPMENT COMMISSION CTSHIP ANALYTICS
-        </h1>
-        <p class="lead text-muted">NEDC • CTSHIP • Federal Republic of Nigeria</p>
-        <p class="text-primary fw-bold fs-4">Real-time Dashboard • @DateTime.Now</p>
-    </div>
-
-    <!-- KPI ROW 1 -->
-    <div class="row g-4 mb-5">
-        <div class="col-xl-3 col-md-6">
-            <div class="card border-0 shadow-lg bg-primary text-white h-100">
-                <div class="card-body text-center py-5">
-                    <i class="bi bi-people fs-1 mb-3"></i>
-                    <h5 class="fw-bold">Total Enrollees</h5>
-                    <h2 class="display-5 fw-bold">@ViewBag.TotalEnrollees</h2>
-                    <p class="mb-0 opacity-90">Registered</p>
-                </div>
-            </div>
+<div class="ct-page">
+    <div class="ct-page-header d-flex flex-wrap justify-content-between align-items-center gap-3">
+        <div>
+            <h1 class="mb-1">NEDC CTSHIP Analytics</h1>
+            <p class="mb-0">Programme performance, utilization, financial, and monitoring intelligence.</p>
         </div>
-
-        <div class="col-xl-3 col-md-6">
-            <div class="card border-0 shadow-lg bg-success text-white h-100">
-                <div class="card-body text-center py-5">
-                    <i class="bi bi-person-check fs-1 mb-3"></i>
-                    <h5 class="fw-bold">Active Enrollees</h5>
-                    <h2 class="display-5 fw-bold">@ViewBag.ActiveEnrollees</h2>
-                    <p class="mb-0 opacity-90">@ViewBag.ActivePercentage% Active</p>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-xl-3 col-md-6">
-            <div class="card border-0 shadow-lg bg-info text-white h-100">
-                <div class="card-body text-center py-5">
-                    <i class="bi bi-hospital fs-1 mb-3"></i>
-                    <h5 class="fw-bold">Accredited Providers</h5>
-                    <h2 class="display-5 fw-bold">@ViewBag.TotalProviders</h2>
-                    <p class="mb-0 opacity-90">Hospitals & Clinics</p>
-                </div>
-            </div>
-        </div>
-
-        <div class="col-xl-3 col-md-6">
-            <div class="card border-0 shadow-lg bg-warning text-dark h-100">
-                <div class="card-body text-center py-5">
-                    <i class="bi bi-building fs-1 mb-3"></i>
-                    <h5 class="fw-bold">Registered HMOs</h5>
-                    <h2 class="display-5 fw-bold">@ViewBag.TotalHmos</h2>
-                    <p class="mb-0 opacity-90">Managing Coverage</p>
-                </div>
-            </div>
+        <div class="text-end">
+            <div class="fw-bold">Live programme snapshot</div>
+            <small>@DateTime.Now.ToString("dd MMM yyyy, h:mm tt")</small>
         </div>
     </div>
 
-    <!-- KPI ROW 2 - CLAIMS -->
-    <div class="row g-4 mb-5">
-        <div class="col-xl-3 col-md-6">
-            <div class="card border-0 shadow-lg bg-dark text-white h-100">
-                <div class="card-body text-center py-5">
-                    <i class="bi bi-file-medical fs-1 mb-3"></i>
-                    <h5 class="fw-bold">Total Claims</h5>
-                    <h2 class="display-5 fw-bold">@ViewBag.TotalClaims</h2>
+    <partial name="_MonitoringIndicatorCards" model="Model" />
+
+    @if (User.IsInRole("Admin"))
+    {
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+            <h2 class="h3 fw-bold mb-0">Complaint Management Metrics</h2>
+            <a asp-controller="Complaints" asp-action="Index" class="btn btn-success">
+                <i class="bi bi-chat-square-text-fill me-1"></i> Manage Complaints
+            </a>
+        </div>
+        <partial name="_ComplaintMetrics" model="Model.ComplaintMetrics" />
+
+        <div class="d-flex flex-wrap justify-content-between align-items-end gap-2 mb-3">
+            <div>
+                <h2 class="h3 fw-bold mb-1">Admin Monitoring Intelligence</h2>
+                <p class="text-muted mb-0">Indicators available in Monitoring that were previously absent from Analytics.</p>
+            </div>
+            <a asp-controller="Monitoring" asp-action="Index" class="btn btn-outline-success">
+                Open Monitoring Dashboard
+            </a>
+        </div>
+
+        <div class="row g-3 mb-4">
+            <div class="col-xl-3 col-md-6">
+                <div class="card bg-success text-white h-100 shadow">
+                    <div class="card-body">
+                        <i class="bi bi-hospital fs-2 mb-2"></i>
+                        <div>Accredited Providers</div>
+                        <div class="display-6 fw-bold">@Model.TotalProviders.ToString("N0")</div>
+                        <small>Active hospitals and clinics</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-xl-3 col-md-6">
+                <div class="card bg-primary text-white h-100 shadow">
+                    <div class="card-body">
+                        <i class="bi bi-buildings fs-2 mb-2"></i>
+                        <div>Registered HMOs</div>
+                        <div class="display-6 fw-bold">@Model.TotalHmos.ToString("N0")</div>
+                        <small>Coverage management organizations</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-xl-3 col-md-6">
+                <div class="card ct-kpi h-100">
+                    <div class="card-body">
+                        <i class="bi bi-activity fs-2 mb-2"></i>
+                        <div>Total Encounters</div>
+                        <div class="display-6 fw-bold">@Model.TotalEncounters.ToString("N0")</div>
+                        <small>@Model.EncounterRatePerThousand per 1,000 active enrollees</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-xl-3 col-md-6">
+                <div class="card bg-primary text-white h-100 shadow">
+                    <div class="card-body">
+                        <i class="bi bi-file-medical fs-2 mb-2"></i>
+                        <div>Total Claims</div>
+                        <div class="display-6 fw-bold">@Model.TotalClaims.ToString("N0")</div>
+                        <small>@Model.ClaimApprovalRate% paid-claim rate</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-xl-3 col-md-6">
+                <div class="card bg-success text-white h-100 shadow">
+                    <div class="card-body">
+                        <i class="bi bi-heart-pulse fs-2 mb-2"></i>
+                        <div>Audited Deaths</div>
+                        <div class="display-6 fw-bold">@Model.AuditedDeaths.ToString("N0")</div>
+                        <small>@Model.DeathRatePerThousand per 1,000 active enrollees</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-xl-3 col-md-6">
+                <div class="card bg-primary text-white h-100 shadow">
+                    <div class="card-body">
+                        <i class="bi bi-arrow-left-right fs-2 mb-2"></i>
+                        <div>Referral Completion</div>
+                        <div class="display-6 fw-bold">@Model.ReferralCompletionRate%</div>
+                        <small>@Model.CompletedReferrals.ToString("N0") of @Model.TotalReferrals.ToString("N0") completed</small>
+                    </div>
                 </div>
             </div>
         </div>
 
-        <div class="col-xl-3 col-md-6">
-            <div class="card border-0 shadow-lg bg-success text-white h-100">
-                <div class="card-body text-center py-5">
-                    <i class="bi bi-check-circle-fill fs-1 mb-3"></i>
-                    <h5 class="fw-bold">Approved Claims</h5>
-                    <h2 class="display-5 fw-bold">@ViewBag.PaidClaims</h2>
-                    <p class="mb-0 opacity-90">@ViewBag.PaidPercentage% Success</p>
+        <h2 class="h4 fw-bold mb-3">Financial Monitoring</h2>
+        <div class="row g-3 mb-4">
+            <div class="col-xl-3 col-md-6">
+                <div class="card h-100 border-success shadow-sm">
+                    <div class="card-body">
+                        <div class="text-muted">Capitation Disbursed</div>
+                        <div class="h3 fw-bold text-success">₦@Model.CapitationDisbursed.ToString("N2")</div>
+                        <small>Positive wallet disbursements</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-xl-3 col-md-6">
+                <div class="card h-100 border-primary shadow-sm">
+                    <div class="card-body">
+                        <div class="text-muted">Current Wallet Balance</div>
+                        <div class="h3 fw-bold text-primary">₦@Model.WalletBalance.ToString("N2")</div>
+                        <small>Available enrollee funds</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-xl-3 col-md-6">
+                <div class="card h-100 border-success shadow-sm">
+                    <div class="card-body">
+                        <div class="text-muted">Total Claim Value</div>
+                        <div class="h3 fw-bold text-success">₦@Model.TotalClaimValue.ToString("N2")</div>
+                        <small>Paid value: ₦@Model.PaidClaimValue.ToString("N2")</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-xl-3 col-md-6">
+                <div class="card h-100 border-primary shadow-sm">
+                    <div class="card-body">
+                        <div class="text-muted">Encounter Deductions</div>
+                        <div class="h3 fw-bold text-primary">₦@Model.EncounterDeductions.ToString("N2")</div>
+                        <small>Amounts deducted from wallets</small>
+                    </div>
                 </div>
             </div>
         </div>
 
-        <div class="col-xl-3 col-md-6">
-            <div class="card border-0 shadow-lg bg-primary text-white h-100">
-                <div class="card-body text-center py-5">
-                    <i class="bi bi-currency-exchange fs-1 mb-3"></i>
-                    <h5 class="fw-bold">Total Paid Out</h5>
-                    <h2 class="display-6 fw-bold">₦@((int)ViewBag.TotalPaid)</h2>
+        <div class="row g-4 mb-4">
+            <div class="col-lg-4">
+                <div class="card h-100 shadow-sm">
+                    <div class="card-header fw-bold">Claims Status</div>
+                    <div class="card-body"><canvas id="analyticsClaimsStatusChart"></canvas></div>
+                </div>
+            </div>
+            <div class="col-lg-4">
+                <div class="card h-100 shadow-sm">
+                    <div class="card-header fw-bold">Gender Distribution</div>
+                    <div class="card-body"><canvas id="analyticsGenderChart"></canvas></div>
+                </div>
+            </div>
+            <div class="col-lg-4">
+                <div class="card h-100 shadow-sm">
+                    <div class="card-header fw-bold">Vulnerable Population</div>
+                    <div class="card-body"><canvas id="analyticsVulnerableChart"></canvas></div>
                 </div>
             </div>
         </div>
 
-        <div class="col-xl-3 col-md-6">
-            <div class="card border-0 shadow-lg bg-danger text-white h-100">
-                <div class="card-body text-center py-5">
-                    <i class="bi bi-hourglass-split fs-1 mb-3"></i>
-                    <h5 class="fw-bold">Pending Claims</h5>
-                    <h2 class="display-5 fw-bold">@ViewBag.PendingClaims</h2>
+        <div class="row g-4 mb-4">
+            <div class="col-lg-6">
+                <div class="card h-100 shadow-sm">
+                    <div class="card-header fw-bold">Referral Workflow</div>
+                    <div class="table-responsive">
+                        <table class="table table-striped mb-0">
+                            <tbody>
+                                <tr><td>Total Referrals</td><td class="text-end fw-bold">@Model.TotalReferrals.ToString("N0")</td></tr>
+                                <tr><td>Completed Referrals</td><td class="text-end fw-bold">@Model.CompletedReferrals.ToString("N0")</td></tr>
+                                <tr><td>Pending Referrals</td><td class="text-end fw-bold">@Model.PendingReferrals.ToString("N0")</td></tr>
+                                <tr><td>Rejected Referrals</td><td class="text-end fw-bold">@Model.RejectedReferrals.ToString("N0")</td></tr>
+                                <tr class="table-success"><td>Completion Rate</td><td class="text-end fw-bold">@Model.ReferralCompletionRate%</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-6">
+                <div class="card h-100 shadow-sm">
+                    <div class="card-header fw-bold">Preventive Service Delivery</div>
+                    <div class="table-responsive">
+                        <table class="table table-striped mb-0">
+                            <tbody>
+                                <tr><td>Immunization Encounters</td><td class="text-end">@Model.ImmunizationEncounters.ToString("N0")</td></tr>
+                                <tr><td>ANC Encounters</td><td class="text-end">@Model.AncEncounters.ToString("N0")</td></tr>
+                                <tr><td>Family Planning Encounters</td><td class="text-end">@Model.FamilyPlanningEncounters.ToString("N0")</td></tr>
+                                <tr><td>Health Promotion Encounters</td><td class="text-end">@Model.HealthPromotionEncounters.ToString("N0")</td></tr>
+                                <tr><td>Other Preventive Encounters</td><td class="text-end">@Model.OtherPreventiveEncounters.ToString("N0")</td></tr>
+                                <tr class="table-success"><td>Total Preventive Encounters</td><td class="text-end fw-bold">@Model.TotalPreventiveEncounters.ToString("N0")</td></tr>
+                                <tr class="table-primary"><td>Rate per 1,000 Active Enrollees</td><td class="text-end fw-bold">@Model.PreventiveCareRatePerThousand</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>
-    </div>
 
-    <!-- RANKED LISTS -->
-    <div class="row g-5 mb-5">
-        <!-- ENROLLEES BY STATE -->
-        <div class="col-lg-4">
-            <div class="card border-0 shadow-lg h-100">
-                <div class="card-header bg-success text-white text-center py-4">
-                    <h3 class="fw-bold mb-0">Enrollees Distribution by State</h3>
+        <div class="card shadow-sm mb-4">
+            <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+                <span class="fw-bold">Vulnerable Group Indicators</span>
+                <div class="d-flex flex-wrap gap-2">
+                    <span class="badge bg-success">@Model.VulnerableEnrolleeCount.ToString("N0") unique vulnerable enrollees</span>
+                    <span class="badge bg-primary">Exclusive distribution: @Model.VulnerableDistributionTotal%</span>
                 </div>
-                <div class="card-body p-0">
-                    <ol class="list-group list-group-flush">
-                        @foreach (var state in ViewBag.EnrolleesByState ?? new List<dynamic>())
+            </div>
+            <div class="table-responsive">
+                <table class="table table-striped mb-0">
+                    <thead>
+                        <tr><th>Indicator</th><th>Count</th><th>Share of Enrolled</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><td>Pregnant Women</td><td>@Model.PregnantWomenCount.ToString("N0")</td><td>@Model.PregnantWomenPercentage%</td></tr>
+                        <tr><td>Children Under 5</td><td>@Model.UnderFiveCount.ToString("N0")</td><td>@Model.UnderFivePercentage%</td></tr>
+                        <tr><td>Persons Living with Disability</td><td>@Model.PlwdCount.ToString("N0")</td><td>@Model.PlwdPercentage%</td></tr>
+                        <tr><td>Elderly (60+)</td><td>@Model.ElderlyCount.ToString("N0")</td><td>@Model.ElderlyPercentage%</td></tr>
+                        <tr><td>Other Categories / IDPs</td><td>@Model.OtherVulnerableCount.ToString("N0")</td><td>@Model.OtherVulnerablePercentage%</td></tr>
+                        <tr class="table-success fw-bold">
+                            <td>Unique Vulnerable Population</td>
+                            <td>@Model.VulnerableEnrolleeCount.ToString("N0")</td>
+                            <td>@Model.VulnerablePopulationPercentage%</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="card-body border-top">
+                @foreach (var category in Model.VulnerableDistribution)
+                {
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between gap-3">
+                            <span>@category.Label (@category.Count.ToString("N0"))</span>
+                            <span class="fw-bold">@category.Percentage%</span>
+                        </div>
+                        <div class="progress">
+                            <div class="progress-bar bg-success" style="width: @category.Percentage%"></div>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+
+        <div class="card shadow-sm mb-5">
+            <div class="card-header fw-bold">State Monitoring Scorecard</div>
+            <div class="table-responsive">
+                <table class="table table-hover table-striped mb-0 ct-wide-table">
+                    <thead>
+                        <tr>
+                            <th>State</th>
+                            <th>Enrollees</th>
+                            <th>Active</th>
+                            <th>Providers</th>
+                            <th>Encounters</th>
+                            <th>Claims</th>
+                            <th>Paid</th>
+                            <th>Claim Value</th>
+                            <th>Capitation</th>
+                            <th>Wallet Balance</th>
+                            <th>Referrals</th>
+                            <th>Completed</th>
+                            <th>Completion</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var state in Model.StateIndicators)
                         {
-                            <li class="list-group-item d-flex justify-content-between align-items-center py-3 px-4">
-                                <span class="fw-bold fs-5">@state.State</span>
-                                <span class="badge bg-success rounded-pill fs-5 px-4">@state.Count</span>
-                            </li>
+                            <tr>
+                                <td class="fw-bold">@state.State</td>
+                                <td>@state.TotalEnrollees.ToString("N0")</td>
+                                <td>@state.ActiveEnrollees.ToString("N0")</td>
+                                <td>@state.Providers.ToString("N0")</td>
+                                <td>@state.Encounters.ToString("N0")</td>
+                                <td>@state.Claims.ToString("N0")</td>
+                                <td>@state.PaidClaims.ToString("N0")</td>
+                                <td>₦@state.ClaimValue.ToString("N0")</td>
+                                <td>₦@state.CapitationDisbursed.ToString("N0")</td>
+                                <td>₦@state.WalletBalance.ToString("N0")</td>
+                                <td>@state.Referrals.ToString("N0")</td>
+                                <td>@state.CompletedReferrals.ToString("N0")</td>
+                                <td>@state.ReferralCompletionRate%</td>
+                            </tr>
                         }
-                        @if (!(ViewBag.EnrolleesByState?.Count > 0))
+                        @if (!Model.StateIndicators.Any())
                         {
-                            <li class="list-group-item text-center text-muted py-5">
-                                <i class="bi bi-people fs-1"></i>
-                                <p class="mt-3">No enrollees registered yet</p>
-                            </li>
+                            <tr><td colspan="13" class="text-center text-muted py-4">No state data available.</td></tr>
                         }
-                    </ol>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="card shadow-sm mb-4">
+            <div class="card-header fw-bold">Enrolment by State</div>
+            <div class="table-responsive">
+                <table class="table table-striped mb-0">
+                    <thead><tr><th>State</th><th>Enrollees</th><th>Active</th><th>Providers</th></tr></thead>
+                    <tbody>
+                        @foreach (var state in Model.StateIndicators)
+                        {
+                            <tr>
+                                <td class="fw-bold">@state.State</td>
+                                <td>@state.TotalEnrollees.ToString("N0")</td>
+                                <td>@state.ActiveEnrollees.ToString("N0")</td>
+                                <td>@state.Providers.ToString("N0")</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
+
+    <div class="row g-4 mb-4">
+        <div class="col-lg-7">
+            <div class="card h-100 shadow-sm">
+                <div class="card-header fw-bold">Most Frequently Used Services</div>
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead><tr><th>Service</th><th>Setting</th><th>Frequency</th><th>Share</th></tr></thead>
+                        <tbody>
+                            @foreach (var service in Model.MostUsedServices.Take(10))
+                            {
+                                <tr>
+                                    <td>@service.ServiceName</td>
+                                    <td><span class="badge bg-secondary">@service.ServiceSetting</span></td>
+                                    <td>@service.Frequency.ToString("N0")</td>
+                                    <td>@service.PercentageOfRecordedServices%</td>
+                                </tr>
+                            }
+                            @if (!Model.MostUsedServices.Any())
+                            {
+                                <tr><td colspan="4" class="text-center text-muted py-4">No structured service data recorded yet.</td></tr>
+                            }
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>
 
-        <!-- TOP 5 HMOS -->
-        <div class="col-lg-4">
-            <div class="card border-0 shadow-lg h-100">
-                <div class="card-header bg-warning text-dark text-center py-4">
-                    <h3 class="fw-bold mb-0">Top 5 HMOs by Enrollees</h3>
-                </div>
-                <div class="card-body p-0">
-                    <ol class="list-group list-group-flush">
-                        @foreach (var hmo in ViewBag.TopHmos ?? new List<dynamic>())
-                        {
-                            <li class="list-group-item d-flex justify-content-between align-items-center py-3 px-4">
-                                <span class="fw-bold fs-5">@hmo.Name</span>
-                                <span class="badge bg-warning text-dark rounded-pill fs-5 px-4">@hmo.Count</span>
-                            </li>
-                        }
-                        @if (!(ViewBag.TopHmos?.Count > 0))
-                        {
-                            <li class="list-group-item text-center text-muted py-5">
-                                <i class="bi bi-building fs-1"></i>
-                                <p class="mt-3">No HMO data available</p>
-                            </li>
-                        }
-                    </ol>
-                </div>
+        <div class="col-lg-5">
+            <div class="card h-100 shadow-sm">
+                <div class="card-header fw-bold">Top 5 HMOs by Enrolment</div>
+                <ol class="list-group list-group-flush">
+                    @foreach (var hmo in ViewBag.TopHmos ?? new List<dynamic>())
+                    {
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            <span class="fw-bold">@hmo.Name</span>
+                            <span class="badge bg-primary rounded-pill">@hmo.Count</span>
+                        </li>
+                    }
+                </ol>
+
+                <div class="card-header border-top fw-bold">Top 5 Providers by Paid Claims</div>
+                <ol class="list-group list-group-flush">
+                    @foreach (var provider in ViewBag.TopProviders ?? new List<dynamic>())
+                    {
+                        <li class="list-group-item d-flex justify-content-between align-items-center gap-3">
+                            <span>
+                                <strong>@provider.Name</strong>
+                                <small class="d-block text-muted">@provider.State</small>
+                            </span>
+                            <span class="badge bg-success rounded-pill">₦@provider.Total.ToString("N0")</span>
+                        </li>
+                    }
+                </ol>
             </div>
         </div>
-
-        <!-- TOP 5 PROVIDERS BY CLAIMS VALUE -->
-        <div class="col-lg-4">
-            <div class="card border-0 shadow-lg h-100">
-                <div class="card-header bg-primary text-white text-center py-4">
-                    <h3 class="fw-bold mb-0">Top 5 Providers by Claims (₦)</h3>
-                </div>
-                <div class="card-body p-0">
-                    <ol class="list-group list-group-flush">
-                        @foreach (var provider in ViewBag.TopProviders ?? new List<dynamic>())
-                        {
-                            <li class="list-group-item d-flex justify-content-between align-items-center py-3 px-4">
-                                <span class="fw-bold fs-5">@provider.Name</span>
-                                <span class="badge bg-primary rounded-pill fs-5 px-4">₦@((int)provider.Total)</span>
-                            </li>
-                        }
-                        @if (!(ViewBag.TopProviders?.Count > 0))
-                        {
-                            <li class="list-group-item text-center text-muted py-5">
-                                <i class="bi bi-hospital fs-1"></i>
-                                <p class="mt-3">No paid claims yet</p>
-                            </li>
-                        }
-                    </ol>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Footer -->
-    <div class="text-center mt-5 py-5 bg-dark text-white rounded-4">
-        <p class="display-6 fw-bold mb-3">NEDC CTSHIP Digital System.</p>
-        <p class="lead mb-0">NEDC CTSHIP — Delivering Universal Health Coverage to Millions Of Nigerians</p>
-        <p class="small mt-3 opacity-75">Powered by North East Development Commission</p>
     </div>
 </div>
 
 @section Scripts {
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
+    @if (User.IsInRole("Admin"))
+    {
+        <script>
+            const monitoringPalette = {
+                green: '#3B703B',
+                gold: '#C9A247',
+                white: '#FFFFFF'
+            };
 
-    <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            const ctx = document.getElementById('enrolleesByStateChart').getContext('2d');
-            const rawData = @Html.Raw(Json.Serialize(ViewBag.EnrolleesByState ?? new List<object>()));
-
-            // Safety check: if no data, show a friendly message
-            if (!rawData || rawData.length === 0) {
-                ctx.canvas.parentNode.innerHTML = `
-                    <div class="text-center py-5">
-                        <i class="bi bi-pie-chart-fill text-muted" style="font-size: 4rem;"></i>
-                        <p class="mt-3 text-muted fs-4">No enrollee data available yet</p>
-                        <p class="text-muted">Start registering enrollees to see the distribution by state</p>
-                    </div>`;
-                return;
-            }
-
-            const labels = rawData.map(s => s.State );
-            const data = rawData.map(s => s.Count || 0);
-
-            new Chart(ctx, {
-                type: 'pie',
+            new Chart(document.getElementById('analyticsClaimsStatusChart'), {
+                type: 'doughnut',
                 data: {
-                    labels: labels,
+                    labels: ['Paid', 'Pending', 'Rejected', 'Other'],
                     datasets: [{
-                        data: data,
-                        backgroundColor: [
-                            '#006400', '#228B22', '#32CD32', '#3CB371', '#90EE90',
-                            '#98FB98', '#8FBC8F', '#ADFF2F', '#7CFC00', '#008000',
-                            '#556B2F', '#2E8B57', '#9ACD32', '#6B8E23', '#808000'
+                        data: [
+                            @Model.PaidClaims,
+                            @Model.PendingClaims,
+                            @Model.RejectedClaims,
+                            @Math.Max(0, Model.TotalClaims - Model.PaidClaims - Model.PendingClaims - Model.RejectedClaims)
                         ],
-                        borderColor: '#fff',
-                        borderWidth: 3
+                        backgroundColor: [
+                            monitoringPalette.green,
+                            monitoringPalette.gold,
+                            monitoringPalette.white,
+                            monitoringPalette.green
+                        ],
+                        borderColor: monitoringPalette.green,
+                        borderWidth: 2
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: true }
+            });
+
+            new Chart(document.getElementById('analyticsGenderChart'), {
+                type: 'doughnut',
+                data: {
+                    labels: ['Male', 'Female', 'Other / Unspecified'],
+                    datasets: [{
+                        data: [@Model.MaleCount, @Model.FemaleCount, @Model.OtherGenderCount],
+                        backgroundColor: [
+                            monitoringPalette.green,
+                            monitoringPalette.gold,
+                            monitoringPalette.white
+                        ],
+                        borderColor: monitoringPalette.green,
+                        borderWidth: 2
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: true }
+            });
+
+            new Chart(document.getElementById('analyticsVulnerableChart'), {
+                type: 'bar',
+                data: {
+                    labels: ['Pregnant', 'Under 5', 'PLWD', 'Elderly', 'Other / IDP'],
+                    datasets: [{
+                        label: '% of total enrolled',
+                        data: [
+                            @Model.PregnantWomenPercentage,
+                            @Model.UnderFivePercentage,
+                            @Model.PlwdPercentage,
+                            @Model.ElderlyPercentage,
+                            @Model.OtherVulnerablePercentage
+                        ],
+                        backgroundColor: [
+                            monitoringPalette.gold,
+                            monitoringPalette.green,
+                            monitoringPalette.gold,
+                            monitoringPalette.green,
+                            monitoringPalette.gold
+                        ]
                     }]
                 },
                 options: {
                     responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            position: 'right',
-                            labels: {
-                                font: { size: 14 },
-                                padding: 20
-                            }
-                        },
-                        tooltip: {
-                            callbacks: {
-                                label: function(context) {
-                                    const value = context.parsed || 0;
-                                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                                    const percentage = total > 0 ? Math.round((value / total) * 100) : 0;
-                                    return `${context.label}: ${value.toLocaleString()} (${percentage}%)`;
-                                }
-                            }
-                        },
-                        datalabels: {
-                            color: '#fff',
-                            font: {
-                                weight: 'bold',
-                                size: 13
-                            },
-                            formatter: (value, context) => {
-                                if (!value || value === 0) return null;
-
-                                const total = context.dataset.data.reduce((a, b) => (a || 0) + (b || 0), 0);
-                                if (total === 0) return null;
-
-                                const percentage = Math.round((value / total) * 100);
-                                const label = context.chart.data.labels[context.dataIndex];
-
-                                // Only show label if slice is big enough (optional)
-                                if (percentage < 3) return `${label}\n(${percentage}%)`;
-
-                                return `${label}\n${value.toLocaleString()}\n(${percentage}%)`;
-                            }
-                        }
-                    }
-                },
-                plugins: [ChartDataLabels]
+                    scales: { y: { beginAtZero: true, max: 100 } }
+                }
             });
-        });
-
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
-    <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            // Helper: format numbers with commas
-            const formatNumber = (num) => num.toLocaleString();
-
-            // ==== CHART 1: ENROLLEES BY STATE ====
-            const enrolleeCtx = document.getElementById('enrolleesByStateChart').getContext('2d');
-            const enrolleeData = @Html.Raw(Json.Serialize(ViewBag.EnrolleesByState ?? new List<object>()));
-
-            if (enrolleeData.length === 0) {
-                enrolleeCtx.canvas.parentNode.innerHTML = '<div class="text-center py-5 text-muted"><p class="fs-4">No enrollee data yet</p></div>';
-            } else {
-                new Chart(enrolleeCtx, {
-                    type: 'bar',
-                    data: {
-                        labels: enrolleeData.map(s => s.State),
-                        datasets: [{
-                            label: 'Enrollees',
-                            data: enrolleeData.map(s => s.Count),
-                            backgroundColor: '#006400',
-                            borderColor: '#004d00',
-                            borderWidth: 1
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        plugins: {
-                            legend: { display: false },
-                            tooltip: {
-                                callbacks: {
-                                    label: ctx => `Enrollees: ${formatNumber(ctx.parsed.y)}`
-                                }
-                            }
-                        },
-                        scales: {
-                            y: {
-                                beginAtZero: true,
-                                ticks: { callback: value => formatNumber(value) }
-                            }
-                        }
-                    }
-                });
-            }
-
-            // ==== CHART 2: CLAIMS PAID BY STATE ====
-            const claimsCtx = document.getElementById('claimsByStateChart').getContext('2d');
-            const claimsData = @Html.Raw(Json.Serialize(ViewBag.ClaimsByState ?? new List<object>()));
-
-            if (claimsData.length === 0) {
-                claimsCtx.canvas.parentNode.innerHTML = '<div class="text-center py-5 text-muted"><p class="fs-4">No paid claims yet</p></div>';
-            } else {
-                new Chart(claimsCtx, {
-                    type: 'bar',
-                    data: {
-                        labels: claimsData.map(c => c.State),
-                        datasets: [{
-                            label: 'Amount Paid (₦)',
-                            data: claimsData.map(c => c.TotalPaid),
-                            backgroundColor: '#0064b7',
-                            borderColor: '#004080',
-                            borderWidth: 1
-                        }]
-                    },
-                    options: {
-                        responsive: true,
-                        plugins: {
-                            legend: { display: false },
-                            tooltip: {
-                                callbacks: {
-                                    label: ctx => `Paid: ₦${formatNumber(Math.round(ctx.parsed.y))}`
-                                }
-                            }
-                        },
-                        scales: {
-                            y: {
-                                beginAtZero: true,
-                                ticks: {
-                                    callback: value => '₦' + formatNumber(Math.round(value))
-                                }
-                            }
-                        }
-                    }
-                });
-            }
-        });
-    </script>
+        </script>
+    }
 }

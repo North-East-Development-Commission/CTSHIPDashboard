@@ -1,0 +1,76 @@
+@model CTSHIPDashboard.Models.ViewModels.MonitoringDashboardViewModel
+
+<div class="row g-3 mb-4">
+    <div class="col-xl-3 col-md-6">
+        <div class="card ct-kpi ct-kpi-green-gold h-100">
+            <div class="card-body">
+                <div class="text-muted">Total Enrollees</div>
+                <div class="display-6 fw-bold">@Model.TotalEnrolled.ToString("N0")</div>
+                <small>@Model.Scope registered population</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-3 col-md-6">
+        <div class="card ct-kpi ct-kpi-gold-green h-100">
+            <div class="card-body">
+                <div class="text-muted">Active Enrollees</div>
+                <div class="display-6 fw-bold">@Model.ActiveEnrollees.ToString("N0")</div>
+                <small>@Model.ActiveEnrolleeRate% of enrolled population</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-3 col-md-6">
+        <div class="card ct-kpi ct-kpi-green-gold h-100">
+            <div class="card-body">
+                <div class="text-muted">Coverage</div>
+                <div class="display-6 fw-bold">@Model.CoveragePercentage%</div>
+                <small>@Model.ActiveEnrollees.ToString("N0") active / @Model.TargetEnrollees.ToString("N0") target</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-3 col-md-6">
+        <div class="card ct-kpi ct-kpi-gold-green h-100">
+            <div class="card-body">
+                <div class="text-muted">Active Enrollee Rate</div>
+                <div class="display-6 fw-bold">@Model.ActiveEnrolleeRate%</div>
+                <small>@Model.ActiveEnrollees.ToString("N0") active / @Model.TotalEnrolled.ToString("N0") enrolled</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-3 col-md-6">
+        <div class="card ct-kpi ct-kpi-green-gold h-100">
+            <div class="card-body">
+                <div class="text-muted">Male Enrollees</div>
+                <div class="display-6 fw-bold">@Model.MalePercentage%</div>
+                <small>@Model.MaleCount.ToString("N0") males</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-3 col-md-6">
+        <div class="card ct-kpi ct-kpi-gold-green h-100">
+            <div class="card-body">
+                <div class="text-muted">Female Enrollees</div>
+                <div class="display-6 fw-bold">@Model.FemalePercentage%</div>
+                <small>@Model.FemaleCount.ToString("N0") females</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-3 col-md-6">
+        <div class="card ct-kpi ct-kpi-green-gold h-100">
+            <div class="card-body">
+                <div class="text-muted">Number of Referrals</div>
+                <div class="display-6 fw-bold">@Model.TotalReferrals.ToString("N0")</div>
+                <small>@Model.CompletedReferrals.ToString("N0") completed</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-3 col-md-6">
+        <div class="card ct-kpi ct-kpi-gold-green h-100">
+            <div class="card-body">
+                <div class="text-muted">Referral Completion Rate</div>
+                <div class="display-6 fw-bold">@Model.ReferralCompletionRate%</div>
+                <small>@Model.CompletedReferrals.ToString("N0") completed / @Model.TotalReferrals.ToString("N0") referrals</small>
+            </div>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,27 @@
+﻿@model CTSHIPDashboard.Models.ViewModels.EnrolleeDeathStatusViewModel
+
+@if (Model == null || !Model.IsDeceased)
+{
+    <span class="badge bg-success">Active</span>
+}
+else
+{
+    string cssClass = Model.RegisterStatus switch
+    {
+        CTSHIPDashboard.Models.Enums.DeathRegisterStatus.Draft => "bg-secondary",
+        CTSHIPDashboard.Models.Enums.DeathRegisterStatus.SubmittedToHmo => "bg-warning text-dark",
+        CTSHIPDashboard.Models.Enums.DeathRegisterStatus.HmoVerified => "bg-info text-dark",
+        CTSHIPDashboard.Models.Enums.DeathRegisterStatus.HmoRejected => "bg-danger",
+        CTSHIPDashboard.Models.Enums.DeathRegisterStatus.Audited => "bg-dark",
+        CTSHIPDashboard.Models.Enums.DeathRegisterStatus.AuditRejected => "bg-danger",
+        CTSHIPDashboard.Models.Enums.DeathRegisterStatus.Cancelled => "bg-secondary",
+        _ => "bg-dark"
+    };
+
+    <span class="badge @cssClass">@Model.StatusText</span>
+
+    if (Model.DateOfDeath.HasValue)
+    {
+        <small class="d-block text-muted">@Model.DateOfDeath.Value.ToString("dd MMM yyyy")</small>
+    }
+}

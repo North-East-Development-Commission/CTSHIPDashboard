@@ -1,0 +1,105 @@
+﻿@model IEnumerable<CTSHIPDashboard.Models.ViewModels.DeathRegisterIndexViewModel>
+@using CTSHIPDashboard.Models.Enums
+
+@{
+    ViewData["Title"] = "HMO Death Registers";
+}
+
+<div class="ct-page">
+<div class="ct-page-header d-flex justify-content-between align-items-center">
+    <div>
+        <h2 class="mb-0">HMO Death Registers</h2>
+        <small>Verify and audit death register records submitted by providers.</small>
+    </div>
+</div>
+</div>
+
+@if (TempData["SuccessMessage"] != null)
+{
+    <div class="alert alert-success">@TempData["SuccessMessage"]</div>
+}
+@if (TempData["ErrorMessage"] != null)
+{
+    <div class="alert alert-danger">@TempData["ErrorMessage"]</div>
+}
+
+<form method="get" class="row g-2 mb-3">
+    <div class="col-md-10">
+        <input type="text" name="search" value="@ViewBag.Search" class="form-control" placeholder="Search by enrollee number, name, HMO, provider, or cause of death" />
+    </div>
+    <div class="col-md-2 d-grid">
+        <button type="submit" class="btn btn-outline-primary">Search</button>
+    </div>
+</form>
+
+<div class="table-responsive">
+    <table class="table table-striped table-bordered align-middle">
+        <thead class="table-light">
+            <tr>
+                <th>Enrollee No.</th>
+                <th>Full Name</th>
+                <th>Provider</th>
+                <th>HMO</th>
+                <th>Date of Death</th>
+                <th>Status</th>
+                <th>Submitted</th>
+                <th style="width: 220px;">Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var item in Model)
+            {
+                <tr>
+                    <td>@item.EnrolleeNumber</td>
+                    <td>@item.EnrolleeFullName</td>
+                    <td>@item.ProviderName</td>
+                    <td>@(!string.IsNullOrWhiteSpace(item.HmoName) ? item.HmoName : item.HmoCode)</td>
+                    <td>@item.DateOfDeath.ToString("dd MMM yyyy")</td>
+                    <td>
+                        @switch (item.Status)
+                        {
+                            case DeathRegisterStatus.SubmittedToHmo:
+                                <span class="badge bg-warning text-dark">Pending HMO Verification</span>
+                                break;
+                            case DeathRegisterStatus.HmoVerified:
+                                <span class="badge bg-info text-dark">HMO Verified</span>
+                                break;
+                            case DeathRegisterStatus.HmoRejected:
+                                <span class="badge bg-danger">HMO Rejected</span>
+                                break;
+                            case DeathRegisterStatus.Audited:
+                                <span class="badge bg-dark">Audited</span>
+                                break;
+                            case DeathRegisterStatus.AuditRejected:
+                                <span class="badge bg-danger">Audit Rejected</span>
+                                break;
+                            default:
+                                <span class="badge bg-secondary">@item.Status</span>
+                                break;
+                        }
+                    </td>
+                    <td>@(item.SubmittedToHmoAt.HasValue? item.SubmittedToHmoAt.Value.ToString("dd MMM yyyy HH:mm") : "")</td>
+                    <td>
+                        <div class="btn-group btn-group-sm">
+                            <a asp-controller="HmoDeathRegisters" asp-action="Details" asp-route-id="@item.Id" class="btn btn-outline-primary">Details</a>
+                            @if (item.Status == DeathRegisterStatus.SubmittedToHmo && (User.IsInRole("HMO") || User.IsInRole("Admin")))
+                            {
+                                <a asp-controller="HmoDeathRegisters" asp-action="Verify" asp-route-id="@item.Id" class="btn btn-outline-success">Verify</a>
+                            }
+                            @if (item.Status == DeathRegisterStatus.HmoVerified && (User.IsInRole("NHIA") || User.IsInRole("Admin")))
+                            {
+                                <a asp-controller="HmoDeathRegisters" asp-action="Audit" asp-route-id="@item.Id" class="btn btn-outline-dark">Audit</a>
+                            }
+                        </div>
+                    </td>
+                </tr>
+            }
+            @if (!Model.Any())
+            {
+                <tr>
+                    <td colspan="8" class="text-center text-muted">No death register record found.</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>

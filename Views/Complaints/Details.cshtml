@@ -1,0 +1,60 @@
+@model CTSHIPDashboard.Models.Complaint
+@using CTSHIPDashboard.Models.Enums
+@{
+    ViewData["Title"] = "Complaint Details";
+}
+
+<div class="container py-5">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
+        <div>
+            <h1 class="fw-bold text-success mb-1">Complaint @Model.ReferenceNumber</h1>
+            <p class="text-muted mb-0">@Model.Subject</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a asp-action="Index" class="btn btn-outline-success">Back</a>
+            @if (ViewBag.CanManage)
+            {
+                <a asp-action="Manage" asp-route-id="@Model.Id" class="btn btn-success">Manage Complaint</a>
+            }
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-lg-8">
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-success text-white fw-bold">Complaint Details</div>
+                <div class="card-body">
+                    <h4>@Model.Subject</h4>
+                    <p style="white-space:pre-wrap;">@Model.Description</p>
+                </div>
+            </div>
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-success text-white fw-bold">Resolution</div>
+                <div class="card-body">
+                    <p><strong>Assigned To:</strong> @(Model.AssignedToName ?? "Not assigned")</p>
+                    <p class="mb-0" style="white-space:pre-wrap;">@(Model.ResolutionNote ?? "No resolution note yet.")</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body">
+                    <dl class="mb-0">
+                        <dt>Status</dt><dd>@Model.Status</dd>
+                        <dt>Priority</dt><dd>@Model.Priority</dd>
+                        <dt>Category</dt><dd>@Model.Category</dd>
+                        <dt>State</dt><dd>@Model.State</dd>
+                        <dt>HMO</dt><dd>@(Model.Hmo?.Name ?? "—")</dd>
+                        <dt>Provider</dt><dd>@(Model.Provider?.Name ?? "—")</dd>
+                        <dt>Enrollee</dt><dd>@(Model.Enrollee?.FullName ?? "—")</dd>
+                        <dt>Submitted By</dt><dd>@Model.SubmittedByName</dd>
+                        <dt>Role</dt><dd>@Model.SubmittedByRole</dd>
+                        <dt>Submitted</dt><dd>@Model.CreatedAt.ToLocalTime().ToString("dd MMM yyyy HH:mm")</dd>
+                        <dt>Last Updated</dt><dd>@Model.UpdatedAt.ToLocalTime().ToString("dd MMM yyyy HH:mm")</dd>
+                        <dt>Resolved</dt><dd>@(Model.ResolvedAt?.ToLocalTime().ToString("dd MMM yyyy HH:mm") ?? "—")</dd>
+                    </dl>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

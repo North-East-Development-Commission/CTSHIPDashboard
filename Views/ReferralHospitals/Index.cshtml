@@ -1,0 +1,93 @@
+﻿@model IEnumerable<CTSHIPDashboard.ViewModels.ReferralHospitalViewModel>
+@{
+    ViewData["Title"] = "Referral Hospitals";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h2 class="mb-0">Referral Hospitals</h2>
+        <small class="text-muted">Approved hospitals providers can select when creating referrals.</small>
+    </div>
+    <a asp-controller="ReferralHospitals" asp-action="Create" class="btn btn-success">Add Hospital</a>
+</div>
+
+@if (TempData["SuccessMessage"] != null)
+{
+    <div class="alert alert-success">@TempData["SuccessMessage"]</div>
+}
+
+<form method="get" class="card card-body mb-3">
+    <div class="row g-2 align-items-end">
+        <div class="col-md-5">
+            <label class="form-label">Search</label>
+            <input name="search" value="@ViewBag.Search" class="form-control" placeholder="Search hospital, state or LGA" />
+        </div>
+        <div class="col-md-3">
+            <label class="form-label">State</label>
+            <select name="state" asp-items="ViewBag.States" class="form-select">
+                <option value="">All States</option>
+            </select>
+        </div>
+        <div class="col-md-2">
+            <label class="form-label">Status</label>
+            <select name="status" asp-items="ViewBag.Statuses" class="form-select"></select>
+        </div>
+        <div class="col-md-2 d-grid">
+            <button type="submit" class="btn btn-outline-success">Apply</button>
+        </div>
+    </div>
+</form>
+
+<div class="table-responsive">
+    <table class="table table-bordered table-striped align-middle">
+        <thead class="table-light">
+            <tr>
+                <th>Name</th>
+                <th>State</th>
+                <th>LGA</th>
+                <th>Contact</th>
+                <th>Status</th>
+                <th class="text-end">Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var item in Model)
+            {
+                <tr>
+                    <td>
+                        <strong>@item.Name</strong><br />
+                        <small class="text-muted">@item.Address</small>
+                    </td>
+                    <td>@item.State</td>
+                    <td>@item.Lga</td>
+                    <td>
+                        @item.ContactPerson<br />
+                        <small class="text-muted">@item.PhoneNumber</small>
+                    </td>
+                    <td>
+                        @if (item.IsActive)
+                        {
+                            <span class="badge bg-success">Active</span>
+                        }
+                        else
+                        {
+                            <span class="badge bg-secondary">Inactive</span>
+                        }
+                    </td>
+                    <td class="text-end">
+                        <a asp-controller="ReferralHospitals" asp-action="Edit" asp-route-id="@item.Id" class="btn btn-sm btn-outline-success">Edit</a>
+                        <a asp-controller="ReferralHospitals" asp-action="Delete" asp-route-id="@item.Id" class="btn btn-sm btn-outline-danger">Delete</a>
+                    </td>
+                </tr>
+            }
+            @if (!Model.Any())
+            {
+                <tr>
+                    <td colspan="6" class="text-center text-muted py-4">
+                        No referral hospitals found.
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>

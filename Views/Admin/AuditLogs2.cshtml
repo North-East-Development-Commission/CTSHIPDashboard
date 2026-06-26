@@ -1,0 +1,105 @@
+@model List<CTSHIPDashboard.Models.AuditLog>
+
+@{
+    ViewData["Title"] = "System Audit Logs";
+}
+
+<div class="container-fluid py-4 ct-page">
+    <div class="ct-page-header mb-4">
+        <div>
+            <h2 class="mb-1">System Audit Logs</h2>
+            <p class="mb-0 text-muted">Authenticated user activity and important system changes.</p>
+        </div>
+        <span class="badge bg-success fs-6">@Model.Count record(s)</span>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="get" class="row g-2 align-items-end">
+                <div class="col-md-2">
+                    <label class="form-label">Start Date</label>
+                    <input type="date" name="startDate" value="@ViewBag.FilterStartDate" class="form-control" />
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">End Date</label>
+                    <input type="date" name="endDate" value="@ViewBag.FilterEndDate" class="form-control" />
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Action</label>
+                    <input type="text" name="action" value="@ViewBag.FilterAction" placeholder="Account.Login" class="form-control" />
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">User</label>
+                    <input type="text" name="performedBy" value="@ViewBag.FilterPerformedBy" placeholder="Name or email" class="form-control" />
+                </div>
+                <div class="col-md-3">
+                    <button class="btn btn-success">Filter</button>
+                    <a class="btn btn-outline-secondary"
+                       asp-action="AuditLogs"
+                       asp-route-startDate="@ViewBag.FilterStartDate"
+                       asp-route-endDate="@ViewBag.FilterEndDate"
+                       asp-route-action="@ViewBag.FilterAction"
+                       asp-route-performedBy="@ViewBag.FilterPerformedBy"
+                       asp-route-export="csv">Export CSV</a>
+                    <a asp-action="AuditLogs" class="btn btn-outline-secondary">Clear</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead class="table-success">
+                        <tr>
+                            <th>Time</th>
+                            <th>User</th>
+                            <th>Action</th>
+                            <th>Target</th>
+                            <th>Details</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var log in Model)
+                        {
+                            <tr>
+                                <td class="text-nowrap">@log.Timestamp.ToString("dd MMM yyyy HH:mm:ss")</td>
+                                <td><strong>@log.PerformedBy</strong></td>
+                                <td>
+                                    @if (log.Action.Contains("Login", StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        <span class="badge bg-success">@log.Action</span>
+                                    }
+                                    else if (log.Action.Contains("Delete", StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        <span class="badge bg-danger">@log.Action</span>
+                                    }
+                                    else if (log.Action.Contains("Update", StringComparison.OrdinalIgnoreCase)
+                                        || log.Action.Contains("Edit", StringComparison.OrdinalIgnoreCase))
+                                    {
+                                        <span class="badge bg-warning text-dark">@log.Action</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-secondary">@log.Action</span>
+                                    }
+                                </td>
+                                <td>@(log.TargetUserEmail ?? "-")</td>
+                                <td><small>@(log.Details ?? "-")</small></td>
+                            </tr>
+                        }
+                        @if (Model.Count == 0)
+                        {
+                            <tr>
+                                <td colspan="5" class="text-center text-muted py-5">
+                                    No audit records match the selected filters.
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>

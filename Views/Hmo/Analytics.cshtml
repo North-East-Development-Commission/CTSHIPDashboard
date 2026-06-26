@@ -152,9 +152,6 @@
 </div>
 
 @section Scripts {
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
-
     <script>
         const ctx = document.getElementById('hmoPieChart').getContext('2d');
         const data = @Html.Raw(Json.Serialize(ViewBag.TopHmosEnrollees));
@@ -166,8 +163,8 @@
                 datasets: [{
                     data: data.map(h => h.Count),
                     backgroundColor: [
-                        '#006400','#228B22','#32CD32','#3CB371','#20B2AA',
-                        '#4682B4','#6495ED','#1E90FF','#00BFFF','#87CEEB'
+                        '#3B703B','#C9A247','#FFFFFF','#3B703B','#C9A247',
+                        '#FFFFFF','#3B703B','#C9A247','#FFFFFF','#3B703B'
                     ],
                     borderWidth: 3,
                     borderColor: '#fff'

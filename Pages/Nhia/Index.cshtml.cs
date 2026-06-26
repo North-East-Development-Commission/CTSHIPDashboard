@@ -15,6 +15,9 @@ namespace CTSHIPDashboard.Pages.Nhia
 
         public NHIAKpiViewModel Kpis { get; set; } = new NHIAKpiViewModel();
 
+        // new: recent enrollees for quick navigation to details
+        public List<EnrolleeSummaryViewModel> RecentEnrollees { get; set; } = new();
+
         public async Task OnGetAsync()
         {
             Kpis.TotalEnrollees = await _context.Enrollees.CountAsync();
@@ -48,6 +51,22 @@ namespace CTSHIPDashboard.Pages.Nhia
                 .Select(g => new KeyValuePair<string, int>(g.Key, g.Count()))
                 .OrderByDescending(k => k.Value)
                 .Take(10)
+                .ToListAsync();
+
+            // populate recent enrollees for NHIA quick-access
+            RecentEnrollees = await _context.Enrollees
+                .Include(e => e.Hmo)
+                .OrderByDescending(e => e.DateRegistered)
+                .Take(10)
+                .Select(e => new EnrolleeSummaryViewModel
+                {
+                    Id = e.Id,
+                    FullName = e.FullName,
+                    EnrollmentNumber = e.EnrollmentNumber,
+                    HmoName = e.Hmo != null ? e.Hmo.Name : "Not Assigned",
+                    DateRegistered = e.DateRegistered,
+                    Status = e.Status
+                })
                 .ToListAsync();
         }
     }

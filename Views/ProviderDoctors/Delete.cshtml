@@ -1,0 +1,41 @@
+@model CTSHIPDashboard.Models.Doctor
+@{
+    ViewData["Title"] = "Delete Doctor";
+    int encounterCount = ViewBag.EncounterCount;
+}
+
+<div class="container py-5">
+    <div class="card border-0 shadow-lg mx-auto" style="max-width:720px;">
+        <div class="card-header bg-success text-white p-4">
+            <h2 class="mb-0">Remove Doctor</h2>
+        </div>
+        <div class="card-body p-4 p-lg-5">
+            <h4>@Model.FullName</h4>
+            <p class="text-muted">@Model.Specialty · @Model.MedicalLicenseNumber</p>
+
+            @if (encounterCount > 0)
+            {
+                <div class="alert alert-warning">
+                    This doctor is linked to @encounterCount encounter(s) and cannot be deleted.
+                    Deactivate the profile from the edit page instead.
+                </div>
+                <div class="d-flex justify-content-end gap-2">
+                    <a asp-action="Index" class="btn btn-outline-success">Back</a>
+                    <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-success">Edit / Deactivate</a>
+                </div>
+            }
+            else
+            {
+                <div class="alert alert-danger">This permanently removes the doctor profile.</div>
+                <form asp-action="Delete" method="post">
+                    <input type="hidden" asp-for="Id" />
+                    <div class="d-flex justify-content-end gap-2">
+                        <a asp-action="Index" class="btn btn-outline-success">Cancel</a>
+                        <button class="btn btn-danger">Delete Doctor</button>
+                    </div>
+                </form>
+            }
+        </div>
+    </div>
+</div>
+

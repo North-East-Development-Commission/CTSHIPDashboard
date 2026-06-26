@@ -1,0 +1,101 @@
+﻿@model CTSHIPDashboard.ViewModels.ReferralCreateViewModel
+@using CTSHIPDashboard.Enums
+@{
+    ViewData["Title"] = "Create Referral";
+}
+
+<h2>Create Referral</h2>
+<p class="text-muted">Create a referral and submit it to the HMO for verification.</p>
+
+<form asp-controller="ProviderReferrals" asp-action="Create" method="post" class="card card-body">
+    @Html.AntiForgeryToken()
+    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+    <input asp-for="EncounterId" type="hidden" />
+    <input asp-for="EnrolleeId" type="hidden" />
+    <input asp-for="FromProviderId" type="hidden" />
+
+    <div class="alert alert-success">
+        Provider and HMO details are taken from the logged-in provider account. The HMO will verify the referral after submission.
+    </div>
+
+    <div class="row g-3">
+        <div class="col-md-4">
+            <label asp-for="EncounterReference" class="form-label"></label>
+            <input asp-for="EncounterReference" class="form-control" />
+            <span asp-validation-for="EncounterReference" class="text-danger"></span>
+        </div>
+        <div class="col-md-4">
+            <label asp-for="EnrolleeNumber" class="form-label"></label>
+            <input asp-for="EnrolleeNumber" class="form-control" />
+            <span asp-validation-for="EnrolleeNumber" class="text-danger"></span>
+        </div>
+        <div class="col-md-4">
+            <label asp-for="EnrolleeFullName" class="form-label"></label>
+            <input asp-for="EnrolleeFullName" class="form-control" />
+            <span asp-validation-for="EnrolleeFullName" class="text-danger"></span>
+        </div>
+        <div class="col-md-4">
+            <label asp-for="HmoCode" class="form-label"></label>
+            <input asp-for="HmoCode" class="form-control" readonly />
+            <span asp-validation-for="HmoCode" class="text-danger"></span>
+        </div>
+        <div class="col-md-4">
+            <label asp-for="HmoName" class="form-label"></label>
+            <input asp-for="HmoName" class="form-control" readonly />
+            <span asp-validation-for="HmoName" class="text-danger"></span>
+        </div>
+        <div class="col-md-4">
+            <label asp-for="FromProviderName" class="form-label"></label>
+            <input asp-for="FromProviderName" class="form-control" readonly />
+            <span asp-validation-for="FromProviderName" class="text-danger"></span>
+        </div>
+        <div class="col-md-6">
+            <label asp-for="ReferredHospitalId" class="form-label"></label>
+            <select asp-for="ReferredHospitalId" asp-items="Model.ReferredHospitals" class="form-select">
+                <option value="">-- Select Referred Hospital --</option>
+            </select>
+            <span asp-validation-for="ReferredHospitalId" class="text-danger"></span>
+        </div>
+        <div class="col-md-3">
+            <label asp-for="Priority" class="form-label"></label>
+            <select asp-for="Priority" asp-items="Html.GetEnumSelectList<ReferralPriority>()" class="form-select"></select>
+            <span asp-validation-for="Priority" class="text-danger"></span>
+        </div>
+        <div class="col-md-3">
+            <label asp-for="Diagnosis" class="form-label"></label>
+            <input asp-for="Diagnosis" class="form-control" />
+            <span asp-validation-for="Diagnosis" class="text-danger"></span>
+        </div>
+        <div class="col-md-12">
+            <label asp-for="ReasonForReferral" class="form-label"></label>
+            <textarea asp-for="ReasonForReferral" class="form-control" rows="3"></textarea>
+            <span asp-validation-for="ReasonForReferral" class="text-danger"></span>
+        </div>
+        <div class="col-md-12">
+            <label asp-for="ClinicalSummary" class="form-label"></label>
+            <textarea asp-for="ClinicalSummary" class="form-control" rows="3"></textarea>
+            <span asp-validation-for="ClinicalSummary" class="text-danger"></span>
+        </div>
+        <div class="col-md-6">
+            <label asp-for="TreatmentGiven" class="form-label"></label>
+            <textarea asp-for="TreatmentGiven" class="form-control" rows="3"></textarea>
+            <span asp-validation-for="TreatmentGiven" class="text-danger"></span>
+        </div>
+        <div class="col-md-6">
+            <label asp-for="InvestigationSummary" class="form-label"></label>
+            <textarea asp-for="InvestigationSummary" class="form-control" rows="3"></textarea>
+            <span asp-validation-for="InvestigationSummary" class="text-danger"></span>
+        </div>
+    </div>
+
+    <div class="mt-4 d-flex gap-2">
+        <button type="submit" name="submitAction" value="draft" class="btn btn-outline-secondary">Save Draft</button>
+        <button type="submit" name="submitAction" value="submit" class="btn btn-success">Submit To HMO</button>
+        <a asp-controller="ProviderReferrals" asp-action="Index" class="btn btn-light">Cancel</a>
+    </div>
+</form>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

@@ -21,7 +21,7 @@
                                 <div class="col-md-3 text-center">
                                     <img src="@(Model.Enrollee?.PhotoPath ?? "/img/icon-192.png")" 
                                          class="rounded-circle shadow" 
-                                         style="width:140px; height:140px; object-fit:cover; border:5px solid #006400;" />
+                                         style="width:140px; height:140px; object-fit:cover; border:5px solid #3B703B;" />
                                 </div>
                                 <div class="col-md-9">
                                     <h4 class="text-success fw-bold mb-2">@Model.Enrollee?.FullName</h4>
@@ -69,10 +69,11 @@
                                 </div>
                             </div>
                             <div class="col-md-6">
-                                <div class="form-floating">
-                                    <input asp-for="AttendedBy" class="form-control" required />
-                                    <label asp-for="AttendedBy">Attended By</label>
-                                </div>
+                                <label asp-for="DoctorId" class="form-label fw-bold">Attending Doctor</label>
+                                <select asp-for="DoctorId" class="form-select form-select-lg" asp-items="ViewBag.Doctors" required>
+                                    <option value="">Select Doctor</option>
+                                </select>
+                                <span asp-validation-for="DoctorId" class="text-danger"></span>
                             </div>
 
                             <!-- Clinical Details -->

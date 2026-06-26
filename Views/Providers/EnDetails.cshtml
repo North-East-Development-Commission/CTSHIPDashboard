@@ -22,12 +22,12 @@
                             @if (!string.IsNullOrEmpty(Model.PhotoPath))
                             {
                                 <img src="@Model.PhotoPath" alt="@Model.FullName"
-                                     class="rounded-circle mb-4 shadow" style="width:180px; height:180px; object-fit:cover; border:6px solid #006400;" />
+                                     class="rounded-circle mb-4 shadow" style="width:180px; height:180px; object-fit:cover; border:6px solid #3B703B;" />
                             }
                             else
                             {
                                 <div class="bg-success rounded-circle d-flex align-items-center justify-content-center text-white mb-4 shadow"
-                                     style="width:180px; height:180px; margin:0 auto; font-size:4rem; border:6px solid #006400;">
+                                     style="width:180px; height:180px; margin:0 auto; font-size:4rem; border:6px solid #3B703B;">
                                     @(Model.FullName.Length > 0 ? Model.FullName.Split(' ')[0][0] : "?")
                                 </div>
                             }
@@ -120,7 +120,7 @@
                             <hr class="my-5 border-success" />
 
                             <div class="text-center">
-                             
+                                <a asp-action="Wallet" asp-controller="Enrollees" asp-route-id="@Model.Id" class="btn btn-info btn-lg px-4 shadow me-3">View Wallet</a>
                                 <a asp-action="MyEnrollees" class="btn btn-secondary btn-lg px-5">
                                     Back to List
                                 </a>

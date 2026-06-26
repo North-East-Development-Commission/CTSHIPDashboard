@@ -1,5 +1,5 @@
-﻿@using CTSHIPDashboard.Models.ViewModels
-@model List<EnrolleeListViewModel>
+﻿@model List<CTSHIPDashboard.Models.ViewModels.EnrolleeListViewModel>
+
 
 <div class="container-fluid py-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
@@ -59,6 +59,7 @@
                         <th>HMO</th>
                         <th>Status</th>
                         <th>Registered</th>
+                        <th>Death Register</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
@@ -92,6 +93,27 @@
                                 </span>
                             </td>
                             <td>@e.DateRegistered.ToString("MMM dd, yyyy")</td>
+                            <td>
+                                @await Html.PartialAsync("_EnrolleeDeathStatusBadge", e.DeathStatus)
+                            </td>
+                            <td>
+                                @if (e.DeathStatus != null && e.DeathStatus.IsDeceased && e.DeathStatus.DeathRegisterId.HasValue)
+                                {
+                                    <a asp-controller="ProviderDeathRegisters" asp-action="Details" asp-route-id="@e.DeathStatus.DeathRegisterId" class="btn btn-sm btn-outline-dark">View Death Record</a>
+                                }
+                                else
+                                {
+                                    <a asp-controller="ProviderDeathRegisters"
+                                       asp-action="Create"
+                                       asp-route-enrolleeId="@e.Id"
+                                       asp-route-enrolleeNumber="@e.EnrollmentNumber"
+                                       asp-route-enrolleeFullName="@e.FullName"
+                                       asp-route-hmoCode="@e.HmoCode"
+                                       asp-route-hmoName="@e.HmoName"
+                                       class="btn btn-sm btn-outline-danger">Register Death</a>
+                                }
+                            </td>
+
                             <td>
                                 <a asp-action="Details" asp-route-id="@e.Id" class="btn btn-info btn-sm">View</a>
                                 <a asp-action="Edit" asp-route-id="@e.Id" class="btn btn-warning btn-sm">Edit</a>

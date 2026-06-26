@@ -1,0 +1,39 @@
+@model CTSHIPDashboard.Models.Provider
+@{
+    ViewData["Title"] = "Wallet Summary";
+    var wallets = ViewBag.Wallets as Dictionary<int, CTSHIPDashboard.Models.EnrolleeWallet> ?? new Dictionary<int, CTSHIPDashboard.Models.EnrolleeWallet>();
+}
+
+<div class="container-fluid py-4">
+    <div class="card">
+        <div class="card-header bg-primary text-white">
+            <h4 class="mb-0">Wallet Summary — @Model.Name</h4>
+        </div>
+        <div class="card-body">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Enrollee</th>
+                        <th>Enrollment #</th>
+                        <th>Balance (NGN)</th>
+                        <th>Monthly Allocation</th>
+                        <th>Last Disbursed</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var e in Model.Enrollees ?? new List<CTSHIPDashboard.Models.Enrollee>())
+                    {
+                        wallets.TryGetValue(e.Id, out var w);
+                        <tr>
+                            <td>@e.FullName</td>
+                            <td>@e.EnrollmentNumber</td>
+                            <td>?@((w?.Balance ?? 0m).ToString("N2"))</td>
+                            <td>?@((w?.MonthlyAllocation ?? 0m).ToString("N2"))</td>
+                            <td>@(w?.LastDisbursedAt?.ToString("yyyy-MM-dd") ?? "-")</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>

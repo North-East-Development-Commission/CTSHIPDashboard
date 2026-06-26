@@ -1,0 +1,149 @@
+﻿@model CTSHIPDashboard.Models.ViewModels.DeathRegisterCreateViewModel
+@using CTSHIPDashboard.Models.Enums
+
+@{
+    ViewData["Title"] = "Create Death Register";
+}
+
+<h2>Create Death Register</h2>
+<p class="text-muted">Record deceased enrollee details and submit to HMO for verification.</p>
+
+<form asp-action="Create" method="post">
+    @Html.AntiForgeryToken()
+    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+    <input asp-for="EnrolleeId" type="hidden" />
+    <input asp-for="ProviderId" type="hidden" />
+
+    <div class="card mb-3">
+        <div class="card-header fw-bold">Enrollee Details</div>
+        <div class="card-body row g-3">
+            <div class="col-md-4">
+                <label asp-for="EnrolleeNumber" class="form-label"></label>
+                <input asp-for="EnrolleeNumber" class="form-control" readonly />
+                <span asp-validation-for="EnrolleeNumber" class="text-danger"></span>
+            </div>
+            <div class="col-md-8">
+                <label asp-for="EnrolleeFullName" class="form-label"></label>
+                <input asp-for="EnrolleeFullName" class="form-control" readonly />
+                <span asp-validation-for="EnrolleeFullName" class="text-danger"></span>
+            </div>
+            <div class="col-md-3">
+                <label asp-for="Gender" class="form-label"></label>
+                <select asp-for="Gender" class="form-select" disabled>
+                    <option value="">-- Select --</option>
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
+                </select>
+                <span asp-validation-for="Gender" class="text-danger"></span>
+            </div>
+            <div class="col-md-3">
+                <label asp-for="DateOfBirth" class="form-label"></label>
+                <input asp-for="DateOfBirth" type="date" class="form-control" readonly />
+                <span asp-validation-for="DateOfBirth" class="text-danger"></span>
+            </div>
+            <div class="col-md-3">
+                <label asp-for="PhoneNumber" class="form-label"></label>
+                <input asp-for="PhoneNumber" class="form-control" readonly />
+                <span asp-validation-for="PhoneNumber" class="text-danger"></span>
+            </div>
+            <div class="col-md-3">
+                <label asp-for="HmoCode" class="form-label"></label>
+                <input asp-for="HmoCode" class="form-control" readonly />
+                <span asp-validation-for="HmoCode" class="text-danger"></span>
+            </div>
+            <div class="col-md-6">
+                <label asp-for="HmoName" class="form-label"></label>
+                <input asp-for="HmoName" class="form-control" readonly />
+                <span asp-validation-for="HmoName" class="text-danger"></span>
+            </div>
+            <div class="col-md-6">
+                <label asp-for="ProviderName" class="form-label"></label>
+                <input asp-for="ProviderName" class="form-control" readonly />
+                <span asp-validation-for="ProviderName" class="text-danger"></span>
+            </div>
+            <div class="col-md-12">
+                <label asp-for="Address" class="form-label"></label>
+                <textarea asp-for="Address" class="form-control" rows="2" readonly></textarea>
+                <span asp-validation-for="Address" class="text-danger"></span>
+            </div>
+        </div>
+    </div>
+
+    <div class="card mb-3">
+        <div class="card-header fw-bold">Death Details</div>
+        <div class="card-body row g-3">
+            <div class="col-md-3">
+                <label asp-for="DateOfDeath" class="form-label"></label>
+                <input asp-for="DateOfDeath" type="date" class="form-control" />
+                <span asp-validation-for="DateOfDeath" class="text-danger"></span>
+            </div>
+            <div class="col-md-3">
+                <label asp-for="TimeOfDeath" class="form-label"></label>
+                <input asp-for="TimeOfDeath" type="time" class="form-control" />
+                <span asp-validation-for="TimeOfDeath" class="text-danger"></span>
+            </div>
+            <div class="col-md-6">
+                <label asp-for="PlaceOfDeath" class="form-label"></label>
+                <input asp-for="PlaceOfDeath" class="form-control" />
+                <span asp-validation-for="PlaceOfDeath" class="text-danger"></span>
+            </div>
+            <div class="col-md-4">
+                <label asp-for="CauseCategory" class="form-label"></label>
+                <select asp-for="CauseCategory" asp-items="Html.GetEnumSelectList<DeathCauseCategory>()" class="form-select"></select>
+                <span asp-validation-for="CauseCategory" class="text-danger"></span>
+            </div>
+            <div class="col-md-8">
+                <label asp-for="CauseOfDeath" class="form-label"></label>
+                <textarea asp-for="CauseOfDeath" class="form-control" rows="3"></textarea>
+                <span asp-validation-for="CauseOfDeath" class="text-danger"></span>
+            </div>
+        </div>
+    </div>
+
+    <div class="card mb-3">
+        <div class="card-header fw-bold">Confirmation and Certificate</div>
+        <div class="card-body row g-3">
+            <div class="col-md-5">
+                <label asp-for="DeathConfirmedBy" class="form-label"></label>
+                <input asp-for="DeathConfirmedBy" class="form-control" />
+                <span asp-validation-for="DeathConfirmedBy" class="text-danger"></span>
+            </div>
+            <div class="col-md-4">
+                <label asp-for="DeathConfirmedByDesignation" class="form-label"></label>
+                <input asp-for="DeathConfirmedByDesignation" class="form-control" />
+                <span asp-validation-for="DeathConfirmedByDesignation" class="text-danger"></span>
+            </div>
+            <div class="col-md-3">
+                <label asp-for="DeathConfirmedByPhone" class="form-label"></label>
+                <input asp-for="DeathConfirmedByPhone" class="form-control" />
+                <span asp-validation-for="DeathConfirmedByPhone" class="text-danger"></span>
+            </div>
+            <div class="col-md-4">
+                <label asp-for="DeathCertificateNumber" class="form-label"></label>
+                <input asp-for="DeathCertificateNumber" class="form-control" />
+                <span asp-validation-for="DeathCertificateNumber" class="text-danger"></span>
+            </div>
+            <div class="col-md-8">
+                <label asp-for="DeathCertificateFilePath" class="form-label"></label>
+                <input asp-for="DeathCertificateFilePath" class="form-control" placeholder="Optional file path if you already store certificate uploads" />
+                <span asp-validation-for="DeathCertificateFilePath" class="text-danger"></span>
+            </div>
+            <div class="col-md-12">
+                <label asp-for="ProviderRemarks" class="form-label"></label>
+                <textarea asp-for="ProviderRemarks" class="form-control" rows="3"></textarea>
+                <span asp-validation-for="ProviderRemarks" class="text-danger"></span>
+            </div>
+        </div>
+    </div>
+
+    <div class="d-flex gap-2">
+        <button type="submit" name="submitAction" value="draft" class="btn btn-secondary">Save Draft</button>
+        <button type="submit" name="submitAction" value="submit" class="btn btn-primary">Submit to HMO</button>
+        <a asp-action="Index" class="btn btn-outline-secondary">Back</a>
+    </div>
+</form>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

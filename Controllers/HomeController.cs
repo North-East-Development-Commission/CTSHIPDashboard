@@ -1,6 +1,7 @@
 using CTSHIPDashboard.Data;
 using CTSHIPDashboard.Models;
 using CTSHIPDashboard.Models.ViewModels;
+using CTSHIPDashboard.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -19,6 +20,11 @@ namespace CTHIPDashboard.Controllers
 
         public async Task<IActionResult> Index()
         {
+            // Redirect admin users to analytics dashboard for faster access
+            if (User.Identity?.IsAuthenticated == true && User.IsInRole("Admin"))
+            {
+                return RedirectToAction("Index", "Analytics");
+            }
             var model = new HomeViewModel
             {
                 News = await _context.NewsUpdates.OrderByDescending(n => n.Date).Take(5).ToListAsync(),
@@ -27,7 +33,8 @@ namespace CTHIPDashboard.Controllers
                 AccreditedProviders = await _context.Providers.CountAsync(p => p.IsActive),
                 TotalCapitationPaid = (decimal)await _context.Claims.Where(c => c.Status == "Paid").SumAsync(c => c.Amount),
                 TotalClaimsProcessed = await _context.Claims.CountAsync(c => c.Status == "Paid"),
-                TotalFundsManaged = (decimal)await _context.Claims.SumAsync(c => c.Amount)
+                TotalFundsManaged = (decimal)await _context.Claims.SumAsync(c => c.Amount),
+                ComplaintMetrics = await ComplaintMetricsService.BuildAsync(_context.Complaints)
             };
             return View(model);
         }

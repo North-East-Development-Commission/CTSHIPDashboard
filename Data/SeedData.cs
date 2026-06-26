@@ -18,7 +18,7 @@ namespace CTSHIPDashboard.Data
             context.Database.EnsureCreated();
 
             // ROLES
-            string[] roles = { "Admin", "HMO", "Provider", "SSHIA" };
+            string[] roles = { "Admin", "HMO", "Provider", "SSHIA", "Monitoring" };
             foreach (var role in roles)
             {
                 if (!await roleManager.RoleExistsAsync(role))
@@ -58,7 +58,7 @@ namespace CTSHIPDashboard.Data
 
             var enrollees = new List<Enrollee>();
 
-            for (int i = 1; i <= 120; i++)
+            for (int i = 1; i <= 100; i++)
             {
                 var gender = faker.Person.Gender == Bogus.DataSets.Name.Gender.Male ? "Male" : "Female";
                 var firstName = faker.Person.FirstName;//(gender == "Male" ? Bogus.DataSets.Name.Gender.Male : Bogus.DataSets.Name.Gender.Female);
@@ -97,9 +97,68 @@ namespace CTSHIPDashboard.Data
             context.Enrollees.AddRange(enrollees);
             context.SaveChanges();
 
-            Console.WriteLine("120 REALISTIC NIGERIAN ENROLLEES SEEDED SUCCESSFULLY!");
+            Console.WriteLine("100 REALISTIC NIGERIAN ENROLLEES SEEDED SUCCESSFULLY!");
         }
 
+        public static async Task SeedAsync(ApplicationDbContext context, CancellationToken cancellationToken = default)
+        {
+            List<ReferredHospital> hospitals = new List<ReferredHospital>
+        {
+            new ReferredHospital
+            {
+                Name = "University of Maiduguri Teaching Hospital",
+                State = "Borno",
+                Lga = "Maiduguri Metropolitan",
+                Address = "Bama Road, Maiduguri, Borno State",
+                ContactPerson = "Referral Desk",
+                PhoneNumber = "08000000001",
+                IsActive = true
+            },
+            new ReferredHospital
+            {
+                Name = "Federal Medical Centre Yola",
+                State = "Adamawa",
+                Lga = "Yola North",
+                Address = "Yola, Adamawa State",
+                ContactPerson = "Referral Desk",
+                PhoneNumber = "08000000002",
+                IsActive = true
+            },
+            new ReferredHospital
+            {
+                Name = "Federal Teaching Hospital Gombe",
+                State = "Gombe",
+                Lga = "Gombe",
+                Address = "Ashaka Road, Gombe State",
+                ContactPerson = "Referral Desk",
+                PhoneNumber = "08000000003",
+                IsActive = true
+            },
+            new ReferredHospital
+            {
+                Name = "Abubakar Tafawa Balewa University Teaching Hospital",
+                State = "Bauchi",
+                Lga = "Bauchi",
+                Address = "Bauchi, Bauchi State",
+                ContactPerson = "Referral Desk",
+                PhoneNumber = "08000000004",
+                IsActive = true
+            }
+        };
+
+            foreach (ReferredHospital hospital in hospitals)
+            {
+                bool exists = await context.ReferralHospitals
+                    .AnyAsync(x => x.Name == hospital.Name && x.State == hospital.State, cancellationToken);
+
+                if (!exists)
+                {
+                    context.ReferralHospitals.Add(hospital);
+                }
+            }
+
+            await context.SaveChangesAsync(cancellationToken);
+        }
         public static void SeedEnrollee(ApplicationDbContext context)
         {
             // Prevent duplicate seeding
@@ -117,7 +176,7 @@ namespace CTSHIPDashboard.Data
 
             var enrollees = new List<Enrollee>();
 
-            for (int i = 1; i <= 80; i++)  // 800 beautiful Nigerian enrollees
+            for (int i = 1; i <= 100; i++)
             {
                 bool isMale = random.Next(0, 2) == 0;
                 string firstName = isMale
@@ -189,21 +248,13 @@ namespace CTSHIPDashboard.Data
             var random = new Random();
             var enrollees = context.Enrollees.ToList();
             var providers = context.Providers.ToList();
+            var doctors = context.Doctors.ToList();
 
             if (!enrollees.Any() || !providers.Any())
             {
                 Console.WriteLine("Warning: Enrollees or Providers not found. Skipping encounter seeding.");
                 return;
             }
-
-            // REAL NIGERIAN DOCTORS (We store their ID as int — you can map to a future Doctors table later)
-            var doctors = new (int Id, string Name)[]
-            {
-        (1, "Dr. Adebayo Olumide"), (2, "Dr. (Mrs.) Fatima Yusuf"), (3, "Dr. Chukwuemeka Eze"),
-        (4, "Dr. Aisha Mohammed"), (5, "Dr. Ibrahim Sani"), (6, "Dr. Ngozi Okonkwo"),
-        (7, "Dr. (Prof.) Balogun Tunde"), (8, "Dr. Chioma Nwachukwu"), (9, "Dr. Musa Aliyu"),
-        (10, "Dr. Kemi Ogunleye"), (11, "Dr. Emeka Nwosu"), (12, "Dr. Zainab Abdullahi")
-            };
 
             var visitTypes = new[] { "Outpatient", "Emergency", "ANC", "Immunization", "Laboratory", "Surgery", "Follow-up" };
             var complaints = new[] { "Fever", "Abdominal pain", "Cough", "Routine check", "Malaria test", "Delivery", "Hypertension" };
@@ -218,7 +269,10 @@ namespace CTSHIPDashboard.Data
                 for (int i = 0; i < visitCount; i++)
                 {
                     var provider = providers[random.Next(providers.Count)];
-                    var doctor = doctors[random.Next(doctors.Length)];
+                    var providerDoctors = doctors.Where(doctor => doctor.ProviderId == provider.Id).ToList();
+                    var doctor = providerDoctors.Count > 0
+                        ? providerDoctors[random.Next(providerDoctors.Count)]
+                        : null;
 
                     var visitDate = enrollee.DateRegistered
                         .AddDays(random.Next(5, 800))
@@ -233,6 +287,7 @@ namespace CTSHIPDashboard.Data
                     {
                         EnrolleeId = enrollee.Id,
                         ProviderId = provider.Id,
+                        DoctorId = doctor?.Id,
                         VisitDate = visitDate,
 
                         VisitType = isEmergency ? "Emergency" : visitTypes[random.Next(visitTypes.Length)],
@@ -251,8 +306,8 @@ namespace CTSHIPDashboard.Data
                         LabFee = hasLab ? random.Next(5000, 35000) : 0m,
                         DrugFee = hasDrugs ? random.Next(8000, 65000) : 0m,
 
-                        // Doctor (stored as int ID)
-                        
+                        SeenBy = doctor?.FullName,
+                        Rank = doctor?.Designation ?? doctor?.Specialty,
 
                         Notes = random.Next(0, 4) == 0
                             ? "Patient responded well to treatment. Review in 2 weeks."
@@ -336,13 +391,61 @@ namespace CTSHIPDashboard.Data
             Console.WriteLine("   Includes: UMTH, FMC Yola, FMC Gombe, ATBUTH, Yobe State Teaching Hospital");
         }
 
+        public static void SeedDoctors(ApplicationDbContext context)
+        {
+            if (context.Doctors.Any()) return;
+
+            var providers = context.Providers.OrderBy(provider => provider.Id).ToList();
+            if (providers.Count == 0) return;
+
+            string[] names =
+            {
+                "Dr. Amina Musa", "Dr. Ibrahim Sani", "Dr. Fatima Yusuf",
+                "Dr. Chukwuemeka Eze", "Dr. Aisha Mohammed", "Dr. Ngozi Okonkwo",
+                "Dr. Musa Aliyu", "Dr. Zainab Abdullahi", "Dr. Kemi Ogunleye",
+                "Dr. Emeka Nwosu", "Dr. Halima Bello", "Dr. Tunde Balogun"
+            };
+            string[] specialties =
+            {
+                "General Practice", "Family Medicine", "Internal Medicine",
+                "Paediatrics", "Obstetrics and Gynaecology", "Emergency Medicine"
+            };
+
+            var doctors = new List<Doctor>();
+            int doctorIndex = 0;
+
+            foreach (Provider provider in providers)
+            {
+                for (int facilityDoctor = 1; facilityDoctor <= 2; facilityDoctor++)
+                {
+                    string name = names[doctorIndex % names.Length];
+                    string specialty = specialties[doctorIndex % specialties.Length];
+                    doctors.Add(new Doctor
+                    {
+                        ProviderId = provider.Id,
+                        FullName = name,
+                        MedicalLicenseNumber = $"MDCN-{provider.Id:D4}-{facilityDoctor:D2}",
+                        Specialty = specialty,
+                        Designation = facilityDoctor == 1 ? "Medical Officer" : "Consultant",
+                        IsActive = true,
+                        DateAdded = DateTime.UtcNow
+                    });
+                    doctorIndex++;
+                }
+            }
+
+            context.Doctors.AddRange(doctors);
+            context.SaveChanges();
+            Console.WriteLine($"DOCTOR SEED COMPLETE: {doctors.Count} PROVIDER-OWNED DOCTORS REGISTERED!");
+        }
+
         public static async Task SeedAdminUser(IServiceProvider serviceProvider)
         {
             var roleManager = serviceProvider.GetRequiredService<RoleManager<IdentityRole>>();
             var userManager = serviceProvider.GetRequiredService<UserManager<ApplicationUser>>();
 
             // Ensure roles exist (including NHIA and StateOffice)
-            string[] roles = { "Admin", "HMO", "Provider", "Auditor", "Finance", "Reviewer", "StateOffice", "NHIA" };
+            string[] roles = { "Admin", "HMO", "Provider", "Auditor", "Finance", "Reviewer", "StateOffice", "NHIA", "Monitoring" };
 
             foreach (var role in roles)
             {
@@ -420,7 +523,8 @@ namespace CTSHIPDashboard.Data
                 new { Email = "provider@luth.gov.ng", Name = "UMTH Claims Officer", Role = "Provider", Password = "Umth@2025" },
                 new { Email = "auditor@nhia.gov.ng", Name = "Nedc Internal Auditor", Role = "Auditor", Password = "Audit@2025" },
                 new { Email = "finance@nhia.gov.ng", Name = "Nedc Finance Director", Role = "Finance", Password = "Finance@2025" },
-                new { Email = "reviewer@nhia.gov.ng", Name = "Medical Claims Reviewer", Role = "Reviewer", Password = "Review@2025" }
+                new { Email = "reviewer@nhia.gov.ng", Name = "Medical Claims Reviewer", Role = "Reviewer", Password = "Review@2025" },
+                new { Email = "monitoring@nedc.gov.ng", Name = "Monitoring and Evaluation Officer", Role = "Monitoring", Password = "Monitoring@2025!" }
             };
 
             foreach (var user in sampleUsers)
@@ -444,6 +548,11 @@ namespace CTSHIPDashboard.Data
                         await userManager.AddToRoleAsync(newUser, user.Role);
                         Console.WriteLine($"User created: {user.Email} | Role: {user.Role}");
                     }
+                }
+                else if (!await userManager.IsInRoleAsync(existingUser, user.Role))
+                {
+                    await userManager.AddToRoleAsync(existingUser, user.Role);
+                    Console.WriteLine($"Role assigned: {user.Email} | Role: {user.Role}");
                 }
             }
 
@@ -554,6 +663,8 @@ namespace CTSHIPDashboard.Data
                         Status = status
                     };
 
+                    claim.HmoId = enrollee.HmoId;
+
                     // FULL AUDIT TRAIL BASED ON STATUS
                     if (status == "Rejected")
                     {
@@ -581,23 +692,22 @@ namespace CTSHIPDashboard.Data
                             claim.PaidBy = paymentUsers[random.Next(paymentUsers.Length)];
                             claim.PaymentReference = $"PAY Ctship-{claim.DatePaid:yyyyMM}-{random.Next(1000, 9999)}";
                         }
-                        else // Pending
-                        {
-                            claim.DateProcessed = null;
-                            claim.ReviewNotes = "Under review by claims team.";
-                        }
-
-                        claims.Add(claim);
                     }
+                    else
+                    {
+                        claim.ReviewNotes = "Under review by claims team.";
+                    }
+
+                    claims.Add(claim);
                 }
-
-                context.Claims.AddRange(claims);
-                context.SaveChanges();
-
-                Console.WriteLine($"CLAIMS SEED COMPLETE: {claims.Count} REAL NIGERIAN CLAIMS!");
-                Console.WriteLine($"   Paid: {claims.Count(c => c.Status == "Paid")} | Approved: {claims.Count(c => c.Status == "Approved")} | Rejected: {claims.Count(c => c.Status == "Rejected")} | Pending: {claims.Count(c => c.Status == "Pending")}");
-                Console.WriteLine("   Full audit trail: ReviewedBy, ApprovedBy, PaidBy, RejectionReason — ALL INCLUDED!");
             }
+
+            context.Claims.AddRange(claims);
+            context.SaveChanges();
+
+            Console.WriteLine($"CLAIMS SEED COMPLETE: {claims.Count} REAL NIGERIAN CLAIMS!");
+            Console.WriteLine($"   Paid: {claims.Count(c => c.Status == "Paid")} | Approved: {claims.Count(c => c.Status == "Approved")} | Rejected: {claims.Count(c => c.Status == "Rejected")} | Pending: {claims.Count(c => c.Status == "Pending")}");
+            Console.WriteLine("   Full audit trail: ReviewedBy, ApprovedBy, PaidBy, RejectionReason — ALL INCLUDED!");
         }
 
         private static string[] GetNigerianStates() => new[]

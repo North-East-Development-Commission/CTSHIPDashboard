@@ -1,6 +1,8 @@
 ﻿using CTSHIPDashboard.Data;
 using CTSHIPDashboard.Models;
 using CTSHIPDashboard.Models.ViewModels;
+using CTSHIPDashboard.Services;
+using CTSHIPDashboard.Helpers;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -9,6 +11,8 @@ using Microsoft.EntityFrameworkCore;
 using Mono.TextTemplating;
 using OfficeOpenXml;
 using QRCoder;
+using System.Drawing;
+using System.Globalization;
 using System.Diagnostics.Metrics;
 using static Bogus.DataSets.Name;
 using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
@@ -18,13 +22,48 @@ public class EnrolleesController : Controller
     private readonly ApplicationDbContext _context;
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly IWebHostEnvironment _hostEnvironment;
+    private readonly IDeathRegisterService _deathRegisterService;
+    private readonly CTSHIPDashboard.Services.IAuditService _auditService;
 
-    public EnrolleesController(ApplicationDbContext context, UserManager<ApplicationUser> userManager, IWebHostEnvironment hostEnvironment)
+    public EnrolleesController(ApplicationDbContext context, UserManager<ApplicationUser> userManager, IWebHostEnvironment hostEnvironment, IDeathRegisterService deathRegisterService, CTSHIPDashboard.Services.IAuditService auditService)
     {
         _context = context;
         _userManager = userManager;
         _hostEnvironment = hostEnvironment;
+        _deathRegisterService = deathRegisterService;
+        _auditService = auditService;
     }
+
+    //death register service injection
+    private async Task ApplyDeathStatusToEnrolleeListAsync(List<EnrolleeListViewModel> enrollees, CancellationToken cancellationToken = default)
+    {
+        Dictionary<int, EnrolleeDeathStatusViewModel> statusById = await _deathRegisterService.GetDeathStatusMapAsync(
+            enrollees.Select(x => x.Id),
+            cancellationToken);
+
+        Dictionary<string, EnrolleeDeathStatusViewModel> statusByNumber = await _deathRegisterService.GetDeathStatusMapByEnrolleeNumberAsync(
+            enrollees.Select(x => x.EnrollmentNumber),
+            cancellationToken);
+
+        foreach (EnrolleeListViewModel enrollee in enrollees)
+        {
+            if (statusById.TryGetValue(enrollee.Id, out EnrolleeDeathStatusViewModel? statusFromId))
+            {
+                enrollee.DeathStatus = statusFromId;
+                continue;
+            }
+
+            if (!string.IsNullOrWhiteSpace(enrollee.EnrollmentNumber)
+                && statusByNumber.TryGetValue(enrollee.EnrollmentNumber, out EnrolleeDeathStatusViewModel? statusFromNumber))
+            {
+                enrollee.DeathStatus = statusFromNumber;
+                continue;
+            }
+
+            enrollee.DeathStatus = EnrolleeDeathStatusViewModel.Active();
+        }
+    }
+
 
     // INDEX — ALL ENROLLEES
     // GET: /Enrollee or /Enrollee/Index
@@ -165,6 +204,15 @@ public class EnrolleesController : Controller
         // Remove EnrollmentNumber from validation (we generate it)
         ModelState.Remove("EnrollmentNumber");
 
+        if (!NorthEastLocationData.IsValidState(enrollee.State))
+        {
+            ModelState.AddModelError(nameof(enrollee.State), "Select a valid North-East state.");
+        }
+        else if (!NorthEastLocationData.IsValidLga(enrollee.State, enrollee.LGA))
+        {
+            ModelState.AddModelError(nameof(enrollee.LGA), "Select an LGA belonging to the selected state.");
+        }
+
         if (ModelState.IsValid)
         {
             // 1. Upload Photo (if provided)
@@ -277,70 +325,165 @@ public class EnrolleesController : Controller
     [Authorize(Roles = "Admin,HMO")]
     public async Task<IActionResult> Edit(int id)
     {
-        var enrollee = await _context.Enrollees.FindAsync(id);
+        var enrollee = await _context.Enrollees.AsNoTracking().FirstOrDefaultAsync(e => e.Id == id);
         if (enrollee == null) return NotFound();
 
-        ViewBag.States = GetNigerianStates();
-        ViewBag.Provider = await _context.Providers.Select(h => new SelectListItem
+        ApplicationUser? currentUser = await _userManager.GetUserAsync(User);
+        if (User.IsInRole("HMO")
+            && (!(currentUser?.HmoId.HasValue ?? false) || enrollee.HmoId != currentUser!.HmoId))
         {
-            Value = h.Id.ToString(),
-            Text = h.Name
-        }).ToListAsync();
+            return Forbid();
+        }
 
-        ViewBag.Hmos = await _context.Hmos.Select(h => new SelectListItem
-        {
-            Value = h.Id.ToString(),
-            Text = h.Name
-        }).ToListAsync();
+        await PopulateEditDropdownsAsync(enrollee, User.IsInRole("HMO") ? currentUser?.HmoId : null);
         return View(enrollee);
     }
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    [Authorize(Roles = "Admin,HMO")]
     public async Task<IActionResult> Edit(int id, Enrollee enrollee)
     {
         if (id != enrollee.Id) return NotFound();
+        ModelState.Remove(nameof(Enrollee.EnrollmentNumber));
+
+        Enrollee? existing = await _context.Enrollees.FirstOrDefaultAsync(e => e.Id == id);
+        if (existing == null) return NotFound();
+
+        ApplicationUser? currentUser = await _userManager.GetUserAsync(User);
+        int? restrictedHmoId = User.IsInRole("HMO") ? currentUser?.HmoId : null;
+        if (User.IsInRole("HMO")
+            && (!restrictedHmoId.HasValue || existing.HmoId != restrictedHmoId))
+        {
+            return Forbid();
+        }
+
+        if (await _context.Enrollees.AnyAsync(e => e.NIN == enrollee.NIN && e.Id != id))
+        {
+            ModelState.AddModelError(nameof(Enrollee.NIN), "Another enrollee already uses this NIN.");
+        }
+
+        if (enrollee.DateOfBirth >= DateTime.Today)
+        {
+            ModelState.AddModelError(nameof(Enrollee.DateOfBirth), "Date of birth must be earlier than today.");
+        }
+
+        string[] allowedStatuses = ["Active", "Suspended", "Terminated"];
+        if (!allowedStatuses.Contains(enrollee.Status, StringComparer.OrdinalIgnoreCase))
+        {
+            ModelState.AddModelError(nameof(Enrollee.Status), "Select a valid enrollee status.");
+        }
+
+        int? requestedHmoId = existing.HmoId;
+        if (enrollee.ProviderId.HasValue
+            && !await _context.Providers.AnyAsync(p =>
+                p.Id == enrollee.ProviderId.Value
+                && (!requestedHmoId.HasValue || p.HmoId == requestedHmoId.Value)))
+        {
+            ModelState.AddModelError(nameof(Enrollee.ProviderId), "Select a provider assigned to the selected HMO.");
+        }
 
         if (ModelState.IsValid)
         {
-            // Handle photo update
             if (enrollee.PhotoFile != null)
             {
-                // Delete old photo
-                if (!string.IsNullOrEmpty(enrollee.PhotoPath))
+                try
                 {
-                    var oldPath = Path.Combine(_hostEnvironment.WebRootPath, enrollee.PhotoPath.TrimStart('/'));
-                    if (System.IO.File.Exists(oldPath)) System.IO.File.Delete(oldPath);
+                    existing.PhotoPath = await EnrolleePhotoStorage.SaveAsync(
+                        enrollee.PhotoFile,
+                        existing.EnrollmentNumber,
+                        existing.PhotoPath,
+                        _hostEnvironment,
+                        HttpContext.RequestAborted);
                 }
-
-                var uploadsFolder = Path.Combine(_hostEnvironment.WebRootPath, "uploads/enrollees");
-                var uniqueFileName = $"{enrollee.EnrollmentNumber}_{enrollee.PhotoFile.FileName}";
-                var filePath = Path.Combine(uploadsFolder, uniqueFileName);
-
-                using (var stream = new FileStream(filePath, FileMode.Create))
+                catch (InvalidOperationException exception)
                 {
-                    await enrollee.PhotoFile.CopyToAsync(stream);
+                    ModelState.AddModelError(nameof(Enrollee.PhotoFile), exception.Message);
                 }
-
-                enrollee.PhotoPath = "/uploads/enrollees/" + uniqueFileName;
             }
 
-            _context.Update(enrollee);
-            await _context.SaveChangesAsync();
+            if (ModelState.IsValid)
+            {
+                ApplyEditableFields(existing, enrollee);
+                existing.HmoId = requestedHmoId;
+                existing.ProviderId = enrollee.ProviderId;
+                existing.Status = enrollee.Status;
 
-            TempData["Success"] = "Enrollee updated successfully!";
-            if (User.IsInRole("HMO"))
-            {
-                return RedirectToAction("EnrolleeDashboard", "Hmo");
-            }
-            else if (User.IsInRole("Admin"))
-            {
+                await _context.SaveChangesAsync();
+
+                TempData["Success"] = "Enrollee updated successfully!";
+                if (User.IsInRole("HMO"))
+                {
+                    return RedirectToAction("EnrolleeDashboard", "Hmo");
+                }
+
                 return RedirectToAction("Index", "Enrollees");
             }
-            return RedirectToAction(nameof(Index));
         }
 
+        enrollee.EnrollmentNumber = existing.EnrollmentNumber;
+        enrollee.DateRegistered = existing.DateRegistered;
+        enrollee.PhotoPath = existing.PhotoPath;
+        enrollee.HmoId = requestedHmoId;
+        await PopulateEditDropdownsAsync(enrollee, restrictedHmoId);
         return View(enrollee);
+    }
+
+    private async Task PopulateEditDropdownsAsync(Enrollee enrollee, int? restrictedHmoId = null)
+    {
+        ViewBag.States = GetNigerianStates();
+        ViewBag.CanChangeHmo = false;
+
+        IQueryable<Hmo> hmoQuery = _context.Hmos.AsNoTracking();
+        if (enrollee.HmoId.HasValue)
+        {
+            hmoQuery = hmoQuery.Where(h => h.Id == enrollee.HmoId.Value);
+        }
+
+        ViewBag.Hmos = await hmoQuery
+            .OrderBy(h => h.Name)
+            .Select(h => new SelectListItem
+            {
+                Value = h.Id.ToString(),
+                Text = h.Name,
+                Selected = h.Id == enrollee.HmoId
+            })
+            .ToListAsync();
+
+        int? providerHmoId = restrictedHmoId ?? enrollee.HmoId;
+        IQueryable<Provider> providerQuery = _context.Providers.AsNoTracking();
+        if (providerHmoId.HasValue)
+        {
+            providerQuery = providerQuery.Where(p => p.HmoId == providerHmoId.Value);
+        }
+
+        ViewBag.Provider = await providerQuery
+            .Where(p => p.IsActive || p.Id == enrollee.ProviderId)
+            .OrderBy(p => p.Name)
+            .Select(p => new SelectListItem
+            {
+                Value = p.Id.ToString(),
+                Text = p.Name,
+                Selected = p.Id == enrollee.ProviderId
+            })
+            .ToListAsync();
+    }
+
+    private static void ApplyEditableFields(Enrollee target, Enrollee source)
+    {
+        target.FullName = source.FullName.Trim();
+        target.Gender = source.Gender;
+        target.DateOfBirth = source.DateOfBirth;
+        target.Phone = source.Phone.Trim();
+        target.NIN = source.NIN;
+        target.State = source.State;
+        target.LGA = source.LGA.Trim();
+        target.Ward = source.Ward.Trim();
+        target.Address = source.Address.Trim();
+        target.IsPregnant = source.IsPregnant;
+        target.HasDisability = source.HasDisability;
+        target.IsIdp = source.IsIdp;
+        target.OtherVulnerableCategory = source.OtherVulnerableCategory?.Trim();
     }
 
     // DETAILS
@@ -351,11 +494,94 @@ public class EnrolleesController : Controller
             .Include(e => e.Hmo)
             .Include(e => e.MedicalHistories)
             .FirstOrDefaultAsync(e => e.Id == id);
-        var currentUser = await _userManager.GetUserAsync(User);
-        enrollee.RegisteredBy = currentUser?.Email ?? "Unknown User";
         if (enrollee == null) return NotFound();
         return View(enrollee);
     }
+
+    // Wallet details and transactions for an enrollee
+    [Authorize(Roles = "Admin,HMO,Provider")]
+    public async Task<IActionResult> Wallet(int id)
+    {
+        var enrollee = await _context.Enrollees
+            .Include(e => e.Hmo)
+            .Include(e => e.provider)
+            .FirstOrDefaultAsync(e => e.Id == id);
+
+        if (enrollee == null) return NotFound();
+
+        var wallet = await _context.EnrolleeWallets.FirstOrDefaultAsync(w => w.EnrolleeId == id);
+        var transactions = new List<WalletTransaction>();
+        if (wallet != null)
+        {
+            transactions = await _context.WalletTransactions
+                .Where(t => t.EnrolleeWalletId == wallet.Id)
+                .OrderByDescending(t => t.Timestamp)
+                .ToListAsync();
+        }
+
+        ViewBag.Wallet = wallet;
+        ViewBag.Transactions = transactions;
+        return View(enrollee);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [Authorize(Roles = "Admin,HMO")]
+    public async Task<IActionResult> DisburseToEnrollee(int id, decimal amount, string? note)
+    {
+        if (amount <= 0)
+        {
+            TempData["Error"] = "Amount must be greater than zero.";
+            return RedirectToAction("Wallet", new { id });
+        }
+
+        var enrollee = await _context.Enrollees.FindAsync(id);
+        if (enrollee == null) return NotFound();
+
+        var wallet = await _context.EnrolleeWallets.FirstOrDefaultAsync(w => w.EnrolleeId == id);
+        if (wallet == null)
+        {
+            wallet = new EnrolleeWallet
+            {
+                EnrolleeId = id,
+                Balance = amount,
+                MonthlyAllocation = amount,
+                LastDisbursedAt = DateTime.UtcNow
+            };
+            _context.EnrolleeWallets.Add(wallet);
+            await _context.SaveChangesAsync();
+        }
+        else
+        {
+            wallet.Balance += amount;
+            wallet.LastDisbursedAt = DateTime.UtcNow;
+            await _context.SaveChangesAsync();
+        }
+
+        _context.WalletTransactions.Add(new WalletTransaction
+        {
+            EnrolleeWalletId = wallet.Id,
+            Amount = amount,
+            Type = "Disburse",
+            Reference = string.IsNullOrWhiteSpace(note) ? "Manual Disbursement" : note,
+            Timestamp = DateTime.UtcNow
+        });
+
+        await _context.SaveChangesAsync();
+
+        // Audit
+        try
+        {
+            var actor = User.Identity?.Name ?? "Unknown";
+            await _auditService.LogAsync("DisburseToEnrollee", actor, enrollee.EnrollmentNumber, $"Amount: {amount:C}; Note: {note}");
+        }
+        catch { }
+
+        TempData["Success"] = $"Disbursed {amount:C} to {enrollee.FullName}.";
+        return RedirectToAction("Wallet", new { id });
+    }
+
+
 
     // GENERATE UNIQUE ENROLLMENT NUMBER
     private async Task<string> GenerateEnrollmentNumber(string state)
@@ -434,34 +660,160 @@ public class EnrolleesController : Controller
         };
     }
 
-    // Optional: Get LGAs by State (you can expand this)
-    private List<SelectListItem> GetLGAsByState(string? state)
+    [HttpGet]
+    [Authorize(Roles = "Admin,HMO")]
+    public IActionResult GetLgasByState(string state)
     {
-        // Return dummy or real LGAs based on state
-        return new List<SelectListItem>
-            {
-                new SelectListItem { Value = "Ikeja", Text = "Ikeja" },
-                new SelectListItem { Value = "Alimosho", Text = "Alimosho" },
-                // Add more per state in real app
-            };
+        if (!NorthEastLocationData.IsValidState(state))
+        {
+            return Json(Array.Empty<string>());
+        }
+
+        return Json(NorthEastLocationData.GetLgas(state));
+    }
+
+    [HttpGet]
+    [Authorize(Roles = "Admin,HMO")]
+    public async Task<IActionResult> GetWardsByLga(string state, string lga)
+    {
+        if (!NorthEastLocationData.IsValidLga(state, lga))
+        {
+            return Json(Array.Empty<string>());
+        }
+
+        List<string> wards = await _context.Enrollees
+            .AsNoTracking()
+            .Where(enrollee =>
+                enrollee.State == state
+                && enrollee.LGA == lga
+                && enrollee.Ward != string.Empty)
+            .Select(enrollee => enrollee.Ward)
+            .Distinct()
+            .OrderBy(ward => ward)
+            .Take(250)
+            .ToListAsync();
+
+        return Json(wards);
     }
 
     // GET: Enrollee/BulkUpload
     [Authorize(Roles = "Admin,HMO")]
-    public IActionResult BulkUpload()
+    public async Task<IActionResult> BulkUpload()
     {
-        ViewBag.Hmos = _context.Hmos.Select(h => new SelectListItem
+        ApplicationUser? currentUser = await _userManager.GetUserAsync(User);
+        IQueryable<Hmo> hmos = _context.Hmos.AsNoTracking();
+        IQueryable<Provider> providers = _context.Providers.AsNoTracking();
+
+        if (User.IsInRole("HMO"))
+        {
+            if (currentUser?.HmoId == null)
+            {
+                TempData["Error"] = "Your account is not linked to an HMO.";
+                ViewBag.Hmos = new List<SelectListItem>();
+                ViewBag.Pros = new List<SelectListItem>();
+                return View();
+            }
+
+            int currentHmoId = currentUser.HmoId.Value;
+            hmos = hmos.Where(hmo => hmo.Id == currentHmoId);
+            providers = providers.Where(provider => provider.HmoId == currentHmoId);
+        }
+
+        ViewBag.Hmos = await hmos.OrderBy(hmo => hmo.Name).Select(h => new SelectListItem
         {
             Value = h.Id.ToString(),
             Text = h.Name
-        }).ToList();
-        ViewBag.Pros = _context.Providers.Select(h => new SelectListItem
+        }).ToListAsync();
+        ViewBag.Pros = await providers
+            .Where(provider => provider.IsActive)
+            .OrderBy(provider => provider.Name)
+            .Select(h => new SelectListItem
         {
             Value = h.Id.ToString(),
             Text = h.Name
-        }).ToList();
+        }).ToListAsync();
 
         return View();
+    }
+
+    [HttpGet]
+    [Authorize(Roles = "Admin,HMO")]
+    public IActionResult DownloadBulkUploadTemplate()
+    {
+        using var package = new ExcelPackage();
+        ExcelWorksheet worksheet = package.Workbook.Worksheets.Add("Enrollee Upload");
+
+        for (int index = 0; index < BulkEnrolleeUploadSchema.Columns.Count; index++)
+        {
+            BulkEnrolleeColumn column = BulkEnrolleeUploadSchema.Columns[index];
+            worksheet.Cells[1, index + 1].Value = column.Header;
+            worksheet.Cells[2, index + 1].Value = column.Example;
+        }
+
+        worksheet.Cells[2, 3].Value = new DateTime(1992, 4, 18);
+        worksheet.Cells[2, 3].Style.Numberformat.Format = "dd/mm/yyyy";
+        worksheet.Cells[2, 4].Style.Numberformat.Format = "@";
+        worksheet.Cells[2, 5].Style.Numberformat.Format = "@";
+
+        using (ExcelRange header = worksheet.Cells[1, 1, 1, BulkEnrolleeUploadSchema.Columns.Count])
+        {
+            header.Style.Font.Bold = true;
+            header.Style.Font.Color.SetColor(Color.White);
+            header.Style.Fill.PatternType = OfficeOpenXml.Style.ExcelFillStyle.Solid;
+            header.Style.Fill.BackgroundColor.SetColor(Color.FromArgb(59, 112, 59));
+            header.Style.HorizontalAlignment = OfficeOpenXml.Style.ExcelHorizontalAlignment.Center;
+        }
+
+        using (ExcelRange sample = worksheet.Cells[2, 1, 2, BulkEnrolleeUploadSchema.Columns.Count])
+        {
+            sample.Style.Fill.PatternType = OfficeOpenXml.Style.ExcelFillStyle.Solid;
+            sample.Style.Fill.BackgroundColor.SetColor(Color.FromArgb(248, 242, 228));
+        }
+
+        worksheet.Cells[worksheet.Dimension.Address].AutoFitColumns();
+        worksheet.Column(9).Width = Math.Max(worksheet.Column(9).Width, 32);
+        worksheet.View.FreezePanes(2, 1);
+        worksheet.Cells[1, 1, 2, BulkEnrolleeUploadSchema.Columns.Count].AutoFilter = true;
+
+        ExcelWorksheet guide = package.Workbook.Worksheets.Add("Upload Guide");
+        guide.Cells["A1"].Value = "CTSHIP Bulk Enrollee Upload Guide";
+        guide.Cells["A1:C1"].Merge = true;
+        guide.Cells["A1"].Style.Font.Bold = true;
+        guide.Cells["A1"].Style.Font.Size = 16;
+        guide.Cells["A1"].Style.Font.Color.SetColor(Color.White);
+        guide.Cells["A1"].Style.Fill.PatternType = OfficeOpenXml.Style.ExcelFillStyle.Solid;
+        guide.Cells["A1"].Style.Fill.BackgroundColor.SetColor(Color.FromArgb(59, 112, 59));
+        guide.Cells["A3"].Value = "Column";
+        guide.Cells["B3"].Value = "Requirement";
+        guide.Cells["C3"].Value = "Example";
+
+        for (int index = 0; index < BulkEnrolleeUploadSchema.Columns.Count; index++)
+        {
+            BulkEnrolleeColumn column = BulkEnrolleeUploadSchema.Columns[index];
+            int row = index + 4;
+            guide.Cells[row, 1].Value = column.Header;
+            guide.Cells[row, 2].Value = column.Description;
+            guide.Cells[row, 3].Value = column.Example;
+        }
+
+        guide.Cells["A14"].Value =
+            "Choose the HMO and Provider on the upload page. Do not add them as spreadsheet columns.";
+        guide.Cells["A14:C14"].Merge = true;
+        guide.Cells["A15"].Value =
+            "Row 2 is an example only. Replace it with real enrollee data or delete it before uploading.";
+        guide.Cells["A15:C15"].Merge = true;
+        guide.Cells["A3:C3"].Style.Font.Bold = true;
+        guide.Cells["A3:C3"].Style.Font.Color.SetColor(Color.White);
+        guide.Cells["A3:C3"].Style.Fill.PatternType = OfficeOpenXml.Style.ExcelFillStyle.Solid;
+        guide.Cells["A3:C3"].Style.Fill.BackgroundColor.SetColor(Color.FromArgb(201, 162, 71));
+        guide.Cells[guide.Dimension.Address].AutoFitColumns();
+        guide.Column(2).Width = Math.Max(guide.Column(2).Width, 60);
+        guide.Cells.Style.WrapText = true;
+
+        return File(
+            package.GetAsByteArray(),
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            "CTSHIP-Enrollee-Bulk-Upload-Template.xlsx");
     }
 
     // POST: Enrollee/BulkUpload
@@ -482,9 +834,37 @@ public class EnrolleesController : Controller
             return RedirectToAction(nameof(BulkUpload));
         }
 
-        var enrollees = new List<Enrollee>();
-        var errors = new List<string>();
-        int rowNumber = 2; // Start from row 2 (after header)
+        ApplicationUser? currentUser = await _userManager.GetUserAsync(User);
+        if (User.IsInRole("HMO"))
+        {
+            if (currentUser?.HmoId == null)
+            {
+                TempData["Error"] = "Your account is not linked to an HMO.";
+                return RedirectToAction(nameof(BulkUpload));
+            }
+
+            hmoId = currentUser.HmoId.Value;
+        }
+
+        Hmo? selectedHmo = await _context.Hmos
+            .AsNoTracking()
+            .FirstOrDefaultAsync(hmo => hmo.Id == hmoId);
+        Provider? selectedProvider = await _context.Providers
+            .AsNoTracking()
+            .FirstOrDefaultAsync(provider =>
+                provider.Id == providerId
+                && provider.HmoId == hmoId
+                && provider.IsActive);
+
+        if (selectedHmo == null || selectedProvider == null)
+        {
+            TempData["Error"] = "Select a valid HMO and an active provider assigned to that HMO.";
+            return RedirectToAction(nameof(BulkUpload));
+        }
+
+        List<Enrollee> enrollees = new();
+        List<string> errors = new();
+        int rowNumber = 2;
 
         try
         {
@@ -493,64 +873,182 @@ public class EnrolleesController : Controller
             stream.Position = 0;
 
             using var package = new ExcelPackage(stream);
-            var worksheet = package.Workbook.Worksheets[0];
+            ExcelWorksheet? worksheet = package.Workbook.Worksheets.FirstOrDefault();
+            if (worksheet?.Dimension == null)
+            {
+                TempData["Error"] = "The workbook does not contain any enrollee data.";
+                return RedirectToAction(nameof(BulkUpload));
+            }
+
+            Dictionary<string, int> headerMap = new(StringComparer.OrdinalIgnoreCase);
+            for (int column = 1; column <= worksheet.Dimension.End.Column; column++)
+            {
+                string normalized = BulkEnrolleeUploadSchema.NormalizeHeader(
+                    worksheet.Cells[1, column].Text);
+                if (!string.IsNullOrWhiteSpace(normalized) && !headerMap.ContainsKey(normalized))
+                {
+                    headerMap[normalized] = column;
+                }
+            }
+
+            List<string> missingHeaders = BulkEnrolleeUploadSchema.RequiredHeaders
+                .Where(header => !headerMap.ContainsKey(
+                    BulkEnrolleeUploadSchema.NormalizeHeader(header)))
+                .ToList();
+
+            if (missingHeaders.Any())
+            {
+                TempData["Error"] =
+                    "The Excel columns do not match the upload template. Missing required columns: "
+                    + string.Join(", ", missingHeaders);
+                return RedirectToAction(nameof(BulkUpload));
+            }
+
+            int Column(string header) =>
+                headerMap[BulkEnrolleeUploadSchema.NormalizeHeader(header)];
+
+            HashSet<long> knownNins = await _context.Enrollees
+                .AsNoTracking()
+                .Select(enrollee => enrollee.NIN)
+                .ToHashSetAsync();
+            int nextSequence = await _context.Enrollees
+                .AsNoTracking()
+                .MaxAsync(enrollee => (int?)enrollee.Id) ?? 0;
+
+            Dictionary<string, string> validStates = new(StringComparer.OrdinalIgnoreCase)
+            {
+                ["Adamawa"] = "Adamawa",
+                ["Bauchi"] = "Bauchi",
+                ["Borno"] = "Borno",
+                ["Gombe"] = "Gombe",
+                ["Taraba"] = "Taraba",
+                ["Yobe"] = "Yobe"
+            };
 
             for (rowNumber = 2; rowNumber <= worksheet.Dimension.End.Row; rowNumber++)
             {
                 try
                 {
-                    var row = worksheet.Cells[rowNumber, 1, rowNumber, 9]; // Adjust columns as needed
+                    string fullName = worksheet.Cells[rowNumber, Column("FullName")].Text.Trim();
+                    string genderValue = worksheet.Cells[rowNumber, Column("Gender")].Text.Trim();
+                    ExcelRange dobCell = worksheet.Cells[rowNumber, Column("DateOfBirth")];
+                    string phone = worksheet.Cells[rowNumber, Column("Phone")].Text.Trim();
+                    string ninValue = worksheet.Cells[rowNumber, Column("NIN")].Text.Trim();
+                    string stateValue = worksheet.Cells[rowNumber, Column("State")].Text.Trim();
+                    string lga = worksheet.Cells[rowNumber, Column("LGA")].Text.Trim();
+                    string ward = worksheet.Cells[rowNumber, Column("Ward")].Text.Trim();
+                    string address = worksheet.Cells[rowNumber, Column("Address")].Text.Trim();
 
-                    var fullName = row[rowNumber, 1].GetValue<string>()?.Trim();
-                    var gender = row[rowNumber, 2].GetValue<string>()?.Trim();
-                    var dobStr = row[rowNumber, 3].GetValue<string>()?.Trim();
-                    var phone = row[rowNumber, 4].GetValue<string>()?.Trim();
-                    var state = row[rowNumber, 5].GetValue<string>()?.Trim();
-                    var lga = row[rowNumber, 6].GetValue<string>()?.Trim();
-                    var ward = row[rowNumber, 7].GetValue<string>()?.Trim();
-                    var address = row[rowNumber, 8].GetValue<string>()?.Trim();
-                    var nin = row[rowNumber, 9].GetValue<long>();
-
-
-                    if (string.IsNullOrEmpty(fullName) || string.IsNullOrEmpty(state))
+                    if (new[] { fullName, genderValue, phone, ninValue, stateValue, lga, ward, address }
+                        .All(string.IsNullOrWhiteSpace)
+                        && string.IsNullOrWhiteSpace(dobCell.Text))
                     {
-                        errors.Add($"Row {rowNumber}: Missing name or state");
                         continue;
                     }
 
-                    if (!DateTime.TryParse(dobStr, out DateTime dob))
+                    List<string> emptyFields = new();
+                    if (string.IsNullOrWhiteSpace(fullName)) emptyFields.Add("FullName");
+                    if (string.IsNullOrWhiteSpace(genderValue)) emptyFields.Add("Gender");
+                    if (string.IsNullOrWhiteSpace(dobCell.Text)) emptyFields.Add("DateOfBirth");
+                    if (string.IsNullOrWhiteSpace(phone)) emptyFields.Add("Phone");
+                    if (string.IsNullOrWhiteSpace(ninValue)) emptyFields.Add("NIN");
+                    if (string.IsNullOrWhiteSpace(stateValue)) emptyFields.Add("State");
+                    if (string.IsNullOrWhiteSpace(lga)) emptyFields.Add("LGA");
+                    if (string.IsNullOrWhiteSpace(ward)) emptyFields.Add("Ward");
+                    if (string.IsNullOrWhiteSpace(address)) emptyFields.Add("Address");
+                    if (emptyFields.Any())
                     {
-                        errors.Add($"Row {rowNumber}: Invalid date of birth");
+                        errors.Add(
+                            $"Row {rowNumber}: Missing required values: {string.Join(", ", emptyFields)}.");
                         continue;
                     }
-                 
 
-                    var enrollee = new Enrollee
+                    string gender = genderValue.ToUpperInvariant() switch
                     {
-                        FullName = fullName!,
-                        Gender = gender == "M" || gender == "Male" ? "Male" : "Female",
+                        "M" or "MALE" => "Male",
+                        "F" or "FEMALE" => "Female",
+                        _ => string.Empty
+                    };
+                    if (string.IsNullOrEmpty(gender))
+                    {
+                        errors.Add($"Row {rowNumber}: Gender must be M, F, Male, or Female.");
+                        continue;
+                    }
+
+                    DateTime dob;
+                    if (dobCell.Value is DateTime excelDate)
+                    {
+                        dob = excelDate.Date;
+                    }
+                    else if (!DateTime.TryParseExact(
+                        dobCell.Text.Trim(),
+                        new[] { "dd/MM/yyyy", "d/M/yyyy", "yyyy-MM-dd" },
+                        CultureInfo.InvariantCulture,
+                        DateTimeStyles.None,
+                        out dob))
+                    {
+                        errors.Add($"Row {rowNumber}: DateOfBirth must use dd/MM/yyyy.");
+                        continue;
+                    }
+
+                    if (dob.Date >= DateTime.Today)
+                    {
+                        errors.Add($"Row {rowNumber}: DateOfBirth must be earlier than today.");
+                        continue;
+                    }
+
+                    string ninDigits = ninValue.Trim();
+                    if (ninDigits.Length != 11
+                        || !ninDigits.All(char.IsDigit)
+                        || !long.TryParse(ninDigits, out long nin))
+                    {
+                        errors.Add($"Row {rowNumber}: NIN must contain exactly 11 digits.");
+                        continue;
+                    }
+
+                    if (!validStates.TryGetValue(stateValue, out string? state))
+                    {
+                        errors.Add(
+                            $"Row {rowNumber}: State must be Adamawa, Bauchi, Borno, Gombe, Taraba, or Yobe.");
+                        continue;
+                    }
+
+                    if (!NorthEastLocationData.IsValidLga(state, lga))
+                    {
+                        errors.Add(
+                            $"Row {rowNumber}: LGA '{lga}' does not belong to {state}.");
+                        continue;
+                    }
+
+                    if (!knownNins.Add(nin))
+                    {
+                        errors.Add(
+                            $"Row {rowNumber}: NIN {ninDigits} already exists or is repeated in this file.");
+                        continue;
+                    }
+
+                    Enrollee enrollee = new()
+                    {
+                        FullName = fullName,
+                        Gender = gender,
                         DateOfBirth = dob,
-                        Phone = phone ?? "N/A",
-                        State = state!,
-                        LGA = lga ?? "N/A",
-                        Ward = ward ?? "N/A",
-                        Address = address ?? "N/A",
+                        Phone = phone,
+                        State = state,
+                        LGA = lga,
+                        Ward = ward,
+                        Address = address,
                         HmoId = hmoId,
                         ProviderId = providerId,
                         NIN = nin,
                         Status = "Active",
+                        IsActive = true,
                         DateRegistered = DateTime.Now,
                         RegisteredBy = User.Identity?.Name ?? "Bulk Upload"
                     };
 
-                    // Generate Enrollment Number
-                    var stateCode = GetStateCode(state!);
-                    var lastEnrollee = await _context.Enrollees
-                        .OrderByDescending(e => e.Id)
-                        .FirstOrDefaultAsync();
-
-                    int nextSeq = (lastEnrollee?.Id ?? 0) + 1;
-                    enrollee.EnrollmentNumber = $"CTH-{DateTime.Now:yyyy}-{stateCode}-{nextSeq:D6}";
+                    nextSequence++;
+                    enrollee.EnrollmentNumber =
+                        $"CTH-{DateTime.Now:yyyy}-{GetStateCode(state)}-{nextSequence:D6}";
 
                     enrollees.Add(enrollee);
                 }
@@ -562,8 +1060,13 @@ public class EnrolleesController : Controller
 
             if (errors.Any())
             {
-                TempData["Error"] = $"Upload completed with errors: {errors.Count} rows failed.";
+                TempData["Error"] =
+                    $"No enrollees were imported because {errors.Count} row error(s) were found.";
                 TempData["ErrorDetails"] = string.Join("<br>", errors.Take(20));
+            }
+            else if (!enrollees.Any())
+            {
+                TempData["Error"] = "No enrollee rows were found in the workbook.";
             }
             else
             {
@@ -584,7 +1087,8 @@ public class EnrolleesController : Controller
         }
         catch (Exception ex)
         {
-            TempData["Error"] = "Error processing file: " + ex.Message;
+            TempData["Error"] = "The Excel file could not be processed. Confirm that it uses the downloaded template.";
+            TempData["ErrorDetails"] = ex is InvalidDataException ? ex.Message : null;
         }
 
         return RedirectToAction(nameof(BulkUpload));

@@ -56,8 +56,15 @@
 
                             <div class="col-md-4">
                                 <label asp-for="VisitType" class="form-label text-success fw-bold">Visit Type</label>
-                                <input asp-for="VisitType" class="form-control form-control-lg" required />
+                                <select asp-for="VisitType" class="form-select form-select-lg" required>
+                                    <option value="">Select visit type</option>
+                                    <option>New Visit</option>
+                                    <option>Follow-up</option>
+                                    <option>Emergency</option>
+                                    <option>Referral</option>
+                                </select>
                             </div>
+                            <partial name="_ServiceSelection" model="Model" />
 
                             <div class="col-md-4">
                                 <label class="form-label text-success fw-bold">Status</label>
@@ -66,7 +73,7 @@
                                 </select>
                             </div>
 
-                            <div class="col-md-6">
+                            <div class="col-md-4">
                                 <label asp-for="ProviderId" class="form-label text-success fw-bold">Facility</label>
                                 <select asp-for="ProviderId" class="form-select form-select-lg" asp-items="ViewBag.Providers">
                                     <option value="">Select Facility</option>
@@ -74,12 +81,11 @@
                             </div>
 
                             <div class="col-md-4">
-                                <label asp-for="SeenBy" class="form-label text-success fw-bold">Attended By</label>
-                                <textarea asp-for="SeenBy" class="form-control form-control-lg" required></textarea>
-                            </div>
-                            <div class="col-md-4">
-                                <label asp-for="Rank" class="form-label text-success fw-bold">Rank</label>
-                                <textarea asp-for="Rank" class="form-control form-control-lg" required></textarea>
+                                <label asp-for="DoctorId" class="form-label text-success fw-bold">Attending Doctor</label>
+                                <select asp-for="DoctorId" class="form-select form-select-lg" asp-items="ViewBag.Doctors" required>
+                                    <option value="">Select Doctor</option>
+                                </select>
+                                <span asp-validation-for="DoctorId" class="text-danger"></span>
                             </div>
 
                             <div class="col-md-6">
@@ -168,6 +174,23 @@
 
 @section Scripts {
     <script>
+        function filterServicesBySetting() {
+            const setting = document.getElementById('serviceSetting').value;
+            const select = document.getElementById('selectedServices');
+
+            Array.from(select.querySelectorAll('optgroup')).forEach(group => {
+                const enabled = group.dataset.setting === setting;
+                Array.from(group.children).forEach(option => {
+                    option.disabled = !enabled;
+                    if (!enabled) option.selected = false;
+                });
+            });
+            $(select).trigger('change.select2');
+        }
+
+        document.getElementById('serviceSetting').addEventListener('change', filterServicesBySetting);
+        filterServicesBySetting();
+
         // Auto-calculate total amount
         function updateTotal() {
             const consultation = parseFloat(document.querySelector('[asp-for="ConsultationFee"]').value) || 0;

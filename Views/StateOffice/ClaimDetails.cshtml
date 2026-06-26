@@ -1,0 +1,167 @@
+@model CTSHIPDashboard.Models.ViewModels.StateOfficeClaimDetailsViewModel
+
+@{
+    Claim claim = Model.Claim;
+    ViewData["Title"] = $"Claim Details - {claim.ClaimNumber}";
+    string hmoName = claim.Enrollee?.Hmo?.Name ?? claim.Hmos?.Name ?? "Not Assigned";
+}
+
+@functions {
+    private static string StatusBannerClass(string status)
+    {
+        return status switch
+        {
+            "Paid" => "bg-success",
+            "Approved" => "bg-info text-dark",
+            "Review Approved" => "bg-info text-dark",
+            "Submitted" => "bg-warning text-dark",
+            "ReApproved" => "bg-warning text-dark",
+            "Rejected" => "bg-danger",
+            _ => "bg-secondary"
+        };
+    }
+}
+
+<div class="container-fluid py-4">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+        <div>
+            <h1 class="display-5 fw-bold text-success mb-1">@claim.ClaimNumber</h1>
+            <p class="text-muted mb-0">@Model.StateName State Claim Details</p>
+        </div>
+        <a asp-action="Claims" asp-route-state="@Model.StateName" class="btn btn-outline-success btn-lg">
+            <i class="bi bi-arrow-left me-1"></i> Back to Claims
+        </a>
+    </div>
+
+    <div class="card border-0 shadow-sm overflow-hidden mb-4">
+        <div class="@StatusBannerClass(claim.Status) p-4">
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+                <div>
+                    <div class="text-uppercase fw-semibold small opacity-75">Status</div>
+                    <h2 class="fw-bold mb-0">@claim.Status</h2>
+                </div>
+                <div class="text-end">
+                    <div class="text-uppercase fw-semibold small opacity-75">Claim Amount</div>
+                    <h2 class="fw-bold mb-0">NGN @claim.Amount.ToString("N0")</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <div class="col-xl-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0"><i class="bi bi-person-vcard me-2"></i>Enrollee</h5>
+                </div>
+                <div class="card-body text-center">
+                    <img src="@(claim.Enrollee?.PhotoPath ?? "/img/icon-192.png")"
+                         alt="Enrollee photo"
+                         class="rounded-circle shadow-sm mb-3"
+                         style="width: 128px; height: 128px; object-fit: cover;" />
+                    <h4 class="fw-bold">@claim.Enrollee?.FullName</h4>
+                    <p class="mb-1"><strong>Enrollment:</strong> @claim.Enrollee?.EnrollmentNumber</p>
+                    <p class="mb-1"><strong>HMO:</strong> @hmoName</p>
+                    <p class="mb-1"><strong>Phone:</strong> @(claim.Enrollee?.Phone ?? "N/A")</p>
+                    <p class="mb-0"><strong>LGA:</strong> @(claim.Enrollee?.LGA ?? "N/A")</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-8">
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0"><i class="bi bi-hospital me-2"></i>Provider And Claim Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-4">
+                        <div class="col-md-6">
+                            <div class="text-muted small text-uppercase fw-semibold">Provider</div>
+                            <div class="fs-5 fw-semibold">@claim.Provider?.Name</div>
+                            <div class="text-muted">@claim.Provider?.Location</div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="text-muted small text-uppercase fw-semibold">Submitted By</div>
+                            <div class="fs-5 fw-semibold">@(string.IsNullOrWhiteSpace(claim.SubmittedBy) ? "N/A" : claim.SubmittedBy)</div>
+                            <div class="text-muted">@claim.DateSubmitted.ToString("dd MMM yyyy, h:mm tt")</div>
+                        </div>
+                        <div class="col-12">
+                            <div class="text-muted small text-uppercase fw-semibold">Diagnosis</div>
+                            <div class="fs-5">@claim.Diagnosis</div>
+                        </div>
+                        <div class="col-12">
+                            <div class="text-muted small text-uppercase fw-semibold">Treatment</div>
+                            <div class="fs-5">@claim.Treatment</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-dark text-white">
+                    <h5 class="mb-0"><i class="bi bi-clock-history me-2"></i>Processing Trail</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-4">
+                        <div class="col-md-6">
+                            <div class="border-start border-success border-4 ps-3">
+                                <div class="fw-bold">Submitted</div>
+                                <div>@claim.DateSubmitted.ToString("dd MMM yyyy, h:mm tt")</div>
+                                <div class="text-muted">@claim.SubmittedBy</div>
+                            </div>
+                        </div>
+
+                        @if (claim.DateReviewed.HasValue || !string.IsNullOrWhiteSpace(claim.ReviewedBy))
+                        {
+                            <div class="col-md-6">
+                                <div class="border-start border-info border-4 ps-3">
+                                    <div class="fw-bold">Reviewed</div>
+                                    <div>@claim.DateReviewed?.ToString("dd MMM yyyy, h:mm tt")</div>
+                                    <div class="text-muted">@claim.ReviewedBy</div>
+                                    @if (!string.IsNullOrWhiteSpace(claim.ReviewNotes))
+                                    {
+                                        <div class="mt-2">@claim.ReviewNotes</div>
+                                    }
+                                </div>
+                            </div>
+                        }
+
+                        @if (claim.DatePaid.HasValue || !string.IsNullOrWhiteSpace(claim.PaymentReference))
+                        {
+                            <div class="col-md-6">
+                                <div class="border-start border-success border-4 ps-3">
+                                    <div class="fw-bold">Paid</div>
+                                    <div>@claim.DatePaid?.ToString("dd MMM yyyy, h:mm tt")</div>
+                                    <div class="text-muted">@claim.PaidBy</div>
+                                    <div class="mt-2">Reference: @claim.PaymentReference</div>
+                                </div>
+                            </div>
+                        }
+
+                        @if (claim.DateRejected.HasValue || !string.IsNullOrWhiteSpace(claim.RejectionReason))
+                        {
+                            <div class="col-md-6">
+                                <div class="border-start border-danger border-4 ps-3">
+                                    <div class="fw-bold">Rejected</div>
+                                    <div>@claim.DateRejected?.ToString("dd MMM yyyy, h:mm tt")</div>
+                                    <div class="text-muted">@claim.RejectedBy</div>
+                                    <div class="mt-2">@claim.RejectionReason</div>
+                                </div>
+                            </div>
+                        }
+
+                        @if (!claim.DateReviewed.HasValue
+                            && !claim.DatePaid.HasValue
+                            && !claim.DateRejected.HasValue
+                            && string.IsNullOrWhiteSpace(claim.ReviewedBy)
+                            && string.IsNullOrWhiteSpace(claim.PaymentReference)
+                            && string.IsNullOrWhiteSpace(claim.RejectionReason))
+                        {
+                            <div class="col-12 text-muted">No additional processing activity recorded.</div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

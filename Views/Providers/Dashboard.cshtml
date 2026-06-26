@@ -7,12 +7,14 @@
 <!-- Custom Styles -->
 <style>
     body {
-        background: linear-gradient(135deg, #f5f7fa 0%, #e4efe9 100%);
+        background: linear-gradient(135deg, #ffffff 0%, rgba(59, 112, 59, .08) 100%);
         min-height: 100vh;
     }
     .dashboard-card {
         border: none;
         border-radius: 16px;
+        background: #ffffff;
+        color: #244a2a;
         box-shadow: 0 10px 30px rgba(0, 100, 0, 0.1);
         transition: transform 0.3s ease, box-shadow 0.3s ease;
         overflow: hidden;
@@ -23,11 +25,21 @@
     }
     .kpi-card {
         background: linear-gradient(135deg, var(--bg-start), var(--bg-end));
-        color: white;
+        color: white !important;
         border-radius: 16px;
         padding: 2rem;
         text-align: center;
         height: 100%;
+        text-shadow: 0 1px 2px rgba(0,0,0,.28);
+    }
+    .kpi-card h5 {
+        color: white !important;
+        font-size: 1.15rem;
+        font-weight: 800;
+        letter-spacing: .02em;
+    }
+    .kpi-card h2 {
+        color: white !important;
     }
     .kpi-icon {
         font-size: 3rem;
@@ -35,7 +47,7 @@
         margin-bottom: 1rem;
     }
     .section-header {
-        background: linear-gradient(90deg, #006400, #228B22);
+        background: linear-gradient(90deg, #3B703B, #2B572F);
         color: white;
         border-radius: 16px 16px 0 0;
         padding: 1.5rem;
@@ -48,12 +60,80 @@
         overflow: hidden;
     }
     .table-modern thead {
-        background: #f1f8f1;
+        background: rgba(201, 162, 71, .12);
+    }
+    .table-modern thead th {
+        color: #2B572F !important;
+        font-weight: 800;
+        white-space: nowrap;
+    }
+    .provider-hero {
+        background: linear-gradient(135deg, #3B703B, #2B572F);
+        border: 3px solid #C9A247;
+        border-radius: 20px;
+        color: white;
+        padding: 2rem;
+        box-shadow: 0 12px 30px rgba(43,87,47,.22);
+    }
+    .provider-hero h1,
+    .provider-hero p,
+    .provider-hero strong {
+        color: white !important;
+        opacity: 1 !important;
+    }
+    .provider-hero .facility-code {
+        color: white !important;
+        background: #C9A247;
+        border-radius: 999px;
+        display: inline-block;
+        padding: .45rem 1rem;
+    }
+    .dashboard-card .text-muted {
+        color: #244a2a !important;
+        opacity: 1 !important;
+        font-weight: 700;
+    }
+    .provider-dashboard .dashboard-card,
+    .provider-dashboard .dashboard-card p,
+    .provider-dashboard .dashboard-card small,
+    .provider-dashboard .dashboard-card strong,
+    .provider-dashboard .dashboard-card td,
+    .provider-dashboard .dashboard-card li {
+        color: #244a2a;
+        opacity: 1;
+    }
+    .provider-dashboard .dashboard-card .section-header,
+    .provider-dashboard .dashboard-card .section-header *,
+    .provider-dashboard .kpi-card,
+    .provider-dashboard .kpi-card * {
+        color: #ffffff !important;
+        opacity: 1 !important;
+    }
+    .provider-dashboard .table-modern tbody td {
+        color: #244a2a !important;
+        font-weight: 600;
+        background: #ffffff;
+    }
+    .provider-dashboard .list-group-item {
+        color: #244a2a !important;
+        background: #ffffff;
+    }
+    .provider-dashboard .badge,
+    .provider-dashboard .btn-success,
+    .provider-dashboard .btn-warning {
+        color: #ffffff !important;
+        opacity: 1 !important;
+        font-weight: 700;
+    }
+    .provider-dashboard .footer-brand,
+    .provider-dashboard .footer-brand * {
+        color: #ffffff !important;
+        opacity: 1 !important;
     }
     .doctor-rank {
         width: 40px;
         height: 40px;
-        background: #006400;
+        background: #3B703B;
         color: white;
         border-radius: 50%;
         display: flex;
@@ -62,25 +142,37 @@
         font-weight: bold;
     }
     .footer-brand {
-        background: linear-gradient(135deg, #003300, #006400);
+        background: linear-gradient(135deg, #2B572F, #3B703B);
         border-radius: 16px;
         padding: 3rem;
         color: white;
     }
 </style>
 
-<div class="container-fluid py-5">
+<div class="container-fluid py-5 provider-dashboard">
     <!-- Header -->
-    <div class="text-center mb-5">
-        <h1 class="display-4 fw-bold text-success mb-3">@Model.ProviderName</h1>
-        <p class="lead text-primary fw-bold fs-4">Facility Code: <strong>@Model.ProviderCode</strong></p>
-        <p class="text-muted fs-5">@Model.Level • @Model.State</p>
+    <div class="provider-hero text-center mb-4">
+        <h1 class="display-4 fw-bold mb-3">@Model.ProviderName</h1>
+        <p class="facility-code lead fw-bold fs-5 mb-3">Facility Code: <strong>@Model.ProviderCode</strong></p>
+        <p class="fs-5 fw-bold mb-0">@Model.Level • @Model.State</p>
+    </div>
+
+    <div class="d-flex flex-wrap justify-content-center gap-2 mb-5">
+        <a asp-controller="Encounters" asp-action="Create" class="btn btn-success btn-lg">
+            <i class="bi bi-journal-plus me-2"></i>New Encounter
+        </a>
+        <a asp-controller="ProviderDoctors" asp-action="Index" class="btn btn-warning btn-lg text-white">
+            <i class="bi bi-person-badge-fill me-2"></i>Manage Doctors (@Model.TotalDoctors)
+        </a>
+        <a asp-action="MyEncounters" class="btn btn-outline-success btn-lg">
+            <i class="bi bi-list-check me-2"></i>View Encounters
+        </a>
     </div>
 
     <!-- KPI CARDS -->
     <div class="row g-4 mb-5">
         <div class="col-xl-3 col-md-6">
-            <div class="dashboard-card kpi-card" style="--bg-start:#006400; --bg-end:#228B22;">
+            <div class="dashboard-card kpi-card" style="--bg-start:#3B703B; --bg-end:#2B572F;">
                 <div class="kpi-icon">
                     <i class="bi bi-people"></i>
                 </div>
@@ -89,7 +181,7 @@
             </div>
         </div>
         <div class="col-xl-3 col-md-6">
-            <div class="dashboard-card kpi-card" style="--bg-start:#17a2b8; --bg-end:#20c997;">
+            <div class="dashboard-card kpi-card" style="--bg-start:#C9A247; --bg-end:#3B703B;">
                 <div class="kpi-icon">
                     <i class="bi bi-journal-medical"></i>
                 </div>
@@ -98,7 +190,7 @@
             </div>
         </div>
         <div class="col-xl-3 col-md-6">
-            <div class="dashboard-card kpi-card" style="--bg-start:#ffc107; --bg-end:#fd7e14;">
+            <div class="dashboard-card kpi-card" style="--bg-start:#3B703B; --bg-end:#C9A247;">
                 <div class="kpi-icon">
                     <i class="bi bi-hourglass-split"></i>
                 </div>
@@ -107,12 +199,41 @@
             </div>
         </div>
         <div class="col-xl-3 col-md-6">
-            <div class="dashboard-card kpi-card" style="--bg-start:#007bff; --bg-end:#6610f2;">
+            <div class="dashboard-card kpi-card" style="--bg-start:#C9A247; --bg-end:#3B703B;">
                 <div class="kpi-icon">
                     <i class="bi bi-journal"></i>
                 </div>
                 <h5>Claims Value</h5>
                 <h2 class="display-5 fw-bold mb-0">₦@((int)Model.TotalClaimAmount)</h2>
+            </div>
+        </div>
+    </div>
+
+    <div class="dashboard-card mb-5">
+        <div class="section-header">
+            <h3 class="fw-bold mb-0">Most Frequently Used Services</h3>
+        </div>
+        <div class="table-modern">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead><tr><th>Rank</th><th>Service</th><th>Setting</th><th>Frequency</th></tr></thead>
+                    <tbody>
+                        @for (int i = 0; i < Model.MostUsedServices.Count; i++)
+                        {
+                            var service = Model.MostUsedServices[i];
+                            <tr>
+                                <td>@(i + 1)</td>
+                                <td>@service.ServiceName</td>
+                                <td><span class="badge bg-secondary">@service.ServiceSetting</span></td>
+                                <td class="fw-bold text-success">@service.Frequency</td>
+                            </tr>
+                        }
+                        @if (!Model.MostUsedServices.Any())
+                        {
+                            <tr><td colspan="4" class="text-center text-muted py-4">No structured service data recorded yet.</td></tr>
+                        }
+                    </tbody>
+                </table>
             </div>
         </div>
     </div>
@@ -170,7 +291,7 @@
                                 <tr>
                                     <th>Date</th>
                                     <th>Patient</th>
-                                    <th>AttendedBy</th>
+                            <th>Doctor</th>
                                     <th>Amount</th>
                                     <th>Status</th>
                                     <th>Action</th>
@@ -196,7 +317,7 @@
                                                 <small class="text-muted">@e.Enrollee?.EnrollmentNumber</small>
                                             </td>
                                             <td>
-                                                <strong>@(string.IsNullOrEmpty(e.SeenBy) ? "—" : e.SeenBy)</strong>
+                                                <strong>@(e.Doctor?.FullName ?? (string.IsNullOrEmpty(e.SeenBy) ? "—" : e.SeenBy))</strong>
                                             </td>
                                             <td class="fw-bold text-success">₦@((int)e.TotalAmount)</td>
                                             <td>

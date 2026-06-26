@@ -54,6 +54,7 @@
                             <th>Patient</th>
                             <th>ID</th>
                             <th>HMO</th>
+                            <th>Doctor</th>
                             <th>Complaint</th>
                             <th>Diagnosis</th>
                             <th>Amount</th>
@@ -66,7 +67,7 @@
                         @if (!Model.Any())
                         {
                             <tr>
-                                <td colspan="10" class="text-center py-5 text-muted fs-4">
+                                <td colspan="11" class="text-center py-5 text-muted fs-4">
                                     No encounters recorded yet
                                 </td>
                             </tr>
@@ -84,6 +85,7 @@
                                     <td>
                                         <span class="badge bg-info px-3 py-2">@e.Enrollee?.Hmo?.Name</span>
                                     </td>
+                                    <td class="fw-bold">@(e.Doctor?.FullName ?? e.SeenBy ?? "—")</td>
                                     <td>@(string.IsNullOrEmpty(e.ChiefComplaint) ? "—" : e.ChiefComplaint)</td>
                                     <td>@(string.IsNullOrEmpty(e.Diagnosis) ? "—" : e.Diagnosis)</td>
                                     <td class="fw-bold text-success">₦@((int)e.TotalAmount)</td>

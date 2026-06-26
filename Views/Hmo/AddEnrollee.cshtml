@@ -40,30 +40,11 @@
                     </div>
 
                     <div class="col-md-6">
-                        <label asp-for="State" class="form-label text-success fw-bold"></label>
-                        <select asp-for="State" class="form-select form-select-lg" id="State" required>
-                            <option value="">Select State</option>
-                            <option>Adamawa</option>
-                            <option>Bauchi</option>
-                            <option>Borno</option>
-                            <option>Gombe</option>
-                            <option>Taraba</option>
-                            <option>Yobe</option>
-                        </select>
-                    </div>
-                    <div class="col-md-6">
                         <span asp-validation-for="NIN" class="text-bg-danger"></span>
                         <label asp-for="NIN" class="form-label text-success fw-bold"></label>
                         <input asp-for="NIN" class="form-control form-control-lg" required id="NIN" />
                     </div>
-                    <div class="col-md-6">
-                        <label asp-for="LGA" class="form-label text-success fw-bold"></label>
-                        <input asp-for="LGA" class="form-control form-control-lg" id="LGA" required />
-                    </div>
-                    <div class="col-md-6">
-                        <label asp-for="Ward" class="form-label text-success fw-bold"></label>
-                        <input asp-for="Ward" class="form-control form-control-lg" id="LGA" required />
-                    </div>
+                    <partial name="_NorthEastLocationFields" model="Model" />
                     <div class="col-md-6">
                         <label asp-for="HmoId" class="form-label text-success fw-bold">Assigned HMO</label>
                         <select asp-for="HmoId" class="form-select form-select-lg" id="HmoId" required>
@@ -100,6 +81,7 @@
                             <option>Terminated</option>
                         </select>
                     </div>
+                    <partial name="_VulnerabilityFields" model="Model" />
                 </div>
 
                 <div class="text-center mt-5">

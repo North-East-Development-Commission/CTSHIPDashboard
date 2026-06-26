@@ -15,7 +15,7 @@
                             <div class="card border-success shadow">
                                 <div class="card-body text-center p-4">
                                     <img src="@(Model.Enrollee?.PhotoPath ?? "/img/icon-192.png")"
-                                         class="rounded-circle shadow" style="width:180px;height:180px;object-fit:cover;border:6px solid #006400;" />
+                                         class="rounded-circle shadow" style="width:180px;height:180px;object-fit:cover;border:6px solid #3B703B;" />
                                     <h4 class="mt-4 fw-bold">@Model.Enrollee?.FullName</h4>
                                     <p>ID: @Model.Enrollee?.EnrollmentNumber</p>
                                     <p>HMO: @Model.Enrollee?.Hmo?.Name</p>
@@ -31,6 +31,14 @@
                                             <h5 class="text-success fw-bold">Visit Information</h5>
                                             <p><strong>Date:</strong> @Model.VisitDate.Date</p>
                                             <p><strong>Type:</strong> @Model.VisitType</p>
+                                            <p><strong>Service Setting:</strong> @Model.ServiceSetting</p>
+                                            <div>
+                                                <strong>Services Delivered:</strong>
+                                                @foreach (var service in Model.Services)
+                                                {
+                                                    <span class="badge bg-primary me-1 mb-1">@service.ServiceName</span>
+                                                }
+                                            </div>
                                             <p><strong>Provider:</strong> @Model.Provider?.Name</p>
                                             <p>
                                                 <strong>Status:</strong>
@@ -47,7 +55,10 @@
                                             <p><strong>Complaint:</strong> @Model.ChiefComplaint</p>
                                             <p><strong>Diagnosis:</strong> @Model.Diagnosis</p>
                                             <p><strong>Treatment:</strong> @Model.TreatmentGiven</p>
-                                            <p><strong>Attended By:</strong> @Model.SeenBy<br /> <strong>Rank:</strong> @Model.Rank</p>
+                                            <p>
+                                                <strong>Attending Doctor:</strong> @(Model.Doctor?.FullName ?? Model.SeenBy)<br />
+                                                <strong>Specialty / Rank:</strong> @(Model.Doctor?.Specialty ?? Model.Rank)
+                                            </p>
                                             <p><strong>Recorded By:</strong> @Model.AttendedBy</p>
                                         </div>
                                     </div>

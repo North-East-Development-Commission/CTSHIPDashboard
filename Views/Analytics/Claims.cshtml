@@ -124,7 +124,6 @@
 
 <!-- 100% WORKING CHART.JS — ONLY USING YOUR AnalyticsViewModel -->
 @section Scripts {
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             // 1. Top 10 States - Bar Chart
@@ -135,7 +134,7 @@
                     datasets: [{
                         label: 'Number of Claims',
                         data: [@Html.Raw(string.Join(",", Model.ClaimsByState.Select(s => s.Value)))],
-                        backgroundColor: '#006400',
+                        backgroundColor: '#3B703B',
                         borderColor: 2,
                         borderRadius: 8
                     }]
@@ -158,7 +157,7 @@
                             @Model.PendingAmount,
                             @Model.RejectedAmount
                         ],
-                        backgroundColor: ['#28a745', '#ffc107', '#dc3545'],
+                        backgroundColor: ['#3B703B', '#C9A247', '#FFFFFF'],
                         borderColor: '#fff',
                         borderWidth: 4
                     }]
@@ -184,7 +183,7 @@
                     datasets: [{
                         label: 'Claims Amount (₦)',
                         data: [@Html.Raw(string.Join(",", Model.ClaimsByMonth.Select(m => m.Value)))],
-                        borderColor: '#006400',
+                        borderColor: '#3B703B',
                         backgroundColor: 'rgba(0, 100, 0, 0.1)',
                         tension: 0.4,
                         fill: true,
@@ -212,7 +211,7 @@
                     datasets: [{
                         label: 'Number of Cases',
                         data: [@Html.Raw(string.Join(",", Model.TopDiagnoses.Select(d => d.Value)))],
-                        backgroundColor: '#006400',
+                        backgroundColor: '#3B703B',
                         borderRadius: 10
                     }]
                 },

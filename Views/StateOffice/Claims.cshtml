@@ -1,0 +1,271 @@
+@model CTSHIPDashboard.Models.ViewModels.StateOfficeClaimsViewModel
+
+@{
+    ViewData["Title"] = $"{Model.StateName} Claims";
+    bool isAdmin = User.IsInRole("Admin");
+}
+
+@functions {
+    private static string StatusBadgeClass(string status)
+    {
+        return status switch
+        {
+            "Paid" => "bg-success",
+            "Approved" => "bg-info text-dark",
+            "Review Approved" => "bg-info text-dark",
+            "Submitted" => "bg-warning text-dark",
+            "ReApproved" => "bg-warning text-dark",
+            "Rejected" => "bg-danger",
+            _ => "bg-secondary"
+        };
+    }
+}
+
+<div class="container-fluid py-4">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+        <div>
+            <h1 class="display-5 fw-bold text-success mb-1">@Model.StateName State Claim Management</h1>
+            <p class="text-muted mb-0">@Model.TotalFilteredClaims.ToString("N0") claims shown</p>
+        </div>
+        <a asp-action="Index" class="btn btn-outline-success btn-lg">
+            <i class="bi bi-speedometer2 me-1"></i> Dashboard
+        </a>
+    </div>
+
+    <div class="row g-3 mb-4 text-center">
+        <div class="col-xl-3 col-md-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <i class="bi bi-file-medical text-success fs-2"></i>
+                    <h6 class="text-muted mt-2">Total Claims</h6>
+                    <h2 class="fw-bold mb-0">@Model.TotalClaims.ToString("N0")</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <i class="bi bi-hourglass-split text-warning fs-2"></i>
+                    <h6 class="text-muted mt-2">Pending Claims</h6>
+                    <h2 class="fw-bold mb-0">@Model.PendingClaims.ToString("N0")</h2>
+                    <small class="text-muted">NGN @Model.PendingClaimValue.ToString("N0")</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <i class="bi bi-check2-circle text-info fs-2"></i>
+                    <h6 class="text-muted mt-2">Approved Claims</h6>
+                    <h2 class="fw-bold mb-0">@Model.ApprovedClaims.ToString("N0")</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <i class="bi bi-cash-coin text-success fs-2"></i>
+                    <h6 class="text-muted mt-2">Paid Claims</h6>
+                    <h2 class="fw-bold mb-0">@Model.PaidClaims.ToString("N0")</h2>
+                    <small class="text-muted">NGN @Model.PaidClaimValue.ToString("N0")</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <i class="bi bi-x-circle text-danger fs-2"></i>
+                    <h6 class="text-muted mt-2">Rejected Claims</h6>
+                    <h2 class="fw-bold mb-0">@Model.RejectedClaims.ToString("N0")</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <i class="bi bi-receipt text-primary fs-2"></i>
+                    <h6 class="text-muted mt-2">Total Claim Value</h6>
+                    <h2 class="fw-bold mb-0">NGN @Model.TotalClaimValue.ToString("N0")</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <i class="bi bi-bank text-success fs-2"></i>
+                    <h6 class="text-muted mt-2">Capitation Disbursed</h6>
+                    <h2 class="fw-bold mb-0">NGN @Model.CapitationDisbursed.ToString("N0")</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <i class="bi bi-wallet2 text-secondary fs-2"></i>
+                    <h6 class="text-muted mt-2">Wallet Balance</h6>
+                    <h2 class="fw-bold mb-0">NGN @Model.WalletBalance.ToString("N0")</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body">
+            <form asp-action="Claims" method="get">
+                <div class="row g-3 align-items-end">
+                    @if (isAdmin)
+                    {
+                        <div class="col-lg-3 col-md-6">
+                            <label class="form-label fw-semibold">State</label>
+                            <select name="state" class="form-select form-select-lg">
+                                @foreach (string state in Model.AvailableStates)
+                                {
+                                    <option value="@state" selected="@(state == Model.StateName)">@state</option>
+                                }
+                            </select>
+                        </div>
+                    }
+                    else
+                    {
+                        <input type="hidden" name="state" value="@Model.StateName" />
+                    }
+
+                    <div class="col-lg-3 col-md-6">
+                        <label class="form-label fw-semibold">Status</label>
+                        <select name="status" class="form-select form-select-lg">
+                            <option value="All" selected="@(Model.Status == "All")">All Status</option>
+                            <option value="Submitted" selected="@(Model.Status == "Submitted")">Submitted</option>
+                            <option value="ReApproved" selected="@(Model.Status == "ReApproved")">Re-approved</option>
+                            <option value="Approved" selected="@(Model.Status == "Approved")">Approved</option>
+                            <option value="Review Approved" selected="@(Model.Status == "Review Approved")">Review Approved</option>
+                            <option value="Paid" selected="@(Model.Status == "Paid")">Paid</option>
+                            <option value="Rejected" selected="@(Model.Status == "Rejected")">Rejected</option>
+                        </select>
+                    </div>
+
+                    <div class="col-lg-4 col-md-8">
+                        <label class="form-label fw-semibold">Search</label>
+                        <input type="text"
+                               name="search"
+                               value="@Model.Search"
+                               class="form-control form-control-lg"
+                               placeholder="Claim, enrollee, provider or HMO" />
+                    </div>
+
+                    <div class="col-lg-1 col-md-2">
+                        <button type="submit" class="btn btn-success btn-lg w-100">
+                            <i class="bi bi-funnel"></i>
+                        </button>
+                    </div>
+                    <div class="col-lg-1 col-md-2">
+                        <a asp-action="Claims" asp-route-state="@Model.StateName" class="btn btn-outline-secondary btn-lg w-100">
+                            <i class="bi bi-x-lg"></i>
+                        </a>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm overflow-hidden">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="table-success">
+                    <tr>
+                        <th>Claim</th>
+                        <th>Enrollee</th>
+                        <th>Provider</th>
+                        <th>HMO</th>
+                        <th>Amount</th>
+                        <th>Status</th>
+                        <th>Submitted</th>
+                        <th class="text-end">Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (!Model.Claims.Any())
+                    {
+                        <tr>
+                            <td colspan="8" class="text-center py-5 text-muted fs-5">No claims found for the selected filters.</td>
+                        </tr>
+                    }
+                    else
+                    {
+                        @foreach (var claim in Model.Claims)
+                        {
+                            <tr>
+                                <td>
+                                    <span class="fw-bold text-primary">@claim.ClaimNumber</span>
+                                    @if (!string.IsNullOrWhiteSpace(claim.Diagnosis))
+                                    {
+                                        <br />
+                                        <small class="text-muted">@claim.Diagnosis</small>
+                                    }
+                                </td>
+                                <td>
+                                    @claim.EnrolleeName
+                                    <br />
+                                    <small class="text-muted">@claim.EnrollmentNumber</small>
+                                </td>
+                                <td>@claim.ProviderName</td>
+                                <td>@claim.HmoName</td>
+                                <td class="fw-bold">NGN @claim.Amount.ToString("N0")</td>
+                                <td>
+                                    <span class="badge @StatusBadgeClass(claim.Status) px-3 py-2">@claim.Status</span>
+                                </td>
+                                <td>@claim.DateSubmitted.ToString("dd MMM yyyy")</td>
+                                <td class="text-end">
+                                    <a asp-action="ClaimDetails"
+                                       asp-route-id="@claim.Id"
+                                       class="btn btn-outline-success btn-sm">
+                                        <i class="bi bi-eye me-1"></i> View
+                                    </a>
+                                </td>
+                            </tr>
+                        }
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    @if (Model.TotalPages > 1)
+    {
+        <nav class="mt-4 d-flex justify-content-center">
+            <ul class="pagination pagination-lg">
+                <li class="page-item @(Model.CurrentPage == 1 ? "disabled" : "")">
+                    <a class="page-link"
+                       asp-action="Claims"
+                       asp-route-state="@Model.StateName"
+                       asp-route-search="@Model.Search"
+                       asp-route-status="@Model.Status"
+                       asp-route-page="@(Model.CurrentPage - 1)"
+                       asp-route-pageSize="@Model.PageSize">Previous</a>
+                </li>
+
+                @for (int pageNumber = 1; pageNumber <= Model.TotalPages; pageNumber++)
+                {
+                    <li class="page-item @(pageNumber == Model.CurrentPage ? "active" : "")">
+                        <a class="page-link"
+                           asp-action="Claims"
+                           asp-route-state="@Model.StateName"
+                           asp-route-search="@Model.Search"
+                           asp-route-status="@Model.Status"
+                           asp-route-page="@pageNumber"
+                           asp-route-pageSize="@Model.PageSize">@pageNumber</a>
+                    </li>
+                }
+
+                <li class="page-item @(Model.CurrentPage == Model.TotalPages ? "disabled" : "")">
+                    <a class="page-link"
+                       asp-action="Claims"
+                       asp-route-state="@Model.StateName"
+                       asp-route-search="@Model.Search"
+                       asp-route-status="@Model.Status"
+                       asp-route-page="@(Model.CurrentPage + 1)"
+                       asp-route-pageSize="@Model.PageSize">Next</a>
+                </li>
+            </ul>
+        </nav>
+    }
+</div>

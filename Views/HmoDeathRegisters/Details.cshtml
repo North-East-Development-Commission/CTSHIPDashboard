@@ -1,0 +1,164 @@
+﻿@model CTSHIPDashboard.Models.ViewModels.DeathRegisterDetailsViewModel
+@using CTSHIPDashboard.Models.Enums
+
+@{
+    ViewData["Title"] = "HMO Death Register Details";
+}
+
+<div class="ct-page">
+<div class="ct-page-header d-flex flex-wrap justify-content-between align-items-center gap-3">
+    <div>
+        <h2 class="mb-0">Death Register Details</h2>
+        <small>@Model.EnrolleeNumber - @Model.EnrolleeFullName</small>
+    </div>
+    <a asp-controller="HmoDeathRegisters" asp-action="Index" class="btn btn-outline-secondary">Back</a>
+</div>
+</div>
+
+@if (TempData["SuccessMessage"] != null)
+{
+    <div class="alert alert-success">@TempData["SuccessMessage"]</div>
+}
+@if (TempData["ErrorMessage"] != null)
+{
+    <div class="alert alert-danger">@TempData["ErrorMessage"]</div>
+}
+
+<div class="card mb-3">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span class="fw-bold">Workflow Status</span>
+        @switch (Model.Status)
+        {
+            case DeathRegisterStatus.SubmittedToHmo:
+                <span class="badge bg-warning text-dark">Pending HMO Verification</span>
+                break;
+            case DeathRegisterStatus.HmoVerified:
+                <span class="badge bg-info text-dark">HMO Verified</span>
+                break;
+            case DeathRegisterStatus.HmoRejected:
+                <span class="badge bg-danger">HMO Rejected</span>
+                break;
+            case DeathRegisterStatus.Audited:
+                <span class="badge bg-dark">Audited</span>
+                break;
+            case DeathRegisterStatus.AuditRejected:
+                <span class="badge bg-danger">Audit Rejected</span>
+                break;
+            default:
+                <span class="badge bg-secondary">@Model.Status</span>
+                break;
+        }
+    </div>
+    <div class="card-body">
+        <div class="d-flex gap-2">
+            @if (Model.Status == DeathRegisterStatus.SubmittedToHmo && (User.IsInRole("HMO") || User.IsInRole("Admin")))
+            {
+                <a asp-controller="HmoDeathRegisters" asp-action="Verify" asp-route-id="@Model.Id" class="btn btn-success">Verify Record</a>
+            }
+            @if (Model.Status == DeathRegisterStatus.HmoVerified && (User.IsInRole("NHIA") || User.IsInRole("Admin")))
+            {
+                <a asp-controller="HmoDeathRegisters" asp-action="Audit" asp-route-id="@Model.Id" class="btn btn-dark">Audit Record</a>
+            }
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card mb-3">
+            <div class="card-header fw-bold">Enrollee Information</div>
+            <div class="card-body">
+                <dl class="row mb-0">
+                    <dt class="col-sm-4">Enrollee No.</dt>
+                    <dd class="col-sm-8">@Model.EnrolleeNumber</dd>
+                    <dt class="col-sm-4">Full Name</dt>
+                    <dd class="col-sm-8">@Model.EnrolleeFullName</dd>
+                    <dt class="col-sm-4">Gender</dt>
+                    <dd class="col-sm-8">@Model.Gender</dd>
+                    <dt class="col-sm-4">Date of Birth</dt>
+                    <dd class="col-sm-8">@(Model.DateOfBirth.HasValue? Model.DateOfBirth.Value.ToString("dd MMM yyyy") : "")</dd>
+                    <dt class="col-sm-4">Phone</dt>
+                    <dd class="col-sm-8">@Model.PhoneNumber</dd>
+                    <dt class="col-sm-4">Address</dt>
+                    <dd class="col-sm-8">@Model.Address</dd>
+                    <dt class="col-sm-4">HMO</dt>
+                    <dd class="col-sm-8">@Model.HmoName (@Model.HmoCode)</dd>
+                    <dt class="col-sm-4">Provider</dt>
+                    <dd class="col-sm-8">@Model.ProviderName</dd>
+                </dl>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card mb-3">
+            <div class="card-header fw-bold">Death Information</div>
+            <div class="card-body">
+                <dl class="row mb-0">
+                    <dt class="col-sm-4">Date of Death</dt>
+                    <dd class="col-sm-8">@Model.DateOfDeath.ToString("dd MMM yyyy")</dd>
+                    <dt class="col-sm-4">Time of Death</dt>
+                    <dd class="col-sm-8">@(Model.TimeOfDeath.HasValue? Model.TimeOfDeath.Value.ToString(@"hh\:mm") : "")</dd>
+                    <dt class="col-sm-4">Place</dt>
+                    <dd class="col-sm-8">@Model.PlaceOfDeath</dd>
+                    <dt class="col-sm-4">Category</dt>
+                    <dd class="col-sm-8">@Model.CauseCategory</dd>
+                    <dt class="col-sm-4">Cause</dt>
+                    <dd class="col-sm-8">@Model.CauseOfDeath</dd>
+                    <dt class="col-sm-4">Confirmed By</dt>
+                    <dd class="col-sm-8">@Model.DeathConfirmedBy</dd>
+                    <dt class="col-sm-4">Designation</dt>
+                    <dd class="col-sm-8">@Model.DeathConfirmedByDesignation</dd>
+                    <dt class="col-sm-4">Certificate No.</dt>
+                    <dd class="col-sm-8">@Model.DeathCertificateNumber</dd>
+                </dl>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card mb-3">
+    <div class="card-header fw-bold">Verification and Audit Notes</div>
+    <div class="card-body row g-3">
+        <div class="col-md-6">
+            <strong>HMO Verified By:</strong><br />@(Model.VerifiedByName ?? "Not verified")<br />
+            <strong>Verified At:</strong><br />@(Model.VerifiedAt.HasValue? Model.VerifiedAt.Value.ToString("dd MMM yyyy HH:mm") : "Not verified")<br />
+            <strong>Verification Note:</strong><br />@(Model.HmoVerificationNote ?? "No note")
+        </div>
+        <div class="col-md-6">
+            <strong>Audited By:</strong><br />@(Model.AuditedByName ?? "Not audited")<br />
+            <strong>Audited At:</strong><br />@(Model.AuditedAt.HasValue? Model.AuditedAt.Value.ToString("dd MMM yyyy HH:mm") : "Not audited")<br />
+            <strong>Audit Note:</strong><br />@(Model.AuditNote ?? "No note")
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header fw-bold">Audit Trail</div>
+    <div class="card-body p-0">
+        <table class="table mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>Action</th>
+                    <th>By</th>
+                    <th>Date</th>
+                    <th>Note</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var log in Model.AuditLogs)
+                {
+                    <tr>
+                        <td>@log.Action</td>
+                        <td>@log.ActionByName</td>
+                        <td>@log.ActionAt.ToString("dd MMM yyyy HH:mm")</td>
+                        <td>@log.Note</td>
+                    </tr>
+                }
+                @if (!Model.AuditLogs.Any())
+                {
+                    <tr><td colspan="4" class="text-center text-muted">No audit trail found.</td></tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

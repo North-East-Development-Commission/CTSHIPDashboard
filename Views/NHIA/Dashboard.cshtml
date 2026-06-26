@@ -1,0 +1,120 @@
+﻿@model CTSHIPDashboard.Models.ViewModels.NHIADashboardViewModel
+
+<div class="container-fluid py-5">
+    <div class="text-center mb-5">
+        <h1 class="display-4 fw-bold text-success">NHIA CTSHIP Dashboard</h1>
+        <p class="lead text-muted">Federal Republic of Nigeria • Real-time CTSHIP Overview</p>
+    </div>
+
+    <!-- National KPI Cards -->
+    <div class="row g-4 mb-5">
+        <div class="col-xl-3 col-md-6">
+            <div class="card shadow-lg h-100" style="background: linear-gradient(135deg, #3B703B, #2B572F); color: white;">
+                <div class="card-body text-center py-5">
+                    <i class="bi bi-people fs-1 mb-3"></i>
+                    <h5>Total Enrollees</h5>
+                    <h2 class="display-5 fw-bold">@Model.TotalEnrollees</h2>
+                    <small>Active: @Model.ActiveEnrollees</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="card shadow-lg h-100" style="background: linear-gradient(135deg, #C9A247, #3B703B); color: white;">
+                <div class="card-body text-center py-5">
+                    <i class="bi bi-file-medical fs-1 mb-3"></i>
+                    <h5>Total Claims</h5>
+                    <h2 class="display-5 fw-bold">@Model.TotalClaims</h2>
+                    <small>Paid: @Model.PaidClaims</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="card shadow-lg h-100" style="background: linear-gradient(135deg, #3B703B, #C9A247); color: white;">
+                <div class="card-body text-center py-5">
+                    <i class="bi bi-building fs-1 mb-3"></i>
+                    <h5>Registered HMOs</h5>
+                    <h2 class="display-5 fw-bold">@Model.TotalHMOs</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="card shadow-lg h-100" style="background: linear-gradient(135deg, #C9A247, #3B703B); color: white;">
+                <div class="card-body text-center py-5">
+                    <i class="bi bi-hospital fs-1 mb-3"></i>
+                    <h5>Accredited Providers</h5>
+                    <h2 class="display-5 fw-bold">@Model.TotalProviders</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- State Performance -->
+    <div class="card shadow-lg rounded-4 mb-5">
+        <div class="card-header bg-success text-white py-4">
+            <h4 class="fw-bold mb-0">State Performance Overview</h4>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="bg-light">
+                        <tr>
+                            <th>State</th>
+                            <th>Enrollees</th>
+                            <th>Claims</th>
+                            <th>Providers</th>
+                            <th>Claim Amount</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var s in Model.StateSummaries)
+                        {
+                            <tr>
+                                <td><strong>@s.StateName</strong></td>
+                                <td>@s.Enrollees</td>
+                                <td>@s.Claims</td>
+                                <td>@s.Providers</td>
+                                <td class="text-success fw-bold">₦@s.ClaimAmount</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Enrollees -->
+    <div class="card shadow-lg rounded-4">
+        <div class="card-header bg-success text-white py-4">
+            <h4 class="fw-bold mb-0">Recent CTSHIP Enrollments Across The North East Region</h4>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="bg-light">
+                        <tr>
+                            <th>Enrollment #</th>
+                            <th>Name</th>
+                            <th>State</th>
+                            <th>HMO</th>
+                            <th>Date</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var e in Model.RecentEnrollees)
+                        {
+                            <tr>
+                                <td><strong>@e.EnrollmentNumber</strong></td>
+                                <td>@e.FullName</td>
+                                <td>@e.State</td>
+                                <td>@e.HmoName</td>
+                                <td>@e.DateRegistered.ToString("dd MMM yyyy")</td>
+                                <td><span class="badge bg-success">@e.Status</span></td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>

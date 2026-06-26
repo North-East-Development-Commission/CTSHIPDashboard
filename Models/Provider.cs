@@ -17,6 +17,7 @@ namespace CTSHIPDashboard.Models
         public string Code { get; set; } = string.Empty;
         public string Level { get; set; }
         public virtual ICollection<Enrollee> Enrollees { get; set; } = new List<Enrollee>();
+        public virtual ICollection<Doctor> Doctors { get; set; } = new List<Doctor>();
         public virtual ICollection<Encounter> Encounters { get; set; } = new List<Encounter>();
         public virtual ICollection<Claim> Claims { get; set; } = new List<Claim>();
         public DateTime DateRegistered { get; set; }

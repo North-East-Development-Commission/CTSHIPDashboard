@@ -1,0 +1,106 @@
+﻿@model CTSHIPDashboard.ViewModels.ReferralDetailsViewModel
+@using CTSHIPDashboard.Enums
+@{
+    ViewData["Title"] = "HMO Referral Details";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h2 class="mb-0">Referral Details</h2>
+        <small class="text-muted">@Model.EnrolleeFullName - @Model.EnrolleeNumber</small>
+    </div>
+    <a asp-controller="HmoReferrals" asp-action="Index" class="btn btn-outline-secondary">Back</a>
+</div>
+
+@if (TempData["SuccessMessage"] != null)
+{
+    <div class="alert alert-success">@TempData["SuccessMessage"]</div>
+}
+@if (TempData["ErrorMessage"] != null)
+{
+    <div class="alert alert-danger">@TempData["ErrorMessage"]</div>
+}
+
+<div class="row g-3">
+    <div class="col-md-8">
+        <div class="card mb-3">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <strong>Referral Information</strong>
+                @await Html.PartialAsync("_ReferralStatusBadge", Model.Status)
+            </div>
+            <div class="card-body">
+                <dl class="row">
+                    <dt class="col-sm-4">Encounter Reference</dt>
+                    <dd class="col-sm-8">@Model.EncounterReference</dd>
+                    <dt class="col-sm-4">From Provider</dt>
+                    <dd class="col-sm-8">@Model.FromProviderName</dd>
+                    <dt class="col-sm-4">Referred Hospital</dt>
+                    <dd class="col-sm-8">@Model.ReferredHospitalName</dd>
+                    <dt class="col-sm-4">Hospital Address</dt>
+                    <dd class="col-sm-8">@Model.ReferredHospitalAddress</dd>
+                    <dt class="col-sm-4">HMO</dt>
+                    <dd class="col-sm-8">@Model.HmoName (@Model.HmoCode)</dd>
+                    <dt class="col-sm-4">Priority</dt>
+                    <dd class="col-sm-8">@Model.Priority</dd>
+                    <dt class="col-sm-4">Diagnosis</dt>
+                    <dd class="col-sm-8">@Model.Diagnosis</dd>
+                    <dt class="col-sm-4">Reason For Referral</dt>
+                    <dd class="col-sm-8">@Model.ReasonForReferral</dd>
+                    <dt class="col-sm-4">Clinical Summary</dt>
+                    <dd class="col-sm-8">@Model.ClinicalSummary</dd>
+                    <dt class="col-sm-4">Treatment Given</dt>
+                    <dd class="col-sm-8">@Model.TreatmentGiven</dd>
+                    <dt class="col-sm-4">Investigation Summary</dt>
+                    <dd class="col-sm-8">@Model.InvestigationSummary</dd>
+                    <dt class="col-sm-4">Verification Note</dt>
+                    <dd class="col-sm-8">@Model.HmoVerificationNote</dd>
+                    <dt class="col-sm-4">Audit Note</dt>
+                    <dd class="col-sm-8">@Model.AuditNote</dd>
+                </dl>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card mb-3">
+            <div class="card-header"><strong>Actions</strong></div>
+            <div class="card-body d-grid gap-2">
+                @if (Model.Status == ReferralStatus.SubmittedToHmo)
+                {
+                    <a asp-controller="HmoReferrals" asp-action="Verify" asp-route-id="@Model.Id" class="btn btn-success">Verify Referral</a>
+                }
+                @if (Model.Status == ReferralStatus.Verified && (User.IsInRole("NHIA") || User.IsInRole("Admin")))
+                {
+                    <a asp-controller="HmoReferrals" asp-action="Audit" asp-route-id="@Model.Id" class="btn btn-primary">Audit Referral</a>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header"><strong>Audit Trail</strong></div>
+    <div class="card-body p-0">
+        <table class="table table-striped mb-0">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Action</th>
+                    <th>By</th>
+                    <th>Note</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var log in Model.AuditLogs)
+                {
+                    <tr>
+                        <td>@log.CreatedAt.ToLocalTime().ToString("dd MMM yyyy HH:mm")</td>
+                        <td>@log.Action</td>
+                        <td>@log.PerformedByName</td>
+                        <td>@log.Note</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

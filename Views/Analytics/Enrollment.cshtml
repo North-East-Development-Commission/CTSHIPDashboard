@@ -109,17 +109,16 @@
 </div>
 
 @section Scripts {
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
         // State Chart
         new Chart(document.getElementById('stateChart'), {
             type: 'bar',
             data: {
-                labels: [@Html.Raw(string.Join(",", Model.EnrollmentByState.Select(s => $"'{s.Label}'")))],
+                labels: @Html.Raw(Json.Serialize(Model.EnrollmentByState.Select(s => s.Label))),
                 datasets: [{
                     label: 'Enrollees',
-                    data: [@Html.Raw(string.Join(",", Model.EnrollmentByState.Select(s => s.Value)))],
-                    backgroundColor: '#006400'
+                    data: @Html.Raw(Json.Serialize(Model.EnrollmentByState.Select(s => s.Value))),
+                    backgroundColor: '#3B703B'
                 }]
             },
             options: { responsive: true, plugins: { legend: { display: false } } }
@@ -129,14 +128,14 @@
         new Chart(document.getElementById('ageChart'), {
             type: 'doughnut',
             data: {
-                labels: [@Html.Raw(string.Join(",", Model.AgeGroups.Keys.Select(k => $"'{k}'")))],
+                labels: @Html.Raw(Json.Serialize(Model.AgeGroups.Keys)),
                 datasets: [{
-                    data: [@Html.Raw(string.Join(",", Model.AgeGroups.Values))],
-                    backgroundColor: ['#28a745', '#007bff', '#ffc107', '#dc3545', '#6f42c1']
+                    data: @Html.Raw(Json.Serialize(Model.AgeGroups.Values)),
+                    backgroundColor: ['#3B703B', '#C9A247', '#FFFFFF', '#3B703B', '#C9A247']
                 }]
             }
         });
-
-        // Trend & HMO Charts similar...
     </script>
+}
+
 }

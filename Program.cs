@@ -1,90 +1,136 @@
 using CTSHIPDashboard.Data;
 using CTSHIPDashboard.Hubs;
 using CTSHIPDashboard.Models;
+using CTSHIPDashboard.Services;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
-var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") ?? throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
+// Use providers that work consistently in IIS, local development, and restricted hosts.
+builder.Logging.ClearProviders();
+builder.Logging.AddConsole();
+builder.Logging.AddDebug();
+
+var connectionString =
+    builder.Configuration.GetConnectionString("DefaultConnection")
+    ?? throw new InvalidOperationException(
+        "Connection string 'DefaultConnection' not found.");
+
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(connectionString));
 
-//builder.Services.AddDefaultIdentity<ApplicationUser>(options => options.SignIn.RequireConfirmedAccount = true).AddEntityFrameworkStores<ApplicationDbContext>();
+builder.Services
+    .AddIdentity<ApplicationUser, IdentityRole>(options =>
+    {
+        options.SignIn.RequireConfirmedAccount = false;
+    })
+    .AddEntityFrameworkStores<ApplicationDbContext>()
+    .AddDefaultTokenProviders()
+    .AddDefaultUI();
 
-//ilder.Services.AddDefaultIdentity<IdentityUser>(options => options.SignIn.RequireConfirmedAccount = true).AddEntityFrameworkStores<ApplicationDbContext>();
-builder.Services.AddDatabaseDeveloperPageExceptionFilter();
-
-builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
+builder.Services.ConfigureApplicationCookie(options =>
 {
-    options.SignIn.RequireConfirmedAccount = false;
-    //options.Password.RequireDigit = true;
-    //options.Password.RequireLowercase = true;
-    //options.Password.RequireUppercase = true;
-    //options.Password.RequireNonAlphanumeric = false;
-   // options.Password.RequiredLength = 6;
-})
-.AddEntityFrameworkStores<ApplicationDbContext>()
-.AddDefaultTokenProviders()
-.AddDefaultUI();  // Add this if you want the default Identity UI pages
+    options.AccessDeniedPath = "/Error/403";
+});
+
 builder.Services.AddControllersWithViews();
-builder.Services.AddSignalR();   // <-- ADD THIS LINE!
-builder.Services.AddAuthorization(options => options.AddPolicy("AdminOnly", policy => policy.RequireRole("Admin")));
+builder.Services.AddRazorPages();
+builder.Services.AddSignalR();
+builder.Services.AddAuthorization(options =>
+    options.AddPolicy("AdminOnly", policy => policy.RequireRole("Admin")));
+builder.Services.AddScoped<IReferralService, ReferralService>();
+builder.Services.AddScoped<IDeathRegisterService, DeathRegisterService>();
+builder.Services.AddScoped<IMonitoringIndicatorService, MonitoringIndicatorService>();
+builder.Services.AddScoped<IAuditService, AuditService>();
 
 var app = builder.Build();
-// ADD THIS BEFORE ANY EPPlus USAGE!
+
 OfficeOpenXml.ExcelPackage.License.SetNonCommercialPersonal("CTSHIP NEDC Project");
 
-using (var scope = app.Services.CreateScope())
+try
 {
-    var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-    var services = scope.ServiceProvider;
+    using var scope = app.Services.CreateScope();
+    ApplicationDbContext context =
+        scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    IServiceProvider services = scope.ServiceProvider;
 
-    // 1. Database seeds
     SeedData.SeedHmos(context);
     SeedData.SeedProviders(context);
+    SeedData.SeedDoctors(context);
+    await SeedData.SeedAsync(context);
     SeedData.SeedEnrollee(context);
-    //SeedData.Initialize(services);           // 800 Enrollees
     SeedData.SeedEncounters(context);
     SeedData.SeedClaims(context);
-
-    // 2. ADMIN & ROLES (MUST BE LAST � uses UserManager)
     await SeedData.SeedAdminUser(services);
 
-    Console.WriteLine("CTSHIP FULLY SEEDED + ADMIN READY!");
-    Console.WriteLine("SUPER ADMIN: admin@nhia.gov.ng / Nigeria@2025!");
+    var legacyTarget = context.ProgramMonitoringTargets
+        .FirstOrDefault(target => target.Scope == "North East");
+    var ctsTarget = context.ProgramMonitoringTargets
+        .FirstOrDefault(target => target.Scope == "CTSHIP");
+
+    if (legacyTarget != null)
+    {
+        if (ctsTarget == null)
+        {
+            legacyTarget.Scope = "CTSHIP";
+        }
+        else
+        {
+            if (ctsTarget.TargetEnrollees <= 0)
+            {
+                ctsTarget.TargetEnrollees = legacyTarget.TargetEnrollees;
+            }
+
+            context.ProgramMonitoringTargets.Remove(legacyTarget);
+        }
+
+        context.SaveChanges();
+    }
+
+    app.Logger.LogInformation("CTSHIP startup data initialization completed.");
+}
+catch (Exception exception)
+{
+    // Startup data problems must not terminate the web host. Requests that
+    // depend on the database will be handled by the friendly error boundary.
+    try
+    {
+        app.Logger.LogError(
+            exception,
+            "Startup data initialization failed. The web host will continue running.");
+    }
+    catch
+    {
+        Console.Error.WriteLine(
+            $"Startup data initialization failed: {exception.Message}");
+    }
 }
 
-// Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
+// Friendly handling is enabled in every environment so users never receive
+// raw framework exception pages.
+app.UseExceptionHandler("/Error");
+app.UseStatusCodePagesWithReExecute("/Error/{0}");
+
+if (!app.Environment.IsDevelopment())
 {
-    app.UseMigrationsEndPoint();
-}
-else
-{
-    app.UseExceptionHandler("/Home/Error");
-    // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
     app.UseHsts();
 }
 
-
 app.UseHttpsRedirection();
 app.UseRouting();
-
+app.UseAuthentication();
 app.UseAuthorization();
-// ADD THIS LINE � AUTOMATIC ACTIVITY TRACKING
 app.UseMiddleware<CTSHIPDashboard.Middleware.UserActivityMiddleware>();
+
 app.MapStaticAssets();
 
 app.MapControllerRoute(
     name: "default",
-    pattern: "{controller=Analytics}/{action=Index}/{id?}")
-    .WithStaticAssets();
+    pattern: "{controller=Analytics}/{action=Index}/{id?}");
 
 app.MapHub<AnalyticsHub>("/analyticsHub");
 app.MapRazorPages()
-   .WithStaticAssets();
+    .WithStaticAssets();
 
 app.Run();

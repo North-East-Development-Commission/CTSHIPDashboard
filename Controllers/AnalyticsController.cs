@@ -4,42 +4,27 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Globalization;
+using CTSHIPDashboard.Services;
 
 [Authorize(Roles = "Admin,HMO,SSHIA")]
 public class AnalyticsController : Controller
 {
     private readonly ApplicationDbContext _context;
-    public AnalyticsController(ApplicationDbContext context) => _context = context;
+    private readonly IMonitoringIndicatorService _monitoringIndicatorService;
+
+    public AnalyticsController(
+        ApplicationDbContext context,
+        IMonitoringIndicatorService monitoringIndicatorService)
+    {
+        _context = context;
+        _monitoringIndicatorService = monitoringIndicatorService;
+    }
 
 
     public async Task<IActionResult> Index()
     {
-        // Basic KPIs
-        ViewBag.TotalEnrollees = await _context.Enrollees.CountAsync();
-        ViewBag.ActiveEnrollees = await _context.Enrollees.CountAsync(e => e.Status == "Active");
-        ViewBag.ActivePercentage = ViewBag.TotalEnrollees > 0
-            ? Math.Round((double)ViewBag.ActiveEnrollees / ViewBag.TotalEnrollees * 100, 1) : 0;
-
-        ViewBag.TotalProviders = await _context.Providers.CountAsync(p => p.IsActive);
-        ViewBag.TotalHmos = await _context.Hmos.CountAsync();
-
-        ViewBag.TotalClaims = await _context.Claims.CountAsync();
-        ViewBag.PaidClaims = await _context.Claims.CountAsync(c => c.Status == "Paid");
-        ViewBag.PendingClaims = await _context.Claims.CountAsync(c => c.Status == "Submitted" || c.Status == "Review Approved");
-        ViewBag.TotalPaid = await _context.Claims.Where(c => c.Status == "Paid").SumAsync(c => (decimal?)c.Amount) ?? 0;
-        ViewBag.PaidPercentage = ViewBag.TotalClaims > 0
-            ? Math.Round((double)ViewBag.PaidClaims / ViewBag.TotalClaims * 100, 1) : 0;
-
-        // ENROLLEES BY STATE — RANKED LIST
-        ViewBag.EnrolleesByState = await _context.Enrollees
-            .GroupBy(e => e.State ?? "Unknown")
-            .Select(g => new
-            {
-                State = g.Key,
-                Count = g.Count()
-            })
-            .OrderByDescending(g => g.Count)
-            .ToListAsync();
+        MonitoringDashboardViewModel monitoring =
+            await _monitoringIndicatorService.BuildDashboardAsync(null);
 
         // TOP 5 HMOS
         ViewBag.TopHmos = await _context.Hmos
@@ -52,32 +37,24 @@ public class AnalyticsController : Controller
         // TOP 5 PROVIDERS BY PAID CLAIMS VALUE
         ViewBag.TopProviders = await _context.Claims
             .Include(c => c.Provider)
-            .Include(c => c.Enrollee)
-            .Where(c => c.Status == "Paid")
-            .GroupBy(c => c.Provider)
+            .Where(c => c.Status == "Paid" && c.Provider != null)
+            .GroupBy(c => new
+            {
+                c.ProviderId,
+                ProviderName = c.Provider!.Name,
+                ProviderState = c.Provider.State
+            })
             .Select(g => new
             {
-                g.Key.Name,
-                g.Key.State,
+                Name = g.Key.ProviderName,
+                State = g.Key.ProviderState,
                 Total = g.Sum(c => c.Amount)
             })
             .OrderByDescending(g => g.Total)
             .Take(5)
             .ToListAsync();
 
-        // Add "Others" only if you limited the results above
-        // (Optional - remove if showing all states)
-
-        // Add "Others" if needed
-        // var topStates = ViewBag.EnrolleesByState as List<dynamic>;
-        // var totalTop = topStates.Sum(s => s.Count);
-        // var others = ViewBag.TotalEnrollees - totalTop;
-        // if (others > 0)
-        // {
-        //     topStates.Add(new { State = "Others", Count = others });
-        // }
-
-        return View();
+        return View(monitoring);
     }
 
     public async Task<IActionResult> Claims()
@@ -149,13 +126,18 @@ public class AnalyticsController : Controller
             .Include(e => e.Hmo)
             .ToListAsync();
 
+        var total = enrollees.Count;
 
         var model = new EnrollmentAnalyticsViewModel
         {
-            TotalEnrollees = enrollees.Count,
+            TotalEnrollees = total,
             ActiveEnrollees = enrollees.Count(e => e.Status == "Active"),
             FemaleCount = enrollees.Count(e => e.Gender == "Female"),
             MaleCount = enrollees.Count(e => e.Gender == "Male"),
+
+            // Explicitly compute percentages expected by your View layout
+            FemalePercentage = total > 0 ? (int)Math.Round((double)enrollees.Count(e => e.Gender == "Female") / total * 100) : 0,
+            CoverageRate = (decimal)(total > 0 ? Math.Round((double)total / 220000000 * 100, 4) : 0), // Out of 220M population
 
             AgeGroups = new Dictionary<string, int>
             {
@@ -168,15 +150,15 @@ public class AnalyticsController : Controller
 
             EnrollmentByState = enrollees
                 .GroupBy(e => e.State ?? "Unknown")
-                .Select(g => new ChartData { Label = g.Key, Value = g.Count() })
+                .Select(g => new ChartData { Label = g.Key, Value = (decimal)g.Count() })
                 .OrderByDescending(x => x.Value)
                 .Take(10)
                 .ToList(),
 
             EnrollmentByHMO = enrollees
                 .Where(e => e.Hmo != null)
-                .GroupBy(e => e.Hmo!.Email.Split('@')[0].ToUpper())
-                .Select(g => new ChartData { Label = g.Key, Value = g.Count() })
+                .GroupBy(e => e.Hmo.Name ?? "Unknown HMO") // Clean Grouping using Name
+                .Select(g => new ChartData { Label = g.Key, Value = (decimal)g.Count() })
                 .OrderByDescending(x => x.Value)
                 .Take(8)
                 .ToList(),
@@ -187,19 +169,10 @@ public class AnalyticsController : Controller
                 .Select(g => new ChartData
                 {
                     Label = new DateTime(g.Key.Year, g.Key.Month, 1).ToString("MMM yyyy"),
-                    Value = g.Count()
+                    Value = (decimal)g.Count()
                 })
                 .Take(12)
-                .ToList(),
-
-            // FIXED LINE — NO MORE ERROR!
-            CoverageRate = enrollees.Any()
-                ? Math.Round((decimal)enrollees.Count / 220_000_000m * 100m, 4)
-                : 0m,
-
-            FemalePercentage = enrollees.Any()
-                ? Math.Round((decimal)enrollees.Count(e => e.Gender == "Female") / enrollees.Count * 100m, 1)
-                : 0m
+                .ToList()
         };
 
         return View(model);

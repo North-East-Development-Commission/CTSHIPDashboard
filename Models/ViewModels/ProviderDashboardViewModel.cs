@@ -14,6 +14,7 @@ namespace CTSHIPDashboard.ViewModels
 
         // Stats
         public int TotalUniqueEnrollees { get; set; }
+        public int TotalDoctors { get; set; }
         public int TotalEncounters { get; set; }
         public int TotalClaims { get; set; }
         public decimal TotalClaimAmount { get; set; }
@@ -31,6 +32,7 @@ namespace CTSHIPDashboard.ViewModels
 
         // Top Doctors Performance (using AttendedBy string)
         public List<TopDoctorStats> TopDoctors { get; set; } = new();
+        public List<CTSHIPDashboard.Models.ViewModels.ServiceFrequencyViewModel> MostUsedServices { get; set; } = new();
     }
 
     public class TopDoctorStats

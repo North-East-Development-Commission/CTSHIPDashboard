@@ -1,0 +1,52 @@
+@model CTSHIPDashboard.Models.StateOfficeMonthlyReport
+
+@{
+    ViewData["Title"] = "Monthly Report Details";
+}
+
+<div class="ct-page">
+<div class="ct-page-header d-flex flex-wrap justify-content-between align-items-center gap-3">
+    <div>
+        <h2 class="mb-0">Monthly Report Details</h2>
+        <p class="mb-0">@Model.ReportingMonth.ToString("MMMM yyyy")</p>
+    </div>
+    <a asp-action="MonthlyReports" class="btn btn-outline-secondary">Back to Reports</a>
+</div>
+</div>
+
+<div class="card">
+    <div class="card-header bg-success text-white fw-bold">Reporting Information</div>
+    <div class="card-body">
+        <dl class="row mb-0">
+            <dt class="col-md-3">Reporting Month</dt>
+            <dd class="col-md-9">@Model.ReportingMonth.ToString("MMMM yyyy")</dd>
+
+            <dt class="col-md-3">State</dt>
+            <dd class="col-md-9">@Model.State</dd>
+
+            <dt class="col-md-3">LGA</dt>
+            <dd class="col-md-9">@Model.Lga</dd>
+
+            <dt class="col-md-3">Ward</dt>
+            <dd class="col-md-9">@Model.Ward</dd>
+
+            <dt class="col-md-3">Facility Name</dt>
+            <dd class="col-md-9">@Model.FacilityName</dd>
+
+            <dt class="col-md-3">Facility Code</dt>
+            <dd class="col-md-9">@Model.FacilityCode</dd>
+
+            <dt class="col-md-3">Reporting Officer Name</dt>
+            <dd class="col-md-9">@Model.ReportingOfficerName</dd>
+
+            <dt class="col-md-3">Designation</dt>
+            <dd class="col-md-9">@Model.Designation</dd>
+
+            <dt class="col-md-3">Phone Number</dt>
+            <dd class="col-md-9">@Model.PhoneNumber</dd>
+
+            <dt class="col-md-3">Date Submitted</dt>
+            <dd class="col-md-9">@Model.DateSubmitted.ToLocalTime().ToString("dd MMMM yyyy HH:mm")</dd>
+        </dl>
+    </div>
+</div>

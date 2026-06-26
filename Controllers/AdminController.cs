@@ -8,7 +8,7 @@ using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using System.Threading.Tasks;
 
-namespace CTHIPDashboard.Controllers
+namespace CTSHIPDashboard.Controllers
 {
     [Authorize(Roles = "Admin")]
     public class AdminController : Controller
@@ -29,10 +29,59 @@ namespace CTHIPDashboard.Controllers
             _context = context;
         }
 
-        public async Task<IActionResult> AuditLogs()
+        public async Task<IActionResult> AuditLogs(DateTime? startDate = null, DateTime? endDate = null, string? action = null, string? performedBy = null, string? export = null)
         {
-            var logs = await _context.AuditLogs.OrderByDescending(l => l.Timestamp).Take(500).ToListAsync();
-            return View(logs);
+            var query = _context.AuditLogs.AsQueryable();
+
+            if (startDate.HasValue)
+            {
+                query = query.Where(l => l.Timestamp >= startDate.Value.Date);
+            }
+            if (endDate.HasValue)
+            {
+                // include whole day
+                query = query.Where(l => l.Timestamp <= endDate.Value.Date.AddDays(1).AddTicks(-1));
+            }
+            if (!string.IsNullOrWhiteSpace(action))
+            {
+                query = query.Where(l => l.Action == action);
+            }
+            if (!string.IsNullOrWhiteSpace(performedBy))
+            {
+                var p = performedBy.Trim();
+                query = query.Where(l => l.PerformedBy.Contains(p));
+            }
+
+            var logs = await query.OrderByDescending(l => l.Timestamp).Take(5000).ToListAsync();
+
+            // expose filter values to view
+            ViewBag.FilterStartDate = startDate?.ToString("yyyy-MM-dd") ?? string.Empty;
+            ViewBag.FilterEndDate = endDate?.ToString("yyyy-MM-dd") ?? string.Empty;
+            ViewBag.FilterAction = action ?? string.Empty;
+            ViewBag.FilterPerformedBy = performedBy ?? string.Empty;
+
+            if (!string.IsNullOrWhiteSpace(export) && export.ToLower() == "csv")
+            {
+                // Export CSV
+                var sb = new System.Text.StringBuilder();
+                sb.AppendLine("Timestamp,PerformedBy,Action,TargetUserEmail,Details");
+                foreach (var l in logs)
+                {
+                    var line = string.Format("\"{0}\",\"{1}\",\"{2}\",\"{3}\",\"{4}\"",
+                        l.Timestamp.ToString("o"),
+                        (l.PerformedBy ?? "").Replace("\"", "\"\""),
+                        (l.Action ?? "").Replace("\"", "\"\""),
+                        (l.TargetUserEmail ?? "").Replace("\"", "\"\""),
+                        (l.Details ?? "").Replace("\"", "\"\""));
+                    sb.AppendLine(line);
+                }
+
+                var bytes = System.Text.Encoding.UTF8.GetBytes(sb.ToString());
+                var fileName = $"auditlogs_{DateTime.Now:yyyyMMdd_HHmmss}.csv";
+                return File(bytes, "text/csv", fileName);
+            }
+
+            return View("AuditLogs2", logs);
         }
         private async Task LogAuditAsync(string action, string targetEmail = null, string details = null)
         {
@@ -89,6 +138,60 @@ namespace CTHIPDashboard.Controllers
             };
 
             return View(model);
+        }
+
+        // FINANCIAL: Disburse monthly allocation to enrollees
+        [HttpPost]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> DisburseMonthly(decimal amountPerEnrollee)
+        {
+            if (amountPerEnrollee <= 0)
+            {
+                TempData["Error"] = "Amount per enrollee must be greater than zero.";
+                return RedirectToAction(nameof(Users));
+            }
+
+            var enrollees = await _context.Enrollees.ToListAsync();
+            int count = 0;
+            foreach (var e in enrollees)
+            {
+                var wallet = await _context.EnrolleeWallets.FirstOrDefaultAsync(w => w.EnrolleeId == e.Id);
+                if (wallet == null)
+                {
+                    wallet = new EnrolleeWallet
+                    {
+                        EnrolleeId = e.Id,
+                        Balance = amountPerEnrollee,
+                        MonthlyAllocation = amountPerEnrollee,
+                        LastDisbursedAt = DateTime.UtcNow
+                    };
+                    _context.EnrolleeWallets.Add(wallet);
+                    await _context.SaveChangesAsync();
+                }
+                else
+                {
+                    wallet.Balance += amountPerEnrollee;
+                    wallet.MonthlyAllocation = amountPerEnrollee;
+                    wallet.LastDisbursedAt = DateTime.UtcNow;
+                    await _context.SaveChangesAsync();
+                }
+                _context.WalletTransactions.Add(new WalletTransaction
+                {
+                    EnrolleeWalletId = wallet.Id,
+                    Amount = amountPerEnrollee,
+                    Type = "Disburse",
+                    Reference = "Monthly Allocation",
+                    Timestamp = DateTime.UtcNow
+                });
+                await _context.SaveChangesAsync();
+                count++;
+            }
+
+            // Audit the bulk disbursement
+            await LogAuditAsync("AdminBulkDisbursement", null, $"AmountPerEnrollee: {amountPerEnrollee:C}; Count: {count}");
+
+            TempData["Success"] = $"Monthly allocation disbursed to {count} enrollees (amount: {amountPerEnrollee:C}).";
+            return RedirectToAction(nameof(Users));
         }
 
 
@@ -255,6 +358,15 @@ namespace CTHIPDashboard.Controllers
             if (toAdd.Any())
                 await _userManager.AddToRolesAsync(user, toAdd);
 
+            // Audit: roles changed
+            try
+            {
+                var added = string.Join(',', toAdd);
+                var removed = string.Join(',', toRemove);
+                await LogAuditAsync("RolesUpdated", user.Email, $"Added:{added}; Removed:{removed}");
+            }
+            catch { }
+
             TempData["Success"] = $"Roles updated for {user.FullName}";
             return RedirectToAction(nameof(Users));
         }
@@ -307,6 +419,13 @@ namespace CTHIPDashboard.Controllers
                             await _userManager.AddToRoleAsync(user, role);
                         }
                     }
+
+                    // Audit: new user created
+                    try
+                    {
+                        await LogAuditAsync("UserCreated", user.Email, $"Created user: {model.FullName}; Roles: {string.Join(',', model.SelectedRoles ?? new List<string>())}");
+                    }
+                    catch { }
 
                     TempData["Success"] = $"User '{model.FullName}' created successfully!";
                     return RedirectToAction("Users", "Admin");
@@ -427,6 +546,13 @@ namespace CTHIPDashboard.Controllers
             var deleteResult = await _userManager.DeleteAsync(user);
             if (deleteResult.Succeeded)
             {
+                // Audit: user deleted
+                try
+                {
+                    await LogAuditAsync("UserDeleted", user.Email, $"Deleted user: {user.FullName ?? user.Email}");
+                }
+                catch { }
+
                 TempData["Success"] = $"User '{user.FullName ?? user.Email}' has been deleted successfully.";
             }
             else

@@ -1,0 +1,133 @@
+﻿@model IEnumerable<dynamic>
+
+@{
+    ViewData["Title"] = $"Enrollees - {ViewBag.State}";
+}
+
+<div class="container-fluid py-5">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="display-5 fw-bold text-success">
+            @ViewBag.State State Enrollees
+            <span class="text-muted fs-4">(@ViewBag.TotalEnrollees total)</span>
+        </h1>
+
+        <a asp-action="ExportEnrollees" asp-route-state="@ViewBag.State"
+           class="btn btn-success btn-lg shadow">
+            <i class="bi bi-file-earmark-excel"></i> Export to Excel
+        </a>
+    </div>
+
+    <!-- Search Form -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <form asp-action="Enrollees" method="get">
+                <input type="hidden" name="state" value="@ViewBag.State" />
+                <div class="row g-3">
+                    <div class="col-md-8">
+                        <input type="text" name="search" value="@ViewBag.Search"
+                               class="form-control form-control-lg rounded-3"
+                               placeholder="Search by name, enrollment number, phone or NIN..." />
+                    </div>
+                    <div class="col-md-4">
+                        <button type="submit" class="btn btn-success btn-lg w-100 rounded-3">Search</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Table -->
+    <div class="card shadow-lg rounded-4 overflow-hidden">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-success">
+                    <tr>
+                        <th>Enrollment #</th>
+                        <th>Full Name</th>
+                        <th>HMO</th>
+                        <th>Phone</th>
+                        <th>LGA</th>
+                        <th>Registered</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (!Model.Any())
+                    {
+                        <tr>
+                            <td colspan="7" class="text-center py-5 text-muted fs-5">
+                                No enrollees found
+                            </td>
+                        </tr>
+                    }
+                    else
+                    {
+                        @foreach (var e in Model)
+                        {
+                            <tr>
+                                <td><strong class="text-primary">@e.EnrollmentNumber</strong></td>
+                                <td>@e.FullName</td>
+                                <td>@e.HmoName</td>
+                                <td>@e.Phone</td>
+                                <td>@e.LGA</td>
+                                <td>@e.DateRegistered.ToString("dd MMM yyyy")</td>
+                                <td>
+                                    <span class="badge bg-success px-3 py-2">@e.Status</span>
+                                </td>
+                            </tr>
+                        }
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- PAGINATION UI -->
+    @if (ViewBag.TotalPages > 1)
+    {
+        <nav class="mt-5 d-flex justify-content-center">
+            <ul class="pagination pagination-lg shadow-sm">
+
+                <!-- Previous -->
+                <li class="page-item @(ViewBag.CurrentPage == 1 ? "disabled" : "")">
+                    <a class="page-link rounded-start-3"
+                       asp-action="Enrollees"
+                       asp-route-state="@ViewBag.State"
+                       asp-route-search="@ViewBag.Search"
+                       asp-route-page="@(ViewBag.CurrentPage - 1)">
+                        ← Previous
+                    </a>
+                </li>
+
+                <!-- Page Numbers -->
+                @for (int i = 1; i <= ViewBag.TotalPages; i++)
+                {
+                    <li class="page-item @(i == ViewBag.CurrentPage ? "active" : "")">
+                        <a class="page-link"
+                           asp-action="Enrollees"
+                           asp-route-state="@ViewBag.State"
+                           asp-route-search="@ViewBag.Search"
+                           asp-route-page="@i">
+                            @i
+                        </a>
+                    </li>
+                }
+
+                <!-- Next -->
+                <li class="page-item @(ViewBag.CurrentPage == ViewBag.TotalPages ? "disabled" : "")">
+                    <a class="page-link rounded-end-3"
+                       asp-action="Enrollees"
+                       asp-route-state="@ViewBag.State"
+                       asp-route-search="@ViewBag.Search"
+                       asp-route-page="@(ViewBag.CurrentPage + 1)">
+                        Next →
+                    </a>
+                </li>
+            </ul>
+        </nav>
+    }
+
+    <div class="text-center text-muted mt-3">
+        Showing page @ViewBag.CurrentPage of @ViewBag.TotalPages
+    </div>
+</div>

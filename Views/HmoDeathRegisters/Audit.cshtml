@@ -1,0 +1,56 @@
+﻿@model CTSHIPDashboard.Models.ViewModels.DeathRegisterAuditViewModel
+
+@{
+    ViewData["Title"] = "Audit Death Register";
+}
+
+<h2>Audit Death Register</h2>
+<p class="text-muted">Approve or reject HMO-verified death register record.</p>
+
+<div class="card mb-3">
+    <div class="card-body row g-3">
+        <div class="col-md-3"><strong>Enrollee No.</strong><br />@Model.EnrolleeNumber</div>
+        <div class="col-md-3"><strong>Full Name</strong><br />@Model.EnrolleeFullName</div>
+        <div class="col-md-3"><strong>Provider</strong><br />@Model.ProviderName</div>
+        <div class="col-md-3"><strong>Date of Death</strong><br />@Model.DateOfDeath.ToString("dd MMM yyyy")</div>
+        <div class="col-md-12"><strong>Cause of Death</strong><br />@Model.CauseOfDeath</div>
+        <div class="col-md-12"><strong>HMO Verification Note</strong><br />@(Model.HmoVerificationNote ?? "No note")</div>
+    </div>
+</div>
+
+<form asp-controller="HmoDeathRegisters" asp-action="Audit" asp-route-id="@Model.Id" method="post">
+    @Html.AntiForgeryToken()
+    <input asp-for="Id" type="hidden" />
+    <input asp-for="EnrolleeNumber" type="hidden" />
+    <input asp-for="EnrolleeFullName" type="hidden" />
+    <input asp-for="ProviderName" type="hidden" />
+    <input asp-for="DateOfDeath" type="hidden" />
+    <input asp-for="CauseOfDeath" type="hidden" />
+    <input asp-for="HmoVerificationNote" type="hidden" />
+
+    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+    <div class="mb-3">
+        <label asp-for="IsApproved" class="form-label"></label>
+        <select asp-for="IsApproved" class="form-select">
+            <option value="true">Approve Audit</option>
+            <option value="false">Reject Audit</option>
+        </select>
+        <span asp-validation-for="IsApproved" class="text-danger"></span>
+    </div>
+
+    <div class="mb-3">
+        <label asp-for="AuditNote" class="form-label"></label>
+        <textarea asp-for="AuditNote" class="form-control" rows="4"></textarea>
+        <span asp-validation-for="AuditNote" class="text-danger"></span>
+    </div>
+
+    <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-dark">Save Audit</button>
+        <a asp-controller="HmoDeathRegisters" asp-action="Details" asp-route-id="@Model.Id" class="btn btn-outline-secondary">Back</a>
+    </div>
+</form>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

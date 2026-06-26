@@ -11,8 +11,8 @@
             <div class="card border-0 shadow-lg rounded-4 overflow-hidden">
                 <!-- Header -->
                 <div class="bg-success text-white text-center py-5">
-                    <h1 class="display-5 fw-bold mb-3">MY PROFILE</h1>
-                    <p class="lead mb-0 opacity-90">CTHIP National Health Insurance Platform</p>
+                    <h1 class="display-5 fw-bold mb-3">My Profile</h1>
+                    <p class="lead mb-0 opacity-90">NEDC Community Targeted Social Health Insurance Program (CTSHIP)</p>
                 </div>
 
                 <div class="card-body p-5">
@@ -27,11 +27,11 @@
                                 <div class="card-body p-4">
                                     <img src="@(Model.Input.PhotoPath ?? "/img/icon-192.png")"
                                          class="rounded-circle shadow"
-                                         style="width:200px;height:200px;object-fit:cover;border:6px solid #006400;"
+                                         style="width:200px;height:200px;object-fit:cover;border:6px solid #3B703B;"
                                          alt="Profile Photo" />
 
-                                    <h4 class="mt-4 fw-light text-success" style="font-size:larger">@Model.Username</h4>
-                                    <p class="text-primary fw-bold fs-5">@Model.Input.FullName</p>
+                                    <h4 class="mt-4 fw-light text-success" style="font-size:larger;color:#C9A247">@Model.Username</h4>
+                                    <p class="text-primary fw-bold fs-5" style="color:#C9A247">@Model.Input.FullName</p>
 
 
                                     @if (!string.IsNullOrEmpty(Model.Input.Role))
@@ -41,12 +41,12 @@
 
                                     @if (!string.IsNullOrEmpty(Model.Input.HmoName))
                                     {
-                                        <p class="mt-3"><strong>HMO:</strong> @Model.Input.HmoName</p>
+                                        <p class="mt-3" style="color:#C9A247"><strong>HMO:</strong> @Model.Input.HmoName</p>
                                     }
 
                                     @if (!string.IsNullOrEmpty(Model.Input.ProviderName))
                                     {
-                                        <p class="mt-3"><strong>Facility:</strong> @Model.Input.ProviderName</p>
+                                        <p class="mt-3" style="color:#C9A247"><strong>Facility:</strong> @Model.Input.ProviderName</p>
                                     }
                                 </div>
                             </div>

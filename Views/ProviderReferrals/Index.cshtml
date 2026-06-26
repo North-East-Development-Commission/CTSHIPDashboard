@@ -1,0 +1,69 @@
+﻿@model IEnumerable<CTSHIPDashboard.ViewModels.ReferralIndexViewModel>
+@{
+    ViewData["Title"] = "Provider Referrals";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h2 class="mb-0">Provider Referrals</h2>
+        <small class="text-muted">Manage referrals and submit them to HMOs for verification.</small>
+    </div>
+    <a asp-controller="ProviderReferrals" asp-action="Create" class="btn btn-primary">Create Referral</a>
+</div>
+
+@if (TempData["SuccessMessage"] != null)
+{
+    <div class="alert alert-success">@TempData["SuccessMessage"]</div>
+}
+@if (TempData["ErrorMessage"] != null)
+{
+    <div class="alert alert-danger">@TempData["ErrorMessage"]</div>
+}
+
+<form method="get" class="card card-body mb-3">
+    <div class="row g-2">
+        <div class="col-md-10">
+            <input name="search" value="@ViewBag.Search" class="form-control" placeholder="Search by enrollee, hospital, provider, diagnosis or HMO" />
+        </div>
+        <div class="col-md-2 d-grid">
+            <button type="submit" class="btn btn-outline-primary">Search</button>
+        </div>
+    </div>
+</form>
+
+<div class="table-responsive">
+    <table class="table table-bordered table-striped align-middle">
+        <thead class="table-light">
+            <tr>
+                <th>Created</th>
+                <th>Enrollee</th>
+                <th>From Provider</th>
+                <th>Referred Hospital</th>
+                <th>Diagnosis</th>
+                <th>Priority</th>
+                <th>Status</th>
+                <th class="text-end">Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var item in Model)
+            {
+                <tr>
+                    <td>@item.CreatedAt.ToLocalTime().ToString("dd MMM yyyy HH:mm")</td>
+                    <td>
+                        <strong>@item.EnrolleeFullName</strong><br />
+                        <small class="text-muted">@item.EnrolleeNumber</small>
+                    </td>
+                    <td>@item.FromProviderName</td>
+                    <td>@item.ReferredHospitalName</td>
+                    <td>@item.Diagnosis</td>
+                    <td>@item.Priority</td>
+                    <td>@await Html.PartialAsync("_ReferralStatusBadge", item.Status)</td>
+                    <td class="text-end">
+                        <a asp-controller="ProviderReferrals" asp-action="Details" asp-route-id="@item.Id" class="btn btn-sm btn-outline-primary">View</a>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>

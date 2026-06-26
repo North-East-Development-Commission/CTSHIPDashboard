@@ -1,0 +1,113 @@
+﻿@model CTSHIPDashboard.ViewModels.ReferralHospitalViewModel
+@{
+    ViewData["Title"] = "Edit Referral Hospital";
+}
+
+<h2>Edit Referral Hospital</h2>
+
+<form asp-controller="ReferralHospitals" asp-action="Edit" asp-route-id="@Model.Id" method="post" class="card card-body">
+    @Html.AntiForgeryToken()
+    <input asp-for="Id" type="hidden" />
+    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+    <div class="row g-3">
+        <div class="col-md-6">
+            <label asp-for="Name" class="form-label"></label>
+            <input asp-for="Name" class="form-control" />
+            <span asp-validation-for="Name" class="text-danger"></span>
+        </div>
+        <div class="col-md-3">
+            <label asp-for="State" class="form-label"></label>
+            <select asp-for="State" asp-items="ViewBag.States" class="form-select" id="State">
+                <option value="">Select State</option>
+            </select>
+            <span asp-validation-for="State" class="text-danger"></span>
+        </div>
+        <div class="col-md-3">
+            <label asp-for="Lga" class="form-label"></label>
+            <select asp-for="Lga" asp-items="ViewBag.Lgas" class="form-select" id="Lga">
+                <option value="">Select LGA</option>
+            </select>
+            <span asp-validation-for="Lga" class="text-danger"></span>
+        </div>
+        <div class="col-md-12">
+            <label asp-for="Address" class="form-label"></label>
+            <input asp-for="Address" class="form-control" />
+            <span asp-validation-for="Address" class="text-danger"></span>
+        </div>
+        <div class="col-md-4">
+            <label asp-for="ContactPerson" class="form-label"></label>
+            <input asp-for="ContactPerson" class="form-control" />
+            <span asp-validation-for="ContactPerson" class="text-danger"></span>
+        </div>
+        <div class="col-md-4">
+            <label asp-for="PhoneNumber" class="form-label"></label>
+            <input asp-for="PhoneNumber" class="form-control" />
+            <span asp-validation-for="PhoneNumber" class="text-danger"></span>
+        </div>
+        <div class="col-md-4">
+            <label asp-for="Email" class="form-label"></label>
+            <input asp-for="Email" class="form-control" />
+            <span asp-validation-for="Email" class="text-danger"></span>
+        </div>
+        <div class="col-md-12">
+            <div class="form-check">
+                <input asp-for="IsActive" class="form-check-input" />
+                <label asp-for="IsActive" class="form-check-label"></label>
+            </div>
+        </div>
+    </div>
+
+    <div class="mt-4 d-flex gap-2">
+        <button type="submit" class="btn btn-success">Update</button>
+        <a asp-controller="ReferralHospitals" asp-action="Index" class="btn btn-light">Cancel</a>
+    </div>
+</form>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const stateSelect = document.getElementById('State');
+            const lgaSelect = document.getElementById('Lga');
+            const initialLga = @Html.Raw(Json.Serialize(Model.Lga ?? string.Empty));
+
+            async function loadLgas(selectedLga) {
+                const state = stateSelect.value;
+                lgaSelect.innerHTML = '<option value="">Loading LGAs...</option>';
+                lgaSelect.disabled = true;
+
+                if (!state) {
+                    lgaSelect.innerHTML = '<option value="">Select State First</option>';
+                    return;
+                }
+
+                const response = await fetch(
+                    '@Url.Action("GetLgasByState", "ReferralHospitals")'
+                    + `?state=${encodeURIComponent(state)}`);
+                const lgas = response.ok ? await response.json() : [];
+
+                lgaSelect.innerHTML = '<option value="">Select LGA</option>';
+                lgas.forEach(function (lga) {
+                    const option = document.createElement('option');
+                    option.value = lga;
+                    option.textContent = lga;
+                    lgaSelect.appendChild(option);
+                });
+                lgaSelect.disabled = false;
+
+                if (selectedLga) {
+                    lgaSelect.value = selectedLga;
+                }
+            }
+
+            stateSelect.addEventListener('change', function () {
+                loadLgas('');
+            });
+
+            if (stateSelect.value && lgaSelect.options.length <= 1) {
+                loadLgas(initialLga);
+            }
+        });
+    </script>
+}

@@ -5,6 +5,7 @@ using CTSHIPDashboard.Models;
 using CTSHIPDashboard.Models.ViewModels;
 using CTSHIPDashboard.ViewModels;
 using Microsoft.AspNetCore.Authorization;
+using CTSHIPDashboard.Models.Enums;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
@@ -73,6 +74,11 @@ public class ProvidersController : Controller
         ViewBag.TotalEnrollees = await _context.Enrollees.CountAsync();
         ViewBag.TotalEncounters = await _context.Encounters.CountAsync();
 
+        // Death stats
+        var totalDeaths = await _context.DeathRegisters.CountAsync(d => !d.IsDeleted && d.Status == DeathRegisterStatus.Audited);
+        ViewBag.DeathCount = totalDeaths;
+        ViewBag.DeathRatePerThousand = (ViewBag.TotalEnrollees > 0) ? Math.Round((double)totalDeaths / (double)ViewBag.TotalEnrollees * 1000.0, 2) : 0;
+
         // PAGINATION
         var totalRecords = await providers.CountAsync();
         var totalPages = (int)Math.Ceiling(totalRecords / (double)pageSize);
@@ -116,6 +122,27 @@ public class ProvidersController : Controller
             new() { Value = "Private", Text = "Private Hospitals" },
             new() { Value = "Primary", Text = "Primary Health Centres" }
         };
+
+        return View(model);
+    }
+
+    [Authorize(Roles = "Provider,Admin,HMO")]
+    public async Task<IActionResult> WalletSummary(int id)
+    {
+        var provider = await _context.Providers
+            .Include(p => p.Enrollees)
+            .FirstOrDefaultAsync(p => p.Id == id);
+
+        if (provider == null) return NotFound();
+
+        // For each enrollee under this provider, load wallet
+        var enrolleeIds = provider.Enrollees?.Select(e => e.Id).ToList() ?? new List<int>();
+        var wallets = await _context.EnrolleeWallets
+            .Where(w => enrolleeIds.Contains(w.EnrolleeId))
+            .ToListAsync();
+
+        var model = provider;
+        ViewBag.Wallets = wallets.ToDictionary(w => w.EnrolleeId, w => w);
 
         return View(model);
     }
@@ -411,6 +438,9 @@ public class ProvidersController : Controller
         var provider = await _context.Providers
             .Include(p => p.Encounters)
                 .ThenInclude(e => e.Enrollee)
+            .Include(p => p.Encounters)
+                .ThenInclude(e => e.Doctor)
+            .Include(p => p.Doctors)
             .Include(p => p.Claims)
             .FirstOrDefaultAsync(p =>
                 p.Email == currentUser.Email ||
@@ -435,8 +465,8 @@ public class ProvidersController : Controller
 
         // TOP DOCTORS
         var topDoctors = provider.Encounters?
-            .Where(e => !string.IsNullOrEmpty(e.SeenBy))
-            .GroupBy(e => e.SeenBy!.Trim())
+            .Where(e => e.Doctor != null || !string.IsNullOrEmpty(e.SeenBy))
+            .GroupBy(e => e.Doctor != null ? e.Doctor.FullName : e.SeenBy!.Trim())
             .Select(g => new TopDoctorStats
             {
                 DoctorName = g.Key,
@@ -446,6 +476,21 @@ public class ProvidersController : Controller
             .OrderByDescending(g => g.EncounterCount)
             .Take(5)
             .ToList() ?? new List<TopDoctorStats>();
+
+        var providerServices = await _context.EncounterServices
+            .AsNoTracking()
+            .Where(x => x.Encounter != null && x.Encounter.ProviderId == provider.Id)
+            .GroupBy(x => new { x.ServiceName, x.ServiceSetting })
+            .Select(x => new CTSHIPDashboard.Models.ViewModels.ServiceFrequencyViewModel
+            {
+                ServiceName = x.Key.ServiceName,
+                ServiceSetting = x.Key.ServiceSetting,
+                Frequency = x.Count()
+            })
+            .OrderByDescending(x => x.Frequency)
+            .ThenBy(x => x.ServiceName)
+            .Take(10)
+            .ToListAsync();
 
         // BUILD VIEWMODEL
         var viewModel = new ProviderDashboardViewModel
@@ -457,6 +502,7 @@ public class ProvidersController : Controller
             State = provider.State,
 
             TotalUniqueEnrollees = uniqueEnrolleeIds.Count,
+            TotalDoctors = provider.Doctors?.Count(doctor => doctor.IsActive) ?? 0,
             TotalEncounters = provider.Encounters?.Count ?? 0,
             TotalClaims = provider.Claims?.Count ?? 0,
             TotalClaimAmount = provider.Claims?.Sum(c => c.Amount) ?? 0,
@@ -471,7 +517,8 @@ public class ProvidersController : Controller
             Claims = provider.Claims?.ToList() ?? new List<Claim>(),   // FIXED!
             //ctrl a, alt hoi, alt hoa
             Enrollees = enrollees,
-            TopDoctors = topDoctors
+            TopDoctors = topDoctors,
+            MostUsedServices = providerServices
         };
 
         return View(viewModel);
@@ -565,6 +612,7 @@ public class ProvidersController : Controller
             .OrderByDescending(e => e.VisitDate)
             .Include(e => e.Enrollee)
                 .ThenInclude(e => e.Hmo)
+            .Include(e => e.Doctor)
             .Where(e => e.ProviderId == providerId);
 
         // SEARCH
@@ -605,9 +653,9 @@ public class ProvidersController : Controller
             .Include(e => e.Enrollee)
                 .ThenInclude(en => en.Hmo)
             .Include(e => e.Provider)
+            .Include(e => e.Doctor)
             .FirstOrDefaultAsync(e => e.Id == id);
         var currentUser = await _userManager.GetUserAsync(User);
-        encounter.AttendedBy = currentUser?.Email ?? "Unknown User";
 
         if (encounter == null)
         {
@@ -615,13 +663,28 @@ public class ProvidersController : Controller
             return RedirectToAction(nameof(Index));
         }
 
-        // Populate dropdowns (if needed)
+        if (User.IsInRole("Provider") && currentUser?.ProviderId != encounter.ProviderId)
+        {
+            return Forbid();
+        }
+
         ViewBag.Providers = await _context.Providers
-            .Where(p => p.IsActive)
+            .Where(p => p.IsActive && (User.IsInRole("Admin") || p.Id == encounter.ProviderId))
             .Select(p => new SelectListItem
             {
                 Value = p.Id.ToString(),
                 Text = $"{p.Name} - {p.State}"
+            })
+            .ToListAsync();
+
+        ViewBag.Doctors = await _context.Doctors
+            .Where(doctor => doctor.ProviderId == encounter.ProviderId
+                && (doctor.IsActive || doctor.Id == encounter.DoctorId))
+            .OrderBy(doctor => doctor.FullName)
+            .Select(doctor => new SelectListItem
+            {
+                Value = doctor.Id.ToString(),
+                Text = doctor.FullName + " — " + doctor.Specialty
             })
             .ToListAsync();
 
@@ -640,9 +703,52 @@ public class ProvidersController : Controller
     {
         if (id != model.Id) return NotFound();
 
-        // Only allow certain fields to be edited
         var encounter = await _context.Encounters.FindAsync(id);
         if (encounter == null) return NotFound();
+
+        var currentUser = await _userManager.GetUserAsync(User);
+        if (User.IsInRole("Provider") && currentUser?.ProviderId != encounter.ProviderId)
+        {
+            return Forbid();
+        }
+
+        Doctor? doctor = await _context.Doctors.FirstOrDefaultAsync(candidate =>
+            candidate.Id == model.DoctorId
+            && candidate.ProviderId == encounter.ProviderId
+            && (candidate.IsActive || candidate.Id == encounter.DoctorId));
+
+        if (doctor == null)
+        {
+            ModelState.AddModelError(nameof(model.DoctorId), "Select an active doctor registered under this facility.");
+        }
+
+        if (!ModelState.IsValid)
+        {
+            model.Enrollee = await _context.Enrollees
+                .Include(enrollee => enrollee.Hmo)
+                .FirstOrDefaultAsync(enrollee => enrollee.Id == encounter.EnrolleeId);
+            model.ProviderId = encounter.ProviderId;
+            ViewBag.Providers = await _context.Providers
+                .Where(provider => provider.Id == encounter.ProviderId)
+                .Select(provider => new SelectListItem
+                {
+                    Value = provider.Id.ToString(),
+                    Text = provider.Name + " - " + provider.State
+                })
+                .ToListAsync();
+            ViewBag.Doctors = await _context.Doctors
+                .Where(candidate => candidate.ProviderId == encounter.ProviderId
+                    && (candidate.IsActive || candidate.Id == encounter.DoctorId))
+                .OrderBy(candidate => candidate.FullName)
+                .Select(candidate => new SelectListItem
+                {
+                    Value = candidate.Id.ToString(),
+                    Text = candidate.FullName + " — " + candidate.Specialty
+                })
+                .ToListAsync();
+            ViewBag.Statuses = new SelectList(new[] { "Pending", "Completed", "Cancelled", "Referred", "Claimed" });
+            return View(model);
+        }
 
         // Update allowed fields
         encounter.VisitDate = model.VisitDate;
@@ -651,8 +757,11 @@ public class ProvidersController : Controller
         encounter.TreatmentGiven = model.TreatmentGiven;
         encounter.Notes = model.Notes;
         encounter.Status = model.Status;
-        encounter.ProviderId = model.ProviderId; // Allow changing provider if needed
-        var currentUser = await _userManager.GetUserAsync(User);
+        encounter.DoctorId = doctor!.Id;
+        encounter.SeenBy = doctor.FullName;
+        encounter.Rank = string.IsNullOrWhiteSpace(doctor.Designation)
+            ? doctor.Specialty
+            : doctor.Designation;
         encounter.AttendedBy = currentUser?.Email ?? "Unknown User";
 
         // Recalculate total amount if fees were changed (optional)
@@ -760,11 +869,12 @@ public class ProvidersController : Controller
         var encounter = await _context.Encounters
             .Include(e => e.Enrollee).ThenInclude(e => e!.Hmo)
             .Include(e => e.Provider)
+            .Include(e => e.Doctor)
             .Include(e => e.Claim)
             .FirstOrDefaultAsync(e => e.Id == id);
         var currentUser = await _userManager.GetUserAsync(User);
-        encounter.AttendedBy = currentUser?.Email ?? "Unknown User";
         if (encounter == null) return NotFound();
+        if (User.IsInRole("Provider") && currentUser?.ProviderId != encounter.ProviderId) return Forbid();
         return View(encounter);
     }
 
@@ -776,8 +886,6 @@ public class ProvidersController : Controller
             .Include(e => e.Hmo)
             .Include(e => e.MedicalHistories)
             .FirstOrDefaultAsync(e => e.Id == id);
-        var currentUser = await _userManager.GetUserAsync(User);
-        enrollee.RegisteredBy = currentUser?.Email ?? "Unknown User";
         if (enrollee == null) return NotFound();
         return View(enrollee);
     }

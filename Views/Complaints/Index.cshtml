@@ -1,0 +1,143 @@
+@model IEnumerable<CTSHIPDashboard.Models.Complaint>
+@using CTSHIPDashboard.Models.Enums
+@{
+    ViewData["Title"] = "Complaint Management";
+}
+
+<div class="container-fluid py-4">
+    <div class="ct-page-header d-flex flex-wrap justify-content-between align-items-center gap-3">
+        <div>
+            <h1 class="mb-1">Complaint Management</h1>
+            <p class="mb-0">Track, escalate, resolve, and monitor programme complaints.</p>
+        </div>
+        <a asp-action="Create" class="btn btn-warning text-white btn-lg">
+            <i class="bi bi-plus-circle me-2"></i>Submit Complaint
+        </a>
+    </div>
+
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body">
+            <form method="get" class="row g-3 align-items-end">
+                <div class="col-lg-5">
+                    <label class="form-label fw-bold">Search</label>
+                    <input name="search" value="@ViewBag.Search" class="form-control form-control-lg"
+                           placeholder="Reference, subject, details, or submitter" />
+                </div>
+                <div class="col-lg-3">
+                    <label class="form-label fw-bold">Status</label>
+                    <select name="status" class="form-select form-select-lg">
+                        <option value="">All Statuses</option>
+                        @foreach (ComplaintStatus item in Enum.GetValues<ComplaintStatus>())
+                        {
+                            <option value="@item" selected="@(ViewBag.Status?.ToString() == item.ToString())">@item</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-lg-2">
+                    <label class="form-label fw-bold">Priority</label>
+                    <select name="priority" class="form-select form-select-lg">
+                        <option value="">All Priorities</option>
+                        @foreach (ComplaintPriority item in Enum.GetValues<ComplaintPriority>())
+                        {
+                            <option value="@item" selected="@(ViewBag.Priority?.ToString() == item.ToString())">@item</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-lg-2">
+                    <button class="btn btn-success btn-lg w-100">Filter</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-lg">
+        <div class="card-header bg-success text-white py-3">
+            <h4 class="mb-0">Complaint Register (@ViewBag.TotalItems)</h4>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th>Reference</th>
+                            <th>Subject</th>
+                            <th>Scope</th>
+                            <th>Category</th>
+                            <th>Priority</th>
+                            <th>Status</th>
+                            <th>Submitted</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (!Model.Any())
+                        {
+                            <tr><td colspan="8" class="text-center py-5 text-muted">No complaints found.</td></tr>
+                        }
+                        else
+                        {
+                            @foreach (var complaint in Model)
+                            {
+                                string priorityClass = complaint.Priority switch
+                                {
+                                    ComplaintPriority.Critical => "bg-danger",
+                                    ComplaintPriority.High => "bg-warning text-white",
+                                    ComplaintPriority.Medium => "bg-success",
+                                    _ => "bg-secondary"
+                                };
+                                string statusClass = complaint.Status switch
+                                {
+                                    ComplaintStatus.Resolved or ComplaintStatus.Closed => "bg-success",
+                                    ComplaintStatus.Escalated => "bg-danger",
+                                    ComplaintStatus.InProgress => "bg-warning text-white",
+                                    ComplaintStatus.Rejected => "bg-secondary",
+                                    _ => "bg-warning text-white"
+                                };
+                                <tr>
+                                    <td class="fw-bold">@complaint.ReferenceNumber</td>
+                                    <td>
+                                        <strong>@complaint.Subject</strong><br />
+                                        <small class="text-muted">@complaint.SubmittedByName</small>
+                                    </td>
+                                    <td>
+                                        <div>@complaint.State</div>
+                                        <small>@(complaint.Provider?.Name ?? complaint.Hmo?.Name ?? "Programme")</small>
+                                    </td>
+                                    <td>@complaint.Category</td>
+                                    <td><span class="badge @priorityClass">@complaint.Priority</span></td>
+                                    <td><span class="badge @statusClass">@complaint.Status</span></td>
+                                    <td>@complaint.CreatedAt.ToLocalTime().ToString("dd MMM yyyy")</td>
+                                    <td class="text-nowrap">
+                                        <a asp-action="Details" asp-route-id="@complaint.Id" class="btn btn-sm btn-outline-success">Details</a>
+                                        @if (ViewBag.CanManage)
+                                        {
+                                            <a asp-action="Manage" asp-route-id="@complaint.Id" class="btn btn-sm btn-success">Manage</a>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    @if (ViewBag.TotalPages > 1)
+    {
+        <nav class="mt-4">
+            <ul class="pagination justify-content-center">
+                @for (int pageNumber = 1; pageNumber <= ViewBag.TotalPages; pageNumber++)
+                {
+                    <li class="page-item @(pageNumber == ViewBag.CurrentPage ? "active" : "")">
+                        <a class="page-link" asp-action="Index"
+                           asp-route-search="@ViewBag.Search"
+                           asp-route-status="@ViewBag.Status"
+                           asp-route-priority="@ViewBag.Priority"
+                           asp-route-page="@pageNumber">@pageNumber</a>
+                    </li>
+                }
+            </ul>
+        </nav>
+    }
+</div>

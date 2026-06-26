@@ -1,0 +1,62 @@
+@model CTSHIPDashboard.ViewModels.ReferralHospitalViewModel
+@{
+    ViewData["Title"] = "Delete Referral Hospital";
+    int referralCount = ViewBag.ReferralCount ?? 0;
+}
+
+<div class="card border-0 shadow-sm">
+    <div class="card-header text-white" style="background:#3B703B;">
+        <h2 class="mb-0">Delete Referral Hospital</h2>
+    </div>
+    <div class="card-body">
+        <div class="alert @(referralCount > 0 ? "alert-warning" : "alert-danger")">
+            @if (referralCount > 0)
+            {
+                <span>
+                    This hospital already has @referralCount referral record(s). It will be deactivated instead of permanently deleted,
+                    so old referral history remains safe.
+                </span>
+            }
+            else
+            {
+                <span>
+                    This hospital has no referral records yet. It can be permanently deleted.
+                </span>
+            }
+        </div>
+
+        <dl class="row mb-4">
+            <dt class="col-sm-3">Hospital</dt>
+            <dd class="col-sm-9">@Model.Name</dd>
+
+            <dt class="col-sm-3">Location</dt>
+            <dd class="col-sm-9">@Model.Lga, @Model.State</dd>
+
+            <dt class="col-sm-3">Contact</dt>
+            <dd class="col-sm-9">
+                @(string.IsNullOrWhiteSpace(Model.ContactPerson) ? "—" : Model.ContactPerson)<br />
+                <small class="text-muted">@(string.IsNullOrWhiteSpace(Model.PhoneNumber) ? "No phone number" : Model.PhoneNumber)</small>
+            </dd>
+
+            <dt class="col-sm-3">Status</dt>
+            <dd class="col-sm-9">
+                @if (Model.IsActive)
+                {
+                    <span class="badge bg-success">Active</span>
+                }
+                else
+                {
+                    <span class="badge bg-secondary">Inactive</span>
+                }
+            </dd>
+        </dl>
+
+        <form asp-controller="ReferralHospitals" asp-action="Delete" asp-route-id="@Model.Id" method="post" class="d-flex gap-2">
+            @Html.AntiForgeryToken()
+            <button type="submit" class="btn btn-danger">
+                @(referralCount > 0 ? "Deactivate Hospital" : "Delete Hospital")
+            </button>
+            <a asp-controller="ReferralHospitals" asp-action="Index" class="btn btn-light">Cancel</a>
+        </form>
+    </div>
+</div>

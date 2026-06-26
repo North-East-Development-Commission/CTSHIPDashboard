@@ -1,0 +1,167 @@
+@model CTSHIPDashboard.Models.Enrollee
+@using CTSHIPDashboard.Helpers
+
+<div class="col-md-6">
+    <label asp-for="State" class="form-label text-success fw-bold"></label>
+    <select asp-for="State" class="form-select form-select-lg" id="State" required>
+        <option value="">Select State</option>
+        @foreach (string state in NorthEastLocationData.States)
+        {
+            <option value="@state">@state</option>
+        }
+    </select>
+    <span asp-validation-for="State" class="text-danger"></span>
+</div>
+
+<div class="col-md-6">
+    <label asp-for="LGA" class="form-label text-success fw-bold"></label>
+    <select asp-for="LGA" class="form-select form-select-lg" id="LGA" required disabled>
+        <option value="">Select a state first</option>
+    </select>
+    <span asp-validation-for="LGA" class="text-danger"></span>
+</div>
+
+<div class="col-md-6">
+    <label asp-for="Ward" class="form-label text-success fw-bold"></label>
+    <input asp-for="Ward" type="hidden" id="WardValue" />
+    <select class="form-select form-select-lg" id="WardSelect" required disabled>
+        <option value="">Select an LGA first</option>
+    </select>
+    <div id="CustomWardWrap" class="mt-2 d-none">
+        <input type="text" id="CustomWard" class="form-control form-control-lg"
+               placeholder="Enter ward name" />
+        <small class="text-muted">Enter the ward when it is not yet available in the list.</small>
+    </div>
+    <span asp-validation-for="Ward" class="text-danger"></span>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const stateSelect = document.getElementById('State');
+        const lgaSelect = document.getElementById('LGA');
+        const wardSelect = document.getElementById('WardSelect');
+        const wardValue = document.getElementById('WardValue');
+        const customWardWrap = document.getElementById('CustomWardWrap');
+        const customWard = document.getElementById('CustomWard');
+        const initialLga = @Html.Raw(Json.Serialize(Model.LGA ?? string.Empty));
+        const initialWard = @Html.Raw(Json.Serialize(Model.Ward ?? string.Empty));
+
+        function resetWard(message) {
+            wardSelect.innerHTML = `<option value="">${message}</option>`;
+            wardSelect.disabled = true;
+            customWardWrap.classList.add('d-none');
+            customWard.required = false;
+            customWard.value = '';
+            wardValue.value = '';
+        }
+
+        function showCustomWard(value) {
+            customWardWrap.classList.remove('d-none');
+            customWard.required = true;
+            customWard.value = value || '';
+            wardValue.value = customWard.value.trim();
+            customWard.focus();
+        }
+
+        async function loadWards(selectedWard) {
+            const state = stateSelect.value;
+            const lga = lgaSelect.value;
+            resetWard('Loading wards...');
+
+            if (!state || !lga) {
+                resetWard('Select an LGA first');
+                return;
+            }
+
+            const response = await fetch(
+                '@Url.Action("GetWardsByLga", "Enrollees")'
+                + `?state=${encodeURIComponent(state)}&lga=${encodeURIComponent(lga)}`);
+            const wards = response.ok ? await response.json() : [];
+
+            wardSelect.innerHTML = '<option value="">Select Ward</option>';
+            wards.forEach(function (ward) {
+                const option = document.createElement('option');
+                option.value = ward;
+                option.textContent = ward;
+                wardSelect.appendChild(option);
+            });
+
+            if (selectedWard && !wards.some(ward =>
+                ward.toLowerCase() === selectedWard.toLowerCase())) {
+                const currentOption = document.createElement('option');
+                currentOption.value = selectedWard;
+                currentOption.textContent = selectedWard;
+                wardSelect.appendChild(currentOption);
+            }
+
+            const otherOption = document.createElement('option');
+            otherOption.value = '__OTHER__';
+            otherOption.textContent = 'Other / Enter ward manually';
+            wardSelect.appendChild(otherOption);
+            wardSelect.disabled = false;
+
+            if (selectedWard) {
+                wardSelect.value = selectedWard;
+                wardValue.value = selectedWard;
+            }
+        }
+
+        async function loadLgas(selectedLga, selectedWard) {
+            const state = stateSelect.value;
+            lgaSelect.innerHTML = '<option value="">Loading LGAs...</option>';
+            lgaSelect.disabled = true;
+            resetWard('Select an LGA first');
+
+            if (!state) {
+                lgaSelect.innerHTML = '<option value="">Select a state first</option>';
+                return;
+            }
+
+            const response = await fetch(
+                '@Url.Action("GetLgasByState", "Enrollees")'
+                + `?state=${encodeURIComponent(state)}`);
+            const lgas = response.ok ? await response.json() : [];
+
+            lgaSelect.innerHTML = '<option value="">Select LGA</option>';
+            lgas.forEach(function (lga) {
+                const option = document.createElement('option');
+                option.value = lga;
+                option.textContent = lga;
+                lgaSelect.appendChild(option);
+            });
+            lgaSelect.disabled = false;
+
+            if (selectedLga) {
+                lgaSelect.value = selectedLga;
+                await loadWards(selectedWard);
+            }
+        }
+
+        stateSelect.addEventListener('change', function () {
+            loadLgas('', '');
+        });
+
+        lgaSelect.addEventListener('change', function () {
+            loadWards('');
+        });
+
+        wardSelect.addEventListener('change', function () {
+            if (wardSelect.value === '__OTHER__') {
+                showCustomWard('');
+            } else {
+                customWardWrap.classList.add('d-none');
+                customWard.required = false;
+                customWard.value = '';
+                wardValue.value = wardSelect.value;
+            }
+        });
+
+        customWard.addEventListener('input', function () {
+            wardValue.value = customWard.value.trim();
+        });
+
+        if (stateSelect.value) {
+            loadLgas(initialLga, initialWard);
+        }
+    });
+</script>

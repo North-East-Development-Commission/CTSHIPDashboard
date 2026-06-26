@@ -62,6 +62,54 @@
     </div>
 </div>
 
+<!-- Recent enrollees for NHIA with links to details -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card shadow-sm">
+            <div class="card-header bg-success text-white">
+                <strong>Recent Enrollees</strong>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="bg-light">
+                            <tr>
+                                <th>Enrollment #</th>
+                                <th>Name</th>
+                                <th>HMO</th>
+                                <th>Registered</th>
+                                <th>Status</th>
+                                <th style="width:120px">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach(var e in Model.RecentEnrollees)
+                            {
+                                <tr>
+                                    <td>@e.EnrollmentNumber</td>
+                                    <td>
+                                        <a asp-controller="Enrollees" asp-action="Details" asp-route-id="@e.Id" class="text-success">
+                                            @e.FullName
+                                        </a>
+                                    </td>
+                                    <td>@e.HmoName</td>
+                                    <td>@e.DateRegistered.ToString("yyyy-MM-dd")</td>
+                                    <td>@e.Status</td>
+                                    <td>
+                                        <a asp-controller="Enrollees" asp-action="Details" asp-route-id="@e.Id" class="btn btn-sm btn-outline-success">
+                                            View
+                                        </a>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 @section Scripts {
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 

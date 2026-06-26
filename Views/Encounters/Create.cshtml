@@ -55,8 +55,15 @@
 
                             <div class="col-md-4">
                                 <label asp-for="VisitType" class="form-label text-success fw-bold">Visit Type</label>
-                                <input asp-for="VisitType" class="form-control form-control" placeholder="e.g., Emergency, ANC, Follow-up" required />
+                                <select asp-for="VisitType" class="form-select" required>
+                                    <option value="">Select visit type</option>
+                                    <option>New Visit</option>
+                                    <option>Follow-up</option>
+                                    <option>Emergency</option>
+                                    <option>Referral</option>
+                                </select>
                             </div>
+                            <partial name="_ServiceSelection" model="Model" />
                             <div class="col-md-4">
                                 <label asp-for="BloodPressure" class="form-label text-success fw-bold">Blood Pressure</label>
                                 <input asp-for="BloodPressure"
@@ -81,12 +88,11 @@
                             </div>
 
                             <div class="col-md-4">
-                                <label asp-for="SeenBy" class="form-label text-success fw-bold">Attended By</label>
-                                <input asp-for="SeenBy" class="form-control form-control" required />
-                            </div>
-                            <div class="col-md-4">
-                                <label asp-for="Rank" class="form-label text-success fw-bold">Rank</label>
-                                <input asp-for="Rank" class="form-control form-control" required />
+                                <label asp-for="DoctorId" class="form-label text-success fw-bold">Attending Doctor</label>
+                                <select asp-for="DoctorId" class="form-select form-select-lg" asp-items="ViewBag.Doctors" required>
+                                    <option value="">Select Doctor</option>
+                                </select>
+                                <span asp-validation-for="DoctorId" class="text-danger"></span>
                             </div>
 
                             <!-- VITALS -->
@@ -119,7 +125,7 @@
                             <!-- FEES -->
                             <div class="col-md-4">
                                 <label asp-for="ConsultationFee" class="form-label text-success fw-bold">Consultation Fee (₦)</label>
-                                <input asp-for="ConsultationFee" class="form-control form-control-lg text-end" type="number"" />
+                                <input asp-for="ConsultationFee" class="form-control form-control-lg text-end" type="number" />
                             </div>
                             <div class="col-md-4">
                                 <label asp-for="LabFee" class="form-label text-success fw-bold">Lab Fee (₦)</label>
@@ -164,10 +170,24 @@
 </div>
 
 @section Scripts {
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-
-
     <script>
+        function filterServicesBySetting() {
+            const setting = document.getElementById('serviceSetting').value;
+            const select = document.getElementById('selectedServices');
+
+            Array.from(select.querySelectorAll('optgroup')).forEach(group => {
+                const enabled = group.dataset.setting === setting;
+                Array.from(group.children).forEach(option => {
+                    option.disabled = !enabled;
+                    if (!enabled) option.selected = false;
+                });
+            });
+            $(select).trigger('change.select2');
+        }
+
+        document.getElementById('serviceSetting').addEventListener('change', filterServicesBySetting);
+        filterServicesBySetting();
+
         async function searchEnrollee() {
             const query = document.getElementById('enrollmentSearch').value.trim();
             if (!query) return Swal.fire('Error', 'Enter Enrollment Number', 'error');

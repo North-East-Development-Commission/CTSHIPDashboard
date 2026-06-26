@@ -1,0 +1,14 @@
+﻿@model CTSHIPDashboard.Enums.ReferralStatus
+@{
+    string cssClass = Model switch
+    {
+        CTSHIPDashboard.Enums.ReferralStatus.Draft => "badge bg-secondary",
+        CTSHIPDashboard.Enums.ReferralStatus.SubmittedToHmo => "badge bg-info text-dark",
+        CTSHIPDashboard.Enums.ReferralStatus.Verified => "badge bg-success",
+        CTSHIPDashboard.Enums.ReferralStatus.Rejected => "badge bg-danger",
+        CTSHIPDashboard.Enums.ReferralStatus.Audited => "badge bg-primary",
+        CTSHIPDashboard.Enums.ReferralStatus.Closed => "badge bg-dark",
+        _ => "badge bg-secondary"
+    };
+}
+<span class="@cssClass">@Model</span>

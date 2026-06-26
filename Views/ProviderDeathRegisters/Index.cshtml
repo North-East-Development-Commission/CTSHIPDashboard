@@ -1,0 +1,118 @@
+@model IEnumerable<CTSHIPDashboard.Models.ViewModels.DeathRegisterIndexViewModel>
+@using CTSHIPDashboard.Models.Enums
+
+@{
+    ViewData["Title"] = "Provider Death Registers";
+}
+
+<div class="ct-page">
+    <div class="ct-page-header d-flex flex-wrap justify-content-between align-items-center gap-3">
+        <div>
+            <h2 class="mb-1">Provider Death Registers</h2>
+            <p class="mb-0">Create, submit, and track death records for enrollees assigned to your facility.</p>
+        </div>
+        <a asp-controller="Providers" asp-action="MyEnrollees" class="btn btn-warning text-white">
+            <i class="bi bi-person-lines-fill me-1"></i> Select Enrollee
+        </a>
+    </div>
+
+    @if (TempData["SuccessMessage"] != null)
+    {
+        <div class="alert alert-success">@TempData["SuccessMessage"]</div>
+    }
+    @if (TempData["ErrorMessage"] != null)
+    {
+        <div class="alert alert-danger">@TempData["ErrorMessage"]</div>
+    }
+
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body">
+            <form method="get" class="row g-2 align-items-end">
+                <div class="col-md-10">
+                    <label for="deathRegisterSearch" class="form-label fw-bold">Search death registers</label>
+                    <input id="deathRegisterSearch" type="text" name="search" value="@ViewBag.Search"
+                           class="form-control"
+                           placeholder="Enrollee number, name, HMO, provider, or cause of death" />
+                </div>
+                <div class="col-md-2 d-grid">
+                    <button type="submit" class="btn btn-success">
+                        <i class="bi bi-search me-1"></i> Search
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-sm">
+        <div class="card-header bg-success text-white py-3">
+            <h4 class="mb-0">Death Register Records (@Model.Count())</h4>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover table-striped align-middle mb-0 ct-wide-table">
+                <thead>
+                    <tr>
+                        <th>Enrollee No.</th>
+                        <th>Full Name</th>
+                        <th>HMO</th>
+                        <th>Date of Death</th>
+                        <th>Cause of Death</th>
+                        <th>Status</th>
+                        <th>Created</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var item in Model)
+                    {
+                        <tr>
+                            <td class="fw-bold">@item.EnrolleeNumber</td>
+                            <td>@item.EnrolleeFullName</td>
+                            <td>@(!string.IsNullOrWhiteSpace(item.HmoName) ? item.HmoName : item.HmoCode)</td>
+                            <td>@item.DateOfDeath.ToString("dd MMM yyyy")</td>
+                            <td>@item.CauseOfDeath</td>
+                            <td>
+                                @switch (item.Status)
+                                {
+                                    case DeathRegisterStatus.Draft:
+                                        <span class="badge bg-secondary">Draft</span>
+                                        break;
+                                    case DeathRegisterStatus.SubmittedToHmo:
+                                        <span class="badge bg-warning text-white">Pending HMO Verification</span>
+                                        break;
+                                    case DeathRegisterStatus.HmoVerified:
+                                        <span class="badge bg-success">HMO Verified</span>
+                                        break;
+                                    case DeathRegisterStatus.HmoRejected:
+                                        <span class="badge bg-danger">HMO Rejected</span>
+                                        break;
+                                    case DeathRegisterStatus.Audited:
+                                        <span class="badge bg-success">Audited</span>
+                                        break;
+                                    case DeathRegisterStatus.AuditRejected:
+                                        <span class="badge bg-danger">Audit Rejected</span>
+                                        break;
+                                    case DeathRegisterStatus.Cancelled:
+                                        <span class="badge bg-secondary">Cancelled</span>
+                                        break;
+                                }
+                            </td>
+                            <td>@item.CreatedAt.ToString("dd MMM yyyy")</td>
+                            <td>
+                                <a asp-action="Details" asp-route-id="@item.Id"
+                                   class="btn btn-sm btn-outline-success">View Details</a>
+                            </td>
+                        </tr>
+                    }
+                    @if (!Model.Any())
+                    {
+                        <tr>
+                            <td colspan="8" class="text-center text-muted py-5">
+                                No death register record found.
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>

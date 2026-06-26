@@ -1,4 +1,5 @@
 ﻿using CTSHIPDashboard.Models;
+using CTSHIPDashboard.Models.ViewModels;
 using System;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
@@ -57,6 +58,19 @@ namespace CTSHIPDashboard.Models
         [StringLength(100)]
         public string LGA { get; set; } = string.Empty; // Local Government Area
 
+        [Display(Name = "Pregnant Woman")]
+        public bool IsPregnant { get; set; }
+
+        [Display(Name = "Person Living with Disability (PLWD)")]
+        public bool HasDisability { get; set; }
+
+        [Display(Name = "Internally Displaced Person (IDP)")]
+        public bool IsIdp { get; set; }
+
+        [StringLength(100)]
+        [Display(Name = "Other Vulnerable Category")]
+        public string? OtherVulnerableCategory { get; set; }
+
         // COVERAGE & HMO
         
         [Display(Name = "HmoId")]
@@ -91,11 +105,36 @@ namespace CTSHIPDashboard.Models
         public IFormFile? PhotoFile { get; set; }
 
         // NAVIGATION PROPERTIES
-//public virtual ICollection<Claim> Claims { get; set; } = new List<Claim>();
+        //public virtual ICollection<Claim> Claims { get; set; } = new List<Claim>();
+        //admin @nhia.gov.ng / Nigeria@2025!
         public virtual ICollection<Claim>? Claims { get; set; }
         public virtual ICollection<Encounter> Encounters { get; set; } = new List<Encounter>();
 
         public ICollection<MedicalHistory>? MedicalHistories { get; set; }
-    
+
+        public bool IsActive { get; internal set; }
+
+        // Read-only computed property — perfect!
+        public string StatusBadgeClass => Status?.ToLowerInvariant() switch
+        {
+            "active" => "bg-success",
+            "inactive" => "bg-secondary",
+            "suspended" => "bg-danger",
+            "terminated" => "bg-dark",
+            "pending" => "bg-warning text-dark",
+            _ => "bg-light text-dark"
+        };
+
+        public string StatusDisplay => Status?.ToLowerInvariant() switch
+        {
+            "active" => "Active",
+            "inactive" => "Inactive",
+            "suspended" => "Suspended",
+            "terminated" => "Terminated",
+            "pending" => "Pending Approval",
+            _ => Status ?? "Unknown"
+        };
+        [NotMapped]
+        public EnrolleeDeathStatusViewModel DeathStatus { get; set; } = EnrolleeDeathStatusViewModel.Active();
     }
  }

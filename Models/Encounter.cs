@@ -1,6 +1,7 @@
 ﻿// Models/Encounter.cs
 using CTSHIPDashboard.Models;
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace CTSHIPDashboard.Models
 {
@@ -16,6 +17,10 @@ namespace CTSHIPDashboard.Models
         public int ProviderId { get; set; }
         public Provider? Provider { get; set; }
 
+        [Display(Name = "Attending Doctor")]
+        public int? DoctorId { get; set; }
+        public Doctor? Doctor { get; set; }
+
         public DateTime VisitDate { get; set; } = DateTime.Now;
 
         [Required]
@@ -25,9 +30,14 @@ namespace CTSHIPDashboard.Models
         public string? LabTests { get; set; }
         public string? TreatmentGiven { get; set; }
 
-        public decimal ConsultationFee { get; set; } 
-        public decimal LabFee { get; set; } 
-        public decimal DrugFee { get; set; } 
+        [Range(typeof(decimal), "0", "9999999999999999")]
+        public decimal ConsultationFee { get; set; }
+
+        [Range(typeof(decimal), "0", "9999999999999999")]
+        public decimal LabFee { get; set; }
+
+        [Range(typeof(decimal), "0", "9999999999999999")]
+        public decimal DrugFee { get; set; }
         public decimal TotalAmount => ConsultationFee + LabFee + DrugFee;
 
         public int? ClaimId { get; set; }  // Links to Claim (nullable until claimed)
@@ -37,6 +47,13 @@ namespace CTSHIPDashboard.Models
         public decimal Temperature { get; set; }
         public string? BloodPressure { get; set; }
         public string? VisitType { get; set; }
+        [Required]
+        public string ServiceSetting { get; set; } = EncounterServiceCatalog.Outpatient;
+
+        public ICollection<EncounterService> Services { get; set; } = new List<EncounterService>();
+
+        [NotMapped]
+        public List<string> SelectedServices { get; set; } = new();
         public int PulseRate { get; set; }
         public string? Notes { get; set; }
         public string? AttendedBy { get; set; }

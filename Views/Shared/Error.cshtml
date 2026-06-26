@@ -1,26 +1,162 @@
-﻿@using CTSHIPDashboard.Models.ViewModels
+@using CTSHIPDashboard.Models.ViewModels
 @model ErrorViewModel
 @{
-    ViewData["Title"] = "Error";
+    Layout = null;
+    ViewData["Title"] = $"{Model.StatusCode} - {Model.Title}";
 }
 
-<h1 class="text-danger">Error.</h1>
-<h2 class="text-danger">An error occurred while processing your request.</h2>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>@ViewData["Title"] - NEDC CTSHIP</title>
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/lib/bootstrap-icons/font/bootstrap-icons.min.css" />
+    <style>
+        :root {
+            --ct-green: #3B703B;
+            --ct-green-dark: #244a2a;
+            --ct-gold: #C9A247;
+            --ct-white: #fff;
+        }
 
-@if (Model.ShowRequestId)
-{
-    <p>
-        <strong>Request ID:</strong> <code>@Model.RequestId</code>
-    </p>
-}
+        body {
+            min-height: 100vh;
+            margin: 0;
+            color: var(--ct-green-dark);
+            background:
+                radial-gradient(circle at top right, rgba(201, 162, 71, .22), transparent 34%),
+                linear-gradient(145deg, #f7fbf7, #fff 55%, #f8f2e4);
+            display: grid;
+            place-items: center;
+            padding: 1.5rem;
+        }
 
-<h3>Development Mode</h3>
-<p>
-    Swapping to <strong>Development</strong> environment will display more detailed information about the error that occurred.
-</p>
-<p>
-    <strong>The Development environment shouldn't be enabled for deployed applications.</strong>
-    It can result in displaying sensitive information from exceptions to end users.
-    For local debugging, enable the <strong>Development</strong> environment by setting the <strong>ASPNETCORE_ENVIRONMENT</strong> environment variable to <strong>Development</strong>
-    and restarting the app.
-</p>
+        .error-shell {
+            width: min(720px, 100%);
+            overflow: hidden;
+            border: 1px solid rgba(59, 112, 59, .18);
+            border-radius: 24px;
+            background: var(--ct-white);
+            box-shadow: 0 24px 70px rgba(36, 74, 42, .16);
+        }
+
+        .error-brand {
+            padding: 1.15rem 1.5rem;
+            color: var(--ct-white);
+            background: linear-gradient(135deg, var(--ct-green-dark), var(--ct-green));
+            border-bottom: 5px solid var(--ct-gold);
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .error-brand img {
+            width: 62px;
+            height: 62px;
+            object-fit: contain;
+        }
+
+        .error-body {
+            padding: clamp(2rem, 6vw, 4rem);
+            text-align: center;
+        }
+
+        .error-icon {
+            width: 92px;
+            height: 92px;
+            margin: 0 auto 1.25rem;
+            border-radius: 50%;
+            color: var(--ct-white);
+            background: var(--ct-gold);
+            display: grid;
+            place-items: center;
+            font-size: 2.7rem;
+            box-shadow: 0 12px 26px rgba(201, 162, 71, .3);
+        }
+
+        .error-code {
+            color: var(--ct-gold);
+            font-size: clamp(3.2rem, 10vw, 5.4rem);
+            font-weight: 900;
+            line-height: 1;
+        }
+
+        .btn-ct-primary {
+            color: var(--ct-white);
+            background: var(--ct-green);
+            border-color: var(--ct-green);
+            font-weight: 700;
+        }
+
+        .btn-ct-primary:hover {
+            color: var(--ct-white);
+            background: var(--ct-green-dark);
+            border-color: var(--ct-green-dark);
+        }
+
+        .btn-ct-secondary {
+            color: var(--ct-green-dark);
+            background: var(--ct-white);
+            border: 2px solid var(--ct-gold);
+            font-weight: 700;
+        }
+
+        .request-reference {
+            display: inline-block;
+            max-width: 100%;
+            margin-top: 1.5rem;
+            padding: .65rem .9rem;
+            border-radius: 10px;
+            color: #526153;
+            background: #f3f7f3;
+            overflow-wrap: anywhere;
+            font-size: .85rem;
+        }
+    </style>
+</head>
+<body>
+    <main class="error-shell" role="main">
+        <div class="error-brand">
+            <img src="~/images/nedc-logo-transparent.png" alt="NEDC logo" />
+            <div>
+                <div class="fw-bold">NORTH EAST DEVELOPMENT COMMISSION</div>
+                <small>Community Targeted Social Health Insurance Programme</small>
+            </div>
+        </div>
+
+        <section class="error-body">
+            <div class="error-icon" aria-hidden="true">
+                <i class="bi @Model.Icon"></i>
+            </div>
+            <div class="error-code">@Model.StatusCode</div>
+            <h1 class="fw-bold mt-2">@Model.Title</h1>
+            <p class="lead text-secondary mx-auto" style="max-width:560px;">@Model.Message</p>
+
+            <div class="d-flex flex-wrap justify-content-center gap-2 mt-4">
+                <a href="/" class="btn btn-ct-primary btn-lg">
+                    <i class="bi bi-house-door-fill me-1"></i> Go to Dashboard
+                </a>
+                @if (Model.StatusCode == 401)
+                {
+                    <a href="/Identity/Account/Login" class="btn btn-ct-secondary btn-lg">Sign In</a>
+                }
+                else
+                {
+                    <button type="button" class="btn btn-ct-secondary btn-lg" onclick="history.back()">
+                        <i class="bi bi-arrow-left me-1"></i> Go Back
+                    </button>
+                }
+            </div>
+
+            @if (Model.ShowRequestId)
+            {
+                <div class="request-reference">
+                    Support reference: <strong>@Model.RequestId</strong>
+                </div>
+            }
+        </section>
+    </main>
+</body>
+</html>

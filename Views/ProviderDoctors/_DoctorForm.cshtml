@@ -1,0 +1,60 @@
+@model CTSHIPDashboard.Models.Doctor
+
+<div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
+
+<div class="row g-4">
+    <div class="col-md-7">
+        <label asp-for="FullName" class="form-label fw-bold"></label>
+        <input asp-for="FullName" class="form-control form-control-lg" placeholder="e.g., Dr. Amina Musa" />
+        <span asp-validation-for="FullName" class="text-danger"></span>
+    </div>
+
+    <div class="col-md-5">
+        <label asp-for="MedicalLicenseNumber" class="form-label fw-bold"></label>
+        <input asp-for="MedicalLicenseNumber" class="form-control form-control-lg" placeholder="MDCN number" />
+        <span asp-validation-for="MedicalLicenseNumber" class="text-danger"></span>
+    </div>
+
+    <div class="col-md-6">
+        <label asp-for="Specialty" class="form-label fw-bold"></label>
+        <input asp-for="Specialty" class="form-control form-control-lg" list="specialtyOptions" />
+        <datalist id="specialtyOptions">
+            <option value="General Practice"></option>
+            <option value="Family Medicine"></option>
+            <option value="Internal Medicine"></option>
+            <option value="Paediatrics"></option>
+            <option value="Obstetrics and Gynaecology"></option>
+            <option value="Surgery"></option>
+            <option value="Emergency Medicine"></option>
+            <option value="Public Health"></option>
+        </datalist>
+        <span asp-validation-for="Specialty" class="text-danger"></span>
+    </div>
+
+    <div class="col-md-6">
+        <label asp-for="Designation" class="form-label fw-bold"></label>
+        <input asp-for="Designation" class="form-control form-control-lg" placeholder="e.g., Medical Officer" />
+        <span asp-validation-for="Designation" class="text-danger"></span>
+    </div>
+
+    <div class="col-md-6">
+        <label asp-for="Phone" class="form-label fw-bold"></label>
+        <input asp-for="Phone" class="form-control form-control-lg" />
+        <span asp-validation-for="Phone" class="text-danger"></span>
+    </div>
+
+    <div class="col-md-6">
+        <label asp-for="Email" class="form-label fw-bold"></label>
+        <input asp-for="Email" class="form-control form-control-lg" />
+        <span asp-validation-for="Email" class="text-danger"></span>
+    </div>
+
+    <div class="col-12">
+        <div class="form-check form-switch p-3 rounded-3" style="background:rgba(59,112,59,.08);">
+            <input asp-for="IsActive" class="form-check-input ms-0 me-3" style="width:3rem;height:1.5rem;" />
+            <label asp-for="IsActive" class="form-check-label fw-bold"></label>
+            <div class="form-text">Only active doctors appear in new encounter dropdowns.</div>
+        </div>
+    </div>
+</div>
+
