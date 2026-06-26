@@ -4,6 +4,7 @@ using CTSHIPDashboard.Models;
 using CTSHIPDashboard.Services;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Azure.SignalR;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -44,6 +45,7 @@ builder.Services.AddScoped<IReferralService, ReferralService>();
 builder.Services.AddScoped<IDeathRegisterService, DeathRegisterService>();
 builder.Services.AddScoped<IMonitoringIndicatorService, MonitoringIndicatorService>();
 builder.Services.AddScoped<IAuditService, AuditService>();
+builder.Services.AddSignalR().AddAzureSignalR(builder.Configuration["Azure:SignalR:ConnectionString"]!);
 
 var app = builder.Build();
 
