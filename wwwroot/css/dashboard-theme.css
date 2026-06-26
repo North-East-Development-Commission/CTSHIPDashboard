@@ -53,6 +53,13 @@ li {
 
 .text-white,
 .text-white p,
+.text-white small,
+.text-white span,
+.text-white div,
+.text-white strong,
+.text-white a,
+.text-white i,
+.text-white .text-muted,
 .text-white h1,
 .text-white h2,
 .text-white h3,
@@ -70,6 +77,21 @@ li {
 .ct-topbar h4,
 .ct-topbar h5,
 .ct-topbar h6 {
+    color: #fff !important;
+}
+
+.card[style*="color: white"] > .card-body,
+.card[style*="color: white"] > .card-body :where(p, small, span, strong, a, i, h1, h2, h3, h4, h5, h6, .text-muted),
+.card[style*="color: white"] > .p-4,
+.card[style*="color: white"] > .p-4 :where(p, small, span, strong, a, i, h1, h2, h3, h4, h5, h6, .text-muted),
+.card[style*="color: white"] > .text-center,
+.card[style*="color: white"] > .text-center :where(p, small, span, strong, a, i, h1, h2, h3, h4, h5, h6, .text-muted),
+.card[style*="color:white"] > .card-body,
+.card[style*="color:white"] > .card-body :where(p, small, span, strong, a, i, h1, h2, h3, h4, h5, h6, .text-muted),
+.card[style*="color:white"] > .p-4,
+.card[style*="color:white"] > .p-4 :where(p, small, span, strong, a, i, h1, h2, h3, h4, h5, h6, .text-muted),
+.card[style*="color:white"] > .text-center,
+.card[style*="color:white"] > .text-center :where(p, small, span, strong, a, i, h1, h2, h3, h4, h5, h6, .text-muted) {
     color: #fff !important;
 }
 
@@ -862,6 +884,15 @@ a:hover {
 .footer-brand {
     border-radius: 0 !important;
     margin-top: 2rem;
+}
+
+.footer-brand,
+.footer-brand p,
+.footer-brand small,
+.footer-brand span,
+.footer-brand strong,
+.footer-brand a {
+    color: #fff !important;
 }
 
 @media (max-width: 767.98px) {

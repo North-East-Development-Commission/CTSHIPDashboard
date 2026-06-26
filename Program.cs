@@ -31,6 +31,7 @@ builder.Services
 
 builder.Services.ConfigureApplicationCookie(options =>
 {
+    options.LoginPath = "/Identity/Account/Login";
     options.AccessDeniedPath = "/Error/403";
 });
 
@@ -124,6 +125,12 @@ app.UseAuthorization();
 app.UseMiddleware<CTSHIPDashboard.Middleware.UserActivityMiddleware>();
 
 app.MapStaticAssets();
+
+app.MapGet("/", context =>
+{
+    context.Response.Redirect("/Identity/Account/Login");
+    return Task.CompletedTask;
+});
 
 app.MapControllerRoute(
     name: "default",

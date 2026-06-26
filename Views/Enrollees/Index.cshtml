@@ -1,12 +1,19 @@
 ﻿@model List<CTSHIPDashboard.Models.ViewModels.EnrolleeListViewModel>
 
 
+@{
+    bool canManageEnrollees = User.IsInRole("Admin") || User.IsInRole("HMO");
+}
+
 <div class="container-fluid py-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h2 class="text-success fw-bold display-6">Enrollee Directory</h2>
-        <a asp-action="Create" class="btn btn-success btn-lg shadow">
-            Register New Enrollee
-        </a>
+        @if (canManageEnrollees)
+        {
+            <a asp-action="Create" class="btn btn-success btn-lg shadow">
+                Register New Enrollee
+            </a>
+        }
     </div>
 
     <!-- Search & Filter -->
@@ -92,16 +99,14 @@
                                     @e.Status
                                 </span>
                             </td>
-                            <td>@e.DateRegistered.ToString("MMM dd, yyyy")</td>
-                            <td>
+                            <td>@e.DateRegistered.ToString("MMM dd, yyyy")</td>                          
+                            <td> 
                                 @await Html.PartialAsync("_EnrolleeDeathStatusBadge", e.DeathStatus)
-                            </td>
-                            <td>
-                                @if (e.DeathStatus != null && e.DeathStatus.IsDeceased && e.DeathStatus.DeathRegisterId.HasValue)
+                                @if (canManageEnrollees && e.DeathStatus != null && e.DeathStatus.IsDeceased && e.DeathStatus.DeathRegisterId.HasValue)
                                 {
                                     <a asp-controller="ProviderDeathRegisters" asp-action="Details" asp-route-id="@e.DeathStatus.DeathRegisterId" class="btn btn-sm btn-outline-dark">View Death Record</a>
                                 }
-                                else
+                                else if (canManageEnrollees)
                                 {
                                     <a asp-controller="ProviderDeathRegisters"
                                        asp-action="Create"
@@ -116,8 +121,11 @@
 
                             <td>
                                 <a asp-action="Details" asp-route-id="@e.Id" class="btn btn-info btn-sm">View</a>
-                                <a asp-action="Edit" asp-route-id="@e.Id" class="btn btn-warning btn-sm">Edit</a>
-                                <a asp-action="Delete" asp-route-id="@e.Id" class="btn btn-danger btn-sm">Delete</a>
+                                @if (canManageEnrollees)
+                                {
+                                    <a asp-action="Edit" asp-route-id="@e.Id" class="btn btn-warning btn-sm">Edit</a>
+                                    <a asp-action="Delete" asp-route-id="@e.Id" class="btn btn-danger btn-sm">Delete</a>
+                                }
                             </td>
                         </tr>
                     }

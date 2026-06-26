@@ -1,5 +1,5 @@
 ﻿@using Microsoft.AspNetCore.Identity
-@inject SignInManager<ApplicationUser> SignInManager // Replace IdentityUser with your custom user class if applicable
+@inject SignInManager<ApplicationUser> SignInManager
 
 <!DOCTYPE html>
 <html lang="en">
@@ -18,8 +18,8 @@
     <link rel="stylesheet" href="~/lib/leaflet-markercluster/MarkerCluster.Default.css" />
     <link rel="stylesheet" href="~/css/dashboard-theme.css" asp-append-version="true" />
     <!-- Optional: Make it feel like a real app (PWA) -->
-<link rel="manifest" href="/manifest.json">
-<link rel="apple-touch-icon" href="/img/icon-192.png">
+    <link rel="manifest" href="/manifest.json">
+    <link rel="apple-touch-icon" href="/img/icon-192.png">
 
     <style>
         .footer-brand {
@@ -28,126 +28,106 @@
             border-radius: 16px;
             padding: 3rem;
             color: white;
-            text-align:center;
+            text-align: center;
         }
+
         .select2-results__options {
             max-height: 200px !important;
             overflow-y: auto !important;
         }
-        /* SIDEBAR STYLES - MOBILE FIRST */
-        .sidebar {
-            position: fixed;
-            top: 0;
-            left: 0;
-            height: 100vh;
+
+        .sidebar.offcanvas {
+            top: var(--ct-topbar-height);
+            bottom: 0;
+            height: auto;
             width: 280px;
+            max-width: 88vw;
             background: linear-gradient(180deg, var(--ct-green) 0%, var(--ct-green-dark) 100%);
             color: white;
-            transition: all 0.3s ease;
-            z-index: 1050;
+            border-right: 0;
+            z-index: 1045;
+        }
+
+        .sidebar .offcanvas-body {
             overflow-y: auto;
-            padding-top: var(--ct-topbar-height); /* Space for fixed navbar */
         }
 
-            .sidebar.collapsed {
-                width: 70px;
-                overflow: hidden;
+        .sidebar .nav-link {
+            display: flex;
+            align-items: center;
+            gap: .25rem;
+            color: rgba(255, 255, 255, .9);
+            padding: 12px 20px;
+            border-radius: 0;
+            transition: background-color .2s ease, color .2s ease;
+        }
+
+        .sidebar .nav-link:hover,
+        .sidebar .nav-link.active {
+            background: rgba(201, 162, 71, .25);
+            border-left-color: var(--ct-gold);
+            color: white;
+        }
+
+        .sidebar .nav-link i {
+            width: 30px;
+            flex: 0 0 30px;
+            font-size: 1.3rem;
+        }
+
+        .ct-logout-divider {
+            border-color: rgba(255, 255, 255, .35);
+            opacity: 1;
+        }
+
+        @@media (max-width: 420px) {
+            .sidebar.offcanvas {
+                width: 260px;
             }
-
-            .sidebar .nav-link {
-                color: rgba(255,255,255,0.9);
-                padding: 12px 20px;
-                border-radius: 0;
-                transition: all 0.2s;
-            }
-
-                .sidebar .nav-link:hover, .sidebar .nav-link.active {
-                    background: rgba(201, 162, 71, 0.25);
-                    border-left-color: var(--ct-gold);
-                    color: white;
-                }
-
-                .sidebar .nav-link i {
-                    width: 30px;
-                    font-size: 1.3rem;
-                }
-
-            .sidebar .nav-text {
-                opacity: 1;
-                transition: opacity 0.2s;
-            }
-
-            .sidebar.collapsed .nav-text {
-                opacity: 0;
-            }
-
-        .content {
-            margin-left: 280px;
-            transition: margin-left 0.3s ease;
-        }
-
-            .content.collapsed {
-                margin-left: 70px;
-            }
-
-        /* MOBILE: Hide sidebar by default, show as offcanvas */
-        @@media (max-width: 992px) {
-            .sidebar
-
-        {
-            width: 0;
-            overflow: hidden;
-        }
-
-        .sidebar.show {
-            width: 280px;
-        }
-
-        .content, .content.collapsed {
-            margin-left: 0 !important;
-        }
-
-        .navbar-toggler {
-            z-index: 1060;
-        }
-
         }
     </style>
 </head>
 <body>
     <nav class="navbar navbar-dark fixed-top shadow-lg ct-topbar">
         <div class="container-fluid flex-nowrap gap-2">
-            <button class="btn navbar-toggler ct-menu-button flex-shrink-0" type="button" data-bs-toggle="offcanvas" data-bs-target="#sidebar" aria-label="Open navigation menu">
-                <i class="bi bi-list fs-3"></i>
-            </button>
+            @if (SignInManager.IsSignedIn(User))
+            {
+                <button class="btn navbar-toggler ct-menu-button flex-shrink-0" type="button" data-bs-toggle="offcanvas" data-bs-target="#sidebar" aria-controls="sidebar" aria-label="Open navigation menu">
+                    <i class="bi bi-list fs-3"></i>
+                </button>
+            }
             <a class="navbar-brand ct-navbar-brand me-auto" href="/">
-                <img class="ct-navbar-logo" src="~/images/nedc-logo-transparent.png" alt="North East Development Commission logo" />
+                <img class="ct-navbar-logo" src="~/images/nedc-logo-transparent.png" alt="North East Development Commission (NEDC) logo" />
                 <span class="ct-brand-copy">
                     <span class="ct-brand-title">NORTH EAST DEVELOPMENT COMMISSION (NEDC)</span>
                     <span class="ct-brand-subtitle d-none d-md-block">COMMUNITY TARGETED SOCIAL HEALTH INSURANCE PROGRAM (CTSHIP)</span>
                     <span class="ct-brand-subtitle d-md-none">NEDC CTSHIP DIGITAL SYSTEM</span>
                 </span>
             </a>
-            <div class="d-flex align-items-center">
-              
-                <a asp-area="Identity" asp-page="/Account/Manage/Index" class="ct-user-link d-none d-lg-flex">
-                    <i class="bi bi-person-circle"></i>
-                    <span>
-                        <small>Welcome</small>
-                        <strong>@User.Identity?.Name</strong>
-                    </span>
-                </a>
-            </div>
+            @if (SignInManager.IsSignedIn(User))
+            {
+                <div class="d-flex align-items-center">
+                    <a asp-area="Identity" asp-page="/Account/Manage/Index" class="ct-user-link d-none d-lg-flex">
+                        <i class="bi bi-person-circle"></i>
+                        <span>
+                            <small>Welcome</small>
+                            <strong>@User.Identity?.Name</strong>
+                        </span>
+                    </a>
+                </div>
+            }
         </div>
     </nav>
     <!-- Sidebar -->
-    <div class="sidebar offcanvas offcanvas-start text-white" id="sidebar" tabindex="-1">
+    @if (SignInManager.IsSignedIn(User))
+    {
+    <div class="sidebar offcanvas offcanvas-start text-white" id="sidebar" tabindex="-1" aria-labelledby="sidebarTitle">
         <div class="offcanvas-header border-bottom border-light border-opacity-25">
-            <h5 class="offcanvas-title text-white fw-bold">NEDC CTSHIP PROGRAM</h5>
-            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas"></button>
+            <h5 class="offcanvas-title text-white fw-bold" id="sidebarTitle">NEDC CTSHIP PROGRAM</h5>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas" aria-label="Close navigation menu"></button>
         </div>
         <div class="offcanvas-body p-0">
-        <nav class="nav flex-column">
+        <nav class="nav flex-column" aria-label="Main navigation">
             @if (User.IsInRole("NHIA"))
             {
                 <a asp-page="/Nhia/Index" class="nav-link">
@@ -173,7 +153,7 @@
                         <i class="bi bi-people-fill"></i> My Enrollees
                     </a>
                     <a asp-controller="Claims" asp-action="Dashboard" class="nav-link text-white">
-                        <i class="bi bi-people-fill"></i> My Claims
+                        <i class="bi bi-file-medical-fill"></i> My Claims
                     </a>
                     <a asp-controller="Hmo" asp-action="MyProviders" class="nav-link">
                         <i class="bi bi-hospital-fill"></i> My Providers
@@ -236,9 +216,7 @@
                     <i class="bi bi-chat-square-text-fill"></i> Complaint Management
                 </a>
             }
-                <a asp-controller="Feedback" asp-action="Index" class="nav-link">
-                    <i class="bi bi-chat-dots-fill"></i> Feedback
-                </a>
+              
 
             @if (User.IsInRole("Admin"))
             {
@@ -251,11 +229,11 @@
                 <a asp-controller="Monitoring" asp-action="Index" class="nav-link">
                     <i class="bi bi-bar-chart-line-fill"></i> Monitoring & Evaluation
                 </a>
-                 <a asp-controller="Enrollees" asp-action="Index" class="nav-link">
-                    <i class="bi bi-person-plus-fill"></i>Enrolment
+                <a asp-controller="Enrollees" asp-action="Index" class="nav-link">
+                    <i class="bi bi-person-plus-fill"></i> Enrolment
                 </a>
                 <a asp-controller="Enrollees" asp-action="BulkUpload" class="nav-link">
-                    <i class="bi bi-person-plus-fill"></i>Bulk Enrolment with Excel
+                    <i class="bi bi-person-plus-fill"></i> Bulk Enrolment with Excel
                 </a>
                 <a asp-controller="Admin" asp-action="Users" class="nav-link">
                     <i class="bi bi-people-fill"></i> Manage Users
@@ -280,7 +258,7 @@
                 </a>
                 <a asp-controller="Role" asp-action="Index" class="nav-link text-white">
                     <i class="bi bi-people-fill"></i> Manage Roles
-                    </a>
+                </a>
                 <a asp-controller="Claims" asp-action="Index" class="nav-link">
                     <i class="bi bi-file-medical-fill"></i> Claims
                 </a>
@@ -290,7 +268,7 @@
                 <a asp-controller="ReferralHospitals" asp-action="Index" class="nav-link">
                     <i class="bi bi-building-add"></i> Referral Hospitals
                 </a>
-                 <hr class="bg-white mx-3">
+                <hr class="ct-logout-divider mx-3 my-2">
                 <a asp-area="Identity" asp-page="/Account/Manage/Index" class="nav-link">
                     <i class="bi bi-person-gear"></i> Admin Settings
                 </a>
@@ -300,10 +278,6 @@
                 <a asp-controller="Admin" asp-action="UserActivity" class="nav-link">
                     <i class="bi bi-person-gear"></i> User Activity Reports
                 </a>
-                <a href="/Nhia" class="nav-link">
-                    <i class="bi bi-speedometer2"></i> NHIA Dashboard
-                </a>
-                
             }
             @if (User.IsInRole("NEDCAdmin"))
             {
@@ -318,12 +292,6 @@
             {
                 <a asp-controller="Monitoring" asp-action="Index" class="nav-link">
                     <i class="bi bi-bar-chart-line-fill"></i> Monitoring & Evaluation
-                </a>
-            }
-            @if (SignInManager.IsSignedIn(User))
-            {
-                <a asp-area="Identity" asp-page="/Account/Logout" class="nav-link">
-                    <i class="bi bi-box-arrow-right"></i> Logout
                 </a>
             }
 
@@ -348,10 +316,15 @@
                         <i class="bi bi-bar-chart-line-fill"></i> Monitoring & Evaluation
                     </a>
              }
-         
+
+            <hr class="ct-logout-divider mx-3 my-2">
+            <a asp-area="Identity" asp-page="/Account/Logout" class="nav-link">
+                <i class="bi bi-box-arrow-right"></i> Logout
+            </a>
         </nav>
     </div>
   </div>
+    }
     <!-- Main Content -->
     <div class="main-content">
         <div class="container-fluid ct-content-shell">
@@ -362,7 +335,7 @@
     <!-- Footer -->
     <div class="footer-brand">
         <p class="mb-0 small fw-bold">
-            ©@DateTime.Today.Year CTSHIP - Community Targeted Social Health Insurance Project | Powered by North East Development Commission
+            ©@DateTime.Today.Year CTSHIP - Community Targeted Social Health Insurance Project | Powered by North East Development Commission (NEDC)
         </p>
     </div>
     <!-- Offline-ready UI libraries -->
@@ -379,20 +352,18 @@
     <script src="~/lib/leaflet-markercluster/leaflet.markercluster.js"></script>
    
     <script>
-        // Auto-close sidebar when clicking a link on mobile
-        document.querySelectorAll('.sidebar .nav-link').forEach(link => {
-            link.addEventListener('click', () => {
-                if (window.innerWidth < 992) {
-                    const offcanvas = bootstrap.Offcanvas.getInstance('#sidebar');
+        const sidebarElement = document.getElementById('sidebar');
+        if (sidebarElement) {
+            document.querySelectorAll('#sidebar .nav-link').forEach(link => {
+                link.addEventListener('click', () => {
+                    const offcanvas = bootstrap.Offcanvas.getInstance(sidebarElement);
                     if (offcanvas) offcanvas.hide();
-                }
+                });
             });
-        });
+        }
     </script>
     <script>
         $(document).ready(function () {
-            $('.select2').select2();
-
             // Active menu highlight
             $('.nav-link').each(function () {
                 if (this.href === window.location.href) {

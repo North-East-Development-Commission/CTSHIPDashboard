@@ -1,6 +1,7 @@
 ﻿@model CTSHIPDashboard.Models.Provider
 @{
     ViewData["Title"] = Model.Name + " - Provider Details";
+    bool canManageProviders = User.IsInRole("Admin") || User.IsInRole("HMO");
 }
 
 <div class="container-fluid py-5">
@@ -74,7 +75,7 @@
                                         </tr>
                                         <tr>
                                             <td class="fw-bold">Date Registered</td>
-                                            <td class="text-end">@Model.DateRegistered:dd MMMM yyyy</td>
+                                            <td class="text-end">@Model.DateRegistered</td>
                                         </tr>
                                     </table>
                                 </div>
@@ -108,9 +109,9 @@
                                 <div class="col-12">
                                     <div class="card bg-success text-white shadow-lg">
                                         <div class="card-body py-5 text-center">
-                                            <i class="bi bi-currency-dollar fs-1 mb-3"></i>
+                                            <i class="bi bi-envelope-paper-fill fs-1 mb-3"></i>
                                             <h5>Total Claims Value</h5>
-                                            <h2 class="display-4 fw-bold">₦@ViewBag.TotalClaimAmount:N0</h2>
+                                            <h2 class="display-4 fw-bold">₦@ViewBag.TotalClaimAmount.ToString("N2")</h2>
                                         </div>
                                     </div>
                                 </div>
@@ -120,12 +121,15 @@
 
                     <!-- Action Buttons -->
                     <div class="text-center mt-5 pt-4 border-top">
-                        <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-warning btn-lg px-6 shadow">
-                            Edit Provider
-                        </a>
-                        <a asp-action="Delete" asp-route-id="@Model.Id" class="btn btn-danger btn-lg px-6 shadow ms-3">
-                            Delete Provider
-                        </a>
+                        @if (canManageProviders)
+                        {
+                            <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-warning btn-lg px-6 shadow">
+                                Edit Provider
+                            </a>
+                            <a asp-action="Delete" asp-route-id="@Model.Id" class="btn btn-danger btn-lg px-6 shadow ms-3">
+                                Delete Provider
+                            </a>
+                        }
                         <a asp-action="Index" class="btn btn-secondary btn-lg px-6 ms-3">
                             Back to List
                         </a>

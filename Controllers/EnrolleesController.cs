@@ -67,7 +67,7 @@ public class EnrolleesController : Controller
 
     // INDEX — ALL ENROLLEES
     // GET: /Enrollee or /Enrollee/Index
-    [Authorize(Roles = "Admin,HMO")]
+    [Authorize(Roles = "Admin,HMO,Monitoring")]
     public async Task<IActionResult> Index(
         string search = "",      // Search by name, phone, NIN, or enrollment number
         string status = "",      // "Active", "Inactive", "Suspended", etc.
@@ -487,7 +487,7 @@ public class EnrolleesController : Controller
     }
 
     // DETAILS
-    [Authorize(Roles = "Admin,HMO, Provider")]
+    [Authorize(Roles = "Admin,HMO,Provider,Monitoring")]
     public async Task<IActionResult> Details(int id)
     {
         var enrollee = await _context.Enrollees

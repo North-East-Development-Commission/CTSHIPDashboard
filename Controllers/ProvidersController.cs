@@ -29,7 +29,7 @@ public class ProvidersController : Controller
     }
 
     // GET: Provider/Index
-    [Authorize(Roles = "Admin,HMO")]
+    [Authorize(Roles = "Admin,HMO,Monitoring,SSHIA")]
     public async Task<IActionResult> Index(
         string search = "",
         string state = "",
@@ -303,7 +303,7 @@ public class ProvidersController : Controller
     }
 
     // DETAILS — GET
-    [Authorize(Roles = "Admin,HMO")]
+    [Authorize(Roles = "Admin,HMO,Monitoring,SSHIA")]
     public async Task<IActionResult> Details(int id)
     {
         var provider = await _context.Providers

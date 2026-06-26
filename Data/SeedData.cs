@@ -26,7 +26,7 @@ namespace CTSHIPDashboard.Data
             }
 
             // ADMIN USER
-            var adminEmail = "admin@ctshipnedc.gov.ng";
+            var adminEmail = "as.maiwada@nedc.gov.ng";
             var admin = await userManager.FindByEmailAsync(adminEmail);
             if (admin == null)
             {

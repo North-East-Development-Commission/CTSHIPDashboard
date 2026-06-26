@@ -471,6 +471,7 @@ public class HmoController : Controller
     }
 
 
+    [Authorize(Roles = "Admin,HMO,Monitoring")]
     public async Task<IActionResult> Analytics()
     {
         var hmos = await _context.Hmos

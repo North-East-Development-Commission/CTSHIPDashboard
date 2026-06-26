@@ -2,6 +2,7 @@
 @model List<ProviderListViewModel>
 @{
     ViewData["Title"] = "Healthcare Providers Directory";
+    bool canManageProviders = User.IsInRole("Admin") || User.IsInRole("HMO");
 }
 
 <div class="container-fluid py-5">
@@ -12,14 +13,17 @@
                 Healthcare Providers Directory
             </h1>
             <p class="lead text-muted">
-                All accredited hospitals & clinics under CTHIP • North East Development Commission
+                All accredited hospitals & clinics under CTSHIP • North East Development Commission (NEDC)
             </p>
         </div>
-        <div class="col-auto">
-            <a asp-action="Create" class="btn btn-success btn-lg shadow-lg px-5">
-                Add New Provider
-            </a>
-        </div>
+        @if (canManageProviders)
+        {
+            <div class="col-auto">
+                <a asp-action="Create" class="btn btn-success btn-lg shadow-lg px-5">
+                    Add New Provider
+                </a>
+            </div>
+        }
     </div>
 
     <!-- Stats Cards -->
@@ -125,7 +129,10 @@
                             </td>
                             <td>
                                 <a asp-action="Details" asp-route-id="@p.Id" class="btn btn-info btn-sm">View</a>
-                                <a asp-action="Edit" asp-route-id="@p.Id" class="btn btn-warning btn-sm">Edit</a>
+                                @if (canManageProviders)
+                                {
+                                    <a asp-action="Edit" asp-route-id="@p.Id" class="btn btn-warning btn-sm">Edit</a>
+                                }
                             </td>
                         </tr>
                     }

@@ -11,7 +11,7 @@ using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
 
 namespace CTHIPDashboard.Controllers
 {
-    [Authorize(Roles = "Admin,HMO")]
+    [Authorize(Roles = "Admin,HMO,Monitoring")]
     public class ClaimsController : Controller
     {
         private readonly ApplicationDbContext _context;
@@ -93,6 +93,7 @@ namespace CTHIPDashboard.Controllers
         }
 
         // CREATE GET — FIXED!
+        [Authorize(Roles = "Admin,HMO")]
         public async Task<IActionResult> Create()
         {
             // CORRECT: Must be SelectListItem, not raw Provider objects
@@ -112,6 +113,7 @@ namespace CTHIPDashboard.Controllers
         // CREATE POST
         [HttpPost]
         [ValidateAntiForgeryToken]
+        [Authorize(Roles = "Admin,HMO")]
         public async Task<IActionResult> Create(Claim claim)
         {
             if (ModelState.IsValid)
@@ -161,6 +163,7 @@ namespace CTHIPDashboard.Controllers
         // RENAME THIS ACTION TO:
        
         [HttpGet]
+        [Authorize(Roles = "Admin,HMO")]
         public async Task<IActionResult> SearchEnrollee(string q)
         {
             if (string.IsNullOrWhiteSpace(q))
@@ -189,6 +192,7 @@ namespace CTHIPDashboard.Controllers
         }
 
         [HttpGet]
+        [Authorize(Roles = "Admin,HMO")]
         public async Task<IActionResult> SearchByNumber(string q)
         {
             if (string.IsNullOrWhiteSpace(q))
@@ -217,6 +221,7 @@ namespace CTHIPDashboard.Controllers
         }
 
         // EDIT CLAIM (Only if status is Submitted)
+        [Authorize(Roles = "Admin,HMO")]
         public async Task<IActionResult> Edit(int id)
         {
             var claim = await _context.Claims
@@ -244,6 +249,7 @@ namespace CTHIPDashboard.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
+        [Authorize(Roles = "Admin,HMO")]
         public async Task<IActionResult> Edit(int id, Claim claim)
         {
             if (id != claim.Id) return NotFound();

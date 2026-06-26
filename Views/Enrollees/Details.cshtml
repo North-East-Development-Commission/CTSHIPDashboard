@@ -1,6 +1,7 @@
 ﻿@model Enrollee
 @{
     ViewData["Title"] = "Enrollee Details";
+    bool canManageEnrollees = User.IsInRole("Admin") || User.IsInRole("HMO");
 }
 
 <div class="container-fluid py-5">
@@ -125,12 +126,15 @@
                             <hr class="my-5 border-success" />
 
                             <div class="text-center">
-                                <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-warning btn-lg px-5 shadow me-3">
-                                    Edit Profile
-                                </a>
-                                <a asp-action="Wallet" asp-route-id="@Model.Id" class="btn btn-info btn-lg px-5 shadow me-3">
-                                    View Wallet
-                                </a>
+                                @if (canManageEnrollees)
+                                {
+                                    <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-warning btn-lg px-5 shadow me-3">
+                                        Edit Profile
+                                    </a>
+                                    <a asp-action="Wallet" asp-route-id="@Model.Id" class="btn btn-info btn-lg px-5 shadow me-3">
+                                        View Wallet
+                                    </a>
+                                }
                                 <a asp-action="Index" class="btn btn-secondary btn-lg px-5">
                                     Back to List
                                 </a>
