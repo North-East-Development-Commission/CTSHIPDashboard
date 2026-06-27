@@ -67,6 +67,10 @@ jobs:
           }
         }
 
+        if ($credentials.clientSecret -match '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$') {
+          throw "GitHub secret CTSHIPDASHBOARD_SPN.clientSecret looks like an Azure Secret ID. Replace it with the client secret VALUE shown only once when creating a new client secret."
+        }
+
         if ($credentials.clientId -ne $env:AZURE_CLIENT_ID) {
           throw "GitHub secret CTSHIPDASHBOARD_SPN has the wrong clientId for the NEDC Azure app registration."
         }
