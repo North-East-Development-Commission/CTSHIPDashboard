@@ -36,7 +36,7 @@
     },
     {
       "type": "Microsoft.Resources/deployments",
-      "name": "[concat(parameters('resourceGroupName'), 'Deployment', uniqueString(concat('CTSHIPDashboard', subscription().subscriptionId)))]",
+      "name": "[concat(parameters('resourceGroupName'), 'Deployment', uniqueString(concat('CTSHIPDashboard_db', subscription().subscriptionId)))]",
       "resourceGroup": "[parameters('resourceGroupName')]",
       "apiVersion": "2019-10-01",
       "dependsOn": [
@@ -49,16 +49,26 @@
           "contentVersion": "1.0.0.0",
           "resources": [
             {
-              "sku": {
-                "name": "Standard_S1",
-                "tier": "Standard",
-                "size": "S1",
-                "capacity": 1
-              },
+              "kind": "v12.0",
               "location": "[parameters('resourceLocation')]",
-              "name": "CTSHIPDashboard",
-              "type": "Microsoft.SignalRService/SignalR",
-              "apiVersion": "2018-10-01"
+              "name": "ctshipdashboarddbserver01",
+              "type": "Microsoft.Sql/servers",
+              "apiVersion": "2017-10-01-preview"
+            },
+            {
+              "sku": {
+                "name": "Standard",
+                "tier": "Standard",
+                "capacity": 10
+              },
+              "kind": "v12.0,user",
+              "location": "[parameters('resourceLocation')]",
+              "name": "ctshipdashboarddbserver01/CTSHIPDashboard_db",
+              "type": "Microsoft.Sql/servers/databases",
+              "apiVersion": "2017-10-01-preview",
+              "dependsOn": [
+                "ctshipdashboarddbserver01"
+              ]
             }
           ]
         }
@@ -66,6 +76,6 @@
     }
   ],
   "metadata": {
-    "_dependencyType": "signalr.azure"
+    "_dependencyType": "mssql.azure"
   }
 }
