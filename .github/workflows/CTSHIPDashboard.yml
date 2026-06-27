@@ -41,10 +41,14 @@ jobs:
         name: webapp
         path: ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}
     - name: Azure Login
-      uses: azure/login@v2
+      uses: azure/login@v3
       with:
         creds: ${{ secrets.CTSHIPDASHBOARD_SPN }}
+    - name: Confirm Azure subscription
+      shell: pwsh
+      run: az account show --query "{subscription:name, subscriptionId:id, tenantId:tenantId}" --output table
+    - name: Deploy to Azure WebApp
+      uses: azure/webapps-deploy@v3
       with:
         app-name: ${{ env.AZURE_WEBAPP_NAME }}
-        publish-profile: ${{ secrets.CTSHIPDASHBOARD_PUBLISH_PROFILE }}
         package: ${{ env.AZURE_WEBAPP_PACKAGE_PATH }}
