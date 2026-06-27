@@ -77,16 +77,34 @@ jobs:
           throw "GitHub secret CTSHIPDASHBOARD_SPN has the wrong tenantId for the NEDC work account tenant."
         }
 
-        az cloud set -n AzureCloud
-        az login `
+        function Invoke-AzureCli {
+          param(
+            [Parameter(Mandatory = $true)]
+            [string] $FailureMessage,
+
+            [Parameter(Mandatory = $true, ValueFromRemainingArguments = $true)]
+            [string[]] $Arguments
+          )
+
+          $output = & az @Arguments 2>&1
+          if ($LASTEXITCODE -ne 0) {
+            $output | ForEach-Object { Write-Error $_ }
+            throw $FailureMessage
+          }
+
+          $output
+        }
+
+        Invoke-AzureCli "Unable to set Azure cloud." cloud set -n AzureCloud
+        Invoke-AzureCli "Azure login failed. Regenerate the app registration client secret and paste the secret VALUE, not the Secret ID, into CTSHIPDASHBOARD_SPN." login `
           --service-principal `
           --username $env:AZURE_CLIENT_ID `
           --password $credentials.clientSecret `
           --tenant $env:AZURE_TENANT_ID `
           --output none
-        az account set --subscription $env:AZURE_SUBSCRIPTION_ID
-        az account show --query "{subscription:name, subscriptionId:id, tenantId:tenantId}" --output table
-        az webapp show `
+        Invoke-AzureCli "Unable to select Azure subscription. Confirm the service principal has access to this subscription." account set --subscription $env:AZURE_SUBSCRIPTION_ID
+        Invoke-AzureCli "Unable to show Azure subscription context." account show --query "{subscription:name, subscriptionId:id, tenantId:tenantId}" --output table
+        Invoke-AzureCli "Unable to find the target Azure Web App. Confirm the resource group and app name." webapp show `
           --resource-group "${{ env.AZURE_RESOURCE_GROUP }}" `
           --name "${{ env.AZURE_WEBAPP_NAME }}" `
           --query "{app:name, resourceGroup:resourceGroup, state:state}" `
