@@ -1,15 +1,13 @@
-name: Build and deploy .NET Core application to Web App CTSHIPDashboard
+name: Build and deploy .NET Core application to Web App CTSHIPDashboard01
 on:
   push:
     branches:
     - master
+  workflow_dispatch:
 env:
   AZURE_WEBAPP_NAME: CTSHIPDashboard01
   AZURE_WEBAPP_PACKAGE_PATH: .\published
   AZURE_RESOURCE_GROUP: CTSHIPDashboard-rg
-  AZURE_CLIENT_ID: a8e0f4be-daff-407d-83e4-abaad1bb7367
-  AZURE_SUBSCRIPTION_ID: 48f0bdd5-c2ad-49e6-9d29-de518760e273
-  AZURE_TENANT_ID: 8f328aa8-5236-4c42-b63d-39625cff997f
   CONFIGURATION: Release
   DOTNET_CORE_VERSION: 9.0.x
   WORKING_DIRECTORY: .
@@ -71,16 +69,6 @@ jobs:
           throw "GitHub secret CTSHIPDASHBOARD_SPN.clientSecret looks like an Azure Secret ID. Replace it with the client secret VALUE shown only once when creating a new client secret."
         }
 
-        if ($credentials.clientId -ne $env:AZURE_CLIENT_ID) {
-          throw "GitHub secret CTSHIPDASHBOARD_SPN has the wrong clientId for the NEDC Azure app registration."
-        }
-        if ($credentials.subscriptionId -ne $env:AZURE_SUBSCRIPTION_ID) {
-          throw "GitHub secret CTSHIPDASHBOARD_SPN has the wrong subscriptionId for CTSHIPDashboard01."
-        }
-        if ($credentials.tenantId -ne $env:AZURE_TENANT_ID) {
-          throw "GitHub secret CTSHIPDASHBOARD_SPN has the wrong tenantId for the NEDC work account tenant."
-        }
-
         function Invoke-AzureCli {
           param(
             [Parameter(Mandatory = $true)]
@@ -102,11 +90,11 @@ jobs:
         Invoke-AzureCli "Unable to set Azure cloud." cloud set -n AzureCloud
         Invoke-AzureCli "Azure login failed. Regenerate the app registration client secret and paste the secret VALUE, not the Secret ID, into CTSHIPDASHBOARD_SPN." login `
           --service-principal `
-          --username $env:AZURE_CLIENT_ID `
+          --username $credentials.clientId `
           --password $credentials.clientSecret `
-          --tenant $env:AZURE_TENANT_ID `
+          --tenant $credentials.tenantId `
           --output none
-        Invoke-AzureCli "Unable to select Azure subscription. Confirm the service principal has access to this subscription." account set --subscription $env:AZURE_SUBSCRIPTION_ID
+        Invoke-AzureCli "Unable to select Azure subscription. Confirm the service principal has access to this subscription." account set --subscription $credentials.subscriptionId
         Invoke-AzureCli "Unable to show Azure subscription context." account show --query "{subscription:name, subscriptionId:id, tenantId:tenantId}" --output table
         Invoke-AzureCli "Unable to find the target Azure Web App. Confirm the resource group and app name." webapp show `
           --resource-group "${{ env.AZURE_RESOURCE_GROUP }}" `
