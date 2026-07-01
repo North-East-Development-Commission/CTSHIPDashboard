@@ -218,7 +218,7 @@
             }
               
 
-            @if (User.IsInRole("CTSHIPAdmin"))
+            @if (User.IsInRole("CTSHIPAdmin") || User.IsInRole("Admin"))
             {
                 <a asp-controller="Home" asp-action="Index" class="nav-link">
                     <i class="bi bi-house-door-fill"></i> Dashboard

@@ -127,30 +127,31 @@ namespace CTSHIPDashboard.Areas.Identity.Pages.Account
                         await _context.SaveChangesAsync();
 
                         var roles = await _userManager.GetRolesAsync(user);
+                        var roleSet = roles.ToHashSet(StringComparer.OrdinalIgnoreCase);
 
                         // 2. Explicit and consistent clean path routing fallback mechanics
-                        if (roles.Contains("Admin"))
+                        if (roleSet.Contains("CTSHIPAdmin") || roleSet.Contains("Admin"))
                             return RedirectToAction("Index", "Analytics", new { area = "" });
 
-                        else if (roles.Contains("NEDCAdmin") || roles.Contains("SSHIA"))
+                        else if (roleSet.Contains("NEDCAdmin") || roleSet.Contains("SSHIA"))
                             return RedirectToAction("Index", "Analytics", new { area = "" });
 
-                        else if (roles.Contains("HMO"))
+                        else if (roleSet.Contains("HMO"))
                             return RedirectToAction("Dashboard", "HMO", new { area = "" });
 
-                        else if (roles.Contains("Provider"))
+                        else if (roleSet.Contains("Provider"))
                             return RedirectToAction("Dashboard", "Providers", new { area = "" });
 
-                        else if (roles.Contains("Finance"))
+                        else if (roleSet.Contains("Finance"))
                             return RedirectToAction("Dashboard", "Finance", new { area = "" });
 
-                        else if (roles.Contains("StateOffice"))
+                        else if (roleSet.Contains("StateOffice"))
                             return RedirectToAction("Index", "StateOffice", new { area = "" });
 
-                        else if (roles.Contains("NHIA"))
+                        else if (roleSet.Contains("NHIA"))
                             return RedirectToAction("Dashboard", "NHIA", new { area = "" });
 
-                        else if (roles.Contains("Monitoring"))
+                        else if (roleSet.Contains("Monitoring"))
                             return RedirectToAction("Index", "Monitoring", new { area = "" });
 
                         else
