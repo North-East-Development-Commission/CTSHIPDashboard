@@ -11,7 +11,7 @@ using System.Security.Claims;
 
 namespace CTSHIPDashboard.Controllers
 {
-    [Authorize(Roles = "Provider,Admin")]
+    [Authorize(Roles = "Provider,CTSHIPAdmin")]
     [Route("Providers/DeathRegisters")]
     public class ProviderDeathRegistersController : Controller
     {
@@ -32,7 +32,7 @@ namespace CTSHIPDashboard.Controllers
         [HttpGet("")]
         public async Task<IActionResult> Index(string? search, CancellationToken cancellationToken)
         {
-            bool isAdmin = User.IsInRole("Admin");
+            bool isAdmin = User.IsInRole("CTSHIPAdmin");
             Provider? provider = isAdmin ? null : await GetCurrentProviderAsync(cancellationToken);
 
             if (!isAdmin && provider == null)
@@ -263,7 +263,7 @@ namespace CTSHIPDashboard.Controllers
             DeathRegisterDetailsViewModel deathRegister,
             CancellationToken cancellationToken)
         {
-            if (User.IsInRole("Admin"))
+            if (User.IsInRole("CTSHIPAdmin"))
             {
                 return true;
             }

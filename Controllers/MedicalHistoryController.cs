@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace CTSHIPDashboard.Controllers
 {
-    [Authorize(Roles = "Provider,Admin,HMO")]
+    [Authorize(Roles = "Provider,CTSHIPAdmin,HMO")]
     public class MedicalHistoryController : Controller
     {
         private readonly ApplicationDbContext _context;

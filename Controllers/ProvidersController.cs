@@ -29,7 +29,7 @@ public class ProvidersController : Controller
     }
 
     // GET: Provider/Index
-    [Authorize(Roles = "Admin,HMO,Monitoring,SSHIA")]
+    [Authorize(Roles = "CTSHIPAdmin,HMO,Monitoring,SSHIA")]
     public async Task<IActionResult> Index(
         string search = "",
         string state = "",
@@ -120,13 +120,13 @@ public class ProvidersController : Controller
             new() { Value = "Tertiary", Text = "Tertiary (Teaching Hospitals)" },
             new() { Value = "Secondary", Text = "Secondary (General Hospitals)" },
             new() { Value = "Private", Text = "Private Hospitals" },
-            new() { Value = "Primary", Text = "Primary Health Centres" }
+            new() { Value = "Primary", Text = "Primary Health Centres (PHC)" }
         };
 
         return View(model);
     }
 
-    [Authorize(Roles = "Provider,Admin,HMO")]
+    [Authorize(Roles = "Provider,CTSHIPAdmin,HMO")]
     public async Task<IActionResult> WalletSummary(int id)
     {
         var provider = await _context.Providers
@@ -164,7 +164,7 @@ public class ProvidersController : Controller
 
 
     // GET: Provider/Create
-    [Authorize(Roles = "Admin,HMO")]
+    [Authorize(Roles = "CTSHIPAdmin,HMO")]
     public IActionResult Create()
     {
         PopulateDropdowns();
@@ -197,7 +197,7 @@ public class ProvidersController : Controller
                 {
                     return RedirectToAction("MyProviders", "Hmo");
                 }
-                else if (User.IsInRole("Admin"))
+                else if (User.IsInRole("CTSHIPAdmin"))
                 {
                     return RedirectToAction("Index", "Enrollees");
                 }
@@ -214,7 +214,7 @@ public class ProvidersController : Controller
         return View(provider);
     }
 
-    [Authorize(Roles = "Admin,HMO")]
+    [Authorize(Roles = "CTSHIPAdmin,HMO")]
     public async Task<IActionResult> Edit(int? id)
     {
         var provider = await _context.Providers.FindAsync(id);
@@ -267,7 +267,7 @@ public class ProvidersController : Controller
         return View(provider);
     }
 
-    [Authorize(Roles = "Admin,HMO")]
+    [Authorize(Roles = "CTSHIPAdmin,HMO")]
     public async Task<IActionResult> Delete(int? id)
     {
         if (id == null) return NotFound();
@@ -303,7 +303,7 @@ public class ProvidersController : Controller
     }
 
     // DETAILS — GET
-    [Authorize(Roles = "Admin,HMO,Monitoring,SSHIA")]
+    [Authorize(Roles = "CTSHIPAdmin,HMO,Monitoring,SSHIA")]
     public async Task<IActionResult> Details(int id)
     {
         var provider = await _context.Providers
@@ -646,7 +646,7 @@ public class ProvidersController : Controller
         return View(encounters);
     }
 
-    [Authorize(Roles = "Provider,Admin")]
+    [Authorize(Roles = "Provider,CTSHIPAdmin")]
     public async Task<IActionResult> EncEdit(int id)
     {
         var encounter = await _context.Encounters
@@ -669,7 +669,7 @@ public class ProvidersController : Controller
         }
 
         ViewBag.Providers = await _context.Providers
-            .Where(p => p.IsActive && (User.IsInRole("Admin") || p.Id == encounter.ProviderId))
+            .Where(p => p.IsActive && (User.IsInRole("CTSHIPAdmin") || p.Id == encounter.ProviderId))
             .Select(p => new SelectListItem
             {
                 Value = p.Id.ToString(),
@@ -698,7 +698,7 @@ public class ProvidersController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    [Authorize(Roles = "Provider,Admin")]
+    [Authorize(Roles = "Provider,CTSHIPAdmin")]
     public async Task<IActionResult> EncEdit(int id, Encounter model)
     {
         if (id != model.Id) return NotFound();
@@ -802,7 +802,7 @@ public class ProvidersController : Controller
     }
 
     // CREATE CLAIM FROM ENCOUNTER — 100% SAFE & ACCURATE
-    [Authorize(Roles = "Provider,Admin,HMO")]
+    [Authorize(Roles = "Provider,CTSHIPAdmin,HMO")]
     public async Task<IActionResult> CreateClaim(int id)
     {
         var encounter = await _context.Encounters
@@ -976,7 +976,7 @@ public class ProvidersController : Controller
     }
 
     // ProvidersController.cs
-    [Authorize(Roles = "Provider,Admin,HMO")]
+    [Authorize(Roles = "Provider,CTSHIPAdmin,HMO")]
     public async Task<IActionResult> ExportEnrollees(int providerId)
     {
         var currentUser = await _userManager.GetUserAsync(User);

@@ -1,7 +1,7 @@
 ﻿@model IEnumerable<CTSHIPDashboard.Models.Claim>
 @{
     ViewData["Title"] = "Claims Dashboard";
-    bool canSubmitClaims = User.IsInRole("Admin") || User.IsInRole("HMO");
+    bool canSubmitClaims = User.IsInRole("CTSHIPAdmin") || User.IsInRole("HMO");
 }
 
 <div class="container-fluid py-4">
@@ -120,22 +120,22 @@
                         <td>@c.DateSubmitted</td>
                         <td>
                             <a asp-action="Details" asp-route-id="@c.Id" class="btn btn-info btn-sm">View</a>
-                            @if (c.Status == "Submitted" && (User.IsInRole("HMO") || User.IsInRole("Admin")))
+                            @if (c.Status == "Submitted" && (User.IsInRole("HMO") || User.IsInRole("CTSHIPAdmin")))
                                 {
                                     <a asp-action="Edit" asp-route-id="@c.Id" class="btn btn-warning btn-sm">Edit</a>
                                     <a asp-action="Review" asp-route-id="@c.Id" class="btn btn-info btn-sm">Review</a>
                                 }
-                                @if (c.Status == "Review Approved" && User.IsInRole("Admin"))
+                                @if (c.Status == "Review Approved" && User.IsInRole("CTSHIPAdmin"))
                                 {
                                     <a asp-action="Edit" asp-route-id="@c.Id" class="btn btn-warning btn-sm">Edit</a>
                                 }
 
-                                @if (c.Status == "Approved" && (User.IsInRole("HMO") || User.IsInRole("Admin")))
+                                @if (c.Status == "Approved" && (User.IsInRole("HMO") || User.IsInRole("CTSHIPAdmin")))
                                 {
                                     <a asp-action="Approve" asp-route-id="@c.Id" class="btn btn-success btn-sm">Pay</a>
                                 }
                               
-                                @if (User.IsInRole("Admin"))
+                                @if (User.IsInRole("CTSHIPAdmin"))
                                 {
                                     <a asp-action="Delete" asp-route-id="@c.Id" class="btn btn-danger btn-sm">Delete</a>
                                 }

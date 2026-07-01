@@ -51,11 +51,11 @@
     </div>
     <div class="card-body">
         <div class="d-flex gap-2">
-            @if (Model.Status == DeathRegisterStatus.SubmittedToHmo && (User.IsInRole("HMO") || User.IsInRole("Admin")))
+            @if (Model.Status == DeathRegisterStatus.SubmittedToHmo && (User.IsInRole("HMO") || User.IsInRole("CTSHIPAdmin")))
             {
                 <a asp-controller="HmoDeathRegisters" asp-action="Verify" asp-route-id="@Model.Id" class="btn btn-success">Verify Record</a>
             }
-            @if (Model.Status == DeathRegisterStatus.HmoVerified && (User.IsInRole("NHIA") || User.IsInRole("Admin")))
+            @if (Model.Status == DeathRegisterStatus.HmoVerified && (User.IsInRole("NHIA") || User.IsInRole("CTSHIPAdmin")))
             {
                 <a asp-controller="HmoDeathRegisters" asp-action="Audit" asp-route-id="@Model.Id" class="btn btn-dark">Audit Record</a>
             }

@@ -1,7 +1,7 @@
 ﻿@model CTSHIPDashboard.Models.Provider
 @{
     ViewData["Title"] = Model.Name + " - Provider Details";
-    bool canManageProviders = User.IsInRole("Admin") || User.IsInRole("HMO");
+    bool canManageProviders = User.IsInRole("CTSHIPAdmin") || User.IsInRole("HMO");
 }
 
 <div class="container-fluid py-5">

@@ -10,7 +10,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace CTSHIPDashboard.Controllers;
 
-[Authorize(Roles = "HMO,NHIA,Admin")]
+[Authorize(Roles = "HMO,NHIA,CTSHIPAdmin")]
 [Route("Hmos/Referrals")]
 public class HmoReferralsController : Controller
 {
@@ -31,7 +31,7 @@ public class HmoReferralsController : Controller
     [HttpGet("")]
     public async Task<IActionResult> Index(string? search, CancellationToken cancellationToken)
     {
-        bool canSeeAll = User.IsInRole("Admin") || User.IsInRole("NHIA");
+        bool canSeeAll = User.IsInRole("CTSHIPAdmin") || User.IsInRole("NHIA");
         string? hmoCode = canSeeAll ? null : await GetCurrentHmoCodeAsync(cancellationToken);
 
         if (!canSeeAll && string.IsNullOrWhiteSpace(hmoCode))
@@ -131,7 +131,7 @@ public class HmoReferralsController : Controller
     }
 
     [HttpGet("Audit/{id:guid}")]
-    [Authorize(Roles = "NHIA,Admin")]
+    [Authorize(Roles = "NHIA,CTSHIPAdmin")]
     public async Task<IActionResult> Audit(Guid id, CancellationToken cancellationToken)
     {
         ReferralDetailsViewModel? referral =
@@ -148,7 +148,7 @@ public class HmoReferralsController : Controller
 
     [HttpPost("Audit/{id:guid}")]
     [ValidateAntiForgeryToken]
-    [Authorize(Roles = "NHIA,Admin")]
+    [Authorize(Roles = "NHIA,CTSHIPAdmin")]
     public async Task<IActionResult> Audit(
         Guid id,
         ReferralAuditViewModel model,
@@ -189,7 +189,7 @@ public class HmoReferralsController : Controller
         ReferralDetailsViewModel referral,
         CancellationToken cancellationToken)
     {
-        if (User.IsInRole("Admin") || User.IsInRole("NHIA"))
+        if (User.IsInRole("CTSHIPAdmin") || User.IsInRole("NHIA"))
         {
             return true;
         }

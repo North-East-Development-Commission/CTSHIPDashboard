@@ -235,7 +235,7 @@ namespace CTSHIPDashboard.Data
                 new Hmo { Name = "Multishield Limited", Email = "info@multishield.com.ng", Phone = "09-4615000", Address = "Plot 1005, Ahmadu Bello Way, Gombe", State = "Gombe",  RegistrationNumber = "HMO-20200181009901",  Status = "Non-Active" },
                 new Hmo { Name = "United Healthcare International", Email = "care@unitedhmo.com", Phone = "01-2773400", Address = "2 Ajose Adeogun Street, VI, Adamawa", State = "Adamawa",  RegistrationNumber = "HMO-20270101000001", Status = "Active" },
                 new Hmo { Name = "Premium Health Limited", Email = "info@premiumhealth.com.ng", Phone = "0809-999-0001", Address = "Kano Office Complex, Taraba", State = "Taraba",  RegistrationNumber = "HMO-20200101060001", Status = "Active" },
-                new Hmo { Name = "Total Health Trust", Email = "enquiries@totalhealthtrust.com", Phone = "01-4486666", Address = "7A Milverton Road, Ikoyi, Bauchi", State = "Bauchi",  RegistrationNumber = "HMO-20209901000001", Status = "Active" }
+                new Hmo { Name = "Total Health Trust", Email = "enquiries@totalhealthtrust.com", Phone = "01-4486666", Address = "7A Milverton Road, Ikoyi, Bauchi", State = "Bauchi",  RegistrationNumber = "HMO-20209901000001", Status = "Active" },
             };
 
             context.Hmos.AddRange(hmos);

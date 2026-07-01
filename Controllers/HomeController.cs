@@ -39,11 +39,11 @@ namespace CTHIPDashboard.Controllers
             return View(model);
         }
 
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "CTSHIPAdmin")]
         public IActionResult AddNews() => View();
 
         [HttpPost]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "CTSHIPAdmin")]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> AddNews(NewsUpdate news)
         {
@@ -58,7 +58,7 @@ namespace CTHIPDashboard.Controllers
         }
 
         [HttpPost]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "CTSHIPAdmin")]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteNews(int id)
         {

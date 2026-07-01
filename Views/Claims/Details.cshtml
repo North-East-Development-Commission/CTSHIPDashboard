@@ -130,7 +130,7 @@
                                 Back to Claims
                             </a>
                         }
-                        @if (User.IsInRole("Admin") || User.IsInRole("Monitoring"))
+                        @if (User.IsInRole("CTSHIPAdmin") || User.IsInRole("Monitoring"))
                         {
                             <a asp-action="Index" class="btn btn-success btn-lg px-6 shadow-lg me-3">
                                 Back to Claims

@@ -10,7 +10,7 @@ using System.Security.Claims;
 
 namespace CTSHIPDashboard.Controllers
 {
-    [Authorize(Roles = "HMO,NHIA,Admin")]
+    [Authorize(Roles = "HMO,NHIA,CTSHIPAdmin")]
     [Route("Hmos/DeathRegisters")]
     public class HmoDeathRegistersController : Controller
     {
@@ -31,7 +31,7 @@ namespace CTSHIPDashboard.Controllers
         [HttpGet("")]
         public async Task<IActionResult> Index(string? search, CancellationToken cancellationToken)
         {
-            bool canSeeAll = User.IsInRole("Admin") || User.IsInRole("NHIA");
+            bool canSeeAll = User.IsInRole("CTSHIPAdmin") || User.IsInRole("NHIA");
             string? hmoCode = canSeeAll ? null : await GetCurrentHmoCodeAsync(cancellationToken);
 
             if (!canSeeAll && string.IsNullOrWhiteSpace(hmoCode))
@@ -61,7 +61,7 @@ namespace CTSHIPDashboard.Controllers
             return View(deathRegister);
         }
 
-        [Authorize(Roles = "HMO,Admin")]
+        [Authorize(Roles = "HMO,CTSHIPAdmin")]
         [HttpGet("Verify/{id:guid}")]
         public async Task<IActionResult> Verify(Guid id, CancellationToken cancellationToken)
         {
@@ -84,7 +84,7 @@ namespace CTSHIPDashboard.Controllers
             return View(model);
         }
 
-        [Authorize(Roles = "HMO,Admin")]
+        [Authorize(Roles = "HMO,CTSHIPAdmin")]
         [HttpPost("Verify/{id:guid}")]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Verify(
@@ -134,7 +134,7 @@ namespace CTSHIPDashboard.Controllers
             return RedirectToAction(nameof(Details), new { id = model.Id });
         }
 
-        [Authorize(Roles = "NHIA,Admin")]
+        [Authorize(Roles = "NHIA,CTSHIPAdmin")]
         [HttpGet("Audit/{id:guid}")]
         public async Task<IActionResult> Audit(Guid id, CancellationToken cancellationToken)
         {
@@ -149,7 +149,7 @@ namespace CTSHIPDashboard.Controllers
             return View(model);
         }
 
-        [Authorize(Roles = "NHIA,Admin")]
+        [Authorize(Roles = "NHIA,CTSHIPAdmin")]
         [HttpPost("Audit/{id:guid}")]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Audit(
@@ -195,7 +195,7 @@ namespace CTSHIPDashboard.Controllers
             DeathRegisterDetailsViewModel deathRegister,
             CancellationToken cancellationToken)
         {
-            if (User.IsInRole("Admin") || User.IsInRole("NHIA"))
+            if (User.IsInRole("CTSHIPAdmin") || User.IsInRole("NHIA"))
             {
                 return true;
             }

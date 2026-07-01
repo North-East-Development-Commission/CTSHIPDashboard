@@ -64,7 +64,7 @@ public class HmoController : Controller
     }
 
 
-    [Authorize(Roles = "HMO,Admin")]
+    [Authorize(Roles = "HMO,CTSHIPAdmin")]
     public async Task<IActionResult> DisburseMonthly()
     {
         var currentUser = await _userManager.GetUserAsync(User);
@@ -83,7 +83,7 @@ public class HmoController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    [Authorize(Roles = "HMO,Admin")]
+    [Authorize(Roles = "HMO,CTSHIPAdmin")]
     public async Task<IActionResult> DisburseMonthly(HmoBulkDisbursementViewModel model)
     {
         var currentUser = await _userManager.GetUserAsync(User);
@@ -292,7 +292,7 @@ public class HmoController : Controller
     }
 
     // LIST ALL HMOs
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = "CTSHIPAdmin")]
     public async Task<IActionResult> Index(string search = "")
     {
         var hmos = _context.Hmos.AsQueryable();
@@ -310,7 +310,7 @@ public class HmoController : Controller
     }
 
     // CREATE HMO
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = "CTSHIPAdmin")]
     public IActionResult Create()
     {
         ViewBag.States = GetNigerianStates();
@@ -355,7 +355,7 @@ public class HmoController : Controller
     }
 
     // EDIT HMO
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = "CTSHIPAdmin")]
     public async Task<IActionResult> Edit(int id)
     {
         var hmo = await _context.Hmos.FindAsync(id);
@@ -427,7 +427,7 @@ public class HmoController : Controller
     }
 
     // DELETE GET
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = "CTSHIPAdmin")]
     public async Task<IActionResult> Delete(int id)
     {
         var hmo = await _context.Hmos
@@ -444,7 +444,7 @@ public class HmoController : Controller
     // DELETE POST — SAFE DELETE
     [HttpPost, ActionName("Delete")]
     [ValidateAntiForgeryToken]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = "CTSHIPAdmin")]
     public async Task<IActionResult> DeleteConfirmed(int id)
     {
         var hmo = await _context.Hmos
@@ -471,7 +471,7 @@ public class HmoController : Controller
     }
 
 
-    [Authorize(Roles = "Admin,HMO,Monitoring")]
+    [Authorize(Roles = "CTSHIPAdmin,HMO,Monitoring")]
     public async Task<IActionResult> Analytics()
     {
         var hmos = await _context.Hmos
@@ -646,7 +646,7 @@ public class HmoController : Controller
         return View(provider);
     }
 
-    [Authorize(Roles = "Admin,HMO")]
+    [Authorize(Roles = "CTSHIPAdmin,HMO")]
     public async Task<IActionResult> EditPro(int? id)
     {
         var provider = await _context.Providers.FindAsync(id);
@@ -699,7 +699,7 @@ public class HmoController : Controller
         return View(provider);
     }
 
-    [Authorize(Roles = "Admin,HMO")]
+    [Authorize(Roles = "CTSHIPAdmin,HMO")]
     public async Task<IActionResult> ProDelete(int? id)
     {
         if (id == null) return NotFound();
@@ -774,7 +774,7 @@ public class HmoController : Controller
         return View(providers);
     }
 
-    [Authorize(Roles = "Admin,HMO")]
+    [Authorize(Roles = "CTSHIPAdmin,HMO")]
     public async Task<IActionResult> EncountersPerProvider(
     int id,
     string search = "",
@@ -849,7 +849,7 @@ public class HmoController : Controller
         return View(encounter);
     }
 
-    [Authorize(Roles = "Admin,HMO")]
+    [Authorize(Roles = "CTSHIPAdmin,HMO")]
     public async Task<IActionResult> AddEnrollee()
     {
         ViewBag.Hmos = await _context.Hmos.Select(h => new SelectListItem
@@ -986,7 +986,7 @@ public class HmoController : Controller
     }
 
     // EDIT
-    [Authorize(Roles = "Admin,HMO")]
+    [Authorize(Roles = "CTSHIPAdmin,HMO")]
     public async Task<IActionResult> EditEnrollee(int id)
     {
         var enrollee = await _context.Enrollees.AsNoTracking().FirstOrDefaultAsync(e => e.Id == id);
@@ -1007,7 +1007,7 @@ public class HmoController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    [Authorize(Roles = "Admin,HMO")]
+    [Authorize(Roles = "CTSHIPAdmin,HMO")]
     public async Task<IActionResult> EditEnrollee(int id, Enrollee enrollee)
     {
         if (id != enrollee.Id) return NotFound();
@@ -1154,7 +1154,7 @@ public class HmoController : Controller
         target.OtherVulnerableCategory = source.OtherVulnerableCategory?.Trim();
     }
 
-    [Authorize(Roles = "Admin,HMO")]
+    [Authorize(Roles = "CTSHIPAdmin,HMO")]
     public async Task<IActionResult> EnrolleeDetails(int id)
     {
         var enrollee = await _context.Enrollees
@@ -1243,7 +1243,7 @@ public class HmoController : Controller
     }
 
     // GET: Enrollee/BulkUpload
-    [Authorize(Roles = "Admin,HMO")]
+    [Authorize(Roles = "CTSHIPAdmin,HMO")]
     public IActionResult BulkUpload()
     {
         return RedirectToAction("BulkUpload", "Enrollees");
@@ -1252,7 +1252,7 @@ public class HmoController : Controller
     // POST: Enrollee/BulkUpload
     [HttpPost]
     [ValidateAntiForgeryToken]
-    [Authorize(Roles = "Admin,HMO")]
+    [Authorize(Roles = "CTSHIPAdmin,HMO")]
     private async Task<IActionResult> LegacyBulkUpload(IFormFile excelFile, int hmoId, int providersId)
     {
         if (excelFile == null || excelFile.Length == 0)

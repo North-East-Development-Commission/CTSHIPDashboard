@@ -69,7 +69,7 @@
                 {
                     <a asp-controller="HmoReferrals" asp-action="Verify" asp-route-id="@Model.Id" class="btn btn-success">Verify Referral</a>
                 }
-                @if (Model.Status == ReferralStatus.Verified && (User.IsInRole("NHIA") || User.IsInRole("Admin")))
+                @if (Model.Status == ReferralStatus.Verified && (User.IsInRole("NHIA") || User.IsInRole("CTSHIPAdmin")))
                 {
                     <a asp-controller="HmoReferrals" asp-action="Audit" asp-route-id="@Model.Id" class="btn btn-primary">Audit Referral</a>
                 }

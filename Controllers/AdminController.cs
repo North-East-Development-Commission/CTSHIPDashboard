@@ -10,7 +10,7 @@ using System.Threading.Tasks;
 
 namespace CTSHIPDashboard.Controllers
 {
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = "CTSHIPAdmin")]
     public class AdminController : Controller
     {
         private readonly UserManager<ApplicationUser> _userManager;
@@ -142,7 +142,7 @@ namespace CTSHIPDashboard.Controllers
 
         // FINANCIAL: Disburse monthly allocation to enrollees
         [HttpPost]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "CTSHIPAdmin")]
         public async Task<IActionResult> DisburseMonthly(decimal amountPerEnrollee)
         {
             if (amountPerEnrollee <= 0)
@@ -373,7 +373,7 @@ namespace CTSHIPDashboard.Controllers
 
         // CREATE USER
         // GET: Admin/CreateUser
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "CTSHIPAdmin")]
         public async Task<IActionResult> CreateUser()
         {
             await PopulateDropdownsAsync();
@@ -390,7 +390,7 @@ namespace CTSHIPDashboard.Controllers
         // POST: Admin/CreateUser
         [HttpPost]
         [ValidateAntiForgeryToken]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "CTSHIPAdmin")]
         public async Task<IActionResult> CreateUser(CreateUserViewModel model)
         {
             if (ModelState.IsValid)
@@ -503,7 +503,7 @@ namespace CTSHIPDashboard.Controllers
         }
 
         // GET: Admin/DeleteUser/5
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "CTSHIPAdmin")]
         public async Task<IActionResult> DeleteUser(string id)
         {
             if (string.IsNullOrEmpty(id)) return NotFound();
@@ -518,7 +518,7 @@ namespace CTSHIPDashboard.Controllers
         // POST: Admin/DeleteUser/5
         [HttpPost, ActionName("DeleteUserConfirmed")]
         [ValidateAntiForgeryToken]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "CTSHIPAdmin")]
         public async Task<IActionResult> DeleteUserConfirmed(string id)
         {
             if (string.IsNullOrEmpty(id)) return NotFound();
@@ -598,7 +598,7 @@ namespace CTSHIPDashboard.Controllers
         // MAKE IT STATIC!
         private static string GetFriendlyRoleName(string role) => role switch
         {
-            "Admin" => "System Administrator",
+            "CTSHIPAdmin" => "System Administrator",
             "HMO" => "HMO Officer",
             "Provider" => "Hospital/Provider Staff",
             "Reviewer" => "Claims Reviewer",

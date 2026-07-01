@@ -10,7 +10,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace CTSHIPDashboard.Controllers;
 
-[Authorize(Roles = "Provider,Admin")]
+[Authorize(Roles = "Provider,CTSHIPAdmin")]
 [Route("Providers/Referrals")]
 public class ProviderReferralsController : Controller
 {
@@ -32,7 +32,7 @@ public class ProviderReferralsController : Controller
     public async Task<IActionResult> Index(string? search, CancellationToken cancellationToken)
     {
         string? providerId = await GetCurrentProviderIdAsync(cancellationToken);
-        bool isAdmin = User.IsInRole("Admin");
+        bool isAdmin = User.IsInRole("CTSHIPAdmin");
 
         if (!isAdmin && string.IsNullOrWhiteSpace(providerId))
         {
@@ -160,11 +160,11 @@ public class ProviderReferralsController : Controller
         ReferralCreateViewModel model,
         CancellationToken cancellationToken)
     {
-        if (User.IsInRole("Admin") && !User.IsInRole("Provider"))
+        if (User.IsInRole("CTSHIPAdmin") && !User.IsInRole("Provider"))
         {
             model.FromProviderId ??= User.FindFirstValue("ProviderId");
             model.FromProviderName = string.IsNullOrWhiteSpace(model.FromProviderName)
-                ? User.Identity?.Name ?? "Administrator"
+                ? User.Identity?.Name ?? "CTSHIP Admin"
                 : model.FromProviderName;
             return true;
         }
@@ -218,7 +218,7 @@ public class ProviderReferralsController : Controller
         ReferralDetailsViewModel referral,
         CancellationToken cancellationToken)
     {
-        if (User.IsInRole("Admin"))
+        if (User.IsInRole("CTSHIPAdmin"))
         {
             return true;
         }

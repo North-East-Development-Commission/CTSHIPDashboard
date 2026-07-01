@@ -2,9 +2,9 @@ using CTSHIPDashboard.Data;
 using CTSHIPDashboard.Hubs;
 using CTSHIPDashboard.Models;
 using CTSHIPDashboard.Services;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Azure.SignalR;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -36,16 +36,25 @@ builder.Services.ConfigureApplicationCookie(options =>
     options.AccessDeniedPath = "/Error/403";
 });
 
+var dataProtectionKeysPath = Path.Combine(
+    builder.Environment.ContentRootPath,
+    "App_Data",
+    "DataProtectionKeys");
+Directory.CreateDirectory(dataProtectionKeysPath);
+builder.Services
+    .AddDataProtection()
+    .PersistKeysToFileSystem(new DirectoryInfo(dataProtectionKeysPath))
+    .SetApplicationName("CTSHIPDashboard");
+
 builder.Services.AddControllersWithViews();
 builder.Services.AddRazorPages();
 builder.Services.AddSignalR();
 builder.Services.AddAuthorization(options =>
-    options.AddPolicy("AdminOnly", policy => policy.RequireRole("Admin")));
+    options.AddPolicy("AdminOnly", policy => policy.RequireRole("CTSHIPAdmin")));
 builder.Services.AddScoped<IReferralService, ReferralService>();
 builder.Services.AddScoped<IDeathRegisterService, DeathRegisterService>();
 builder.Services.AddScoped<IMonitoringIndicatorService, MonitoringIndicatorService>();
 builder.Services.AddScoped<IAuditService, AuditService>();
-builder.Services.AddSignalR().AddAzureSignalR(builder.Configuration["Azure:SignalR:ConnectionString"]!);
 
 var app = builder.Build();
 

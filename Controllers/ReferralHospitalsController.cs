@@ -9,7 +9,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace CTSHIPDashboard.Controllers;
 
-[Authorize(Roles = "Admin,NHIA,HMO")]
+[Authorize(Roles = "CTSHIPAdmin,NHIA,HMO")]
 public class ReferralHospitalsController : Controller
 {
     private readonly ApplicationDbContext _context;

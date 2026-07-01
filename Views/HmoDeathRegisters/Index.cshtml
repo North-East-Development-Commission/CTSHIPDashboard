@@ -82,11 +82,11 @@
                     <td>
                         <div class="btn-group btn-group-sm">
                             <a asp-controller="HmoDeathRegisters" asp-action="Details" asp-route-id="@item.Id" class="btn btn-outline-primary">Details</a>
-                            @if (item.Status == DeathRegisterStatus.SubmittedToHmo && (User.IsInRole("HMO") || User.IsInRole("Admin")))
+                            @if (item.Status == DeathRegisterStatus.SubmittedToHmo && (User.IsInRole("HMO") || User.IsInRole("CTSHIPAdmin")))
                             {
                                 <a asp-controller="HmoDeathRegisters" asp-action="Verify" asp-route-id="@item.Id" class="btn btn-outline-success">Verify</a>
                             }
-                            @if (item.Status == DeathRegisterStatus.HmoVerified && (User.IsInRole("NHIA") || User.IsInRole("Admin")))
+                            @if (item.Status == DeathRegisterStatus.HmoVerified && (User.IsInRole("NHIA") || User.IsInRole("CTSHIPAdmin")))
                             {
                                 <a asp-controller="HmoDeathRegisters" asp-action="Audit" asp-route-id="@item.Id" class="btn btn-outline-dark">Audit</a>
                             }

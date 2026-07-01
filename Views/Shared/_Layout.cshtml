@@ -208,7 +208,7 @@
                         <i class="bi bi-clipboard2-pulse-fill"></i> Death Registers
                     </a>
            }
-            @if (User.IsInRole("Admin") || User.IsInRole("HMO") || User.IsInRole("Provider") ||
+            @if (User.IsInRole("CTSHIPAdmin") || User.IsInRole("HMO") || User.IsInRole("Provider") ||
                  User.IsInRole("StateOffice") || User.IsInRole("Monitoring") || User.IsInRole("NHIA") ||
                  User.IsInRole("NEDCAdmin") || User.IsInRole("SSHIA"))
             {
@@ -218,7 +218,7 @@
             }
               
 
-            @if (User.IsInRole("Admin"))
+            @if (User.IsInRole("CTSHIPAdmin"))
             {
                 <a asp-controller="Home" asp-action="Index" class="nav-link">
                     <i class="bi bi-house-door-fill"></i> Dashboard

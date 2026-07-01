@@ -56,7 +56,7 @@
     <div class="alert alert-danger">@TempData["ErrorMessage"]</div>
 }
 
-@if (User.IsInRole("Admin") || User.IsInRole("NHIA") || User.IsInRole("StateOffice") || User.IsInRole("Monitoring"))
+@if (User.IsInRole("CTSHIPAdmin") || User.IsInRole("NHIA") || User.IsInRole("StateOffice") || User.IsInRole("Monitoring"))
 {
     <div class="card mb-4">
         <div class="card-body">

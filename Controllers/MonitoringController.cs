@@ -9,7 +9,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace CTSHIPDashboard.Controllers
 {
-    [Authorize(Roles = "Admin,NHIA,StateOffice,NEDCAdmin,SSHIA,Monitoring")]
+    [Authorize(Roles = "CTSHIPAdmin,NHIA,StateOffice,NEDCAdmin,SSHIA,Monitoring")]
     public class MonitoringController : Controller
     {
         private readonly ApplicationDbContext _context;
@@ -46,7 +46,7 @@ namespace CTSHIPDashboard.Controllers
         }
 
         [HttpPost]
-        [Authorize(Roles = "Admin,NHIA,StateOffice,Monitoring")]
+        [Authorize(Roles = "CTSHIPAdmin,NHIA,StateOffice,Monitoring")]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> SetTarget(
             MonitoringTargetViewModel model,

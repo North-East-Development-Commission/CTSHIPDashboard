@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace CTSHIPDashboard.Controllers
 {
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = "CTSHIPAdmin")]
     public class RoleController : Controller
     {
         private readonly RoleManager<IdentityRole> _roleManager;

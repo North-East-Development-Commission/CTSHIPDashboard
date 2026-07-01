@@ -10,7 +10,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace CTSHIPDashboard.Controllers
 {
-    [Authorize(Roles = "Admin,HMO,Provider,StateOffice,Monitoring,NHIA,NEDCAdmin,SSHIA")]
+    [Authorize(Roles = "CTSHIPAdmin,HMO,Provider,StateOffice,Monitoring,NHIA,NEDCAdmin,SSHIA")]
     public class ComplaintsController : Controller
     {
         private readonly ApplicationDbContext _context;
@@ -154,7 +154,7 @@ namespace CTSHIPDashboard.Controllers
             return View(complaint);
         }
 
-        [Authorize(Roles = "Admin,HMO,StateOffice,Monitoring,NHIA,NEDCAdmin,SSHIA")]
+        [Authorize(Roles = "CTSHIPAdmin,HMO,StateOffice,Monitoring,NHIA,NEDCAdmin,SSHIA")]
         public async Task<IActionResult> Manage(int id)
         {
             ApplicationUser? user = await _userManager.GetUserAsync(User);
@@ -178,7 +178,7 @@ namespace CTSHIPDashboard.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        [Authorize(Roles = "Admin,HMO,StateOffice,Monitoring,NHIA,NEDCAdmin,SSHIA")]
+        [Authorize(Roles = "CTSHIPAdmin,HMO,StateOffice,Monitoring,NHIA,NEDCAdmin,SSHIA")]
         public async Task<IActionResult> Manage(int id, ComplaintUpdateViewModel model)
         {
             if (id != model.Id) return BadRequest();
@@ -226,7 +226,7 @@ namespace CTSHIPDashboard.Controllers
             IQueryable<Complaint> query,
             ApplicationUser user)
         {
-            if (User.IsInRole("Admin")
+            if (User.IsInRole("CTSHIPAdmin")
                 || User.IsInRole("Monitoring")
                 || User.IsInRole("NHIA")
                 || User.IsInRole("NEDCAdmin"))
@@ -356,7 +356,7 @@ namespace CTSHIPDashboard.Controllers
 
         private bool CanUseEnrollee(Enrollee enrollee, ApplicationUser user)
         {
-            if (User.IsInRole("Admin")
+            if (User.IsInRole("CTSHIPAdmin")
                 || User.IsInRole("Monitoring")
                 || User.IsInRole("NHIA")
                 || User.IsInRole("NEDCAdmin"))
@@ -436,7 +436,7 @@ namespace CTSHIPDashboard.Controllers
         }
 
         private bool CanManageComplaints() =>
-            User.IsInRole("Admin")
+            User.IsInRole("CTSHIPAdmin")
             || User.IsInRole("HMO")
             || User.IsInRole("StateOffice")
             || User.IsInRole("Monitoring")

@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace CTSHIPDashboard.Controllers
 {
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = "CTSHIPAdmin")]
     [Route("Admin/DeathRegisters")]
     public class AdminDeathRegistersController : Controller
     {

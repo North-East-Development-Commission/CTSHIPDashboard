@@ -13,7 +13,7 @@ using System.Drawing;
 using System.Globalization;
 
 
-[Authorize(Roles = "StateOffice,Admin")]
+[Authorize(Roles = "StateOffice,CTSHIPAdmin")]
 public class StateOfficeController : Controller
 {
     private readonly ApplicationDbContext _context;
@@ -83,7 +83,7 @@ public class StateOfficeController : Controller
     }
 
     // ====================== ENROLLEES LIST ======================
-    [Authorize(Roles = "Admin,StateOffice")]
+    [Authorize(Roles = "CTSHIPAdmin,StateOffice")]
     public async Task<IActionResult> Enrollees(string state = "", string search = "", int page = 1, int pageSize = 25)
     {
         var user = await _userManager.GetUserAsync(User);
@@ -99,7 +99,7 @@ public class StateOfficeController : Controller
         }
 
         // Security: State Officers can only view their own state (Admin can view any)
-        bool isAdmin = User.IsInRole("Admin");
+        bool isAdmin = User.IsInRole("CTSHIPAdmin");
         if (!isAdmin && state != user.State)
         {
             TempData["Error"] = "You are not authorized to view this state's data.";
@@ -153,7 +153,7 @@ public class StateOfficeController : Controller
     }
 
     // ====================== PROVIDERS LIST ======================
-    [Authorize(Roles = "Admin,StateOffice")]
+    [Authorize(Roles = "CTSHIPAdmin,StateOffice")]
     public async Task<IActionResult> Providers(string state = "", string search = "", int page = 1, int pageSize = 20)
     {
         var user = await _userManager.GetUserAsync(User);
@@ -164,7 +164,7 @@ public class StateOfficeController : Controller
             state = user.State;
 
         // Security: State Officers can only view their own state
-        bool isAdmin = User.IsInRole("Admin");
+        bool isAdmin = User.IsInRole("CTSHIPAdmin");
         if (!isAdmin && state != user.State)
         {
             TempData["Error"] = "You are not authorized to view this state's data.";
@@ -210,7 +210,7 @@ public class StateOfficeController : Controller
         return View(providers);
     }
 
-    [Authorize(Roles = "Admin,StateOffice")]
+    [Authorize(Roles = "CTSHIPAdmin,StateOffice")]
     public async Task<IActionResult> Claims(
         string state = "",
         string status = "All",
@@ -225,7 +225,7 @@ public class StateOfficeController : Controller
             return Forbid();
         }
 
-        if (!User.IsInRole("Admin"))
+        if (!User.IsInRole("CTSHIPAdmin"))
         {
             if (string.IsNullOrWhiteSpace(user.State))
             {
@@ -357,7 +357,7 @@ public class StateOfficeController : Controller
         return View(model);
     }
 
-    [Authorize(Roles = "Admin,StateOffice")]
+    [Authorize(Roles = "CTSHIPAdmin,StateOffice")]
     public async Task<IActionResult> ClaimDetails(int id, CancellationToken cancellationToken = default)
     {
         var user = await _userManager.GetUserAsync(User);
@@ -380,7 +380,7 @@ public class StateOfficeController : Controller
         }
 
         string claimState = claim.Enrollee?.State ?? string.Empty;
-        if (!User.IsInRole("Admin"))
+        if (!User.IsInRole("CTSHIPAdmin"))
         {
             if (string.IsNullOrWhiteSpace(user.State)
                 || !string.Equals(claimState, user.State, StringComparison.OrdinalIgnoreCase))
@@ -462,7 +462,7 @@ public class StateOfficeController : Controller
 
         IQueryable<StateOfficeMonthlyReport> query = _context.StateOfficeMonthlyReports.AsNoTracking();
 
-        if (!User.IsInRole("Admin"))
+        if (!User.IsInRole("CTSHIPAdmin"))
         {
             if (string.IsNullOrWhiteSpace(user.State))
             {
@@ -500,7 +500,7 @@ public class StateOfficeController : Controller
 
         var model = new StateOfficeMonthlyReportViewModel
         {
-            State = User.IsInRole("Admin") ? string.Empty : user.State,
+            State = User.IsInRole("CTSHIPAdmin") ? string.Empty : user.State,
             ReportingOfficerName = user.FullName ?? user.UserName ?? string.Empty
         };
 
@@ -520,7 +520,7 @@ public class StateOfficeController : Controller
             return Forbid();
         }
 
-        if (!User.IsInRole("Admin"))
+        if (!User.IsInRole("CTSHIPAdmin"))
         {
             if (string.IsNullOrWhiteSpace(user.State)
                 || !string.Equals(model.State, user.State, StringComparison.OrdinalIgnoreCase))
@@ -604,7 +604,7 @@ public class StateOfficeController : Controller
             return NotFound();
         }
 
-        if (!User.IsInRole("Admin")
+        if (!User.IsInRole("CTSHIPAdmin")
             && !string.Equals(report.State, user.State, StringComparison.OrdinalIgnoreCase))
         {
             return NotFound();
@@ -678,7 +678,7 @@ public class StateOfficeController : Controller
         CancellationToken cancellationToken)
     {
         List<string> states;
-        if (User.IsInRole("Admin"))
+        if (User.IsInRole("CTSHIPAdmin"))
         {
             states = await _context.Enrollees
                 .AsNoTracking()
@@ -744,7 +744,7 @@ public class StateOfficeController : Controller
 
     private async Task<bool> CanAccessStateAsync(string state)
     {
-        if (User.IsInRole("Admin"))
+        if (User.IsInRole("CTSHIPAdmin"))
         {
             return true;
         }

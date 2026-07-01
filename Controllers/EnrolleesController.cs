@@ -67,7 +67,7 @@ public class EnrolleesController : Controller
 
     // INDEX — ALL ENROLLEES
     // GET: /Enrollee or /Enrollee/Index
-    [Authorize(Roles = "Admin,HMO,Monitoring")]
+    [Authorize(Roles = "CTSHIPAdmin,HMO,Monitoring")]
     public async Task<IActionResult> Index(
         string search = "",      // Search by name, phone, NIN, or enrollment number
         string status = "",      // "Active", "Inactive", "Suspended", etc.
@@ -176,7 +176,7 @@ public class EnrolleesController : Controller
 
     // CREATE
     // GET: Enrollee/Create
-    [Authorize(Roles = "Admin,HMO")]
+    [Authorize(Roles = "CTSHIPAdmin,HMO")]
     public async Task<IActionResult> Create()
     {
         ViewBag.Hmos = await _context.Hmos.Select(h => new SelectListItem
@@ -296,7 +296,7 @@ public class EnrolleesController : Controller
             {
                 return RedirectToAction("EnrolleeDashboard", "Hmo");
             }
-            else if (User.IsInRole("admin")) 
+            else if (User.IsInRole("CTSHIPAdmin")) 
             {
                 return RedirectToAction("Index", "Enrollees");
             }
@@ -322,7 +322,7 @@ public class EnrolleesController : Controller
     }
 
     // EDIT
-    [Authorize(Roles = "Admin,HMO")]
+    [Authorize(Roles = "CTSHIPAdmin,HMO")]
     public async Task<IActionResult> Edit(int id)
     {
         var enrollee = await _context.Enrollees.AsNoTracking().FirstOrDefaultAsync(e => e.Id == id);
@@ -341,7 +341,7 @@ public class EnrolleesController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    [Authorize(Roles = "Admin,HMO")]
+    [Authorize(Roles = "CTSHIPAdmin,HMO")]
     public async Task<IActionResult> Edit(int id, Enrollee enrollee)
     {
         if (id != enrollee.Id) return NotFound();
@@ -487,7 +487,7 @@ public class EnrolleesController : Controller
     }
 
     // DETAILS
-    [Authorize(Roles = "Admin,HMO,Provider,Monitoring")]
+    [Authorize(Roles = "CTSHIPAdmin,HMO,Provider,Monitoring")]
     public async Task<IActionResult> Details(int id)
     {
         var enrollee = await _context.Enrollees
@@ -499,7 +499,7 @@ public class EnrolleesController : Controller
     }
 
     // Wallet details and transactions for an enrollee
-    [Authorize(Roles = "Admin,HMO,Provider")]
+    [Authorize(Roles = "CTSHIPAdmin,HMO,Provider")]
     public async Task<IActionResult> Wallet(int id)
     {
         var enrollee = await _context.Enrollees
@@ -526,7 +526,7 @@ public class EnrolleesController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    [Authorize(Roles = "Admin,HMO")]
+    [Authorize(Roles = "CTSHIPAdmin,HMO")]
     public async Task<IActionResult> DisburseToEnrollee(int id, decimal amount, string? note)
     {
         if (amount <= 0)
@@ -661,7 +661,7 @@ public class EnrolleesController : Controller
     }
 
     [HttpGet]
-    [Authorize(Roles = "Admin,HMO")]
+    [Authorize(Roles = "CTSHIPAdmin,HMO")]
     public IActionResult GetLgasByState(string state)
     {
         if (!NorthEastLocationData.IsValidState(state))
@@ -673,7 +673,7 @@ public class EnrolleesController : Controller
     }
 
     [HttpGet]
-    [Authorize(Roles = "Admin,HMO")]
+    [Authorize(Roles = "CTSHIPAdmin,HMO")]
     public async Task<IActionResult> GetWardsByLga(string state, string lga)
     {
         if (!NorthEastLocationData.IsValidLga(state, lga))
@@ -697,7 +697,7 @@ public class EnrolleesController : Controller
     }
 
     // GET: Enrollee/BulkUpload
-    [Authorize(Roles = "Admin,HMO")]
+    [Authorize(Roles = "CTSHIPAdmin,HMO")]
     public async Task<IActionResult> BulkUpload()
     {
         ApplicationUser? currentUser = await _userManager.GetUserAsync(User);
@@ -737,7 +737,7 @@ public class EnrolleesController : Controller
     }
 
     [HttpGet]
-    [Authorize(Roles = "Admin,HMO")]
+    [Authorize(Roles = "CTSHIPAdmin,HMO")]
     public IActionResult DownloadBulkUploadTemplate()
     {
         using var package = new ExcelPackage();
@@ -819,7 +819,7 @@ public class EnrolleesController : Controller
     // POST: Enrollee/BulkUpload
     [HttpPost]
     [ValidateAntiForgeryToken]
-    [Authorize(Roles = "Admin,HMO")]
+    [Authorize(Roles = "CTSHIPAdmin,HMO")]
     public async Task<IActionResult> BulkUpload(IFormFile excelFile, int hmoId, int providerId)
     {
         if (excelFile == null || excelFile.Length == 0)
@@ -1095,7 +1095,7 @@ public class EnrolleesController : Controller
     }
 
     // DELETE GET — SHOW CONFIRMATION
-    [Authorize(Roles = "Admin, HMO")]
+    [Authorize(Roles = "CTSHIPAdmin, HMO")]
     public async Task<IActionResult> Delete(int id)
     {
         var enrollee = await _context.Enrollees
@@ -1120,7 +1120,7 @@ public class EnrolleesController : Controller
     // DELETE POST — SAFE & CONFIRMED
     [HttpPost, ActionName("Delete")]
     [ValidateAntiForgeryToken]
-    [Authorize(Roles = "Admin, HMO")]
+    [Authorize(Roles = "CTSHIPAdmin, HMO")]
     public async Task<IActionResult> DeleteConfirmed(int id)
     {
         var enrollee = await _context.Enrollees

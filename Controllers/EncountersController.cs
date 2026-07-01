@@ -11,7 +11,7 @@ using System.Data;
 
 namespace CTSHIPDashboard.Controllers
 {
-    [Authorize(Roles = "Provider,Admin")]
+    [Authorize(Roles = "Provider,CTSHIPAdmin")]
     public class EncountersController : Controller
     {
         private readonly ApplicationDbContext _context;
@@ -392,7 +392,7 @@ namespace CTSHIPDashboard.Controllers
         }
 
         // CREATE CLAIM FROM ENCOUNTER — 100% SAFE & ACCURATE
-        [Authorize(Roles = "Provider,Admin,HMO")]
+        [Authorize(Roles = "Provider,CTSHIPAdmin,HMO")]
         public async Task<IActionResult> CreateClaim(int id)
         {
             var encounter = await _context.Encounters
@@ -553,7 +553,7 @@ namespace CTSHIPDashboard.Controllers
 
         private async Task<bool> CanAccessProviderAsync(int providerId)
         {
-            if (User.IsInRole("Admin"))
+            if (User.IsInRole("CTSHIPAdmin"))
             {
                 return true;
             }
