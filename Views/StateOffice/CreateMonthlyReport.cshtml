@@ -43,9 +43,7 @@
 
             <div class="col-md-6">
                 <label asp-for="Ward" class="form-label"></label>
-                <select asp-for="Ward" asp-items="Model.Wards" class="form-select" id="reportWard">
-                    <option value="">Select ward</option>
-                </select>
+                <input asp-for="Ward" class="form-control" id="reportWard" />
                 <span asp-validation-for="Ward" class="text-danger"></span>
             </div>
 
@@ -60,6 +58,24 @@
             <div class="col-md-4">
                 <label asp-for="FacilityCode" class="form-label"></label>
                 <input asp-for="FacilityCode" class="form-control" id="facilityCode" readonly />
+            </div>
+
+            <div class="col-12">
+                <div class="border rounded p-3 bg-light" id="facilityDetailsPanel">
+                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+                        <div>
+                            <h5 class="mb-0">Facility Details</h5>
+                            <small class="text-muted" id="facilityDetailsSubtitle">Select reporting month and facility</small>
+                        </div>
+                        <a class="btn btn-outline-success btn-sm disabled" id="exportSelectedDetails" aria-disabled="true">
+                            <i class="bi bi-file-earmark-excel"></i> Export Details
+                        </a>
+                    </div>
+
+                    <div class="row g-3" id="facilityMetrics">
+                        <div class="col-12 text-muted">No facility selected.</div>
+                    </div>
+                </div>
             </div>
 
             <div class="col-md-6">
@@ -99,15 +115,20 @@
     <partial name="_ValidationScriptsPartial" />
     <script>
         (() => {
+            const reportingPeriod = document.getElementById('ReportingPeriod');
             const state = document.getElementById('reportState');
             const lga = document.getElementById('reportLga');
             const ward = document.getElementById('reportWard');
             const facility = document.getElementById('reportFacility');
             const facilityCode = document.getElementById('facilityCode');
+            const facilityMetrics = document.getElementById('facilityMetrics');
+            const facilityDetailsSubtitle = document.getElementById('facilityDetailsSubtitle');
+            const exportSelectedDetails = document.getElementById('exportSelectedDetails');
 
             const lgaUrl = '@Url.Action("MonthlyReportLgas", "StateOffice")';
-            const wardUrl = '@Url.Action("MonthlyReportWards", "StateOffice")';
             const facilityUrl = '@Url.Action("MonthlyReportFacilities", "StateOffice")';
+            const detailsUrl = '@Url.Action("MonthlyReportFacilityDetails", "StateOffice")';
+            const exportUrl = '@Url.Action("ExportMonthlyReportSelection", "StateOffice")';
 
             const replaceOptions = (select, items, placeholder, valueSelector, textSelector) => {
                 select.innerHTML = `<option value="">${placeholder}</option>`;
@@ -121,8 +142,93 @@
                 $(select).trigger('change.select2');
             };
 
+            const formatter = new Intl.NumberFormat('en-NG');
+            const moneyFormatter = new Intl.NumberFormat('en-NG', {
+                style: 'currency',
+                currency: 'NGN'
+            });
+
+            const clearMetrics = (message) => {
+                facilityMetrics.innerHTML = `<div class="col-12 text-muted">${message}</div>`;
+                facilityDetailsSubtitle.textContent = 'Select reporting month and facility';
+                exportSelectedDetails.classList.add('disabled');
+                exportSelectedDetails.setAttribute('aria-disabled', 'true');
+                exportSelectedDetails.removeAttribute('href');
+            };
+
+            const metricCard = (label, value) => `
+                <div class="col-sm-6 col-lg-3">
+                    <div class="bg-white border rounded p-3 h-100">
+                        <div class="small text-muted">${label}</div>
+                        <div class="fs-5 fw-bold text-success">${value}</div>
+                    </div>
+                </div>`;
+
+            const updateExportLink = () => {
+                if (!state.value || !reportingPeriod.value || !facility.value) {
+                    exportSelectedDetails.classList.add('disabled');
+                    exportSelectedDetails.setAttribute('aria-disabled', 'true');
+                    exportSelectedDetails.removeAttribute('href');
+                    return;
+                }
+
+                const url = new URL(exportUrl, window.location.origin);
+                url.searchParams.set('state', state.value);
+                url.searchParams.set('reportingPeriod', reportingPeriod.value);
+                url.searchParams.set('providerId', facility.value);
+                url.searchParams.set('lga', lga.value || '');
+                url.searchParams.set('ward', ward.value || '');
+                exportSelectedDetails.href = url.toString();
+                exportSelectedDetails.classList.remove('disabled');
+                exportSelectedDetails.setAttribute('aria-disabled', 'false');
+            };
+
+            const loadFacilityDetails = async () => {
+                if (!state.value || !reportingPeriod.value || !facility.value) {
+                    clearMetrics('Select reporting month and facility.');
+                    return;
+                }
+
+                facilityMetrics.innerHTML = '<div class="col-12 text-muted">Loading facility details...</div>';
+
+                const url = new URL(detailsUrl, window.location.origin);
+                url.searchParams.set('state', state.value);
+                url.searchParams.set('reportingPeriod', reportingPeriod.value);
+                url.searchParams.set('providerId', facility.value);
+                url.searchParams.set('lga', lga.value || '');
+                url.searchParams.set('ward', ward.value || '');
+
+                const response = await fetch(url.toString());
+                if (!response.ok) {
+                    clearMetrics('Facility details could not be loaded.');
+                    return;
+                }
+
+                const data = await response.json();
+                facilityDetailsSubtitle.textContent = `${data.facilityName} - ${data.reportingMonthDisplay}`;
+                facilityMetrics.innerHTML = [
+                    metricCard('Total Active Enrollees', formatter.format(data.totalActiveEnrollees)),
+                    metricCard('Total Visits', formatter.format(data.totalVisits)),
+                    metricCard('Total Encounters', formatter.format(data.totalEncounters)),
+                    metricCard('Enrollees Accessing Care', formatter.format(data.enrolleesAccessingCare)),
+                    metricCard('Service Utilization', formatter.format(data.serviceUtilization)),
+                    metricCard('Referral Completion', `${formatter.format(data.completedReferrals)} of ${formatter.format(data.totalReferrals)} (${data.referralCompletionRate.toFixed(1)}%)`),
+                    metricCard('Capitation Paid', moneyFormatter.format(data.amountCapitationPaid)),
+                    metricCard('Capitation/Utilization', formatter.format(data.capitationToUtilizationRatio)),
+                    metricCard('Claims', `${formatter.format(data.totalClaims)} (${moneyFormatter.format(data.totalClaimsAmount)})`),
+                    metricCard('Paid Claims', `${formatter.format(data.paidClaims)} (${moneyFormatter.format(data.paidClaimsAmount)})`)
+                ].join('');
+                updateExportLink();
+            };
+
             const loadStateOptions = async () => {
-                if (!state.value) return;
+                if (!state.value) {
+                    replaceOptions(lga, [], 'Select LGA', x => x, x => x);
+                    replaceOptions(facility, [], 'Select facility', x => x.id, x => x.name);
+                    facilityCode.value = '';
+                    clearMetrics('Select reporting month and facility.');
+                    return;
+                }
 
                 const [lgas, facilities] = await Promise.all([
                     fetch(`${lgaUrl}?state=${encodeURIComponent(state.value)}`).then(r => r.json()),
@@ -130,42 +236,41 @@
                 ]);
 
                 replaceOptions(lga, lgas, 'Select LGA', x => x, x => x);
-                replaceOptions(ward, [], 'Select ward', x => x, x => x);
                 replaceOptions(facility, facilities, 'Select facility', x => x.id, x => x.name);
+                ward.value = '';
                 facilityCode.value = '';
+                clearMetrics('Select reporting month and facility.');
             };
 
             state.addEventListener('change', loadStateOptions);
-
-            lga.addEventListener('change', async () => {
-                if (!state.value || !lga.value) {
-                    replaceOptions(ward, [], 'Select ward', x => x, x => x);
-                    return;
-                }
-
-                const wards = await fetch(
-                    `${wardUrl}?state=${encodeURIComponent(state.value)}&lga=${encodeURIComponent(lga.value)}`
-                ).then(r => r.json());
-
-                replaceOptions(ward, wards, 'Select ward', x => x, x => x);
-            });
+            lga.addEventListener('change', loadFacilityDetails);
+            ward.addEventListener('input', loadFacilityDetails);
+            reportingPeriod.addEventListener('change', loadFacilityDetails);
 
             facility.addEventListener('change', async () => {
                 if (!state.value || !facility.value) {
                     facilityCode.value = '';
+                    clearMetrics('Select reporting month and facility.');
                     return;
                 }
 
-                const facilities = await fetch(
-                    `${facilityUrl}?state=${encodeURIComponent(state.value)}`
-                ).then(r => r.json());
+                let code = facility.selectedOptions[0]?.dataset.code ?? '';
+                if (!code) {
+                    const facilities = await fetch(
+                        `${facilityUrl}?state=${encodeURIComponent(state.value)}`
+                    ).then(r => r.json());
+                    const selected = facilities.find(x => String(x.id) === facility.value);
+                    code = selected?.code ?? '';
+                    if (code) facility.selectedOptions[0].dataset.code = code;
+                }
 
-                const selected = facilities.find(x => String(x.id) === facility.value);
-                facilityCode.value = selected?.code ?? '';
+                facilityCode.value = code;
+                await loadFacilityDetails();
             });
 
             if (facility.value && facilityCode.value) {
                 facility.selectedOptions[0].dataset.code = facilityCode.value;
+                loadFacilityDetails();
             }
         })();
     </script>

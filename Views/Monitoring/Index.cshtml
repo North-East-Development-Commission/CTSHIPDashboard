@@ -5,14 +5,14 @@
 }
 
 <style>
-    .monitoring-state-filter,
-    .monitoring-state-filter option {
+    .monitoring-filter,
+    .monitoring-filter option {
         color: #244a2a !important;
         background-color: #fff !important;
         font-weight: 800;
     }
 
-    .monitoring-state-filter:focus {
+    .monitoring-filter:focus {
         border-color: #FE9031;
         box-shadow: 0 0 0 .2rem rgba(254, 144, 49, .25);
     }
@@ -22,29 +22,63 @@
 <div class="ct-page-header d-flex flex-wrap justify-content-between align-items-center gap-3">
     <div>
         <h1 class="mb-1">Monitoring & Evaluation Dashboard</h1>
-        <p class="mb-0">@Model.Scope programme statistics.</p>
+        <p class="mb-0">@Model.ScopeDisplay programme statistics.</p>
     </div>
 
-    @if (!User.IsInRole("StateOffice"))
-    {
-        <form method="get" class="d-flex gap-2">
-                <select name="state" class="form-select monitoring-state-filter" aria-label="Filter monitoring dashboard by state">
-                <option value="" >All States</option>
-                @foreach (string state in Model.AvailableStates)
-                {
-                    if (state == Model.Scope)
+    <form method="get" class="row g-2 align-items-end">
+        <div class="col-auto">
+            <label class="form-label small mb-1" for="monitoringState">State</label>
+            @if (User.IsInRole("StateOffice"))
+            {
+                <input type="hidden" name="state" value="@Model.SelectedState" />
+                <select id="monitoringState" class="form-select monitoring-filter" aria-label="Assigned state" disabled>
+                    <option value="@Model.SelectedState" selected>@Model.SelectedState</option>
+                </select>
+            }
+            else
+            {
+                <select name="state" id="monitoringState" class="form-select monitoring-filter" aria-label="Filter monitoring dashboard by state">
+                    <option value="">All States</option>
+                    @foreach (string state in Model.AvailableStates)
                     {
-                        <option value="@state" selected>@state</option>
+                        if (state == Model.SelectedState)
+                        {
+                            <option value="@state" selected>@state</option>
+                        }
+                        else
+                        {
+                            <option value="@state">@state</option>
+                        }
+                    }
+                </select>
+            }
+        </div>
+        <div class="col-auto">
+            <label class="form-label small mb-1" for="monitoringLga">LGA</label>
+            <select name="lga" id="monitoringLga" class="form-select monitoring-filter"
+                    aria-label="Filter monitoring dashboard by LGA"
+                    disabled="@string.IsNullOrWhiteSpace(Model.SelectedState)">
+                <option value="">All LGAs</option>
+                @foreach (string lga in Model.AvailableLgas)
+                {
+                    if (lga == Model.SelectedLga)
+                    {
+                        <option value="@lga" selected>@lga</option>
                     }
                     else
                     {
-                        <option value="@state">@state</option>
+                        <option value="@lga">@lga</option>
                     }
                 }
             </select>
+        </div>
+        <div class="col-auto d-grid">
             <button class="btn btn-outline-success">View</button>
-        </form>
-    }
+        </div>
+        <div class="col-auto d-grid">
+            <a asp-action="Index" class="btn btn-outline-secondary">Clear</a>
+        </div>
+    </form>
 </div>
 
 @if (TempData["SuccessMessage"] != null)
@@ -63,6 +97,7 @@
             <form asp-action="SetTarget" method="post" class="row g-2 align-items-end">
                 @Html.AntiForgeryToken()
                 <input type="hidden" name="Scope" value="@Model.Scope" />
+                <input type="hidden" name="Lga" value="@Model.SelectedLga" />
                 <div class="col-md-4">
                     <label class="form-label">@(Model.Scope == "CTSHIP" ? "CTSHIP Target Enrollees" : $"{Model.Scope} Target Enrollees")</label>
                     <input type="number" min="1" name="TargetEnrollees" value="@(Model.TargetEnrollees > 0 ? Model.TargetEnrollees : null)"
@@ -368,6 +403,40 @@
 
 @section Scripts {
     <script>
+        (() => {
+            const stateSelect = document.getElementById('monitoringState');
+            const lgaSelect = document.getElementById('monitoringLga');
+            const lgaUrl = '@Url.Action("Lgas", "Monitoring")';
+
+            const replaceLgas = (items) => {
+                lgaSelect.innerHTML = '<option value="">All LGAs</option>';
+                items.forEach(item => {
+                    const option = document.createElement('option');
+                    option.value = item;
+                    option.textContent = item;
+                    lgaSelect.appendChild(option);
+                });
+                lgaSelect.disabled = !stateSelect.value;
+            };
+
+            stateSelect?.addEventListener('change', async () => {
+                if (!stateSelect.value) {
+                    replaceLgas([]);
+                    lgaSelect.disabled = true;
+                    return;
+                }
+
+                lgaSelect.disabled = true;
+                const response = await fetch(`${lgaUrl}?state=${encodeURIComponent(stateSelect.value)}`);
+                if (!response.ok) {
+                    replaceLgas([]);
+                    return;
+                }
+
+                replaceLgas(await response.json());
+            });
+        })();
+
         new Chart(document.getElementById('genderChart'), {
             type: 'doughnut',
             data: {

@@ -212,9 +212,19 @@ namespace CTSHIPDashboard.Data
                 entity.Property(x => x.PhoneNumber).IsRequired().HasMaxLength(30);
                 entity.Property(x => x.SubmittedByUserId).HasMaxLength(450);
                 entity.Property(x => x.SubmittedByName).HasMaxLength(200);
+                entity.Property(x => x.ReferralCompletionRate).HasColumnType("decimal(18,2)");
+                entity.Property(x => x.AmountCapitationPaid).HasColumnType("decimal(18,2)");
+                entity.Property(x => x.CapitationToUtilizationRatio).HasColumnType("decimal(18,2)");
+                entity.Property(x => x.TotalClaimsAmount).HasColumnType("decimal(18,2)");
+                entity.Property(x => x.PaidClaimsAmount).HasColumnType("decimal(18,2)");
+                entity.Property(x => x.AuditStatus).IsRequired().HasMaxLength(50).HasDefaultValue("Pending");
+                entity.Property(x => x.AuditedByUserId).HasMaxLength(450);
+                entity.Property(x => x.AuditedByName).HasMaxLength(200);
+                entity.Property(x => x.AuditNote).HasMaxLength(1000);
                 entity.HasIndex(x => x.ReportingMonth);
                 entity.HasIndex(x => x.State);
                 entity.HasIndex(x => x.ProviderId);
+                entity.HasIndex(x => x.AuditStatus);
             });
 
             modelBuilder.Entity<ProgramMonitoringTarget>(entity =>

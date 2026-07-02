@@ -48,4 +48,30 @@ namespace CTSHIPDashboard.Models.ViewModels
         public List<SelectListItem> Wards { get; set; } = new();
         public List<SelectListItem> Facilities { get; set; } = new();
     }
+
+    public class StateOfficeMonthlyReportMetricsViewModel
+    {
+        public string ReportingPeriod { get; set; } = string.Empty;
+        public string ReportingMonthDisplay { get; set; } = string.Empty;
+        public string State { get; set; } = string.Empty;
+        public string Lga { get; set; } = string.Empty;
+        public string Ward { get; set; } = string.Empty;
+        public int ProviderId { get; set; }
+        public string FacilityName { get; set; } = string.Empty;
+        public string FacilityCode { get; set; } = string.Empty;
+        public int TotalActiveEnrollees { get; set; }
+        public int TotalVisits { get; set; }
+        public int TotalEncounters { get; set; }
+        public int EnrolleesAccessingCare { get; set; }
+        public int ServiceUtilization { get; set; }
+        public int TotalReferrals { get; set; }
+        public int CompletedReferrals { get; set; }
+        public decimal ReferralCompletionRate { get; set; }
+        public decimal AmountCapitationPaid { get; set; }
+        public decimal CapitationToUtilizationRatio { get; set; }
+        public int TotalClaims { get; set; }
+        public decimal TotalClaimsAmount { get; set; }
+        public int PaidClaims { get; set; }
+        public decimal PaidClaimsAmount { get; set; }
+    }
 }

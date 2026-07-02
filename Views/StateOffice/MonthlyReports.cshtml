@@ -2,6 +2,9 @@
 
 @{
     ViewData["Title"] = "Monthly Reports";
+    var availableStates = ViewBag.AvailableStates as List<string> ?? new List<string>();
+    string selectedState = ViewBag.State as string ?? string.Empty;
+    bool canManageReports = ViewBag.CanManageReports as bool? ?? false;
 }
 
 <div class="ct-page">
@@ -17,10 +20,30 @@
 
 <form method="get" class="card card-body mb-3">
     <div class="row g-2 align-items-end">
-        <div class="col-md-4">
+        <div class="col-md-3">
             <label class="form-label">Reporting Month</label>
             <input type="month" name="reportingPeriod" value="@ViewBag.ReportingPeriod" class="form-control" />
         </div>
+        @if (canManageReports)
+        {
+            <div class="col-md-3">
+                <label class="form-label">State</label>
+                <select name="state" class="form-select">
+                    <option value="">All states</option>
+                    @foreach (string state in availableStates)
+                    {
+                        if (state == selectedState)
+                        {
+                            <option value="@state" selected>@state</option>
+                        }
+                        else
+                        {
+                            <option value="@state">@state</option>
+                        }
+                    }
+                </select>
+            </div>
+        }
         <div class="col-md-2 d-grid">
             <button type="submit" class="btn btn-outline-success">Filter</button>
         </div>
@@ -40,6 +63,8 @@
                     <th>LGA</th>
                     <th>Ward</th>
                     <th>Facility</th>
+                    <th>Claims</th>
+                    <th>Audit</th>
                     <th>Officer</th>
                     <th>Date Submitted</th>
                     <th></th>
@@ -57,6 +82,15 @@
                             @report.FacilityName
                             <div class="small text-muted">@report.FacilityCode</div>
                         </td>
+                        <td>
+                            @report.TotalClaims
+                            <div class="small text-muted">@report.TotalClaimsAmount.ToString("N2")</div>
+                        </td>
+                        <td>
+                            <span class="badge @(report.AuditStatus == "Audited" ? "bg-success" : report.AuditStatus == "Needs Correction" ? "bg-warning text-dark" : "bg-secondary")">
+                                @report.AuditStatus
+                            </span>
+                        </td>
                         <td>@report.ReportingOfficerName</td>
                         <td>@report.DateSubmitted.ToLocalTime().ToString("dd MMM yyyy HH:mm")</td>
                         <td>
@@ -68,7 +102,7 @@
                 @if (!Model.Any())
                 {
                     <tr>
-                        <td colspan="8" class="text-center text-muted py-4">No monthly reports found.</td>
+                        <td colspan="10" class="text-center text-muted py-4">No monthly reports found.</td>
                     </tr>
                 }
             </tbody>

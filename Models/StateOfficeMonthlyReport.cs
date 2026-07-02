@@ -41,5 +41,47 @@ namespace CTSHIPDashboard.Models
 
         [StringLength(200)]
         public string? SubmittedByName { get; set; }
+
+        public int TotalActiveEnrollees { get; set; }
+
+        public int TotalVisits { get; set; }
+
+        public int TotalEncounters { get; set; }
+
+        public int EnrolleesAccessingCare { get; set; }
+
+        public int ServiceUtilization { get; set; }
+
+        public int TotalReferrals { get; set; }
+
+        public int CompletedReferrals { get; set; }
+
+        public decimal ReferralCompletionRate { get; set; }
+
+        public decimal AmountCapitationPaid { get; set; }
+
+        public decimal CapitationToUtilizationRatio { get; set; }
+
+        public int TotalClaims { get; set; }
+
+        public decimal TotalClaimsAmount { get; set; }
+
+        public int PaidClaims { get; set; }
+
+        public decimal PaidClaimsAmount { get; set; }
+
+        [Required, StringLength(50)]
+        public string AuditStatus { get; set; } = "Pending";
+
+        [StringLength(450)]
+        public string? AuditedByUserId { get; set; }
+
+        [StringLength(200)]
+        public string? AuditedByName { get; set; }
+
+        public DateTime? AuditedAt { get; set; }
+
+        [StringLength(1000)]
+        public string? AuditNote { get; set; }
     }
 }

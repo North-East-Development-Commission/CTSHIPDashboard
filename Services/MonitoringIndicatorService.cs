@@ -1,5 +1,6 @@
 using CTSHIPDashboard.Data;
 using CTSHIPDashboard.Enums;
+using CTSHIPDashboard.Helpers;
 using CTSHIPDashboard.Models;
 using CTSHIPDashboard.Models.ViewModels;
 using Microsoft.EntityFrameworkCore;
@@ -21,12 +22,25 @@ namespace CTSHIPDashboard.Services
             string? state,
             CancellationToken cancellationToken = default)
         {
+            return await BuildDashboardAsync(state, null, cancellationToken);
+        }
+
+        public async Task<MonitoringDashboardViewModel> BuildDashboardAsync(
+            string? state,
+            string? lga,
+            CancellationToken cancellationToken = default)
+        {
             string scope = string.IsNullOrWhiteSpace(state) ? CtsTargetScope : state.Trim();
+            string selectedLga = scope == CtsTargetScope ? string.Empty : lga?.Trim() ?? string.Empty;
             IQueryable<Enrollee> query = _context.Enrollees.AsNoTracking();
 
             if (scope != CtsTargetScope)
             {
                 query = query.Where(x => x.State == scope);
+                if (!string.IsNullOrWhiteSpace(selectedLga))
+                {
+                    query = query.Where(x => x.LGA == selectedLga);
+                }
             }
 
             DateTime today = DateTime.Today;
@@ -78,6 +92,13 @@ namespace CTSHIPDashboard.Services
             {
                 serviceQuery = serviceQuery.Where(
                     x => x.Encounter!.Enrollee != null && x.Encounter.Enrollee.State == scope);
+
+                if (!string.IsNullOrWhiteSpace(selectedLga))
+                {
+                    string selectedLgaValue = selectedLga;
+                    serviceQuery = serviceQuery.Where(
+                        x => x.Encounter!.Enrollee != null && x.Encounter.Enrollee.LGA == selectedLgaValue);
+                }
             }
 
             List<EncounterService> recordedServices = await serviceQuery.ToListAsync(cancellationToken);
@@ -107,7 +128,27 @@ namespace CTSHIPDashboard.Services
 
             if (scope != CtsTargetScope)
             {
+                IQueryable<Provider> scopedProviders = _context.Providers
+                    .AsNoTracking()
+                    .Where(x => x.State == scope);
+
+                if (!string.IsNullOrWhiteSpace(selectedLga))
+                {
+                    string selectedLgaValue = selectedLga;
+                    scopedProviders = scopedProviders.Where(x =>
+                        x.Enrollees.Any(enrollee =>
+                            enrollee.State == scope && enrollee.LGA == selectedLgaValue));
+                }
+
                 providerQuery = providerQuery.Where(x => x.State == scope);
+                if (!string.IsNullOrWhiteSpace(selectedLga))
+                {
+                    string selectedLgaValue = selectedLga;
+                    providerQuery = providerQuery.Where(x =>
+                        x.Enrollees.Any(enrollee =>
+                            enrollee.State == scope && enrollee.LGA == selectedLgaValue));
+                }
+
                 encounterQuery = encounterQuery.Where(x => x.Enrollee != null && x.Enrollee.State == scope);
                 claimQuery = claimQuery.Where(x => x.Enrollee != null && x.Enrollee.State == scope);
                 walletQuery = walletQuery.Where(x => x.Enrollee != null && x.Enrollee.State == scope);
@@ -115,24 +156,38 @@ namespace CTSHIPDashboard.Services
                     x => x.EnrolleeWallet != null
                         && x.EnrolleeWallet.Enrollee != null
                         && x.EnrolleeWallet.Enrollee.State == scope);
+                complaintQuery = complaintQuery.Where(x => x.State == scope);
+
+                if (!string.IsNullOrWhiteSpace(selectedLga))
+                {
+                    string selectedLgaValue = selectedLga;
+                    encounterQuery = encounterQuery.Where(x =>
+                        x.Enrollee != null && x.Enrollee.LGA == selectedLgaValue);
+                    claimQuery = claimQuery.Where(x =>
+                        x.Enrollee != null && x.Enrollee.LGA == selectedLgaValue);
+                    walletQuery = walletQuery.Where(x =>
+                        x.Enrollee != null && x.Enrollee.LGA == selectedLgaValue);
+                    transactionQuery = transactionQuery.Where(
+                        x => x.EnrolleeWallet != null
+                            && x.EnrolleeWallet.Enrollee != null
+                            && x.EnrolleeWallet.Enrollee.LGA == selectedLgaValue);
+                    complaintQuery = complaintQuery.Where(x =>
+                        x.Enrollee != null && x.Enrollee.LGA == selectedLgaValue);
+                }
+
                 List<int> scopedEnrolleeIds = enrollees.Select(x => x.Id).ToList();
                 deathQuery = deathQuery.Where(
                     x => x.EnrolleeId.HasValue && scopedEnrolleeIds.Contains(x.EnrolleeId.Value));
 
-                List<string> scopedProviderCodes = await _context.Providers
-                    .AsNoTracking()
-                    .Where(x => x.State == scope)
+                List<string> scopedProviderCodes = await scopedProviders
                     .Select(x => x.Code)
                     .ToListAsync(cancellationToken);
-                List<string> scopedProviderNames = await _context.Providers
-                    .AsNoTracking()
-                    .Where(x => x.State == scope)
+                List<string> scopedProviderNames = await scopedProviders
                     .Select(x => x.Name)
                     .ToListAsync(cancellationToken);
                 referralQuery = referralQuery.Where(x =>
                     (x.FromProviderId != null && scopedProviderCodes.Contains(x.FromProviderId))
                     || scopedProviderNames.Contains(x.FromProviderName));
-                complaintQuery = complaintQuery.Where(x => x.State == scope);
             }
 
             List<Claim> claims = await claimQuery.ToListAsync(cancellationToken);
@@ -159,18 +214,24 @@ namespace CTSHIPDashboard.Services
                 referrals.Count - completedReferrals - rejectedReferrals);
 
             List<StateMonitoringViewModel> stateIndicators =
-                await BuildStateIndicatorsAsync(scope, cancellationToken);
+                await BuildStateIndicatorsAsync(scope, selectedLga, cancellationToken);
+
+            List<string> availableStates = await _context.Enrollees
+                .AsNoTracking()
+                .Where(x => x.State != "")
+                .Select(x => x.State)
+                .Distinct()
+                .OrderBy(x => x)
+                .ToListAsync(cancellationToken);
 
             return new MonitoringDashboardViewModel
             {
                 Scope = scope,
-                AvailableStates = await _context.Enrollees
-                    .AsNoTracking()
-                    .Where(x => x.State != "")
-                    .Select(x => x.State)
-                    .Distinct()
-                    .OrderBy(x => x)
-                    .ToListAsync(cancellationToken),
+                ScopeDisplay = BuildScopeDisplay(scope, selectedLga),
+                SelectedState = scope == CtsTargetScope ? string.Empty : scope,
+                SelectedLga = selectedLga,
+                AvailableStates = availableStates,
+                AvailableLgas = await GetAvailableLgasAsync(scope, cancellationToken),
                 TargetEnrollees = target,
                 TotalEnrolled = total,
                 ActiveEnrollees = active,
@@ -251,12 +312,17 @@ namespace CTSHIPDashboard.Services
 
         private async Task<List<StateMonitoringViewModel>> BuildStateIndicatorsAsync(
             string scope,
+            string selectedLga,
             CancellationToken cancellationToken)
         {
             IQueryable<Enrollee> enrollees = _context.Enrollees.AsNoTracking();
             if (scope != CtsTargetScope)
             {
                 enrollees = enrollees.Where(x => x.State == scope);
+                if (!string.IsNullOrWhiteSpace(selectedLga))
+                {
+                    enrollees = enrollees.Where(x => x.LGA == selectedLga);
+                }
             }
 
             var rows = await enrollees
@@ -274,17 +340,51 @@ namespace CTSHIPDashboard.Services
             foreach (StateMonitoringViewModel row in rows)
             {
                 string state = row.State;
-                row.Providers = await _context.Providers
+                IQueryable<Provider> providerQuery = _context.Providers
                     .AsNoTracking()
-                    .CountAsync(x => x.IsActive && x.State == state, cancellationToken);
-                row.Encounters = await _context.Encounters
+                    .Where(x => x.IsActive && x.State == state);
+                IQueryable<Encounter> encounterQuery = _context.Encounters
                     .AsNoTracking()
-                    .CountAsync(x => x.Enrollee != null && x.Enrollee.State == state, cancellationToken);
+                    .Where(x => x.Enrollee != null && x.Enrollee.State == state);
+                IQueryable<Claim> claimQuery = _context.Claims
+                    .AsNoTracking()
+                    .Where(x => x.Enrollee != null && x.Enrollee.State == state);
+                IQueryable<WalletTransaction> transactionQuery = _context.WalletTransactions
+                    .AsNoTracking()
+                    .Where(x => x.EnrolleeWallet != null
+                        && x.EnrolleeWallet.Enrollee != null
+                        && x.EnrolleeWallet.Enrollee.State == state);
+                IQueryable<EnrolleeWallet> walletQuery = _context.EnrolleeWallets
+                    .AsNoTracking()
+                    .Where(x => x.Enrollee != null && x.Enrollee.State == state);
+                IQueryable<Complaint> complaintQuery = _context.Complaints
+                    .AsNoTracking()
+                    .Where(x => x.State == state);
 
-                List<Claim> stateClaims = await _context.Claims
-                    .AsNoTracking()
-                    .Where(x => x.Enrollee != null && x.Enrollee.State == state)
-                    .ToListAsync(cancellationToken);
+                if (!string.IsNullOrWhiteSpace(selectedLga))
+                {
+                    string selectedLgaValue = selectedLga;
+                    providerQuery = providerQuery.Where(x =>
+                        x.Enrollees.Any(enrollee =>
+                            enrollee.State == state && enrollee.LGA == selectedLgaValue));
+                    encounterQuery = encounterQuery.Where(x =>
+                        x.Enrollee != null && x.Enrollee.LGA == selectedLgaValue);
+                    claimQuery = claimQuery.Where(x =>
+                        x.Enrollee != null && x.Enrollee.LGA == selectedLgaValue);
+                    transactionQuery = transactionQuery.Where(x =>
+                        x.EnrolleeWallet != null
+                        && x.EnrolleeWallet.Enrollee != null
+                        && x.EnrolleeWallet.Enrollee.LGA == selectedLgaValue);
+                    walletQuery = walletQuery.Where(x =>
+                        x.Enrollee != null && x.Enrollee.LGA == selectedLgaValue);
+                    complaintQuery = complaintQuery.Where(x =>
+                        x.Enrollee != null && x.Enrollee.LGA == selectedLgaValue);
+                }
+
+                row.Providers = await providerQuery.CountAsync(cancellationToken);
+                row.Encounters = await encounterQuery.CountAsync(cancellationToken);
+
+                List<Claim> stateClaims = await claimQuery.ToListAsync(cancellationToken);
                 row.Claims = stateClaims.Count;
                 row.PaidClaims = stateClaims.Count(x =>
                     string.Equals(x.Status, "Paid", StringComparison.OrdinalIgnoreCase));
@@ -292,27 +392,17 @@ namespace CTSHIPDashboard.Services
                 row.PaidClaimValue = stateClaims
                     .Where(x => string.Equals(x.Status, "Paid", StringComparison.OrdinalIgnoreCase))
                     .Sum(x => x.Amount);
-                row.CapitationDisbursed = await _context.WalletTransactions
-                    .AsNoTracking()
+                row.CapitationDisbursed = await transactionQuery
                     .Where(x => x.Type == "Disburse"
-                        && x.Amount > 0
-                        && x.EnrolleeWallet != null
-                        && x.EnrolleeWallet.Enrollee != null
-                        && x.EnrolleeWallet.Enrollee.State == state)
+                        && x.Amount > 0)
                     .SumAsync(x => (decimal?)x.Amount, cancellationToken) ?? 0m;
-                row.WalletBalance = await _context.EnrolleeWallets
-                    .AsNoTracking()
-                    .Where(x => x.Enrollee != null && x.Enrollee.State == state)
+                row.WalletBalance = await walletQuery
                     .SumAsync(x => (decimal?)x.Balance, cancellationToken) ?? 0m;
 
-                List<string> providerCodes = await _context.Providers
-                    .AsNoTracking()
-                    .Where(x => x.State == state)
+                List<string> providerCodes = await providerQuery
                     .Select(x => x.Code)
                     .ToListAsync(cancellationToken);
-                List<string> providerNames = await _context.Providers
-                    .AsNoTracking()
-                    .Where(x => x.State == state)
+                List<string> providerNames = await providerQuery
                     .Select(x => x.Name)
                     .ToListAsync(cancellationToken);
                 List<Referral> stateReferrals = await _context.Referrals
@@ -327,7 +417,7 @@ namespace CTSHIPDashboard.Services
                     Percentage(row.CompletedReferrals, row.Referrals);
                 ComplaintMetricsViewModel complaintMetrics =
                     await ComplaintMetricsService.BuildAsync(
-                        _context.Complaints.Where(x => x.State == state),
+                        complaintQuery,
                         cancellationToken);
                 row.Complaints = complaintMetrics.TotalComplaints;
                 row.OpenComplaints = complaintMetrics.OpenComplaints;
@@ -380,6 +470,43 @@ namespace CTSHIPDashboard.Services
             return denominator > 0
                 ? Math.Round((decimal)numerator / denominator * 100m, 1)
                 : 0m;
+        }
+
+        private async Task<List<string>> GetAvailableLgasAsync(
+            string state,
+            CancellationToken cancellationToken)
+        {
+            if (string.IsNullOrWhiteSpace(state) || state == CtsTargetScope)
+            {
+                return new List<string>();
+            }
+
+            List<string> configured = NorthEastLocationData.GetLgas(state).ToList();
+            List<string> recorded = await _context.Enrollees
+                .AsNoTracking()
+                .Where(x => x.State == state && x.LGA != "")
+                .Select(x => x.LGA)
+                .Distinct()
+                .ToListAsync(cancellationToken);
+
+            return configured
+                .Concat(recorded)
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(x => x)
+                .ToList();
+        }
+
+        private static string BuildScopeDisplay(string scope, string selectedLga)
+        {
+            if (scope == CtsTargetScope)
+            {
+                return CtsTargetScope;
+            }
+
+            return string.IsNullOrWhiteSpace(selectedLga)
+                ? scope
+                : $"{scope} / {selectedLga}";
         }
 
         private static bool IsCompletedReferral(Referral referral)

@@ -2,6 +2,7 @@
 
 @{
     ViewData["Title"] = "Monthly Report Details";
+    bool canAuditReports = ViewBag.CanAuditReports as bool? ?? false;
 }
 
 <div class="ct-page">
@@ -10,11 +11,103 @@
         <h2 class="mb-0">Monthly Report Details</h2>
         <p class="mb-0">@Model.ReportingMonth.ToString("MMMM yyyy")</p>
     </div>
-    <a asp-action="MonthlyReports" class="btn btn-outline-secondary">Back to Reports</a>
-</div>
+    <div class="d-flex flex-wrap gap-2">
+        <a asp-action="ExportMonthlyReportDetails" asp-route-id="@Model.Id" class="btn btn-outline-success">
+            <i class="bi bi-file-earmark-excel"></i> Export Details
+        </a>
+        <a asp-action="MonthlyReports" class="btn btn-outline-secondary">Back to Reports</a>
+    </div>
 </div>
 
-<div class="card">
+<div class="row g-3 mb-3">
+    <div class="col-sm-6 col-xl-3">
+        <div class="card h-100">
+            <div class="card-body">
+                <div class="small text-muted">Total Active Enrollees</div>
+                <div class="fs-4 fw-bold text-success">@Model.TotalActiveEnrollees.ToString("N0")</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        <div class="card h-100">
+            <div class="card-body">
+                <div class="small text-muted">Total Visits</div>
+                <div class="fs-4 fw-bold text-success">@Model.TotalVisits.ToString("N0")</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        <div class="card h-100">
+            <div class="card-body">
+                <div class="small text-muted">Total Encounters</div>
+                <div class="fs-4 fw-bold text-success">@Model.TotalEncounters.ToString("N0")</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        <div class="card h-100">
+            <div class="card-body">
+                <div class="small text-muted">Enrollees Accessing Care</div>
+                <div class="fs-4 fw-bold text-success">@Model.EnrolleesAccessingCare.ToString("N0")</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        <div class="card h-100">
+            <div class="card-body">
+                <div class="small text-muted">Service Utilization</div>
+                <div class="fs-4 fw-bold text-success">@Model.ServiceUtilization.ToString("N0")</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        <div class="card h-100">
+            <div class="card-body">
+                <div class="small text-muted">Referral Completion</div>
+                <div class="fs-5 fw-bold text-success">
+                    @Model.CompletedReferrals.ToString("N0") of @Model.TotalReferrals.ToString("N0")
+                </div>
+                <div class="small text-muted">@Model.ReferralCompletionRate.ToString("N1")%</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        <div class="card h-100">
+            <div class="card-body">
+                <div class="small text-muted">Capitation Paid</div>
+                <div class="fs-5 fw-bold text-success">@Model.AmountCapitationPaid.ToString("C")</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        <div class="card h-100">
+            <div class="card-body">
+                <div class="small text-muted">Capitation/Utilization</div>
+                <div class="fs-4 fw-bold text-success">@Model.CapitationToUtilizationRatio.ToString("N2")</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        <div class="card h-100">
+            <div class="card-body">
+                <div class="small text-muted">Claims</div>
+                <div class="fs-5 fw-bold text-success">@Model.TotalClaims.ToString("N0")</div>
+                <div class="small text-muted">@Model.TotalClaimsAmount.ToString("C")</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        <div class="card h-100">
+            <div class="card-body">
+                <div class="small text-muted">Paid Claims</div>
+                <div class="fs-5 fw-bold text-success">@Model.PaidClaims.ToString("N0")</div>
+                <div class="small text-muted">@Model.PaidClaimsAmount.ToString("C")</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card mb-3">
     <div class="card-header bg-success text-white fw-bold">Reporting Information</div>
     <div class="card-body">
         <dl class="row mb-0">
@@ -47,6 +140,69 @@
 
             <dt class="col-md-3">Date Submitted</dt>
             <dd class="col-md-9">@Model.DateSubmitted.ToLocalTime().ToString("dd MMMM yyyy HH:mm")</dd>
+
+            <dt class="col-md-3">Audit Status</dt>
+            <dd class="col-md-9">
+                <span class="badge @(Model.AuditStatus == "Audited" ? "bg-success" : Model.AuditStatus == "Needs Correction" ? "bg-warning text-dark" : "bg-secondary")">
+                    @Model.AuditStatus
+                </span>
+            </dd>
+
+            @if (Model.AuditedAt.HasValue)
+            {
+                <dt class="col-md-3">Audited By</dt>
+                <dd class="col-md-9">@Model.AuditedByName</dd>
+
+                <dt class="col-md-3">Audited At</dt>
+                <dd class="col-md-9">@Model.AuditedAt.Value.ToLocalTime().ToString("dd MMMM yyyy HH:mm")</dd>
+
+                <dt class="col-md-3">Audit Note</dt>
+                <dd class="col-md-9">@Model.AuditNote</dd>
+            }
         </dl>
     </div>
+</div>
+
+@if (canAuditReports)
+{
+    <div class="card">
+        <div class="card-header fw-bold">Audit Report</div>
+        <div class="card-body">
+            <form asp-action="AuditMonthlyReport" method="post">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="id" value="@Model.Id" />
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <label class="form-label">Decision</label>
+                        <select name="auditStatus" class="form-select" required>
+                            @if (Model.AuditStatus == "Audited")
+                            {
+                                <option value="Audited" selected>Audited</option>
+                            }
+                            else
+                            {
+                                <option value="Audited">Audited</option>
+                            }
+                            @if (Model.AuditStatus == "Needs Correction")
+                            {
+                                <option value="Needs Correction" selected>Needs Correction</option>
+                            }
+                            else
+                            {
+                                <option value="Needs Correction">Needs Correction</option>
+                            }
+                        </select>
+                    </div>
+                    <div class="col-md-8">
+                        <label class="form-label">Audit Note</label>
+                        <textarea name="auditNote" class="form-control" rows="3">@Model.AuditNote</textarea>
+                    </div>
+                    <div class="col-12">
+                        <button type="submit" class="btn btn-success">Save Audit</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+}
 </div>

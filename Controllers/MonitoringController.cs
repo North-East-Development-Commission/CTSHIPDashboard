@@ -1,4 +1,5 @@
 using CTSHIPDashboard.Data;
+using CTSHIPDashboard.Helpers;
 using CTSHIPDashboard.Models;
 using CTSHIPDashboard.Models.ViewModels;
 using CTSHIPDashboard.Services;
@@ -27,7 +28,10 @@ namespace CTSHIPDashboard.Controllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> Index(string? state, CancellationToken cancellationToken)
+        public async Task<IActionResult> Index(
+            string? state,
+            string? lga,
+            CancellationToken cancellationToken)
         {
             ApplicationUser? user = await _userManager.GetUserAsync(User);
             if (User.IsInRole("StateOffice"))
@@ -40,9 +44,39 @@ namespace CTSHIPDashboard.Controllers
                 state = user.State;
             }
 
+            if (string.IsNullOrWhiteSpace(state))
+            {
+                lga = null;
+            }
+            else if (!string.IsNullOrWhiteSpace(lga))
+            {
+                List<string> availableLgas = await GetAvailableLgasAsync(state, cancellationToken);
+                if (!availableLgas.Contains(lga.Trim(), StringComparer.OrdinalIgnoreCase))
+                {
+                    lga = null;
+                }
+            }
+
             MonitoringDashboardViewModel model =
-                await _indicatorService.BuildDashboardAsync(state, cancellationToken);
+                await _indicatorService.BuildDashboardAsync(state, lga, cancellationToken);
             return View(model);
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> Lgas(string state, CancellationToken cancellationToken)
+        {
+            ApplicationUser? user = await _userManager.GetUserAsync(User);
+            if (User.IsInRole("StateOffice"))
+            {
+                if (user == null
+                    || string.IsNullOrWhiteSpace(user.State)
+                    || !string.Equals(user.State, state, StringComparison.OrdinalIgnoreCase))
+                {
+                    return Forbid();
+                }
+            }
+
+            return Json(await GetAvailableLgasAsync(state, cancellationToken));
         }
 
         [HttpPost]
@@ -82,7 +116,11 @@ namespace CTSHIPDashboard.Controllers
             if (!ModelState.IsValid)
             {
                 TempData["ErrorMessage"] = "Enter a valid target enrolment figure.";
-                return RedirectToAction(nameof(Index), new { state = scope == ctsTargetScope ? null : scope });
+                return RedirectToAction(nameof(Index), new
+                {
+                    state = scope == ctsTargetScope ? null : scope,
+                    lga = model.Lga
+                });
             }
 
             ProgramMonitoringTarget? target = await _context.ProgramMonitoringTargets
@@ -113,7 +151,37 @@ namespace CTSHIPDashboard.Controllers
             await _context.SaveChangesAsync(cancellationToken);
             TempData["SuccessMessage"] = $"{scope} target enrolment updated.";
 
-            return RedirectToAction(nameof(Index), new { state = scope == ctsTargetScope ? null : scope });
+            return RedirectToAction(nameof(Index), new
+            {
+                state = scope == ctsTargetScope ? null : scope,
+                lga = model.Lga
+            });
+        }
+
+        private async Task<List<string>> GetAvailableLgasAsync(
+            string? state,
+            CancellationToken cancellationToken)
+        {
+            if (string.IsNullOrWhiteSpace(state))
+            {
+                return new List<string>();
+            }
+
+            state = state.Trim();
+            List<string> configured = NorthEastLocationData.GetLgas(state).ToList();
+            List<string> recorded = await _context.Enrollees
+                .AsNoTracking()
+                .Where(x => x.State == state && x.LGA != "")
+                .Select(x => x.LGA)
+                .Distinct()
+                .ToListAsync(cancellationToken);
+
+            return configured
+                .Concat(recorded)
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(x => x)
+                .ToList();
         }
     }
 }

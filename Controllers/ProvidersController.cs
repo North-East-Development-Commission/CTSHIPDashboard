@@ -29,7 +29,7 @@ public class ProvidersController : Controller
     }
 
     // GET: Provider/Index
-    [Authorize(Roles = "CTSHIPAdmin,HMO,Monitoring,SSHIA")]
+    [Authorize(Roles = "CTSHIPAdmin,Admin,HMO,Monitoring,SSHIA")]
     public async Task<IActionResult> Index(
         string search = "",
         string state = "",
@@ -43,6 +43,21 @@ public class ProvidersController : Controller
             .Include(p => p.Encounters)
             .Include(p => p.Claims)
             .AsQueryable();
+
+        int? restrictedHmoId = null;
+        if (IsHmoOnlyUser())
+        {
+            restrictedHmoId = await GetCurrentHmoIdAsync();
+            if (!restrictedHmoId.HasValue)
+            {
+                TempData["Error"] = "Your account is not linked to any HMO.";
+                return RedirectToAction("Index", "Home");
+            }
+
+            providers = providers.Where(p => p.HmoId == restrictedHmoId.Value);
+        }
+
+        var scopedProviders = providers;
 
         // SEARCH
         if (!string.IsNullOrEmpty(search))
@@ -69,8 +84,8 @@ public class ProvidersController : Controller
             providers = providers.Where(p => p.IsActive == (status == "active"));
 
         // STATISTICS FOR HEADER
-        ViewBag.TotalProviders = await _context.Providers.CountAsync();
-        ViewBag.ActiveProviders = await _context.Providers.CountAsync(p => p.IsActive);
+        ViewBag.TotalProviders = await scopedProviders.CountAsync();
+        ViewBag.ActiveProviders = await scopedProviders.CountAsync(p => p.IsActive);
         ViewBag.TotalEnrollees = await _context.Enrollees.CountAsync();
         ViewBag.TotalEncounters = await _context.Encounters.CountAsync();
 
@@ -126,7 +141,7 @@ public class ProvidersController : Controller
         return View(model);
     }
 
-    [Authorize(Roles = "Provider,CTSHIPAdmin,HMO")]
+    [Authorize(Roles = "Provider,CTSHIPAdmin,Admin,HMO")]
     public async Task<IActionResult> WalletSummary(int id)
     {
         var provider = await _context.Providers
@@ -164,28 +179,41 @@ public class ProvidersController : Controller
 
 
     // GET: Provider/Create
-    [Authorize(Roles = "CTSHIPAdmin,HMO")]
-    public IActionResult Create()
+    [Authorize(Roles = "CTSHIPAdmin,Admin,HMO")]
+    public async Task<IActionResult> Create()
     {
-        PopulateDropdowns();
-        return View(new Provider());
+        var provider = new Provider();
+        if (IsHmoOnlyUser())
+        {
+            int? hmoId = await GetCurrentHmoIdAsync();
+            if (!hmoId.HasValue)
+            {
+                TempData["Error"] = "Your account is not linked to any HMO.";
+                return RedirectToAction("Index", "Home");
+            }
+
+            provider.HmoId = hmoId.Value;
+        }
+
+        await PopulateProviderFormDropdownsAsync(selectedHmoId: provider.HmoId);
+        return View(provider);
     }
 
     // POST: Provider/Create
     [HttpPost]
     [ValidateAntiForgeryToken]
+    [Authorize(Roles = "CTSHIPAdmin,Admin,HMO")]
     public async Task<IActionResult> Create(Provider provider)
     {
-        // We generate Code ourselves → remove from validation
         ModelState.Remove(nameof(Provider.Code));
+
+        await ApplyAndValidateProviderHmoAsync(provider);
 
         if (ModelState.IsValid)
         {
             try
             {
-                // Generate smart Nigerian provider code: e.g. UMTH001, FMCYOLA002, GHBAUCHI045
                 provider.Code = await GenerateProviderCodeAsync(provider);
-
                 provider.DateRegistered = DateTime.UtcNow;
                 provider.IsActive = true;
 
@@ -193,28 +221,27 @@ public class ProvidersController : Controller
                 await _context.SaveChangesAsync();
 
                 TempData["Success"] = $"Provider '{provider.Name}' has been accredited successfully with code: <strong>{provider.Code}</strong>";
-                if (User.IsInRole("HMO"))
+                if (IsHmoOnlyUser())
                 {
                     return RedirectToAction("MyProviders", "Hmo");
                 }
-                else if (User.IsInRole("CTSHIPAdmin"))
+                else if (IsProviderAdmin())
                 {
-                    return RedirectToAction("Index", "Enrollees");
+                    return RedirectToAction(nameof(Index));
                 }
                 return RedirectToAction(nameof(Index));
             }
-            catch (Exception ex)
+            catch (DbUpdateException)
             {
-                ModelState.AddModelError("", "Unable to save provider. Error: " + ex.Message);
+                ModelState.AddModelError("", "Unable to save provider. Please confirm the selected HMO is valid and try again.");
             }
         }
 
-        // If validation fails → repopulate dropdowns with user's choices preserved
-        PopulateDropdowns(provider.State, provider.Level);
+        await PopulateProviderFormDropdownsAsync(provider.State, provider.Level, provider.HmoId);
         return View(provider);
     }
 
-    [Authorize(Roles = "CTSHIPAdmin,HMO")]
+    [Authorize(Roles = "CTSHIPAdmin,Admin,HMO")]
     public async Task<IActionResult> Edit(int? id)
     {
         var provider = await _context.Providers.FindAsync(id);
@@ -224,68 +251,124 @@ public class ProvidersController : Controller
             return RedirectToAction(nameof(Index));
         }
 
-        // Populate dropdowns (if needed in future)
-        ViewBag.States = new SelectList(new[]
+        if (!await CanManageProviderAsync(provider))
         {
-        "Adamawa", "Bauchi", "Borno",
-        "Gombe", "Taraba", "Yobe"
-        });
+            return Forbid();
+        }
 
+        await PopulateProviderFormDropdownsAsync(provider.State, provider.Level, provider.HmoId);
         return View(provider);
     }
+
     // EDIT POST
     [HttpPost]
     [ValidateAntiForgeryToken]
+    [Authorize(Roles = "CTSHIPAdmin,Admin,HMO")]
     public async Task<IActionResult> Edit(int id, Provider provider)
     {
         if (id != provider.Id)
         {
             return NotFound();
         }
-        //provider.Code = provider.Code;
+
+        var existing = await _context.Providers.FindAsync(id);
+        if (existing == null)
+        {
+            TempData["Error"] = "Provider not found.";
+            return RedirectToAction(nameof(Index));
+        }
+
+        if (!await CanManageProviderAsync(existing))
+        {
+            return Forbid();
+        }
+
+        ModelState.Remove(nameof(Provider.Code));
+        ModelState.Remove(nameof(Provider.DateRegistered));
+
+        await ApplyAndValidateProviderHmoAsync(provider, existing.HmoId);
+
         if (ModelState.IsValid)
         {
             try
             {
-                _context.Update(provider);
+                existing.Name = provider.Name;
+                existing.Location = provider.Location;
+                existing.IsActive = provider.IsActive;
+                existing.PatientRatio = provider.PatientRatio;
+                existing.Latitude = provider.Latitude;
+                existing.Longitude = provider.Longitude;
+                existing.State = provider.State;
+                existing.Phone = provider.Phone;
+                existing.Email = provider.Email;
+                existing.Level = provider.Level;
+                existing.HmoId = provider.HmoId;
+
                 await _context.SaveChangesAsync();
 
-                TempData["Success"] = $"Provider {provider.Name} updated successfully!";
+                TempData["Success"] = $"Provider {existing.Name} updated successfully!";
                 return RedirectToAction(nameof(Index));
             }
             catch (DbUpdateException)
             {
-                TempData["Error"] = "Failed to update provider. Please try again.";
+                ModelState.AddModelError("", "Failed to update provider. Please confirm the selected HMO is valid and try again.");
             }
         }
 
-        // Repopulate on validation error
-        ViewBag.States = new SelectList(new[] {  "Adamawa", "Bauchi", "Borno",
-        "Gombe", "Taraba", "Yobe"}, provider?.State);
-
+        provider.Code = existing.Code;
+        provider.DateRegistered = existing.DateRegistered;
+        await PopulateProviderFormDropdownsAsync(provider.State, provider.Level, provider.HmoId);
 
         return View(provider);
     }
 
-    [Authorize(Roles = "CTSHIPAdmin,HMO")]
+    [Authorize(Roles = "CTSHIPAdmin,Admin,HMO")]
     public async Task<IActionResult> Delete(int? id)
     {
         if (id == null) return NotFound();
         var provider = await _context.Providers.FirstOrDefaultAsync(m => m.Id == id);
         if (provider == null) return NotFound();
+        if (!await CanManageProviderAsync(provider))
+        {
+            return Forbid();
+        }
+
         return View(provider);
     }
 
     [HttpPost, ActionName("Delete")]
     [ValidateAntiForgeryToken]
+    [Authorize(Roles = "CTSHIPAdmin,Admin,HMO")]
     public async Task<IActionResult> DeleteConfirmed(int id)
     {
         var provider = await _context.Providers.FindAsync(id);
-        if (provider != null)
+        if (provider == null)
+        {
+            return RedirectToAction(nameof(Index));
+        }
+
+        if (!await CanManageProviderAsync(provider))
+        {
+            return Forbid();
+        }
+
+        try
         {
             _context.Providers.Remove(provider);
             await _context.SaveChangesAsync();
+            TempData["Success"] = $"Provider {provider.Name} deleted successfully.";
         }
+        catch (DbUpdateException)
+        {
+            TempData["Error"] = "This provider has linked records. Deactivate it instead of deleting it.";
+            return RedirectToAction(nameof(Details), new { id });
+        }
+
+        if (IsHmoOnlyUser())
+        {
+            return RedirectToAction("MyProviders", "Hmo");
+        }
+
         return RedirectToAction(nameof(Index));
     }
 
@@ -325,7 +408,85 @@ public class ProvidersController : Controller
         return View(provider);
     }
 
-    private void PopulateDropdowns(string selectedState = null, string selectedLevel = null)
+    private bool IsProviderAdmin()
+    {
+        return User.IsInRole("Admin") || User.IsInRole("CTSHIPAdmin");
+    }
+
+    private bool IsHmoOnlyUser()
+    {
+        return User.IsInRole("HMO") && !IsProviderAdmin();
+    }
+
+    private async Task<int?> GetCurrentHmoIdAsync()
+    {
+        ApplicationUser? currentUser = await _userManager.GetUserAsync(User);
+        return currentUser?.HmoId;
+    }
+
+    private async Task<bool> CanManageProviderAsync(Provider provider)
+    {
+        if (IsProviderAdmin())
+        {
+            return true;
+        }
+
+        if (!User.IsInRole("HMO"))
+        {
+            return false;
+        }
+
+        int? hmoId = await GetCurrentHmoIdAsync();
+        return hmoId.HasValue && provider.HmoId == hmoId.Value;
+    }
+
+    private async Task ApplyAndValidateProviderHmoAsync(Provider provider, int? existingHmoId = null)
+    {
+        if (IsHmoOnlyUser())
+        {
+            ModelState.Remove(nameof(Provider.HmoId));
+
+            int? hmoId = await GetCurrentHmoIdAsync();
+            if (!hmoId.HasValue)
+            {
+                ModelState.AddModelError(nameof(Provider.HmoId), "Your account is not linked to any HMO.");
+                return;
+            }
+
+            bool hmoExists = await _context.Hmos.AnyAsync(hmo => hmo.Id == hmoId.Value);
+            if (!hmoExists)
+            {
+                ModelState.AddModelError(nameof(Provider.HmoId), "Your linked HMO could not be found.");
+                return;
+            }
+
+            if (existingHmoId.HasValue && existingHmoId.Value != hmoId.Value)
+            {
+                ModelState.AddModelError(nameof(Provider.HmoId), "You can only manage providers under your HMO.");
+                return;
+            }
+
+            provider.HmoId = hmoId.Value;
+            return;
+        }
+
+        if (provider.HmoId <= 0)
+        {
+            ModelState.AddModelError(nameof(Provider.HmoId), "Select a valid HMO.");
+            return;
+        }
+
+        bool selectedHmoExists = await _context.Hmos.AnyAsync(hmo => hmo.Id == provider.HmoId);
+        if (!selectedHmoExists)
+        {
+            ModelState.AddModelError(nameof(Provider.HmoId), "Select a valid HMO.");
+        }
+    }
+
+    private async Task PopulateProviderFormDropdownsAsync(
+        string? selectedState = null,
+        string? selectedLevel = null,
+        int? selectedHmoId = null)
     {
         var states = new List<SelectListItem>
     {
@@ -339,7 +500,6 @@ public class ProvidersController : Controller
 
         var levels = new List<SelectListItem>
     {
-        new() { Value = "", Text = "-- Select Facility Level --" },
         new() { Value = "Tertiary", Text = "Tertiary (Teaching Hospital)" },
         new() { Value = "Secondary", Text = "Secondary (General/Specialist Hospital)" },
         new() { Value = "Private", Text = "Private Hospital/Clinic" },
@@ -348,6 +508,34 @@ public class ProvidersController : Controller
 
         ViewBag.States = new SelectList(states, "Value", "Text", selectedState);
         ViewBag.Levels = new SelectList(levels, "Value", "Text", selectedLevel);
+
+        bool hmoLocked = IsHmoOnlyUser();
+        IQueryable<Hmo> hmos = _context.Hmos.AsNoTracking();
+
+        if (hmoLocked)
+        {
+            int? currentHmoId = await GetCurrentHmoIdAsync();
+            if (currentHmoId.HasValue)
+            {
+                selectedHmoId = currentHmoId.Value;
+                hmos = hmos.Where(hmo => hmo.Id == currentHmoId.Value);
+            }
+            else
+            {
+                hmos = hmos.Where(hmo => false);
+            }
+        }
+
+        ViewBag.HmoLocked = hmoLocked;
+        ViewBag.Hmos = await hmos
+            .OrderBy(hmo => hmo.Name)
+            .Select(hmo => new SelectListItem
+            {
+                Value = hmo.Id.ToString(),
+                Text = hmo.Name,
+                Selected = selectedHmoId.HasValue && hmo.Id == selectedHmoId.Value
+            })
+            .ToListAsync();
     }
 
     private async Task<string> GenerateProviderCodeAsync(Provider provider)

@@ -1,4 +1,6 @@
 ﻿using CTSHIPDashboard.Data;
+using CTSHIPDashboard.Enums;
+using CTSHIPDashboard.Helpers;
 using CTSHIPDashboard.Models;
 using CTSHIPDashboard.Models.ViewModels;
 using CTSHIPDashboard.Services;
@@ -13,21 +15,24 @@ using System.Drawing;
 using System.Globalization;
 
 
-[Authorize(Roles = "StateOffice,CTSHIPAdmin")]
+[Authorize(Roles = "StateOffice,CTSHIPAdmin,Admin")]
 public class StateOfficeController : Controller
 {
     private readonly ApplicationDbContext _context;
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly IMonitoringIndicatorService _monitoringIndicatorService;
+    private readonly IAuditService _auditService;
 
     public StateOfficeController(
         ApplicationDbContext context,
         UserManager<ApplicationUser> userManager,
-        IMonitoringIndicatorService monitoringIndicatorService)
+        IMonitoringIndicatorService monitoringIndicatorService,
+        IAuditService auditService)
     {
         _context = context;
         _userManager = userManager;
         _monitoringIndicatorService = monitoringIndicatorService;
+        _auditService = auditService;
     }
 
     public async Task<IActionResult> Index()
@@ -452,7 +457,10 @@ public class StateOfficeController : Controller
     }
 
     [HttpGet]
-    public async Task<IActionResult> MonthlyReports(string? reportingPeriod, CancellationToken cancellationToken)
+    public async Task<IActionResult> MonthlyReports(
+        string? reportingPeriod,
+        string? state,
+        CancellationToken cancellationToken)
     {
         var user = await _userManager.GetUserAsync(User);
         if (user == null)
@@ -462,14 +470,20 @@ public class StateOfficeController : Controller
 
         IQueryable<StateOfficeMonthlyReport> query = _context.StateOfficeMonthlyReports.AsNoTracking();
 
-        if (!User.IsInRole("CTSHIPAdmin"))
+        if (!CanManageReports())
         {
             if (string.IsNullOrWhiteSpace(user.State))
             {
                 return Forbid();
             }
 
-            query = query.Where(x => x.State == user.State);
+            state = user.State;
+            query = query.Where(x => x.State == state);
+        }
+        else if (!string.IsNullOrWhiteSpace(state))
+        {
+            state = state.Trim();
+            query = query.Where(x => x.State == state);
         }
 
         if (DateTime.TryParseExact(
@@ -483,6 +497,10 @@ public class StateOfficeController : Controller
         }
 
         ViewBag.ReportingPeriod = reportingPeriod;
+        ViewBag.State = state;
+        ViewBag.AvailableStates = await GetAvailableStatesAsync(cancellationToken);
+        ViewBag.CanManageReports = CanManageReports();
+
         return View(await query
             .OrderByDescending(x => x.ReportingMonth)
             .ThenByDescending(x => x.DateSubmitted)
@@ -500,7 +518,7 @@ public class StateOfficeController : Controller
 
         var model = new StateOfficeMonthlyReportViewModel
         {
-            State = User.IsInRole("CTSHIPAdmin") ? string.Empty : user.State,
+            State = CanManageReports() ? string.Empty : user.State,
             ReportingOfficerName = user.FullName ?? user.UserName ?? string.Empty
         };
 
@@ -520,7 +538,7 @@ public class StateOfficeController : Controller
             return Forbid();
         }
 
-        if (!User.IsInRole("CTSHIPAdmin"))
+        if (!CanManageReports())
         {
             if (string.IsNullOrWhiteSpace(user.State)
                 || !string.Equals(model.State, user.State, StringComparison.OrdinalIgnoreCase))
@@ -541,6 +559,15 @@ public class StateOfficeController : Controller
             ModelState.AddModelError(nameof(model.ReportingPeriod), "Select a valid reporting month.");
         }
 
+        model.State = model.State?.Trim() ?? string.Empty;
+        model.Lga = model.Lga?.Trim() ?? string.Empty;
+        model.Ward = model.Ward?.Trim() ?? string.Empty;
+
+        if (!NorthEastLocationData.IsValidLga(model.State, model.Lga))
+        {
+            ModelState.AddModelError(nameof(model.Lga), "Select a valid LGA for the chosen state.");
+        }
+
         Provider? facility = null;
         if (model.ProviderId.HasValue)
         {
@@ -556,6 +583,19 @@ public class StateOfficeController : Controller
             ModelState.AddModelError(nameof(model.ProviderId), "Select a valid facility for the chosen state.");
         }
 
+        StateOfficeMonthlyReportMetricsViewModel? metrics = null;
+        if (facility != null
+            && ModelState.IsValid)
+        {
+            metrics = await BuildMonthlyReportMetricsAsync(
+                model.State,
+                reportingMonth,
+                facility.Id,
+                model.Lga,
+                model.Ward,
+                cancellationToken);
+        }
+
         if (!ModelState.IsValid)
         {
             await PopulateMonthlyReportOptionsAsync(model, user, cancellationToken);
@@ -565,9 +605,9 @@ public class StateOfficeController : Controller
         var report = new StateOfficeMonthlyReport
         {
             ReportingMonth = reportingMonth.Date,
-            State = model.State.Trim(),
-            Lga = model.Lga.Trim(),
-            Ward = model.Ward.Trim(),
+            State = model.State,
+            Lga = model.Lga,
+            Ward = model.Ward,
             ProviderId = facility!.Id,
             FacilityName = facility.Name,
             FacilityCode = facility.Code,
@@ -579,8 +619,16 @@ public class StateOfficeController : Controller
             SubmittedByName = user.FullName ?? user.UserName
         };
 
+        ApplyMetrics(report, metrics!);
+
         _context.StateOfficeMonthlyReports.Add(report);
         await _context.SaveChangesAsync(cancellationToken);
+
+        await _auditService.LogAsync(
+            "MonthlyReportSubmitted",
+            user.Email ?? User.Identity?.Name ?? "Unknown",
+            report.FacilityCode,
+            $"{report.State}; {report.FacilityName}; {report.ReportingMonth:yyyy-MM}; Claims:{report.TotalClaims}; Encounters:{report.TotalEncounters}");
 
         TempData["Success"] = "Monthly reporting information submitted successfully.";
         return RedirectToAction(nameof(MonthlyReportDetails), new { id = report.Id });
@@ -604,13 +652,61 @@ public class StateOfficeController : Controller
             return NotFound();
         }
 
-        if (!User.IsInRole("CTSHIPAdmin")
+        if (!CanManageReports()
             && !string.Equals(report.State, user.State, StringComparison.OrdinalIgnoreCase))
         {
             return NotFound();
         }
 
+        ViewBag.CanAuditReports = CanManageReports();
         return View(report);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [Authorize(Roles = "CTSHIPAdmin,Admin")]
+    public async Task<IActionResult> AuditMonthlyReport(
+        int id,
+        string auditStatus,
+        string? auditNote,
+        CancellationToken cancellationToken)
+    {
+        var user = await _userManager.GetUserAsync(User);
+        if (user == null)
+        {
+            return Forbid();
+        }
+
+        StateOfficeMonthlyReport? report = await _context.StateOfficeMonthlyReports
+            .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+
+        if (report == null)
+        {
+            return NotFound();
+        }
+
+        string[] allowedStatuses = { "Audited", "Needs Correction" };
+        if (!allowedStatuses.Contains(auditStatus))
+        {
+            TempData["Error"] = "Select a valid audit decision.";
+            return RedirectToAction(nameof(MonthlyReportDetails), new { id });
+        }
+
+        report.AuditStatus = auditStatus;
+        report.AuditNote = auditNote?.Trim();
+        report.AuditedAt = DateTime.UtcNow;
+        report.AuditedByUserId = user.Id;
+        report.AuditedByName = user.FullName ?? user.UserName;
+
+        await _context.SaveChangesAsync(cancellationToken);
+        await _auditService.LogAsync(
+            "MonthlyReportAudited",
+            user.Email ?? User.Identity?.Name ?? "Unknown",
+            report.FacilityCode,
+            $"{report.State}; {report.FacilityName}; {report.ReportingMonth:yyyy-MM}; Status:{report.AuditStatus}; Note:{report.AuditNote}");
+
+        TempData["Success"] = "Monthly report audit updated.";
+        return RedirectToAction(nameof(MonthlyReportDetails), new { id });
     }
 
     [HttpGet]
@@ -621,13 +717,7 @@ public class StateOfficeController : Controller
             return Forbid();
         }
 
-        var lgas = await _context.Enrollees
-            .AsNoTracking()
-            .Where(x => x.State == state && x.LGA != "")
-            .Select(x => x.LGA)
-            .Distinct()
-            .OrderBy(x => x)
-            .ToListAsync(cancellationToken);
+        var lgas = await GetMonthlyReportLgasAsync(state, cancellationToken);
 
         return Json(lgas);
     }
@@ -672,22 +762,114 @@ public class StateOfficeController : Controller
         return Json(facilities);
     }
 
+    [HttpGet]
+    public async Task<IActionResult> MonthlyReportFacilityDetails(
+        string state,
+        string reportingPeriod,
+        int providerId,
+        string? lga,
+        string? ward,
+        CancellationToken cancellationToken)
+    {
+        if (!await CanAccessStateAsync(state))
+        {
+            return Forbid();
+        }
+
+        if (!TryParseReportingMonth(reportingPeriod, out DateTime reportingMonth))
+        {
+            return BadRequest("Select a valid reporting month.");
+        }
+
+        StateOfficeMonthlyReportMetricsViewModel? metrics =
+            await BuildMonthlyReportMetricsAsync(
+                state.Trim(),
+                reportingMonth,
+                providerId,
+                lga,
+                ward,
+                cancellationToken);
+
+        return metrics == null
+            ? NotFound()
+            : Json(metrics);
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> ExportMonthlyReportDetails(
+        int id,
+        CancellationToken cancellationToken)
+    {
+        var user = await _userManager.GetUserAsync(User);
+        if (user == null)
+        {
+            return Forbid();
+        }
+
+        StateOfficeMonthlyReport? report = await _context.StateOfficeMonthlyReports
+            .AsNoTracking()
+            .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+
+        if (report == null)
+        {
+            return NotFound();
+        }
+
+        if (!CanManageReports()
+            && !string.Equals(report.State, user.State, StringComparison.OrdinalIgnoreCase))
+        {
+            return NotFound();
+        }
+
+        StateOfficeMonthlyReportMetricsViewModel metrics = BuildMetricsViewModel(report);
+        return BuildMonthlyReportExcel(metrics, $"Monthly_Report_{report.State}_{report.FacilityCode}_{report.ReportingMonth:yyyyMM}.xlsx");
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> ExportMonthlyReportSelection(
+        string state,
+        string reportingPeriod,
+        int providerId,
+        string? lga,
+        string? ward,
+        CancellationToken cancellationToken)
+    {
+        if (!await CanAccessStateAsync(state))
+        {
+            return Forbid();
+        }
+
+        if (!TryParseReportingMonth(reportingPeriod, out DateTime reportingMonth))
+        {
+            return BadRequest("Select a valid reporting month.");
+        }
+
+        StateOfficeMonthlyReportMetricsViewModel? metrics =
+            await BuildMonthlyReportMetricsAsync(
+                state.Trim(),
+                reportingMonth,
+                providerId,
+                lga,
+                ward,
+                cancellationToken);
+
+        if (metrics == null)
+        {
+            return NotFound();
+        }
+
+        return BuildMonthlyReportExcel(metrics, $"Monthly_Report_{metrics.State}_{metrics.FacilityCode}_{reportingMonth:yyyyMM}.xlsx");
+    }
+
     private async Task PopulateMonthlyReportOptionsAsync(
         StateOfficeMonthlyReportViewModel model,
         ApplicationUser user,
         CancellationToken cancellationToken)
     {
         List<string> states;
-        if (User.IsInRole("CTSHIPAdmin"))
+        if (CanManageReports())
         {
-            states = await _context.Enrollees
-                .AsNoTracking()
-                .Where(x => x.State != "")
-                .Select(x => x.State)
-                .Union(_context.Providers.Where(x => x.State != "").Select(x => x.State))
-                .Distinct()
-                .OrderBy(x => x)
-                .ToListAsync(cancellationToken);
+            states = await GetAvailableStatesAsync(cancellationToken);
         }
         else
         {
@@ -703,32 +885,15 @@ public class StateOfficeController : Controller
 
         if (!string.IsNullOrWhiteSpace(model.State))
         {
-            model.Lgas = await _context.Enrollees
-                .AsNoTracking()
-                .Where(x => x.State == model.State && x.LGA != "")
-                .Select(x => x.LGA)
-                .Distinct()
-                .OrderBy(x => x)
+            model.Lgas = (await GetMonthlyReportLgasAsync(model.State, cancellationToken))
                 .Select(x => new SelectListItem(x, x, x == model.Lga))
-                .ToListAsync(cancellationToken);
+                .ToList();
 
             model.Facilities = await _context.Providers
                 .AsNoTracking()
                 .Where(x => x.State == model.State)
                 .OrderBy(x => x.Name)
                 .Select(x => new SelectListItem(x.Name, x.Id.ToString(), x.Id == model.ProviderId))
-                .ToListAsync(cancellationToken);
-        }
-
-        if (!string.IsNullOrWhiteSpace(model.State) && !string.IsNullOrWhiteSpace(model.Lga))
-        {
-            model.Wards = await _context.Enrollees
-                .AsNoTracking()
-                .Where(x => x.State == model.State && x.LGA == model.Lga && x.Ward != "")
-                .Select(x => x.Ward)
-                .Distinct()
-                .OrderBy(x => x)
-                .Select(x => new SelectListItem(x, x, x == model.Ward))
                 .ToListAsync(cancellationToken);
         }
 
@@ -744,7 +909,7 @@ public class StateOfficeController : Controller
 
     private async Task<bool> CanAccessStateAsync(string state)
     {
-        if (User.IsInRole("CTSHIPAdmin"))
+        if (CanManageReports())
         {
             return true;
         }
@@ -753,6 +918,277 @@ public class StateOfficeController : Controller
         return user != null
             && !string.IsNullOrWhiteSpace(state)
             && string.Equals(user.State, state, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private bool CanManageReports()
+    {
+        return User.IsInRole("CTSHIPAdmin") || User.IsInRole("Admin");
+    }
+
+    private static bool TryParseReportingMonth(string? reportingPeriod, out DateTime reportingMonth)
+    {
+        return DateTime.TryParseExact(
+            $"{reportingPeriod}-01",
+            "yyyy-MM-dd",
+            CultureInfo.InvariantCulture,
+            DateTimeStyles.None,
+            out reportingMonth);
+    }
+
+    private async Task<List<string>> GetMonthlyReportLgasAsync(
+        string state,
+        CancellationToken cancellationToken)
+    {
+        List<string> configuredLgas = NorthEastLocationData
+            .GetLgas(state)
+            .OrderBy(x => x)
+            .ToList();
+
+        if (configuredLgas.Count > 0)
+        {
+            return configuredLgas;
+        }
+
+        return await _context.Enrollees
+            .AsNoTracking()
+            .Where(x => x.State == state && x.LGA != "")
+            .Select(x => x.LGA)
+            .Distinct()
+            .OrderBy(x => x)
+            .ToListAsync(cancellationToken);
+    }
+
+    private async Task<StateOfficeMonthlyReportMetricsViewModel?> BuildMonthlyReportMetricsAsync(
+        string state,
+        DateTime reportingMonth,
+        int providerId,
+        string? lga,
+        string? ward,
+        CancellationToken cancellationToken)
+    {
+        DateTime monthStart = new(reportingMonth.Year, reportingMonth.Month, 1);
+        DateTime nextMonth = monthStart.AddMonths(1);
+        state = state.Trim();
+
+        Provider? facility = await _context.Providers
+            .AsNoTracking()
+            .FirstOrDefaultAsync(
+                x => x.Id == providerId && x.State == state,
+                cancellationToken);
+
+        if (facility == null)
+        {
+            return null;
+        }
+
+        IQueryable<Enrollee> facilityEnrollees = _context.Enrollees
+            .AsNoTracking()
+            .Where(x => x.ProviderId == providerId && x.State == state);
+
+        IQueryable<Encounter> monthlyEncounters = _context.Encounters
+            .AsNoTracking()
+            .Where(x => x.ProviderId == providerId
+                && x.VisitDate >= monthStart
+                && x.VisitDate < nextMonth);
+
+        IQueryable<Claim> monthlyClaims = _context.Claims
+            .AsNoTracking()
+            .Where(x => x.ProviderId == providerId
+                && x.DateSubmitted >= monthStart
+                && x.DateSubmitted < nextMonth);
+
+        string providerIdText = providerId.ToString(CultureInfo.InvariantCulture);
+        IQueryable<Referral> monthlyReferrals = _context.Referrals
+            .AsNoTracking()
+            .Where(x => !x.IsDeleted
+                && x.CreatedAt >= monthStart
+                && x.CreatedAt < nextMonth
+                && ((x.FromProviderId != null
+                        && (x.FromProviderId == providerIdText || x.FromProviderId == facility.Code))
+                    || x.FromProviderName == facility.Name));
+
+        int totalEncounters = await monthlyEncounters.CountAsync(cancellationToken);
+        int serviceUtilization = await _context.EncounterServices
+            .AsNoTracking()
+            .Where(x => x.Encounter != null
+                && x.Encounter.ProviderId == providerId
+                && x.Encounter.VisitDate >= monthStart
+                && x.Encounter.VisitDate < nextMonth)
+            .CountAsync(cancellationToken);
+
+        int totalReferrals = await monthlyReferrals.CountAsync(cancellationToken);
+        int completedReferrals = await monthlyReferrals.CountAsync(
+            x => x.Status == ReferralStatus.Audited || x.Status == ReferralStatus.Closed,
+            cancellationToken);
+        int totalClaims = await monthlyClaims.CountAsync(cancellationToken);
+        int paidClaims = await monthlyClaims.CountAsync(
+            x => x.Status == "Paid",
+            cancellationToken);
+
+        decimal amountCapitationPaid = await _context.WalletTransactions
+            .AsNoTracking()
+            .Where(x => x.Type == "Disburse"
+                && x.Amount > 0
+                && x.Timestamp >= monthStart
+                && x.Timestamp < nextMonth
+                && x.EnrolleeWallet != null
+                && x.EnrolleeWallet.Enrollee != null
+                && x.EnrolleeWallet.Enrollee.ProviderId == providerId)
+            .SumAsync(x => (decimal?)x.Amount, cancellationToken) ?? 0m;
+
+        return new StateOfficeMonthlyReportMetricsViewModel
+        {
+            ReportingPeriod = monthStart.ToString("yyyy-MM", CultureInfo.InvariantCulture),
+            ReportingMonthDisplay = monthStart.ToString("MMMM yyyy", CultureInfo.InvariantCulture),
+            State = state,
+            Lga = lga?.Trim() ?? string.Empty,
+            Ward = ward?.Trim() ?? string.Empty,
+            ProviderId = facility.Id,
+            FacilityName = facility.Name,
+            FacilityCode = facility.Code,
+            TotalActiveEnrollees = await facilityEnrollees.CountAsync(
+                x => x.Status == "Active" && x.DateRegistered < nextMonth,
+                cancellationToken),
+            TotalVisits = await monthlyEncounters
+                .Select(x => new { x.EnrolleeId, VisitDay = x.VisitDate.Date })
+                .Distinct()
+                .CountAsync(cancellationToken),
+            TotalEncounters = totalEncounters,
+            EnrolleesAccessingCare = await monthlyEncounters
+                .Select(x => x.EnrolleeId)
+                .Distinct()
+                .CountAsync(cancellationToken),
+            ServiceUtilization = serviceUtilization,
+            TotalReferrals = totalReferrals,
+            CompletedReferrals = completedReferrals,
+            ReferralCompletionRate = Percentage(completedReferrals, totalReferrals),
+            AmountCapitationPaid = amountCapitationPaid,
+            CapitationToUtilizationRatio = serviceUtilization > 0
+                ? Math.Round(amountCapitationPaid / serviceUtilization, 2)
+                : 0m,
+            TotalClaims = totalClaims,
+            TotalClaimsAmount = await monthlyClaims
+                .SumAsync(x => (decimal?)x.Amount, cancellationToken) ?? 0m,
+            PaidClaims = paidClaims,
+            PaidClaimsAmount = await monthlyClaims
+                .Where(x => x.Status == "Paid")
+                .SumAsync(x => (decimal?)x.Amount, cancellationToken) ?? 0m
+        };
+    }
+
+    private static void ApplyMetrics(
+        StateOfficeMonthlyReport report,
+        StateOfficeMonthlyReportMetricsViewModel metrics)
+    {
+        report.TotalActiveEnrollees = metrics.TotalActiveEnrollees;
+        report.TotalVisits = metrics.TotalVisits;
+        report.TotalEncounters = metrics.TotalEncounters;
+        report.EnrolleesAccessingCare = metrics.EnrolleesAccessingCare;
+        report.ServiceUtilization = metrics.ServiceUtilization;
+        report.TotalReferrals = metrics.TotalReferrals;
+        report.CompletedReferrals = metrics.CompletedReferrals;
+        report.ReferralCompletionRate = metrics.ReferralCompletionRate;
+        report.AmountCapitationPaid = metrics.AmountCapitationPaid;
+        report.CapitationToUtilizationRatio = metrics.CapitationToUtilizationRatio;
+        report.TotalClaims = metrics.TotalClaims;
+        report.TotalClaimsAmount = metrics.TotalClaimsAmount;
+        report.PaidClaims = metrics.PaidClaims;
+        report.PaidClaimsAmount = metrics.PaidClaimsAmount;
+    }
+
+    private static StateOfficeMonthlyReportMetricsViewModel BuildMetricsViewModel(
+        StateOfficeMonthlyReport report)
+    {
+        return new StateOfficeMonthlyReportMetricsViewModel
+        {
+            ReportingPeriod = report.ReportingMonth.ToString("yyyy-MM", CultureInfo.InvariantCulture),
+            ReportingMonthDisplay = report.ReportingMonth.ToString("MMMM yyyy", CultureInfo.InvariantCulture),
+            State = report.State,
+            Lga = report.Lga,
+            Ward = report.Ward,
+            ProviderId = report.ProviderId,
+            FacilityName = report.FacilityName,
+            FacilityCode = report.FacilityCode,
+            TotalActiveEnrollees = report.TotalActiveEnrollees,
+            TotalVisits = report.TotalVisits,
+            TotalEncounters = report.TotalEncounters,
+            EnrolleesAccessingCare = report.EnrolleesAccessingCare,
+            ServiceUtilization = report.ServiceUtilization,
+            TotalReferrals = report.TotalReferrals,
+            CompletedReferrals = report.CompletedReferrals,
+            ReferralCompletionRate = report.ReferralCompletionRate,
+            AmountCapitationPaid = report.AmountCapitationPaid,
+            CapitationToUtilizationRatio = report.CapitationToUtilizationRatio,
+            TotalClaims = report.TotalClaims,
+            TotalClaimsAmount = report.TotalClaimsAmount,
+            PaidClaims = report.PaidClaims,
+            PaidClaimsAmount = report.PaidClaimsAmount
+        };
+    }
+
+    private FileContentResult BuildMonthlyReportExcel(
+        StateOfficeMonthlyReportMetricsViewModel metrics,
+        string fileName)
+    {
+        using var package = new ExcelPackage();
+        var ws = package.Workbook.Worksheets.Add("Facility Details");
+
+        ws.Cells[1, 1].Value = "Monthly Report Facility Details";
+        ws.Cells[1, 1, 1, 2].Merge = true;
+        ws.Cells[1, 1].Style.Font.Bold = true;
+        ws.Cells[1, 1].Style.Font.Size = 16;
+
+        object[,] rows =
+        {
+            { "Reporting Month", metrics.ReportingMonthDisplay },
+            { "State", metrics.State },
+            { "LGA", metrics.Lga },
+            { "Ward", metrics.Ward },
+            { "Facility", metrics.FacilityName },
+            { "Facility Code", metrics.FacilityCode },
+            { "Total Active Enrollees", metrics.TotalActiveEnrollees },
+            { "Total Visits", metrics.TotalVisits },
+            { "Total Encounters", metrics.TotalEncounters },
+            { "Enrollees Accessing Care", metrics.EnrolleesAccessingCare },
+            { "Service Utilization", metrics.ServiceUtilization },
+            { "Referral Completion", $"{metrics.CompletedReferrals} of {metrics.TotalReferrals} ({metrics.ReferralCompletionRate:N1}%)" },
+            { "Amount of Capitation Paid", metrics.AmountCapitationPaid },
+            { "Capitation to Utilization Ratio", metrics.CapitationToUtilizationRatio },
+            { "Total Claims", metrics.TotalClaims },
+            { "Total Claims Amount", metrics.TotalClaimsAmount },
+            { "Paid Claims", metrics.PaidClaims },
+            { "Paid Claims Amount", metrics.PaidClaimsAmount }
+        };
+
+        ws.Cells[3, 1].LoadFromArrays(ToRows(rows));
+        ws.Cells[3, 1, 20, 1].Style.Font.Bold = true;
+        ws.Cells[3, 1, 20, 2].Style.Border.Bottom.Style = ExcelBorderStyle.Hair;
+        ws.Cells[15, 2].Style.Numberformat.Format = "#,##0.00";
+        ws.Cells[16, 2].Style.Numberformat.Format = "#,##0.00";
+        ws.Cells[18, 2].Style.Numberformat.Format = "#,##0.00";
+        ws.Cells[20, 2].Style.Numberformat.Format = "#,##0.00";
+        ws.Cells[ws.Dimension.Address].AutoFitColumns();
+
+        byte[] excelBytes = package.GetAsByteArray();
+        return File(
+            excelBytes,
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            fileName);
+    }
+
+    private static IEnumerable<object[]> ToRows(object[,] rows)
+    {
+        for (int i = 0; i < rows.GetLength(0); i++)
+        {
+            yield return new[] { rows[i, 0], rows[i, 1] };
+        }
+    }
+
+    private static decimal Percentage(int numerator, int denominator)
+    {
+        return denominator > 0
+            ? Math.Round((decimal)numerator / denominator * 100m, 1)
+            : 0m;
     }
 
     private async Task<List<string>> GetAvailableStatesAsync(CancellationToken cancellationToken)

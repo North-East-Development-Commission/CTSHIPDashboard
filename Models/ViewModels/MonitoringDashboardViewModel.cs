@@ -5,7 +5,11 @@ namespace CTSHIPDashboard.Models.ViewModels
     public class MonitoringDashboardViewModel
     {
         public string Scope { get; set; } = "CTSHIP";
+        public string ScopeDisplay { get; set; } = "CTSHIP";
+        public string SelectedState { get; set; } = string.Empty;
+        public string SelectedLga { get; set; } = string.Empty;
         public List<string> AvailableStates { get; set; } = new();
+        public List<string> AvailableLgas { get; set; } = new();
 
         public int TargetEnrollees { get; set; }
         public int TotalEnrolled { get; set; }
@@ -109,6 +113,8 @@ namespace CTSHIPDashboard.Models.ViewModels
     {
         [Required]
         public string Scope { get; set; } = "CTSHIP";
+
+        public string? Lga { get; set; }
 
         [Range(1, int.MaxValue, ErrorMessage = "Target enrollees must be greater than zero.")]
         [Display(Name = "Target Enrollees")]

@@ -27,21 +27,20 @@
                         </p>
                     </div>
 
-                    <div class="text-danger fw-bold">
+                    <p class="text-danger fw-bold">
                         This action <u>cannot be undone</u> and will affect all encounters and claims.
-                        </p>
+                    </p>
 
-                        <form asp-action="Delete" method="post" class="d-inline">
-                            @Html.AntiForgeryToken()
-                            <input type="hidden" asp-for="Id" />
-                            <button type="submit" class="btn btn-danger btn-lg px-6 shadow-lg">
-                                YES, DELETE FOREVER
-                            </button>
-                        </form>
-                        <a asp-action="MyProviders" class="btn btn-secondary btn-lg px-6 ms-3">
-                            Cancel
-                        </a>
-                    </div>
+                    <form asp-action="ProDelete" method="post" class="d-inline">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" asp-for="Id" />
+                        <button type="submit" class="btn btn-danger btn-lg px-6 shadow-lg">
+                            YES, DELETE FOREVER
+                        </button>
+                    </form>
+                    <a asp-action="MyProviders" class="btn btn-secondary btn-lg px-6 ms-3">
+                        Cancel
+                    </a>
 
                     <div class="bg-dark text-white text-center py-3">
                         <small>CTSHIP • Universal Health Coverage • Federal Republic of Nigeria</small>

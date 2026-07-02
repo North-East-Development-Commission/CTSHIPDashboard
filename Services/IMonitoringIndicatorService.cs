@@ -7,5 +7,10 @@ namespace CTSHIPDashboard.Services
         Task<MonitoringDashboardViewModel> BuildDashboardAsync(
             string? state,
             CancellationToken cancellationToken = default);
+
+        Task<MonitoringDashboardViewModel> BuildDashboardAsync(
+            string? state,
+            string? lga,
+            CancellationToken cancellationToken = default);
     }
 }
