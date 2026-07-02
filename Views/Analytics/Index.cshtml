@@ -18,7 +18,7 @@
 
     <partial name="_MonitoringIndicatorCards" model="Model" />
 
-    @if (User.IsInRole("CTSHIPAdmin"))
+    @if (User.IsInRole("CTSHIPAdmin, Admin"))
     {
         <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
             <h2 class="h3 fw-bold mb-0">Complaint Management Metrics</h2>
@@ -373,12 +373,12 @@
 </div>
 
 @section Scripts {
-    @if (User.IsInRole("CTSHIPAdmin"))
+    @if (User.IsInRole("CTSHIPAdmin, Admin"))
     {
         <script>
             const monitoringPalette = {
                 green: '#3B703B',
-                gold: '#C9A247',
+                gold: '#B08C15',
                 white: '#FFFFFF'
             };
 

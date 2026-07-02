@@ -2,24 +2,24 @@
     --ct-green: #3b703b;
     --ct-green-dark: #2b572f;
     --ct-green-soft: rgba(59, 112, 59, .08);
-    --ct-gold: #c9a247;
+    --ct-gold: #B08C15;
     --ct-gold-dark: #a9812d;
-    --ct-gold-soft: rgba(201, 162, 71, .12);
+    --ct-gold-soft: rgba(176, 140, 21, .12);
     --ct-border: rgba(59, 112, 59, .22);
     --ct-shadow: 0 10px 30px rgba(59, 112, 59, .12);
     --ct-topbar-height: 80px;
-    --bs-primary: #c9a247;
-    --bs-primary-rgb: 201, 162, 71;
+    --bs-primary: #B08C15;
+    --bs-primary-rgb: 176, 140, 21;
     --bs-secondary: #3b703b;
     --bs-secondary-rgb: 59, 112, 59;
     --bs-success: #3b703b;
     --bs-success-rgb: 59, 112, 59;
-    --bs-info: #c9a247;
-    --bs-info-rgb: 201, 162, 71;
-    --bs-warning: #c9a247;
-    --bs-warning-rgb: 201, 162, 71;
-    --bs-danger: #c9a247;
-    --bs-danger-rgb: 201, 162, 71;
+    --bs-info: #B08C15;
+    --bs-info-rgb: 176, 140, 21;
+    --bs-warning: #B08C15;
+    --bs-warning-rgb: 176, 140, 21;
+    --bs-danger: #B08C15;
+    --bs-danger-rgb: 176, 140, 21;
     --bs-dark: #3b703b;
     --bs-dark-rgb: 59, 112, 59;
     --bs-body-color: #3b703b;
@@ -120,7 +120,7 @@ li {
 .ct-menu-button:focus {
     color: #fff;
     border-color: var(--ct-gold);
-    background: rgba(201, 162, 71, .22);
+    background: rgba(176, 140, 21, .22);
 }
 
 .ct-navbar-brand {
@@ -179,7 +179,7 @@ li {
     padding: .45rem .7rem;
     color: #fff;
     text-decoration: none;
-    border: 1px solid rgba(201, 162, 71, .65);
+    border: 1px solid rgba(176, 140, 21, .65);
     border-radius: .7rem;
     background: rgba(0, 0, 0, .12);
 }
@@ -187,7 +187,7 @@ li {
 .ct-user-link:hover,
 .ct-user-link:focus {
     color: #fff;
-    background: rgba(201, 162, 71, .2);
+    background: rgba(176, 140, 21, .2);
 }
 
 .ct-user-link > i {
@@ -537,13 +537,13 @@ li {
     --bs-table-striped-color: var(--ct-green);
     --bs-table-hover-color: var(--ct-green);
     --bs-table-bg: #fff;
-    --bs-table-striped-bg: rgba(201, 162, 71, .10);
+    --bs-table-striped-bg: rgba(176, 140, 21, .10);
     --bs-table-hover-bg: rgba(59, 112, 59, .10);
     width: 100%;
     margin-bottom: 0;
     color: var(--ct-green);
     background-color: #fff;
-    border-color: rgba(201, 162, 71, .45);
+    border-color: rgba(176, 140, 21, .45);
 }
 
 .table-responsive {
@@ -585,7 +585,7 @@ li {
     color: var(--ct-green) !important;
     vertical-align: middle;
     white-space: nowrap;
-    border-right: 1px solid rgba(201, 162, 71, .32);
+    border-right: 1px solid rgba(176, 140, 21, .32);
     border-bottom: 1px solid rgba(59, 112, 59, .14);
 }
 
@@ -614,7 +614,7 @@ li {
 }
 
 .table-responsive .table tbody tr:nth-of-type(even) > * {
-    background-color: rgba(201, 162, 71, .10);
+    background-color: rgba(176, 140, 21, .10);
 }
 
 .table-responsive .table tbody tr:hover > * {
@@ -666,7 +666,7 @@ li {
     text-align: right;
     content: "Scroll horizontally to view all columns";
     background: var(--ct-gold-soft);
-    border-top: 1px solid rgba(201, 162, 71, .35);
+    border-top: 1px solid rgba(176, 140, 21, .35);
 }
 
 .table-light,
@@ -707,7 +707,7 @@ li {
 .form-select:focus {
     color: var(--ct-green);
     border-color: var(--ct-gold);
-    box-shadow: 0 0 0 .25rem rgba(201, 162, 71, .2);
+    box-shadow: 0 0 0 .25rem rgba(176, 140, 21, .2);
 }
 
 .select2-container {
@@ -861,7 +861,7 @@ a:hover {
 }
 
 .ct-page .card-header {
-    box-shadow: inset 0 -2px 0 rgba(201, 162, 71, .45);
+    box-shadow: inset 0 -2px 0 rgba(176, 140, 21, .45);
 }
 
 .sidebar .nav-link {
@@ -873,7 +873,7 @@ a:hover {
 }
 
 .sidebar .offcanvas-header {
-    border-bottom-color: rgba(201, 162, 71, .55) !important;
+    border-bottom-color: rgba(176, 140, 21, .55) !important;
 }
 
 .progress {

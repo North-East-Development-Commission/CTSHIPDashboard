@@ -805,7 +805,7 @@ public class EnrolleesController : Controller
         guide.Cells["A3:C3"].Style.Font.Bold = true;
         guide.Cells["A3:C3"].Style.Font.Color.SetColor(Color.White);
         guide.Cells["A3:C3"].Style.Fill.PatternType = OfficeOpenXml.Style.ExcelFillStyle.Solid;
-        guide.Cells["A3:C3"].Style.Fill.BackgroundColor.SetColor(Color.FromArgb(201, 162, 71));
+        guide.Cells["A3:C3"].Style.Fill.BackgroundColor.SetColor(Color.FromArgb(176, 140, 21));
         guide.Cells[guide.Dimension.Address].AutoFitColumns();
         guide.Column(2).Width = Math.Max(guide.Column(2).Width, 60);
         guide.Cells.Style.WrapText = true;

@@ -21,7 +21,7 @@ namespace CTHIPDashboard.Controllers
         public async Task<IActionResult> Index()
         {
             // Redirect admin users to analytics dashboard for faster access
-            if (User.Identity?.IsAuthenticated == true && User.IsInRole("Admin"))
+            if (User.Identity?.IsAuthenticated == true && User.IsInRole("CTSHIPAdmin"))
             {
                 return RedirectToAction("Index", "Analytics");
             }

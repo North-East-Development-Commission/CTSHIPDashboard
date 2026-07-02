@@ -18,7 +18,7 @@ namespace CTSHIPDashboard.Data
             context.Database.EnsureCreated();
 
             // ROLES
-            string[] roles = { "Admin", "HMO", "Provider", "SSHIA", "Monitoring" };
+            string[] roles = { "Admin", "CTSHIPAdmin", "HMO", "Provider", "SSHIA", "Monitoring" };
             foreach (var role in roles)
             {
                 if (!await roleManager.RoleExistsAsync(role))
@@ -26,7 +26,7 @@ namespace CTSHIPDashboard.Data
             }
 
             // ADMIN USER
-            var adminEmail = "as.maiwada@nedc.gov.ng";
+            var adminEmail = "admin@nedc.gov.ng";
             var admin = await userManager.FindByEmailAsync(adminEmail);
             if (admin == null)
             {
@@ -39,7 +39,16 @@ namespace CTSHIPDashboard.Data
                     State = "Borno"
                 };
                 await userManager.CreateAsync(admin, "Admin@2025");
+            }
+
+            if (!await userManager.IsInRoleAsync(admin, "Admin"))
+            {
                 await userManager.AddToRoleAsync(admin, "Admin");
+            }
+
+            if (!await userManager.IsInRoleAsync(admin, "CTSHIPAdmin"))
+            {
+                await userManager.AddToRoleAsync(admin, "CTSHIPAdmin");
             }
 
 
@@ -445,7 +454,7 @@ namespace CTSHIPDashboard.Data
             var userManager = serviceProvider.GetRequiredService<UserManager<ApplicationUser>>();
 
             // Ensure roles exist (including NHIA and StateOffice)
-            string[] roles = { "Admin", "HMO", "Provider", "Auditor", "Finance", "Reviewer", "StateOffice", "NHIA", "Monitoring" };
+            string[] roles = { "Admin", "CTSHIPAdmin", "HMO", "Provider", "Auditor", "Finance", "Reviewer", "StateOffice", "NHIA", "Monitoring" };
 
             foreach (var role in roles)
             {
@@ -453,6 +462,42 @@ namespace CTSHIPDashboard.Data
                 {
                     await roleManager.CreateAsync(new IdentityRole(role));
                     Console.WriteLine($"Role created: {role}");
+                }
+            }
+
+            var adminEmail = "as.maiwada@nedc.gov.ng";
+            var adminUser = await userManager.FindByEmailAsync(adminEmail);
+            if (adminUser == null)
+            {
+                adminUser = new ApplicationUser
+                {
+                    UserName = adminEmail,
+                    Email = adminEmail,
+                    FullName = "CTSHIP NEDC Administrator",
+                    ContactInfo = "0809-000-0001",
+                    State = "Borno",
+                    EmailConfirmed = true,
+                    LockoutEnabled = false
+                };
+
+                var createAdmin = await userManager.CreateAsync(adminUser, "Admin@2025");
+                if (!createAdmin.Succeeded)
+                {
+                    Console.WriteLine("Failed to create admin user: " + string.Join(", ", createAdmin.Errors.Select(e => e.Description)));
+                    adminUser = null;
+                }
+            }
+
+            if (adminUser != null)
+            {
+                if (!await userManager.IsInRoleAsync(adminUser, "Admin"))
+                {
+                    await userManager.AddToRoleAsync(adminUser, "Admin");
+                }
+
+                if (!await userManager.IsInRoleAsync(adminUser, "CTSHIPAdmin"))
+                {
+                    await userManager.AddToRoleAsync(adminUser, "CTSHIPAdmin");
                 }
             }
 

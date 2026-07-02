@@ -10,7 +10,7 @@ using System.Threading.Tasks;
 
 namespace CTSHIPDashboard.Controllers
 {
-    [Authorize(Roles = "CTSHIPAdmin")]
+    [Authorize(Roles = "CTSHIPAdmin, Admin")]
     public class AdminController : Controller
     {
         private readonly UserManager<ApplicationUser> _userManager;

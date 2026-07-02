@@ -27,8 +27,7 @@ builder.Services
         options.SignIn.RequireConfirmedAccount = false;
     })
     .AddEntityFrameworkStores<ApplicationDbContext>()
-    .AddDefaultTokenProviders()
-    .AddDefaultUI();
+    .AddDefaultTokenProviders();
 
 builder.Services.ConfigureApplicationCookie(options =>
 {
@@ -67,6 +66,7 @@ try
         scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
     IServiceProvider services = scope.ServiceProvider;
 
+    await SeedData.SeedAdminUser(services);
     SeedData.SeedHmos(context);
     SeedData.SeedProviders(context);
     SeedData.SeedDoctors(context);
@@ -74,7 +74,6 @@ try
     SeedData.SeedEnrollee(context);
     SeedData.SeedEncounters(context);
     SeedData.SeedClaims(context);
-    await SeedData.SeedAdminUser(services);
 
     var legacyTarget = context.ProgramMonitoringTargets
         .FirstOrDefault(target => target.Scope == "North East");
@@ -139,7 +138,7 @@ app.MapStaticAssets();
 
 app.MapGet("/", context =>
 {
-    context.Response.Redirect("/Identity/Account/Login");
+    context.Response.Redirect("/Analytics/index");
     return Task.CompletedTask;
 });
 
@@ -152,3 +151,5 @@ app.MapRazorPages()
     .WithStaticAssets();
 
 app.Run();
+//#B08C15 
+//#B08C15
