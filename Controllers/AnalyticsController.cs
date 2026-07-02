@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using System.Globalization;
 using CTSHIPDashboard.Services;
 
-[Authorize(Roles = "CTSHIPAdmin,HMO,SSHIA,Admin")]
+[Authorize(Roles = "CTSHIPAdmin,Admin")]
 public class AnalyticsController : Controller
 {
     private readonly ApplicationDbContext _context;
