@@ -9,7 +9,7 @@ html {
 }
 
 .btn:focus, .btn:active:focus, .btn-link.nav-link:focus, .form-control:focus, .form-check-input:focus {
-  box-shadow: 0 0 0 0.1rem white, 0 0 0 0.25rem rgba(176, 140, 21, .35);
+  box-shadow: 0 0 0 0.1rem white, 0 0 0 0.25rem rgba(254, 144, 49, .35);
 }
 
 html {
@@ -19,7 +19,7 @@ html {
 
 .bg-purple,
 .bg-pink {
-    background-color: #B08C15 !important;
+    background-color: #FE9031 !important;
 }
 
 body {

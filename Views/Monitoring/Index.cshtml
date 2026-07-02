@@ -13,8 +13,8 @@
     }
 
     .monitoring-state-filter:focus {
-        border-color: #B08C15;
-        box-shadow: 0 0 0 .2rem rgba(176, 140, 21, .25);
+        border-color: #FE9031;
+        box-shadow: 0 0 0 .2rem rgba(254, 144, 49, .25);
     }
 </style>
 
@@ -374,7 +374,7 @@
                 labels: ['Male', 'Female', 'Other / Unspecified'],
                 datasets: [{
                     data: [@Model.MaleCount, @Model.FemaleCount, @Model.OtherGenderCount],
-                    backgroundColor: ['#3B703B', '#B08C15', '#FFFFFF']
+                    backgroundColor: ['#3B703B', '#FE9031', '#FFFFFF']
                 }]
             }
         });
@@ -409,7 +409,7 @@
                         @Model.RejectedClaims,
                         @Math.Max(0, Model.TotalClaims - Model.PaidClaims - Model.PendingClaims - Model.RejectedClaims)
                     ],
-                    backgroundColor: ['#3B703B', '#B08C15', '#FFFFFF', '#3B703B']
+                    backgroundColor: ['#3B703B', '#FE9031', '#FFFFFF', '#3B703B']
                 }]
             }
         });
@@ -423,7 +423,7 @@
                     {
                         label: 'Total Enrollees',
                         data: stateRows.map(x => x.totalEnrollees),
-                        backgroundColor: '#B08C15'
+                        backgroundColor: '#FE9031'
                     },
                     {
                         label: 'Active Enrollees',
