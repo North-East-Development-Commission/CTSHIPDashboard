@@ -350,7 +350,7 @@ namespace CTHIPDashboard.Controllers
         }
 
         // FINAL APPROVAL & PAYMENT (Admin/Finance)
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "CTSHIPAdmin,Admin")]
         public async Task<IActionResult> Approve(int id)
         {
             var claim = await _context.Claims

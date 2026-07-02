@@ -2,6 +2,7 @@ using CTSHIPDashboard.Data;
 using CTSHIPDashboard.Hubs;
 using CTSHIPDashboard.Models;
 using CTSHIPDashboard.Services;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -48,8 +49,9 @@ builder.Services
 builder.Services.AddControllersWithViews();
 builder.Services.AddRazorPages();
 builder.Services.AddSignalR();
+builder.Services.AddScoped<IClaimsTransformation, CtshipAdminClaimsTransformation>();
 builder.Services.AddAuthorization(options =>
-    options.AddPolicy("AdminOnly", policy => policy.RequireRole("CTSHIPAdmin")));
+    options.AddPolicy("AdminOnly", policy => policy.RequireRole("CTSHIPAdmin", "Admin")));
 builder.Services.AddScoped<IReferralService, ReferralService>();
 builder.Services.AddScoped<IDeathRegisterService, DeathRegisterService>();
 builder.Services.AddScoped<IMonitoringIndicatorService, MonitoringIndicatorService>();
@@ -138,7 +140,30 @@ app.MapStaticAssets();
 
 app.MapGet("/", context =>
 {
-    context.Response.Redirect("/Analytics/index");
+    if (context.User.Identity?.IsAuthenticated == true)
+    {
+        string dashboardPath =
+            context.User.IsInRole("Admin")
+                ? "/Analytics/Index"
+                : context.User.IsInRole("HMO")
+                    ? "/Hmo/Dashboard"
+                    : context.User.IsInRole("Provider")
+                        ? "/Providers/Dashboard"
+                        : context.User.IsInRole("Finance")
+                            ? "/Finance/Dashboard"
+                            : context.User.IsInRole("StateOffice")
+                                ? "/StateOffice/Index"
+                                : context.User.IsInRole("NHIA")
+                                    ? "/NHIA/Dashboard"
+                                    : context.User.IsInRole("Monitoring")
+                                        ? "/Monitoring/Index"
+                                        : "/Home/Index";
+
+        context.Response.Redirect(dashboardPath);
+        return Task.CompletedTask;
+    }
+
+    context.Response.Redirect("/Identity/Account/Login");
     return Task.CompletedTask;
 });
 

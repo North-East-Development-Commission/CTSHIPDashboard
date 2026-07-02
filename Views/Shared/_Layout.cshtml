@@ -1,6 +1,29 @@
 ﻿@using Microsoft.AspNetCore.Identity
 @inject SignInManager<ApplicationUser> SignInManager
 
+@{
+    string homeUrl = Url.Content("~/");
+
+    if (SignInManager.IsSignedIn(User))
+    {
+        homeUrl = User.IsInRole("Admin")
+            ? Url.Action("Index", "Analytics", new { area = "" }) ?? Url.Content("~/Analytics/Index")
+            : User.IsInRole("HMO")
+                ? Url.Action("Dashboard", "Hmo", new { area = "" }) ?? Url.Content("~/Hmo/Dashboard")
+                : User.IsInRole("Provider")
+                    ? Url.Action("Dashboard", "Providers", new { area = "" }) ?? Url.Content("~/Providers/Dashboard")
+                    : User.IsInRole("Finance")
+                        ? Url.Action("Dashboard", "Finance", new { area = "" }) ?? Url.Content("~/Finance/Dashboard")
+                        : User.IsInRole("StateOffice")
+                            ? Url.Action("Index", "StateOffice", new { area = "" }) ?? Url.Content("~/StateOffice/Index")
+                            : User.IsInRole("NHIA")
+                                ? Url.Action("Dashboard", "NHIA", new { area = "" }) ?? Url.Content("~/NHIA/Dashboard")
+                                : User.IsInRole("Monitoring")
+                                    ? Url.Action("Index", "Monitoring", new { area = "" }) ?? Url.Content("~/Monitoring/Index")
+                                    : Url.Action("Index", "Home", new { area = "" }) ?? Url.Content("~/Home/Index");
+    }
+}
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -96,7 +119,7 @@
                     <i class="bi bi-list fs-3"></i>
                 </button>
             }
-            <a class="navbar-brand ct-navbar-brand me-auto" href="/">
+            <a class="navbar-brand ct-navbar-brand me-auto" href="@homeUrl">
                 <img class="ct-navbar-logo" src="~/images/nedc-logo-transparent.png" alt="North East Development Commission (NEDC) logo" />
                 <span class="ct-brand-copy">
                     <span class="ct-brand-title">NORTH EAST DEVELOPMENT COMMISSION (NEDC)</span>
@@ -220,7 +243,7 @@
 
             @if (User.IsInRole("CTSHIPAdmin") || User.IsInRole("Admin"))
             {
-                <a asp-controller="Home" asp-action="Index" class="nav-link">
+                <a asp-controller="Analytics" asp-action="Index" class="nav-link">
                     <i class="bi bi-house-door-fill"></i> Dashboard
                 </a>
                 <a asp-controller="Analytics" asp-action="Index" class="nav-link">

@@ -10,7 +10,7 @@ using System.Threading.Tasks;
 
 namespace CTSHIPDashboard.Controllers
 {
-    [Authorize(Roles = "CTSHIPAdmin, Admin")]
+    [Authorize(Roles = "CTSHIPAdmin,Admin")]
     public class AdminController : Controller
     {
         private readonly UserManager<ApplicationUser> _userManager;
@@ -650,7 +650,7 @@ namespace CTSHIPDashboard.Controllers
         }
 
 
-        [Authorize(Roles = "Admin,HMO,Provider")]
+        [Authorize(Roles = "CTSHIPAdmin,Admin,HMO,Provider")]
         public async Task<IActionResult> EnrolleesPerProvider(
         int? providerId = null,
         string search = "",
