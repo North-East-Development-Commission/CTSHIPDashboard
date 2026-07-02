@@ -136,12 +136,6 @@ app.UseMiddleware<CTSHIPDashboard.Middleware.UserActivityMiddleware>();
 
 app.MapStaticAssets();
 
-app.MapGet("/", context =>
-{
-    context.Response.Redirect("/Analytics/index");
-    return Task.CompletedTask;
-});
-
 app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Analytics}/{action=Index}/{id?}");
