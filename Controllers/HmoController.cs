@@ -626,6 +626,39 @@ public class HmoController : Controller
         }).OrderBy(s => s.Text).ToList();
     }
 
+    private bool IsProviderManagementAdmin()
+    {
+        return User.IsInRole("Admin") || User.IsInRole("CTSHIPAdmin");
+    }
+
+    private bool IsHmoOnlyProviderManager()
+    {
+        return User.IsInRole("HMO") && !IsProviderManagementAdmin();
+    }
+
+    private async Task<int?> GetCurrentHmoIdAsync()
+    {
+        ApplicationUser? currentUser = await _userManager.GetUserAsync(User);
+        return currentUser?.HmoId;
+    }
+
+    private async Task<bool> CanManageProviderAsync(Provider provider)
+    {
+        if (IsProviderManagementAdmin())
+        {
+            return true;
+        }
+
+        if (!User.IsInRole("HMO"))
+        {
+            return false;
+        }
+
+        int? hmoId = await GetCurrentHmoIdAsync();
+        return hmoId.HasValue && provider.HmoId == hmoId.Value;
+    }
+
+    [Authorize(Roles = "CTSHIPAdmin,Admin,HMO")]
     public async Task<IActionResult> ProDetails(int id)
     {
         var provider = await _context.Providers
@@ -639,6 +672,11 @@ public class HmoController : Controller
             return RedirectToAction(nameof(Index));
         }
 
+        if (!await CanManageProviderAsync(provider))
+        {
+            return Forbid();
+        }
+
         // Stats for the view
         ViewBag.TotalEncounters = provider.Encounters?.Count ?? 0;
         ViewBag.TotalClaims = provider.Claims?.Count ?? 0;
@@ -646,79 +684,74 @@ public class HmoController : Controller
         return View(provider);
     }
 
-    [Authorize(Roles = "CTSHIPAdmin,HMO")]
-    public async Task<IActionResult> EditPro(int? id)
+    [Authorize(Roles = "CTSHIPAdmin,Admin,HMO")]
+    public IActionResult EditPro(int? id)
     {
-        var provider = await _context.Providers.FindAsync(id);
-        if (provider == null)
+        if (id == null)
         {
-            TempData["Error"] = "Provider not found.";
-            return RedirectToAction(nameof(Index));
+            return NotFound();
         }
 
-        // Populate dropdowns (if needed in future)
-        ViewBag.States = new SelectList(new[]
-        {
-        "Adamawa", "Bauchi", "Borno",
-        "Gombe", "Taraba", "Yobe"
-        });
-
-        return View(provider);
+        return RedirectToAction("Edit", "Providers", new { id = id.Value });
     }
+
     // EDIT POST
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> EditPro(int id, Provider provider)
+    [Authorize(Roles = "CTSHIPAdmin,Admin,HMO")]
+    public IActionResult EditPro(int id, Provider provider)
     {
         if (id != provider.Id)
         {
             return NotFound();
         }
-        //provider.Code = provider.Code;
-        if (ModelState.IsValid)
-        {
-            try
-            {
-                _context.Update(provider);
-                await _context.SaveChangesAsync();
 
-                TempData["Success"] = $"Provider {provider.Name} updated successfully!";
-                return RedirectToAction(nameof(Index));
-            }
-            catch (DbUpdateException)
-            {
-                TempData["Error"] = "Failed to update provider. Please try again.";
-            }
-        }
-
-        // Repopulate on validation error
-        ViewBag.States = new SelectList(new[] {  "Adamawa", "Bauchi", "Borno",
-        "Gombe", "Taraba", "Yobe"}, provider?.State);
-
-
-        return View(provider);
+        TempData["Error"] = "Please review and save this provider from the updated provider form.";
+        return RedirectToAction("Edit", "Providers", new { id });
     }
 
-    [Authorize(Roles = "CTSHIPAdmin,HMO")]
-    public async Task<IActionResult> ProDelete(int? id)
+    [Authorize(Roles = "CTSHIPAdmin,Admin,HMO")]
+    public IActionResult ProDelete(int? id)
     {
         if (id == null) return NotFound();
-        var provider = await _context.Providers.FirstOrDefaultAsync(m => m.Id == id);
-        if (provider == null) return NotFound();
-        return View(provider);
+        return RedirectToAction("Delete", "Providers", new { id = id.Value });
     }
 
-    [HttpPost, ActionName("Delete")]
+    [HttpPost, ActionName("ProDelete")]
     [ValidateAntiForgeryToken]
+    [Authorize(Roles = "CTSHIPAdmin,Admin,HMO")]
     public async Task<IActionResult> ProDeleteConfirmed(int id)
     {
         var provider = await _context.Providers.FindAsync(id);
-        if (provider != null)
+        if (provider == null)
+        {
+            TempData["Error"] = "Provider not found.";
+            return RedirectToAction(nameof(MyProviders));
+        }
+
+        if (!await CanManageProviderAsync(provider))
+        {
+            return Forbid();
+        }
+
+        try
         {
             _context.Providers.Remove(provider);
             await _context.SaveChangesAsync();
+            TempData["Success"] = $"Provider {provider.Name} deleted successfully.";
         }
-        return RedirectToAction(nameof(Index));
+        catch (DbUpdateException)
+        {
+            TempData["Error"] = "This provider has linked records. Deactivate it instead of deleting it.";
+            return RedirectToAction("Details", "Providers", new { id });
+        }
+
+        if (IsHmoOnlyProviderManager())
+        {
+            return RedirectToAction(nameof(MyProviders));
+        }
+
+        return RedirectToAction("Index", "Providers");
     }
 
     [Authorize(Roles = "HMO")]

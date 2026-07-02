@@ -1,6 +1,7 @@
 ﻿@model CTSHIPDashboard.Models.Provider
 @{
     ViewData["Title"] = "Add New Healthcare Provider";
+    bool hmoLocked = ViewBag.HmoLocked == true;
 }
 
 <div class="container-fluid py-5">
@@ -15,6 +16,10 @@
                 <div class="card-body p-4 p-md-5">
                     <form asp-action="Create" method="post">
                         @Html.AntiForgeryToken()
+                        @if (!ViewData.ModelState.IsValid)
+                        {
+                            <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
+                        }
 
                         <div class="row g-4">
                             <!-- Provider Code -->
@@ -42,6 +47,22 @@
                                     <option value="">-- Select Facility Level --</option>
                                 </select>
                                 <span asp-validation-for="Level" class="text-danger"></span>
+                            </div>
+
+                            <div class="col-md-6">
+                                <label asp-for="HmoId" class="form-label fw-bold">HMO <span class="text-danger">*</span></label>
+                                @if (hmoLocked)
+                                {
+                                    <select asp-for="HmoId" class="form-select form-select-lg" asp-items="ViewBag.Hmos" disabled></select>
+                                    <input type="hidden" asp-for="HmoId" />
+                                }
+                                else
+                                {
+                                    <select asp-for="HmoId" class="form-select form-select-lg" asp-items="ViewBag.Hmos" required>
+                                        <option value="">-- Select HMO --</option>
+                                    </select>
+                                }
+                                <span asp-validation-for="HmoId" class="text-danger"></span>
                             </div>
 
                             <!-- Full Address -->
@@ -95,13 +116,13 @@
                                 </button>
 
                             
-                            @if (User.IsInRole("HMO"))
+                            @if (hmoLocked)
                             {
                                 <a asp-controller="Hmo" asp-action="MyProviders" class="btn btn-secondary btn-lg px-6 ms-3">
                                     Cancel
                                 </a>
                             }
-                            @if (User.IsInRole("CTSHIPAdmin"))
+                            else
                             {
                                 <a asp-action="Index" class="btn btn-secondary btn-lg px-6 ms-3">
                                     Cancel
@@ -121,16 +142,21 @@
     }
 
     <script>
-        // Live preview of provider code
-        document.querySelector('[asp-for="Name"]').addEventListener('input', updatePreview);
-        document.querySelector('[asp-for="State"]').addEventListener('change', updatePreview);
+        const providerNameInput = document.getElementById('Name');
+        const providerStateInput = document.getElementById('State');
+        const previewCode = document.getElementById('previewCode');
+
+        if (providerNameInput && providerStateInput && previewCode) {
+            providerNameInput.addEventListener('input', updatePreview);
+            providerStateInput.addEventListener('change', updatePreview);
+        }
 
         function updatePreview() {
-            const name = document.querySelector('[asp-for="Name"]').value.trim().toUpperCase();
-            const state = document.querySelector('[asp-for="State"]').value;
+            const name = providerNameInput.value.trim().toUpperCase();
+            const state = providerStateInput.value;
 
             if (!name || !state) {
-                document.getElementById('previewCode').textContent = "—";
+                previewCode.textContent = "—";
                 return;
             }
 
@@ -143,7 +169,7 @@
             }
 
             const stateCode = state.substring(0, 2).toUpperCase();
-            document.getElementById('previewCode').textContent = `${code}-${stateCode}-XXX`;
+            previewCode.textContent = `${code}-${stateCode}-XXX`;
         }
     </script>
 }

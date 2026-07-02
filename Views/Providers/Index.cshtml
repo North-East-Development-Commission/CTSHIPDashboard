@@ -2,7 +2,7 @@
 @model List<ProviderListViewModel>
 @{
     ViewData["Title"] = "Healthcare Providers Directory";
-    bool canManageProviders = User.IsInRole("CTSHIPAdmin") || User.IsInRole("HMO");
+    bool canManageProviders = User.IsInRole("CTSHIPAdmin") || User.IsInRole("Admin") || User.IsInRole("HMO");
 }
 
 <div class="container-fluid py-5">

@@ -1,6 +1,7 @@
 ﻿@model CTSHIPDashboard.Models.Provider
 @{
     ViewData["Title"] = "Edit Provider - " + Model.Name;
+    bool hmoLocked = ViewBag.HmoLocked == true;
 }
 
 <div class="container-fluid py-5">
@@ -17,6 +18,10 @@
                         @Html.AntiForgeryToken()
                         <input type="hidden" asp-for="Id" />
                         <input type="hidden" asp-for="DateRegistered" />
+                        @if (!ViewData.ModelState.IsValid)
+                        {
+                            <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
+                        }
 
                         <div class="row g-4">
                             <div class="col-md-4 form-group">
@@ -38,22 +43,26 @@
 
                             <div class="col-md-6">
                                 <label asp-for="Level" class="form-label text-success fw-bold fs-5">Facility Level</label>
-                                <select asp-for="Level" class="form-select form-select-lg" required>
+                                <select asp-for="Level" class="form-select form-select-lg" asp-items="ViewBag.Levels" required>
                                     <option value="">-- Select Level --</option>
-                                    <option value="Primary" selected="@(Model.Level == "Primary")">
-                                        Primary Health Center (PHC)
-                                    </option>
-                                    <option value="Secondary" selected="@(Model.Level == "Secondary")">
-                                        Secondary Health Care (General Hospital)
-                                    </option>
-                                    <option value="Tertiary" selected="@(Model.Level == "Tertiary")">
-                                        Tertiary / Teaching Hospital
-                                    </option>
-                                    <option value="Private" selected="@(Model.Level == "Private")">
-                                        Private Clinic / Hospital
-                                    </option>
                                 </select>
                                 <span asp-validation-for="Level" class="text-danger"></span>
+                            </div>
+
+                            <div class="col-md-6">
+                                <label asp-for="HmoId" class="form-label text-success fw-bold fs-5">HMO</label>
+                                @if (hmoLocked)
+                                {
+                                    <select asp-for="HmoId" class="form-select form-select-lg" asp-items="ViewBag.Hmos" disabled></select>
+                                    <input type="hidden" asp-for="HmoId" />
+                                }
+                                else
+                                {
+                                    <select asp-for="HmoId" class="form-select form-select-lg" asp-items="ViewBag.Hmos" required>
+                                        <option value="">-- Select HMO --</option>
+                                    </select>
+                                }
+                                <span asp-validation-for="HmoId" class="text-danger"></span>
                             </div>
 
                             <div class="col-12">
