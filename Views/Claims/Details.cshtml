@@ -1,6 +1,9 @@
 ﻿@model CTSHIPDashboard.Models.Claim
 @{
     ViewData["Title"] = "Claim Details - " + Model.ClaimNumber;
+    bool canReviewClaims = User.IsInRole("CTSHIPAdmin") || User.IsInRole("HMO");
+    bool canFinalizeClaims = User.IsInRole("CTSHIPAdmin") || User.IsInRole("Admin");
+    bool canDeleteClaims = User.IsInRole("CTSHIPAdmin") || User.IsInRole("Admin");
 }
 
 <div class="container-fluid py-5">
@@ -111,16 +114,22 @@
                     <hr class="my-5 border-success opacity-75 border-2" />
 
                     <div class="text-center">
-                        @if (Model.Status == "Submitted" && User.IsInRole("HMO"))
+                        @if (Model.Status == "Submitted" && canReviewClaims)
                         {
                             <a asp-action="Review" asp-route-id="@Model.Id" class="btn btn-primary btn-lg px-6 shadow-lg me-3">
                                 Review Claim
                             </a>
                         }
-                        @if (Model.Status == "Approved" && User.IsInRole("Admin"))
+                        @if (Model.Status == "Approved" && canFinalizeClaims)
                         {
                             <a asp-action="Approve" asp-route-id="@Model.Id" class="btn btn-success btn-lg px-6 shadow-lg me-3">
                                 Final Payment
+                            </a>
+                        }
+                        @if (canDeleteClaims)
+                        {
+                            <a asp-action="Delete" asp-route-id="@Model.Id" class="btn btn-danger btn-lg px-6 shadow-lg me-3">
+                                Delete Claim
                             </a>
                         }
 
@@ -130,7 +139,7 @@
                                 Back to Claims
                             </a>
                         }
-                        @if (User.IsInRole("CTSHIPAdmin") || User.IsInRole("Monitoring"))
+                        @if (User.IsInRole("CTSHIPAdmin") || User.IsInRole("Admin") || User.IsInRole("Monitoring"))
                         {
                             <a asp-action="Index" class="btn btn-success btn-lg px-6 shadow-lg me-3">
                                 Back to Claims

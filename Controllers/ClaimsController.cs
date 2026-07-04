@@ -11,7 +11,7 @@ using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
 
 namespace CTHIPDashboard.Controllers
 {
-    [Authorize(Roles = "CTSHIPAdmin,HMO,Monitoring")]
+    [Authorize(Roles = "CTSHIPAdmin,Admin,HMO,Monitoring")]
     public class ClaimsController : Controller
     {
         private readonly ApplicationDbContext _context;
@@ -93,7 +93,7 @@ namespace CTHIPDashboard.Controllers
         }
 
         // CREATE GET — FIXED!
-        [Authorize(Roles = "CTSHIPAdmin,HMO")]
+        [Authorize(Roles = "CTSHIPAdmin,Admin,HMO")]
         public async Task<IActionResult> Create()
         {
             // CORRECT: Must be SelectListItem, not raw Provider objects
@@ -113,9 +113,18 @@ namespace CTHIPDashboard.Controllers
         // CREATE POST
         [HttpPost]
         [ValidateAntiForgeryToken]
-        [Authorize(Roles = "CTSHIPAdmin,HMO")]
+        [Authorize(Roles = "CTSHIPAdmin,Admin,HMO")]
         public async Task<IActionResult> Create(Claim claim)
         {
+            claim.ClaimNumber = "CLM-" + DateTime.Now.ToString("yyyyMMddHHmmss");
+            claim.Status = "Submitted";
+            claim.SubmittedBy = User.Identity?.Name ?? "System";
+            claim.DateSubmitted = DateTime.Now;
+            ModelState.Remove(nameof(Claim.ClaimNumber));
+            ModelState.Remove(nameof(Claim.Status));
+            ModelState.Remove(nameof(Claim.SubmittedBy));
+            ModelState.Remove(nameof(Claim.DateSubmitted));
+
             if (ModelState.IsValid)
             {
                 // GET ENROLLEE + HMO
@@ -126,13 +135,18 @@ namespace CTHIPDashboard.Controllers
                 if (enrollee == null)
                 {
                     TempData["Error"] = "Enrollee not found.";
+                    ViewBag.Providers = await _context.Providers
+                        .Where(p => p.IsActive)
+                        .Select(p => new SelectListItem
+                        {
+                            Value = p.Id.ToString(),
+                            Text = p.Name + " - " + p.State
+                        })
+                        .OrderBy(p => p.Text)
+                        .ToListAsync();
+
                     return View(claim);
                 }
-
-                claim.ClaimNumber = "CLM-" + DateTime.Now.ToString("yyyyMMddHHmmss");
-                claim.Status = "Submitted";
-                claim.SubmittedBy = User.Identity?.Name ?? "Provider";
-                claim.DateSubmitted = DateTime.Now;
 
                 claim.HmoId = enrollee.HmoId;
                 claim.Hmos = enrollee.Hmo;
@@ -163,7 +177,7 @@ namespace CTHIPDashboard.Controllers
         // RENAME THIS ACTION TO:
        
         [HttpGet]
-        [Authorize(Roles = "CTSHIPAdmin,HMO")]
+        [Authorize(Roles = "CTSHIPAdmin,Admin,HMO")]
         public async Task<IActionResult> SearchEnrollee(string q)
         {
             if (string.IsNullOrWhiteSpace(q))
@@ -192,7 +206,7 @@ namespace CTHIPDashboard.Controllers
         }
 
         [HttpGet]
-        [Authorize(Roles = "CTSHIPAdmin,HMO")]
+        [Authorize(Roles = "CTSHIPAdmin,Admin,HMO")]
         public async Task<IActionResult> SearchByNumber(string q)
         {
             if (string.IsNullOrWhiteSpace(q))
@@ -221,7 +235,7 @@ namespace CTHIPDashboard.Controllers
         }
 
         // EDIT CLAIM (Only if status is Submitted)
-        [Authorize(Roles = "CTSHIPAdmin,HMO")]
+        [Authorize(Roles = "CTSHIPAdmin,Admin,HMO")]
         public async Task<IActionResult> Edit(int id)
         {
             var claim = await _context.Claims
@@ -249,7 +263,7 @@ namespace CTHIPDashboard.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        [Authorize(Roles = "CTSHIPAdmin,HMO")]
+        [Authorize(Roles = "CTSHIPAdmin,Admin,HMO")]
         public async Task<IActionResult> Edit(int id, Claim claim)
         {
             if (id != claim.Id) return NotFound();
@@ -273,12 +287,21 @@ namespace CTHIPDashboard.Controllers
                 return RedirectToAction(nameof(Index));
             }
 
-            ViewBag.Providers = await _context.Providers.Where(p => p.IsActive).ToListAsync();
+            ViewBag.Providers = await _context.Providers
+                .Where(p => p.IsActive)
+                .Select(p => new SelectListItem
+                {
+                    Value = p.Id.ToString(),
+                    Text = $"{p.Name} - {p.State}"
+                })
+                .OrderBy(p => p.Text)
+                .ToListAsync();
+
             return View(claim);
         }
 
-        // DELETE (Admin only)
-        [Authorize(Roles = "CTSHIPAdmin")]
+        // DELETE (Admin/CTSHIPAdmin only)
+        [Authorize(Roles = "CTSHIPAdmin,Admin")]
         public async Task<IActionResult> Delete(int id)
         {
             var claim = await _context.Claims
@@ -292,7 +315,7 @@ namespace CTHIPDashboard.Controllers
 
         [HttpPost, ActionName("Delete")]
         [ValidateAntiForgeryToken]
-        [Authorize(Roles = "CTSHIPAdmin")]
+        [Authorize(Roles = "CTSHIPAdmin,Admin")]
         public async Task<IActionResult> DeleteConfirmed(int id)
         {
             var claim = await _context.Claims.FindAsync(id);
@@ -363,7 +386,7 @@ namespace CTHIPDashboard.Controllers
         }
 
         [HttpPost]
-        [Authorize(Roles = "CTSHIPAdmin")]
+        [Authorize(Roles = "CTSHIPAdmin,Admin")]
         public async Task<IActionResult> Approve(int id, string action, string paymentRef = "")
         {
             var claim = await _context.Claims.FindAsync(id);

@@ -27,7 +27,7 @@
                 <p>This will permanently delete the claim and remove it from all records.</p>
             </div>
 
-            <form asp-action="DeleteConfirmed" method="post" class="d-inline">
+            <form asp-action="Delete" method="post" class="d-inline">
                 @Html.AntiForgeryToken()
                 <input type="hidden" asp-for="Id" />
                 <button type="submit" class="btn btn-danger btn-lg px-5 shadow-lg fw-bold">

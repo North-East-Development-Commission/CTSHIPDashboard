@@ -1,7 +1,10 @@
 ﻿@model IEnumerable<CTSHIPDashboard.Models.Claim>
 @{
     ViewData["Title"] = "Claims Dashboard";
-    bool canSubmitClaims = User.IsInRole("CTSHIPAdmin") || User.IsInRole("HMO");
+    bool canManageClaims = User.IsInRole("CTSHIPAdmin") || User.IsInRole("Admin") || User.IsInRole("HMO");
+    bool canReviewClaims = User.IsInRole("CTSHIPAdmin") || User.IsInRole("HMO");
+    bool canFinalizeClaims = User.IsInRole("CTSHIPAdmin") || User.IsInRole("Admin");
+    bool canDeleteClaims = User.IsInRole("CTSHIPAdmin") || User.IsInRole("Admin");
 }
 
 <div class="container-fluid py-4">
@@ -11,7 +14,7 @@
             <h1 class="display-5 text-success fw-bold mb-0">Claims Processing Center</h1>
             <p class="lead text-muted mb-0">NEDC CTSHIP Digital System</p>
         </div>
-        @if (canSubmitClaims)
+        @if (canManageClaims)
         {
             <a asp-action="Create" class="btn btn-success btn-lg shadow-lg">
                 Submit New Claim
@@ -120,22 +123,21 @@
                         <td>@c.DateSubmitted</td>
                         <td>
                             <a asp-action="Details" asp-route-id="@c.Id" class="btn btn-info btn-sm">View</a>
-                            @if (c.Status == "Submitted" && (User.IsInRole("HMO") || User.IsInRole("CTSHIPAdmin")))
+                            @if (c.Status == "Submitted" && canManageClaims)
                                 {
                                     <a asp-action="Edit" asp-route-id="@c.Id" class="btn btn-warning btn-sm">Edit</a>
+                                }
+                                @if (c.Status == "Submitted" && canReviewClaims)
+                                {
                                     <a asp-action="Review" asp-route-id="@c.Id" class="btn btn-info btn-sm">Review</a>
                                 }
-                                @if (c.Status == "Review Approved" && User.IsInRole("CTSHIPAdmin"))
-                                {
-                                    <a asp-action="Edit" asp-route-id="@c.Id" class="btn btn-warning btn-sm">Edit</a>
-                                }
 
-                                @if (c.Status == "Approved" && (User.IsInRole("HMO") || User.IsInRole("CTSHIPAdmin")))
+                                @if (c.Status == "Approved" && canFinalizeClaims)
                                 {
                                     <a asp-action="Approve" asp-route-id="@c.Id" class="btn btn-success btn-sm">Pay</a>
                                 }
                               
-                                @if (User.IsInRole("CTSHIPAdmin"))
+                                @if (canDeleteClaims)
                                 {
                                     <a asp-action="Delete" asp-route-id="@c.Id" class="btn btn-danger btn-sm">Delete</a>
                                 }
