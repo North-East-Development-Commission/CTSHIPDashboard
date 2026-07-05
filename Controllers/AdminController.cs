@@ -21,7 +21,7 @@ namespace CTSHIPDashboard.Controllers
         public AdminController(
             UserManager<ApplicationUser> userManager,
             RoleManager<IdentityRole> roleManager,
-            SignInManager<ApplicationUser> signInManager,ApplicationDbContext context)
+            SignInManager<ApplicationUser> signInManager, ApplicationDbContext context)
         {
             _userManager = userManager;
             _roleManager = roleManager;
@@ -261,7 +261,7 @@ namespace CTSHIPDashboard.Controllers
                 });
             }
 
-        ViewBag.Search = search;
+            ViewBag.Search = search;
             return View(model);
         }
 
@@ -723,69 +723,7 @@ namespace CTSHIPDashboard.Controllers
             ViewBag.TotalPages = (int)Math.Ceiling(totalItems / (double)pageSize);
 
             return View(enrollees);
-        }
-
-        // GET: /Admin/CreateStateOfficer
-        public IActionResult CreateStateOfficer()
-        {
-            ViewBag.States = SeedDataHelper.GetNigerianStates(); // small helper below in ViewModels file
-            return View(new CreateStateOfficerViewModel());
-        }
-
-        // POST: /Admin/CreateStateOfficer
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> CreateStateOfficer(CreateStateOfficerViewModel model)
-        {
-            if (!ModelState.IsValid)
-            {
-                ViewBag.States = SeedDataHelper.GetNigerianStates();
-                return View(model);
-            }
-
-            // Ensure role exists
-            if (!await _roleManager.RoleExistsAsync("StateOffice"))
-            {
-                await _roleManager.CreateAsync(new IdentityRole("StateOffice"));
-            }
-
-            var existing = await _userManager.FindByEmailAsync(model.Email);
-            if (existing != null)
-            {
-                ModelState.AddModelError("", "A user with this email already exists.");
-                ViewBag.States = SeedDataHelper.GetNigerianStates();
-                return View(model);
-            }
-
-            var user = new ApplicationUser
-            {
-                UserName = model.Email,
-                Email = model.Email,
-                FullName = model.FullName,
-                ContactInfo = model.Phone,
-                State = model.State,
-                EmailConfirmed = true
-            };
-
-            var createResult = await _userManager.CreateAsync(user, model.Password);
-            if (!createResult.Succeeded)
-            {
-                foreach (var err in createResult.Errors) ModelState.AddModelError("", err.Description);
-                ViewBag.States = SeedDataHelper.GetNigerianStates();
-                return View(model);
-            }
-
-            var roleResult = await _userManager.AddToRoleAsync(user, "StateOffice");
-            if (!roleResult.Succeeded)
-            {
-                foreach (var err in roleResult.Errors) ModelState.AddModelError("", err.Description);
-                ViewBag.States = SeedDataHelper.GetNigerianStates();
-                return View(model);
-            }
-
-            TempData["Success"] = $"State Officer created for {model.State}: {model.Email}";
-            return RedirectToAction("CreateStateOfficer");
-        }
+        }    
     }
 }
     

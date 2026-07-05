@@ -17,6 +17,6 @@ namespace CTSHIPDashboard.Models.ViewModels
         public string Phone { get; set; } = string.Empty;
 
         [Required, DataType(DataType.Password), StringLength(100, MinimumLength = 6)]
-        public string Password { get; set; } = "State@2025";
+        public string Password { get; set; }
     }
 }
