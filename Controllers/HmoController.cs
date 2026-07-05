@@ -583,7 +583,7 @@ public class HmoController : Controller
         ViewBag.ProviderCount = hmo.Providers?.Count ?? 0;
 
         ViewBag.TotalClaimAmount = hmo.Claims?.Sum(c => c.Amount) ?? 0m;
-        ViewBag.PendingClaims = hmo.Claims?.Count(c => c.Status == "Submitted" || c.Status == "Review Approved") ?? 0;
+        ViewBag.PendingClaims = hmo.Claims?.Count(c => c.Status == "Submitted") ?? 0;
         ViewBag.PaidClaims = hmo.Claims?.Count(c => c.Status == "Paid") ?? 0;
         ViewBag.ApprovedClaims = hmo.Claims?.Count(c => c.Status == "Approved") ?? 0;
         ViewBag.ComplaintMetrics = await ComplaintMetricsService.BuildAsync(
@@ -617,14 +617,16 @@ public class HmoController : Controller
     // Helper: Nigerian States
     private List<SelectListItem> GetNigerianStates()
     {
-        var states = new[] {"Adamawa", "Bauchi","Borno","Gombe","Taraba", "Yobe"};
+        var states = new[] { "Adamawa", "Bauchi", "Borno", "Gombe", "Taraba", "Yobe" };
 
         return states.Select(s => new SelectListItem
         {
             Value = s,
-            Text = s == "FCT" ? "FCT (Abuja)" : s
-        }).OrderBy(s => s.Text).ToList();
+            Text = s
+        })
+        .OrderBy(s => s.Text).ToList();
     }
+    
 
     private bool IsProviderManagementAdmin()
     {
