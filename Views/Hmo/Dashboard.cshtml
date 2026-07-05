@@ -111,8 +111,13 @@
 
     <!-- PROVIDERS UNDER THIS HMO -->
     <div class="card border-0 shadow-lg">
-        <div class="card-header bg-primary text-white text-center py-4">
-            <h3 class="fw-bold mb-0">Your Accredited Providers (@ViewBag.ProviderCount)</h3>
+        <div class="card-header bg-primary text-white py-4">
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+                <h3 class="fw-bold mb-0">Your Accredited Providers (@ViewBag.ProviderCount)</h3>
+                <a asp-controller="Providers" asp-action="Create" class="btn btn-warning fw-bold">
+                    <i class="bi bi-plus-circle me-1"></i> Add Provider
+                </a>
+            </div>
         </div>
         <div class="card-body p-0">
             <div class="table-responsive">

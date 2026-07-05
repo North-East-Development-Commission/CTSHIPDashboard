@@ -1,5 +1,6 @@
 ﻿using AspNetCoreGeneratedDocument;
 using CTSHIPDashboard.Data;
+using CTSHIPDashboard.Helpers;
 using CTSHIPDashboard.Hubs;
 using CTSHIPDashboard.Models;
 using CTSHIPDashboard.Models.ViewModels;
@@ -128,7 +129,7 @@ public class ProvidersController : Controller
         ViewBag.TotalPages = totalPages;
         ViewBag.PageSize = pageSize;
 
-        ViewBag.States = GetNigerianStatesWithAll();
+        ViewBag.States = GetNigerianStatesWithAll(state);
         ViewBag.Levels = new List<SelectListItem>
         {
             new() { Value = "all", Text = "All Levels" },
@@ -162,19 +163,9 @@ public class ProvidersController : Controller
         return View(model);
     }
 
-    private List<SelectListItem> GetNigerianStatesWithAll()
+    private List<SelectListItem> GetNigerianStatesWithAll(string? selectedState = null)
     {
-        var states = new[] { "Adamawa", "Bauchi","Borno",
-            "Gombe",  "Taraba", "Yobe" };
-
-        var list = states.Select(s => new SelectListItem
-        {
-            Value = s,
-            Text = s == "Borno" ? "Borno" : s
-        }).OrderBy(s => s.Text).ToList();
-
-        list.Insert(0, new SelectListItem { Value = "all", Text = "All States" });
-        return list;
+        return StateSelectListHelper.NorthEastStatesWithAll(selectedState);
     }
 
 
@@ -207,6 +198,7 @@ public class ProvidersController : Controller
     {
         ModelState.Remove(nameof(Provider.Code));
 
+        NormalizeAndValidateProviderState(provider);
         await ApplyAndValidateProviderHmoAsync(provider);
 
         if (ModelState.IsValid)
@@ -286,6 +278,7 @@ public class ProvidersController : Controller
         ModelState.Remove(nameof(Provider.Code));
         ModelState.Remove(nameof(Provider.DateRegistered));
 
+        NormalizeAndValidateProviderState(provider);
         await ApplyAndValidateProviderHmoAsync(provider, existing.HmoId);
 
         if (ModelState.IsValid)
@@ -440,6 +433,18 @@ public class ProvidersController : Controller
         return hmoId.HasValue && provider.HmoId == hmoId.Value;
     }
 
+    private void NormalizeAndValidateProviderState(Provider provider)
+    {
+        provider.State = NorthEastLocationData.States
+            .FirstOrDefault(state => string.Equals(state, provider.State?.Trim(), StringComparison.OrdinalIgnoreCase))
+            ?? string.Empty;
+
+        if (!NorthEastLocationData.IsValidState(provider.State))
+        {
+            ModelState.AddModelError(nameof(Provider.State), "Select a valid North-East state.");
+        }
+    }
+
     private async Task ApplyAndValidateProviderHmoAsync(Provider provider, int? existingHmoId = null)
     {
         if (IsHmoOnlyUser())
@@ -488,16 +493,6 @@ public class ProvidersController : Controller
         string? selectedLevel = null,
         int? selectedHmoId = null)
     {
-        var states = new List<SelectListItem>
-    {
-        new() { Value = "Adamawa", Text = "Adamawa" },
-        new() { Value = "Bauchi", Text = "Bauchi" },
-        new() { Value = "Borno", Text = "Borno" },
-        new() { Value = "Gombe", Text = "Gombe" },
-        new() { Value = "Taraba", Text = "Taraba" },
-        new() { Value = "Yobe", Text = "Yobe" }
-    };
-
         var levels = new List<SelectListItem>
     {
         new() { Value = "Tertiary", Text = "Tertiary (Teaching Hospital)" },
@@ -506,7 +501,7 @@ public class ProvidersController : Controller
         new() { Value = "Primary", Text = "Primary Health Centre (PHC)" }
     };
 
-        ViewBag.States = new SelectList(states, "Value", "Text", selectedState);
+        ViewBag.States = StateSelectListHelper.NorthEastStates(selectedState);
         ViewBag.Levels = new SelectList(levels, "Value", "Text", selectedLevel);
 
         bool hmoLocked = IsHmoOnlyUser();

@@ -63,12 +63,10 @@
                 <label asp-for="State" class="form-label fs-5"></label>
                 <select asp-for="State" class="form-select form-select-lg">
                     <option value="">Select state</option>
-                    <option>Adamawa</option>
-                    <option>Bauchi</option>
-                    <option>Borno</option>
-                    <option>Gombe</option>
-                    <option>Taraba</option>
-                    <option>Yobe</option>
+                    @foreach (string state in NorthEastLocationData.States)
+                    {
+                        <option value="@state">@state</option>
+                    }
                 </select>
                 <span asp-validation-for="State"></span>
             </div>

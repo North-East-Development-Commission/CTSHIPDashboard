@@ -9,11 +9,13 @@
         <div class="card-body p-5">
             <form asp-action="Create" method="post" enctype="multipart/form-data">
                 @Html.AntiForgeryToken()
+                <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
 
                 <div class="row g-4">
                     <div class="col-md-8">
                         <label asp-for="Name" class="form-label text-success fw-bold fs-5">HMO Name</label>
                         <input asp-for="Name" class="form-control form-control-lg" required />
+                        <span asp-validation-for="Name" class="text-danger"></span>
                     </div>
 
                     <div class="col-md-4">
@@ -24,23 +26,27 @@
                     <div class="col-md-6">
                         <label asp-for="Email" class="form-label text-success fw-bold">Email</label>
                         <input asp-for="Email" class="form-control form-control-lg" type="email" required />
+                        <span asp-validation-for="Email" class="text-danger"></span>
                     </div>
 
                     <div class="col-md-6">
                         <label asp-for="Phone" class="form-label text-success fw-bold">Phone</label>
                         <input asp-for="Phone" class="form-control form-control-lg" required />
+                        <span asp-validation-for="Phone" class="text-danger"></span>
                     </div>
 
                     <div class="col-12">
                         <label asp-for="Address" class="form-label text-success fw-bold">Office Address</label>
                         <textarea asp-for="Address" class="form-control form-control-lg" rows="3" required></textarea>
+                        <span asp-validation-for="Address" class="text-danger"></span>
                     </div>
 
                     <div class="col-md-6">
-                        <label asp-for="State" class="form-label text-success fw-bold">State of Operation</label>
-                        <select asp-for="State" class="form-select form-select-lg" asp-items="ViewBag.States" required>
-                            <option value="">Select State</option>
+                        <label asp-for="SelectedStates" class="form-label text-success fw-bold">States of Operation</label>
+                        <select asp-for="SelectedStates" class="form-select form-select-lg" asp-items="ViewBag.States" multiple required size="6">
                         </select>
+                        <small class="text-muted">Hold Ctrl/Cmd to select more than one state.</small>
+                        <span asp-validation-for="SelectedStates" class="text-danger d-block"></span>
                     </div>
                 </div>
 
@@ -54,3 +60,9 @@
         </div>
     </div>
 </div>
+
+@section Scripts {
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+}

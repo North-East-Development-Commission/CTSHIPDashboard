@@ -51,23 +51,28 @@
                                 </select>
                                 <span asp-validation-for="State" class="text-danger small"></span>
                             </div>
-                            <div class="col-12 col-md-6" id="typeSelector">
+                            <div class="col-12 col-md-6">
                                 <label asp-for="OrganizationId" class="form-label text-success fw-bold">Organization Type</label>
-                                <!-- Added id="typeSelector" -->
                                 <select asp-for="OrganizationId" class="form-select form-select-lg rounded-3" asp-items="@ViewBag.Oga">
                                     <option value="">-- Select Type --</option>
                                 </select>
+                                <span asp-validation-for="OrganizationId" class="text-danger small"></span>
                             </div>
 
-                            <!-- Wrapped in divs with IDs and hidden by default -->
-                            <div class="col-12 col-md-6" id="ProviderWrapper" style="display:none;">
+                            <div class="col-12 col-md-6" id="providerWrapper" style="display:none;">
                                 <label asp-for="ProviderId" class="form-label text-success fw-bold">Provider</label>
-                                <select asp-for="ProviderId" class="form-select form-select-lg rounded-3" asp-items="@ViewBag.Provider"></select>
+                                <select asp-for="ProviderId" class="form-select form-select-lg rounded-3" asp-items="@ViewBag.Provider">
+                                    <option value="">-- Select Provider --</option>
+                                </select>
+                                <span asp-validation-for="ProviderId" class="text-danger small"></span>
                             </div>
 
-                            <div class="col-12 col-md-6" id="HmoWrapper" style="display:none;">
-                                <label asp-for="HmoId" class="form-label text-success fw-bold">Hmo</label>
-                                <select asp-for="HmoId" class="form-select form-select-lg rounded-3" asp-items="@ViewBag.Hmos"></select>
+                            <div class="col-12 col-md-6" id="hmoWrapper" style="display:none;">
+                                <label asp-for="HmoId" class="form-label text-success fw-bold">HMO</label>
+                                <select asp-for="HmoId" class="form-select form-select-lg rounded-3" asp-items="@ViewBag.Hmos">
+                                    <option value="">-- Select HMO --</option>
+                                </select>
+                                <span asp-validation-for="HmoId" class="text-danger small"></span>
                             </div>
 
 
@@ -110,38 +115,47 @@
 
     <script>
         document.addEventListener("DOMContentLoaded", function () {
-            const typeSelector = document.getElementById("OrganizationId");
-            const providerWrapper = document.getElementById("ProviderWrapper"); // Updated ID
-            const hmoWrapper = document.getElementById("HmoWrapper");
+            const organizationSelect = document.getElementById("OrganizationId");
+            const providerWrapper = document.getElementById("providerWrapper");
+            const hmoWrapper = document.getElementById("hmoWrapper");
+            const providerSelect = document.getElementById("ProviderId");
+            const hmoSelect = document.getElementById("HmoId");
 
-            function toggleFields() {
-                // 1. Get the text and convert to lowercase for safer comparison
-                const selectedOption = typeSelector.options[typeSelector.selectedIndex];
-                if (!selectedOption) return;
+            if (!organizationSelect || !providerWrapper || !hmoWrapper) {
+                return;
+            }
 
-                const selectedText = selectedOption.text.toLowerCase().trim();
+            function setDropdownState(wrapper, select, visible) {
+                wrapper.style.display = visible ? "block" : "none";
 
-                // 2. Hide everything by default
-                providerWrapper.style.display = "none";
-                hmoWrapper.style.display = "none";
+                if (!select) {
+                    return;
+                }
 
-                // 3. Show based on partial matches in the text
-                if (selectedText.includes("Provider")) {
-                    providerWrapper.style.display = "block";
-                } 
-                else if (selectedText.includes("Health Maintenance Organisation") || selectedText.includes("hmo")) {
-                    hmoWrapper.style.display = "block";
+                select.disabled = !visible;
+                select.required = visible;
+
+                if (!visible) {
+                    select.value = "";
                 }
             }
 
-            // Trigger on dropdown change
-            typeSelector.addEventListener("change", toggleFields);
+            function toggleFields() {
+                const selectedOption = organizationSelect.options[organizationSelect.selectedIndex];
+                if (!selectedOption) return;
 
-            // Trigger on page load (important if the page reloads due to a validation error)
+                const selectedText = selectedOption.textContent.toLowerCase().trim();
+                const isProvider = selectedText.includes("provider");
+                const isHmo = selectedText.includes("health maintenance organization")
+                    || selectedText.includes("health maintenance organisation")
+                    || /\bhmo\b/.test(selectedText);
+
+                setDropdownState(providerWrapper, providerSelect, isProvider);
+                setDropdownState(hmoWrapper, hmoSelect, isHmo);
+            }
+
+            organizationSelect.addEventListener("change", toggleFields);
             toggleFields();
         });
     </script>
-}
-
-
 }

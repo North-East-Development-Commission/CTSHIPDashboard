@@ -1,5 +1,6 @@
 ﻿using CTSHIPDashboard.Data;
 using CTSHIPDashboard.Models;
+using CTSHIPDashboard.Helpers;
 using CTSHIPDashboard.Models.ViewModels;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -393,6 +394,13 @@ namespace CTSHIPDashboard.Controllers
         [Authorize(Roles = "CTSHIPAdmin")]
         public async Task<IActionResult> CreateUser(CreateUserViewModel model)
         {
+            await ValidateAndNormalizeOrganizationLinksAsync(
+                model.OrganizationId,
+                model.ProviderId,
+                model.HmoId,
+                providerId => model.ProviderId = providerId,
+                hmoId => model.HmoId = hmoId);
+
             if (ModelState.IsValid)
             {
                 var user = new ApplicationUser
@@ -480,6 +488,21 @@ namespace CTSHIPDashboard.Controllers
             var user = await _userManager.FindByIdAsync(model.Id);
             if (user == null) return NotFound();
 
+            await ValidateAndNormalizeOrganizationLinksAsync(
+                model.OrganizationId,
+                model.ProviderId,
+                model.HmoId,
+                providerId => model.ProviderId = providerId,
+                hmoId => model.HmoId = hmoId);
+
+            if (!ModelState.IsValid)
+            {
+                await PopulateDropdownsAsync();
+                model.CurrentRoles = (await _userManager.GetRolesAsync(user)).ToList();
+                model.AllRoles = await _roleManager.Roles.Select(r => r.Name!).ToListAsync();
+                return View(model);
+            }
+
             user.FullName = model.FullName;
             user.State = model.State;
             user.ContactInfo = model.ContactInfo;
@@ -503,7 +526,7 @@ namespace CTSHIPDashboard.Controllers
         }
 
         // GET: Admin/DeleteUser/5
-        [Authorize(Roles = "CTSHIPAdmin")]
+        [Authorize(Roles = "CTSHIPAdmin,Admin")]
         public async Task<IActionResult> DeleteUser(string id)
         {
             if (string.IsNullOrEmpty(id)) return NotFound();
@@ -518,7 +541,7 @@ namespace CTSHIPDashboard.Controllers
         // POST: Admin/DeleteUser/5
         [HttpPost, ActionName("DeleteUserConfirmed")]
         [ValidateAntiForgeryToken]
-        [Authorize(Roles = "CTSHIPAdmin")]
+        [Authorize(Roles = "CTSHIPAdmin,Admin")]
         public async Task<IActionResult> DeleteUserConfirmed(string id)
         {
             if (string.IsNullOrEmpty(id)) return NotFound();
@@ -530,34 +553,55 @@ namespace CTSHIPDashboard.Controllers
                 return RedirectToAction("Users");
             }
 
-            // STEP 1: Remove user from all roles first (removes rows from AspNetUserRoles)
-            var userRoles = await _userManager.GetRolesAsync(user);
-            if (userRoles.Any())
+            await using var transaction = await _context.Database.BeginTransactionAsync();
+            try
             {
-                var removeRolesResult = await _userManager.RemoveFromRolesAsync(user, userRoles);
-                if (!removeRolesResult.Succeeded)
+                // Remove dependent Identity rows because this app uses Restrict delete behavior.
+                var userRoles = await _userManager.GetRolesAsync(user);
+                if (userRoles.Any())
                 {
-                    TempData["Error"] = "Failed to remove user roles.";
+                    var removeRolesResult = await _userManager.RemoveFromRolesAsync(user, userRoles);
+                    if (!removeRolesResult.Succeeded)
+                    {
+                        await transaction.RollbackAsync();
+                        TempData["Error"] = "Failed to remove user roles: " + string.Join(", ", removeRolesResult.Errors.Select(e => e.Description));
+                        return RedirectToAction("Users");
+                    }
+                }
+
+                _context.Set<IdentityUserClaim<string>>()
+                    .RemoveRange(_context.Set<IdentityUserClaim<string>>().Where(claim => claim.UserId == id));
+                _context.Set<IdentityUserLogin<string>>()
+                    .RemoveRange(_context.Set<IdentityUserLogin<string>>().Where(login => login.UserId == id));
+                _context.Set<IdentityUserToken<string>>()
+                    .RemoveRange(_context.Set<IdentityUserToken<string>>().Where(token => token.UserId == id));
+                _context.UserActivities.RemoveRange(_context.UserActivities.Where(activity => activity.UserId == id));
+
+                user.ProviderId = null;
+                user.OrganizationId = null;
+                user.HmoId = null;
+
+                var deleteResult = await _userManager.DeleteAsync(user);
+                if (!deleteResult.Succeeded)
+                {
+                    await transaction.RollbackAsync();
+                    TempData["Error"] = "Failed to delete user: " + string.Join(", ", deleteResult.Errors.Select(e => e.Description));
                     return RedirectToAction("Users");
                 }
-            }
 
-            // STEP 2: Now safely delete the user
-            var deleteResult = await _userManager.DeleteAsync(user);
-            if (deleteResult.Succeeded)
-            {
-                // Audit: user deleted
+                await transaction.CommitAsync();
+
                 try
                 {
                     await LogAuditAsync("UserDeleted", user.Email, $"Deleted user: {user.FullName ?? user.Email}");
                 }
                 catch { }
-
                 TempData["Success"] = $"User '{user.FullName ?? user.Email}' has been deleted successfully.";
             }
-            else
+            catch (DbUpdateException exception)
             {
-                TempData["Error"] = "Failed to delete user: " + string.Join(", ", deleteResult.Errors.Select(e => e.Description));
+                await transaction.RollbackAsync();
+                TempData["Error"] = "Failed to delete user because linked records still exist: " + exception.GetBaseException().Message;
             }
 
             return RedirectToAction("Users");
@@ -595,6 +639,68 @@ namespace CTSHIPDashboard.Controllers
             }).ToListAsync();
         }
 
+        private async Task ValidateAndNormalizeOrganizationLinksAsync(
+            int? organizationId,
+            int? providerId,
+            int? hmoId,
+            Action<int?> setProviderId,
+            Action<int?> setHmoId)
+        {
+            if (!organizationId.HasValue)
+            {
+                setProviderId(null);
+                setHmoId(null);
+                return;
+            }
+
+            string? organizationName = await _context.Organizations
+                .Where(organization => organization.Id == organizationId.Value)
+                .Select(organization => organization.Name)
+                .FirstOrDefaultAsync();
+
+            if (organizationName == null)
+            {
+                ModelState.AddModelError(nameof(CreateUserViewModel.OrganizationId), "Select a valid organization type.");
+                setProviderId(null);
+                setHmoId(null);
+                return;
+            }
+
+            if (IsProviderOrganization(organizationName))
+            {
+                setHmoId(null);
+                if (!providerId.HasValue)
+                {
+                    ModelState.AddModelError(nameof(CreateUserViewModel.ProviderId), "Select a provider.");
+                }
+                return;
+            }
+
+            if (IsHmoOrganization(organizationName))
+            {
+                setProviderId(null);
+                if (!hmoId.HasValue)
+                {
+                    ModelState.AddModelError(nameof(CreateUserViewModel.HmoId), "Select an HMO.");
+                }
+                return;
+            }
+
+            setProviderId(null);
+            setHmoId(null);
+        }
+
+        private static bool IsProviderOrganization(string organizationName)
+        {
+            return organizationName.Contains("provider", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static bool IsHmoOrganization(string organizationName)
+        {
+            return organizationName.Contains("health maintenance", StringComparison.OrdinalIgnoreCase)
+                || organizationName.Contains("hmo", StringComparison.OrdinalIgnoreCase);
+        }
+
         // MAKE IT STATIC!
         private static string GetFriendlyRoleName(string role) => role switch
         {
@@ -610,11 +716,7 @@ namespace CTSHIPDashboard.Controllers
 
         private List<SelectListItem> GetNigerianStates()
         {
-            var states = new[] { "Borno", "Adamawa", "Taraba", "Yobe", "Bauchi", "Gombe" };
-
-            return states.Select(s => new SelectListItem { Value = s, Text = s == "FCT" ? "FCT (Abuja)" : s })
-                         .OrderBy(s => s.Text)
-                         .ToList();
+            return StateSelectListHelper.NorthEastStates();
         }
 
 

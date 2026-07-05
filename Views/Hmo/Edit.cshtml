@@ -13,39 +13,59 @@
                 </div>
 
                 <div class="card-body p-5">
-                    <form asp-action="Edit" method="post">
+                    <form asp-action="Edit" method="post" enctype="multipart/form-data">
                         @Html.AntiForgeryToken()
                         <input type="hidden" asp-for="Id" />
                         <input type="hidden" asp-for="RegistrationNumber" />
+                        <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
 
                         <div class="row g-4">
                             <div class="col-12">
                                 <label asp-for="Name" class="form-label text-success fw-bold fs-5">HMO Name</label>
                                 <input asp-for="Name" class="form-control form-control-lg rounded-3" required />
+                                <span asp-validation-for="Name" class="text-danger"></span>
                             </div>
 
                             <div class="col-md-6">
                                 <label asp-for="Email" class="form-label text-success fw-bold fs-5">Email</label>
                                 <input asp-for="Email" type="email" class="form-control form-control-lg rounded-3" />
+                                <span asp-validation-for="Email" class="text-danger"></span>
                             </div>
 
                             <div class="col-md-6">
                                 <label asp-for="Phone" class="form-label text-success fw-bold fs-5">Phone</label>
                                 <input asp-for="Phone" class="form-control form-control-lg rounded-3" />
+                                <span asp-validation-for="Phone" class="text-danger"></span>
+                            </div>
+
+                            <div class="col-md-6">
+                                <label asp-for="SelectedStates" class="form-label text-success fw-bold fs-5">States of Operation</label>
+                                <select asp-for="SelectedStates" class="form-select form-select-lg rounded-3" asp-items="ViewBag.States" multiple required size="6">
+                                </select>
+                                <small class="text-muted">Hold Ctrl/Cmd to select more than one state.</small>
+                                <span asp-validation-for="SelectedStates" class="text-danger d-block"></span>
+                            </div>
+
+                            <div class="col-md-6">
+                                <label class="form-label text-success fw-bold fs-5">HMO Logo</label>
+                                <input type="file" name="logo" accept="image/*" class="form-control form-control-lg rounded-3" />
                             </div>
 
                             <div class="col-12">
                                 <label asp-for="Address" class="form-label text-success fw-bold fs-5">Address</label>
                                 <textarea asp-for="Address" class="form-control form-control-lg rounded-3" rows="3"></textarea>
+                                <span asp-validation-for="Address" class="text-danger"></span>
                             </div>
 
-                            <div class="col-12">
-                                <div class="form-check form-switch">
-                                    <input asp-for="Status" class="form-check-input" type="checkbox" />
-                                    <label asp-for="Status" class="form-check-label text-success fw-bold fs-5">
-                                        Active HMO (Can receive enrollees)
-                                    </label>
-                                </div>
+                            <div class="col-md-6">
+                                <label asp-for="Status" class="form-label text-success fw-bold fs-5">Status</label>
+                                <select asp-for="Status" class="form-select form-select-lg rounded-3" required>
+                                    <option value="Active">Active</option>
+                                    <option value="Inactive">Inactive</option>
+                                    <option value="Suspended">Suspended</option>
+                                    <option value="Revoked">Revoked</option>
+                                </select>
+                                <span asp-validation-for="Status" class="text-danger"></span>
                             </div>
                         </div>
 
@@ -66,3 +86,9 @@
         </div>
     </div>
 </div>
+
+@section Scripts {
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+}

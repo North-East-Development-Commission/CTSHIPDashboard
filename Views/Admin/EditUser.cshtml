@@ -55,21 +55,26 @@
                             </div>
                             <div class="col-12 col-md-6">
                                 <label asp-for="OrganizationId" class="form-label text-success fw-bold">Organization Type</label>
-                                <!-- Added id="typeSelector" -->
-                                <select id="typeSelector" asp-for="OrganizationId" class="form-select form-select-lg rounded-3" asp-items="@ViewBag.Oga">
+                                <select asp-for="OrganizationId" class="form-select form-select-lg rounded-3" asp-items="@ViewBag.Oga">
                                     <option value="">-- Select Type --</option>
                                 </select>
+                                <span asp-validation-for="OrganizationId" class="text-danger small"></span>
                             </div>
 
-                            <!-- Wrapped in divs with IDs and hidden by default -->
                             <div class="col-12 col-md-6" id="providerWrapper" style="display:none;">
                                 <label asp-for="ProviderId" class="form-label text-success fw-bold">Provider</label>
-                                <select asp-for="ProviderId" class="form-select form-select-lg rounded-3" asp-items="@ViewBag.Provider"></select>
+                                <select asp-for="ProviderId" class="form-select form-select-lg rounded-3" asp-items="@ViewBag.Provider">
+                                    <option value="">-- Select Provider --</option>
+                                </select>
+                                <span asp-validation-for="ProviderId" class="text-danger small"></span>
                             </div>
 
                             <div class="col-12 col-md-6" id="hmoWrapper" style="display:none;">
-                                <label asp-for="HmoId" class="form-label text-success fw-bold">Hmo</label>
-                                <select asp-for="HmoId" class="form-select form-select-lg rounded-3" asp-items="@ViewBag.Hmos"></select>
+                                <label asp-for="HmoId" class="form-label text-success fw-bold">HMO</label>
+                                <select asp-for="HmoId" class="form-select form-select-lg rounded-3" asp-items="@ViewBag.Hmos">
+                                    <option value="">-- Select HMO --</option>
+                                </select>
+                                <span asp-validation-for="HmoId" class="text-danger small"></span>
                             </div>
 
                             <!-- Multiple Role Selection -->
@@ -135,23 +140,48 @@
     }
 
     <script>
-        $(document).ready(function () {
-            $('#typeSelector').change(function () {
-                // Get the selected text (or use .val() if you know the ID)
-                var selectedText = $(this).find("option:selected").text().trim();
+        document.addEventListener("DOMContentLoaded", function () {
+            const organizationSelect = document.getElementById("OrganizationId");
+            const providerWrapper = document.getElementById("providerWrapper");
+            const hmoWrapper = document.getElementById("hmoWrapper");
+            const providerSelect = document.getElementById("ProviderId");
+            const hmoSelect = document.getElementById("HmoId");
 
-                // Hide both initially
-                $('#providerWrapper').hide();
-                $('#hmoWrapper').hide();
+            if (!organizationSelect || !providerWrapper || !hmoWrapper) {
+                return;
+            }
 
-                // Show based on selection
-                if (selectedText === "Provider") {
-                    $('#providerWrapper').show();
+            function setDropdownState(wrapper, select, visible) {
+                wrapper.style.display = visible ? "block" : "none";
+
+                if (!select) {
+                    return;
                 }
-                else if (selectedText === "Health Maintenance Organization") {
-                    $('#hmoWrapper').show();
+
+                select.disabled = !visible;
+                select.required = visible;
+
+                if (!visible) {
+                    select.value = "";
                 }
-            });
+            }
+
+            function toggleFields() {
+                const selectedOption = organizationSelect.options[organizationSelect.selectedIndex];
+                if (!selectedOption) return;
+
+                const selectedText = selectedOption.textContent.toLowerCase().trim();
+                const isProvider = selectedText.includes("provider");
+                const isHmo = selectedText.includes("health maintenance organization")
+                    || selectedText.includes("health maintenance organisation")
+                    || /\bhmo\b/.test(selectedText);
+
+                setDropdownState(providerWrapper, providerSelect, isProvider);
+                setDropdownState(hmoWrapper, hmoSelect, isHmo);
+            }
+
+            organizationSelect.addEventListener("change", toggleFields);
+            toggleFields();
         });
     </script>
 }

@@ -17,6 +17,8 @@ using System.Drawing;
 
 public class HmoController : Controller
 {
+    private const string HmoCrudRoles = "CTSHIPAdmin,Admin";
+
     private readonly ApplicationDbContext _context;
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly IWebHostEnvironment _hostEnvironment;
@@ -292,7 +294,7 @@ public class HmoController : Controller
     }
 
     // LIST ALL HMOs
-    [Authorize(Roles = "CTSHIPAdmin")]
+    [Authorize(Roles = HmoCrudRoles)]
     public async Task<IActionResult> Index(string search = "")
     {
         var hmos = _context.Hmos.AsQueryable();
@@ -310,18 +312,40 @@ public class HmoController : Controller
     }
 
     // CREATE HMO
-    [Authorize(Roles = "CTSHIPAdmin")]
+    [Authorize(Roles = HmoCrudRoles)]
     public IActionResult Create()
     {
-        ViewBag.States = GetNigerianStates();
-        return View();
+        var hmo = new Hmo();
+        ViewBag.States = GetHmoStateSelectList(hmo.SelectedStates);
+        return View(hmo);
     }
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    [Authorize(Roles = HmoCrudRoles)]
     public async Task<IActionResult> Create(Hmo hmo, IFormFile? logo)
     {
-        ModelState.Remove("LogoPath");
+        List<string> submittedStates = hmo.SelectedStates.ToList();
+        hmo.State = NormalizeNorthEastStates(submittedStates);
+        hmo.SelectedStates = ParseNorthEastStates(hmo.State);
+        hmo.RegistrationNumber = GenerateHmoRegistrationNumber();
+        hmo.DateRegistered = DateTime.UtcNow;
+        hmo.Status = "Active";
+
+        ModelState.Remove(nameof(Hmo.State));
+        ModelState.Remove(nameof(Hmo.LogoPath));
+        ModelState.Remove(nameof(Hmo.RegistrationNumber));
+        ModelState.Remove(nameof(Hmo.DateRegistered));
+        ModelState.Remove(nameof(Hmo.Status));
+
+        if (hmo.SelectedStates.Count == 0)
+        {
+            ModelState.AddModelError(nameof(Hmo.SelectedStates), "Select at least one valid North-East state.");
+        }
+        else if (ContainsInvalidNorthEastState(submittedStates))
+        {
+            ModelState.AddModelError(nameof(Hmo.SelectedStates), "One or more selected states are not valid North-East states.");
+        }
 
         if (ModelState.IsValid)
         {
@@ -340,9 +364,6 @@ public class HmoController : Controller
                 hmo.LogoPath = "/uploads/hmos/" + fileName;
             }
 
-            hmo.DateRegistered = DateTime.Now;
-            hmo.RegistrationNumber = "HMO-" + DateTime.Now;
-
             _context.Hmos.Add(hmo);
             await _context.SaveChangesAsync();
 
@@ -350,30 +371,55 @@ public class HmoController : Controller
             return RedirectToAction(nameof(Index));
         }
 
-        ViewBag.States = GetNigerianStates();
+        ViewBag.States = GetHmoStateSelectList(hmo.SelectedStates);
         return View(hmo);
     }
 
     // EDIT HMO
-    [Authorize(Roles = "CTSHIPAdmin")]
+    [Authorize(Roles = HmoCrudRoles)]
     public async Task<IActionResult> Edit(int id)
     {
         var hmo = await _context.Hmos.FindAsync(id);
         if (hmo == null) return NotFound();
 
-        ViewBag.States = GetNigerianStates();
+        hmo.SelectedStates = ParseNorthEastStates(hmo.State);
+        ViewBag.States = GetHmoStateSelectList(hmo.SelectedStates);
         return View(hmo);
     }
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    [Authorize(Roles = HmoCrudRoles)]
     public async Task<IActionResult> Edit(int id, Hmo hmo, IFormFile? logo)
     {
         if (id != hmo.Id) return NotFound();
 
-        ModelState.Remove("LogoPath");
-        ModelState.Remove("RegistrationNumber");
-        ModelState.Remove("DateRegistered");
+        Hmo? existingHmo = await _context.Hmos.FindAsync(id);
+        if (existingHmo == null) return NotFound();
+
+        List<string> submittedStates = hmo.SelectedStates.ToList();
+        hmo.State = NormalizeNorthEastStates(submittedStates);
+        hmo.SelectedStates = ParseNorthEastStates(hmo.State);
+        hmo.Status = NormalizeHmoStatus(hmo.Status);
+
+        ModelState.Remove(nameof(Hmo.State));
+        ModelState.Remove(nameof(Hmo.LogoPath));
+        ModelState.Remove(nameof(Hmo.RegistrationNumber));
+        ModelState.Remove(nameof(Hmo.DateRegistered));
+
+        if (hmo.SelectedStates.Count == 0)
+        {
+            ModelState.AddModelError(nameof(Hmo.SelectedStates), "Select at least one valid North-East state.");
+        }
+        else if (ContainsInvalidNorthEastState(submittedStates))
+        {
+            ModelState.AddModelError(nameof(Hmo.SelectedStates), "One or more selected states are not valid North-East states.");
+        }
+
+        if (string.IsNullOrWhiteSpace(hmo.Status))
+        {
+            ModelState.AddModelError(nameof(hmo.Status), "Select a valid HMO status.");
+        }
 
         if (ModelState.IsValid)
         {
@@ -390,13 +436,19 @@ public class HmoController : Controller
                     {
                         await logo.CopyToAsync(stream);
                     }
-                    hmo.LogoPath = "/uploads/hmos/" + fileName;
+                    existingHmo.LogoPath = "/uploads/hmos/" + fileName;
                 }
 
-                _context.Update(hmo);
+                existingHmo.Name = hmo.Name.Trim();
+                existingHmo.Email = hmo.Email.Trim();
+                existingHmo.Phone = hmo.Phone.Trim();
+                existingHmo.Address = hmo.Address.Trim();
+                existingHmo.State = hmo.State;
+                existingHmo.Status = hmo.Status;
+
                 await _context.SaveChangesAsync();
 
-                TempData["Success"] = $"HMO '{hmo.Name}' updated successfully!";
+                TempData["Success"] = $"HMO '{existingHmo.Name}' updated successfully!";
             }
             catch (DbUpdateException)
             {
@@ -405,11 +457,12 @@ public class HmoController : Controller
             return RedirectToAction(nameof(Index));
         }
 
-        ViewBag.States = GetNigerianStates();
+        ViewBag.States = GetHmoStateSelectList(hmo.SelectedStates);
         return View(hmo);
     }
 
     // DETAILS
+    [Authorize(Roles = HmoCrudRoles)]
     public async Task<IActionResult> Details(int id)
     {
         var hmo = await _context.Hmos
@@ -427,7 +480,7 @@ public class HmoController : Controller
     }
 
     // DELETE GET
-    [Authorize(Roles = "CTSHIPAdmin")]
+    [Authorize(Roles = HmoCrudRoles)]
     public async Task<IActionResult> Delete(int id)
     {
         var hmo = await _context.Hmos
@@ -438,13 +491,15 @@ public class HmoController : Controller
         if (hmo == null) return NotFound();
 
         ViewBag.CanDelete = (hmo.Enrollees?.Any() != true) && (hmo.Claims?.Any() != true);
+        ViewBag.TotalEnrollees = hmo.Enrollees?.Count ?? 0;
+        ViewBag.TotalClaims = hmo.Claims?.Count ?? 0;
         return View(hmo);
     }
 
     // DELETE POST — SAFE DELETE
     [HttpPost, ActionName("Delete")]
     [ValidateAntiForgeryToken]
-    [Authorize(Roles = "CTSHIPAdmin")]
+    [Authorize(Roles = HmoCrudRoles)]
     public async Task<IActionResult> DeleteConfirmed(int id)
     {
         var hmo = await _context.Hmos
@@ -615,19 +670,98 @@ public class HmoController : Controller
     }
 
     // Helper: Nigerian States
-    private List<SelectListItem> GetNigerianStates()
+    private List<SelectListItem> GetNigerianStates(string? selectedState = null)
     {
-        var states = new[] { "Adamawa", "Bauchi", "Borno", "Gombe", "Taraba", "Yobe" };
-
-        return states.Select(s => new SelectListItem
-        {
-            Value = s,
-            Text = s   // no special case for FCT since it's not in the list
-        })
-        .OrderBy(s => s.Text)
-        .ToList();
+        return StateSelectListHelper.NorthEastStates(selectedState);
     }
 
+    private List<SelectListItem> GetHmoStateSelectList(IEnumerable<string>? selectedStates = null)
+    {
+        var selected = new HashSet<string>(
+            selectedStates ?? Enumerable.Empty<string>(),
+            StringComparer.OrdinalIgnoreCase);
+
+        return NorthEastLocationData.States
+            .Select(state => new SelectListItem
+            {
+                Value = state,
+                Text = state,
+                Selected = selected.Contains(state)
+            })
+            .ToList();
+    }
+
+    private static string GenerateHmoRegistrationNumber()
+    {
+        return $"HMO-{DateTime.UtcNow:yyyyMMddHHmmssfff}";
+    }
+
+    private static string NormalizeNorthEastStates(IEnumerable<string>? states)
+    {
+        if (states == null)
+        {
+            return string.Empty;
+        }
+
+        List<string> normalizedStates = states
+            .Select(NormalizeNorthEastState)
+            .Where(state => !string.IsNullOrWhiteSpace(state))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        return string.Join(", ", normalizedStates);
+    }
+
+    private static List<string> ParseNorthEastStates(string? states)
+    {
+        if (string.IsNullOrWhiteSpace(states))
+        {
+            return new List<string>();
+        }
+
+        return states
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(NormalizeNorthEastState)
+            .Where(state => !string.IsNullOrWhiteSpace(state))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+    }
+
+    private static bool ContainsInvalidNorthEastState(IEnumerable<string>? states)
+    {
+        return states?
+            .Where(state => !string.IsNullOrWhiteSpace(state))
+            .Any(state => !NorthEastLocationData.IsValidState(state)) == true;
+    }
+
+    private static string NormalizeNorthEastState(string? state)
+    {
+        return NorthEastLocationData.States
+            .FirstOrDefault(candidate => string.Equals(candidate, state?.Trim(), StringComparison.OrdinalIgnoreCase))
+            ?? string.Empty;
+    }
+
+    private static string NormalizeHmoStatus(string? status)
+    {
+        string normalizedStatus = status?.Trim() ?? string.Empty;
+
+        if (string.Equals(normalizedStatus, "true", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(normalizedStatus, "true,false", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(normalizedStatus, "on", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Active";
+        }
+
+        if (string.Equals(normalizedStatus, "false", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(normalizedStatus, "false,false", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Suspended";
+        }
+
+        string[] allowedStatuses = { "Active", "Inactive", "Suspended", "Revoked" };
+        return allowedStatuses.FirstOrDefault(candidate =>
+            string.Equals(candidate, normalizedStatus, StringComparison.OrdinalIgnoreCase)) ?? string.Empty;
+    }
 
 
     private bool IsProviderManagementAdmin()
@@ -660,6 +794,12 @@ public class HmoController : Controller
 
         int? hmoId = await GetCurrentHmoIdAsync();
         return hmoId.HasValue && provider.HmoId == hmoId.Value;
+    }
+
+    [Authorize(Roles = "CTSHIPAdmin,Admin,HMO")]
+    public IActionResult AddProvider()
+    {
+        return RedirectToAction("Create", "Providers");
     }
 
     [Authorize(Roles = "CTSHIPAdmin,Admin,HMO")]

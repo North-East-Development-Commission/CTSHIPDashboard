@@ -1,4 +1,5 @@
 using CTSHIPDashboard.Data;
+using CTSHIPDashboard.Helpers;
 using CTSHIPDashboard.Models;
 using CTSHIPDashboard.Models.Enums;
 using CTSHIPDashboard.Models.ViewModels;
@@ -417,9 +418,7 @@ namespace CTSHIPDashboard.Controllers
                 enrollees = enrollees.Where(item => item.State == user.State);
             }
 
-            model.States = new[] { "Adamawa", "Bauchi", "Borno", "Gombe", "Taraba", "Yobe" }
-                .Select(state => new SelectListItem(state, state, state == model.State))
-                .ToList();
+            model.States = StateSelectListHelper.NorthEastStates(model.State);
             model.Hmos = await hmos.OrderBy(item => item.Name)
                 .Select(item => new SelectListItem(item.Name, item.Id.ToString(), item.Id == model.HmoId))
                 .ToListAsync();

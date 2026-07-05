@@ -68,14 +68,7 @@ try
         scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
     IServiceProvider services = scope.ServiceProvider;
 
-    await SeedData.SeedAdminUser(services);
-    SeedData.SeedHmos(context);
-    SeedData.SeedProviders(context);
-    SeedData.SeedDoctors(context);
-    await SeedData.SeedAsync(context);
-    SeedData.SeedEnrollee(context);
-    SeedData.SeedEncounters(context);
-    SeedData.SeedClaims(context);
+
 
     var legacyTarget = context.ProgramMonitoringTargets
         .FirstOrDefault(target => target.Scope == "North East");

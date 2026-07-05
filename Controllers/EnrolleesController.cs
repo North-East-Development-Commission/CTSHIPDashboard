@@ -633,16 +633,7 @@ public class EnrolleesController : Controller
     // Helper: Nigerian States
     private List<SelectListItem> GetNigerianStates()
     {
-        var states = new[] {
-                "Adamawa", "Bauchi","Borno",
-                 "Gombe", "Taraba","Yobe"
-            };
-
-        return states.Select(s => new SelectListItem
-        {
-            Value = s,
-            Text = s == "Fct" ? "Abuja" : s
-        }).OrderBy(s => s.Text).ToList();
+        return StateSelectListHelper.NorthEastStates();
     }
 
     // Helper: State Code for Enrollment Number

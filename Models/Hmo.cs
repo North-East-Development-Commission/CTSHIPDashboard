@@ -1,5 +1,6 @@
 ﻿// Models/Hmo.cs
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace CTSHIPDashboard.Models
 {
@@ -24,6 +25,10 @@ namespace CTSHIPDashboard.Models
 
         [Required]
         public string State { get; set; } = string.Empty;
+
+        [NotMapped]
+        [Display(Name = "States of Operation")]
+        public List<string> SelectedStates { get; set; } = new();
 
         [Required]
         [StringLength(50)]
