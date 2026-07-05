@@ -622,11 +622,13 @@ public class HmoController : Controller
         return states.Select(s => new SelectListItem
         {
             Value = s,
-            Text = s
+            Text = s   // no special case for FCT since it's not in the list
         })
-        .OrderBy(s => s.Text).ToList();
+        .OrderBy(s => s.Text)
+        .ToList();
     }
-    
+
+
 
     private bool IsProviderManagementAdmin()
     {
