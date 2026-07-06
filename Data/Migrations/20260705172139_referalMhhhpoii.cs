@@ -167,7 +167,7 @@ namespace CTSHIPDashboard.Migrations
                 onDelete: ReferentialAction.Cascade);
 
             migrationBuilder.AddForeignKey(
-                name: "FK_AspNetUsers_Organizations_OrganizationId",
+                name: "FK_AspNetUsers_Organizations_OrganizeId",
                 table: "AspNetUsers",
                 column: "OrganizationId",
                 principalTable: "Organizations",
@@ -363,7 +363,7 @@ namespace CTSHIPDashboard.Migrations
                 table: "AspNetUsers");
 
             migrationBuilder.DropForeignKey(
-                name: "FK_AspNetUsers_Organizations_OrganizationId",
+                name: "FK_AspNetUsers_Organizations_OrganizeId",
                 table: "AspNetUsers");
 
             migrationBuilder.DropForeignKey(
@@ -492,10 +492,20 @@ namespace CTSHIPDashboard.Migrations
                 column: "HmoId",
                 principalTable: "Hmos",
                 principalColumn: "Id",
-                onDelete: ReferentialAction.Restrict);
+                onDelete: ReferentialAction.Restrict); migrationBuilder.Sql(@"
+IF EXISTS (
+    SELECT 1 
+    FROM sys.foreign_keys 
+    WHERE name = 'FK_AspNetUsers_Organizations_OrganizationId'
+    AND parent_object_id = OBJECT_ID('AspNetUsers')
+)
+BEGIN
+    ALTER TABLE [AspNetUsers] DROP CONSTRAINT [FK_AspNetUsers_Organizations_OrganizationId]
+END
+");
 
             migrationBuilder.AddForeignKey(
-                name: "FK_AspNetUsers_Organizations_OrganizationId",
+                name: "FK_AspNetUsers_Organizations_OrganizeId",
                 table: "AspNetUsers",
                 column: "OrganizationId",
                 principalTable: "Organizations",
