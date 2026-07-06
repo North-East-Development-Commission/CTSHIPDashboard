@@ -1,4 +1,7 @@
 ﻿@model CTSHIPDashboard.Models.Encounter
+@{
+    decimal providerWalletBalance = ViewBag.ProviderWalletBalance is decimal balance ? balance : 0m;
+}
 
 <div class="container-fluid py-4">
     <div class="row justify-content-center">
@@ -13,6 +16,7 @@
                 <div class="card-body p-5">
                     <form asp-action="Create" method="post">
                         @Html.AntiForgeryToken()
+                        <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
 
                         <div class="row g-4">
                             <!-- ENROLLEE SEARCH -->
@@ -41,6 +45,7 @@
                                             <p class="mb-1"><strong>ID:</strong> <span id="previewNumber" class="text-primary fw-bold fs-5">—</span></p>
                                             <p class="mb-1"><strong>HMO:</strong> <span id="previewHmo">—</span></p>
                                             <p class="mb-0"><strong>State:</strong> <span id="previewState">—</span></p>
+                                            <p class="mb-0"><strong>Personal Wallet:</strong> ₦<span id="previewWalletBalance">0.00</span></p>
                                             <input type="hidden" asp-for="EnrolleeId" id="selectedEnrolleeId" />
                                         </div>
                                     </div>
@@ -135,6 +140,20 @@
                                 <label asp-for="DrugFee" class="form-label text-success fw-bold">Drug Fee (₦)</label>
                                 <input asp-for="DrugFee" class="form-control form-control-lg text-end" type="number" value="0" />
                             </div>
+
+                            <div class="col-md-4">
+                                <label asp-for="WalletSource" class="form-label text-success fw-bold">Wallet to Deduct</label>
+                                <select asp-for="WalletSource" class="form-select form-select-lg" asp-items="ViewBag.WalletSources" required>
+                                    <option value="">Select wallet</option>
+                                </select>
+                                <small class="text-muted d-block">
+                                    Provider wallet: ₦<span id="providerWalletBalance">@providerWalletBalance.ToString("N2")</span>
+                                </small>
+                                <small class="text-muted d-block">
+                                    Enrollee wallet: ₦<span id="enrolleeWalletBalance">0.00</span>
+                                </small>
+                                <span asp-validation-for="WalletSource" class="text-danger"></span>
+                            </div>
                         </div>
 
                         <!-- Submit -->
@@ -203,6 +222,12 @@
                     document.getElementById('previewNumber').textContent = e.enrollmentNumber;
                     document.getElementById('previewHmo').textContent = e.hmoName;
                     document.getElementById('previewState').textContent = e.state;
+                    const enrolleeWalletBalance = Number(e.walletBalance || 0).toLocaleString(undefined, {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2
+                    });
+                    document.getElementById('previewWalletBalance').textContent = enrolleeWalletBalance;
+                    document.getElementById('enrolleeWalletBalance').textContent = enrolleeWalletBalance;
                     document.getElementById('selectedEnrolleeId').value = e.id;
 
                     document.getElementById('enrolleePreview').style.display = 'block';
@@ -210,17 +235,46 @@
                 } else {
                     Swal.fire('Not Found', 'No enrollee with that number', 'warning');
                     document.getElementById('enrolleePreview').style.display = 'none';
+                    document.getElementById('previewWalletBalance').textContent = '0.00';
+                    document.getElementById('enrolleeWalletBalance').textContent = '0.00';
                     document.getElementById('submitBtn').disabled = true;
                 }
             } catch {
                 Swal.fire('Error', 'Search failed', 'error');
                 document.getElementById('enrolleePreview').style.display = 'none';
+                document.getElementById('previewWalletBalance').textContent = '0.00';
+                document.getElementById('enrolleeWalletBalance').textContent = '0.00';
                 document.getElementById('submitBtn').disabled = true;
             }
         }
 
         document.getElementById('enrollmentSearch')
             .addEventListener('keypress', e => e.key === 'Enter' && (e.preventDefault(), searchEnrollee()));
+
+        async function refreshProviderWalletBalance() {
+            const providerSelect = document.getElementById('ProviderId');
+            const providerWalletBalance = document.getElementById('providerWalletBalance');
+
+            if (!providerSelect || !providerWalletBalance || !providerSelect.value) {
+                return;
+            }
+
+            try {
+                const res = await fetch(`/Encounters/GetProviderWalletBalance?providerId=${encodeURIComponent(providerSelect.value)}`);
+                const data = await res.json();
+                if (data.success) {
+                    providerWalletBalance.textContent = Number(data.balance || 0).toLocaleString(undefined, {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2
+                    });
+                }
+            } catch {
+                providerWalletBalance.textContent = '0.00';
+            }
+        }
+
+        document.getElementById('ProviderId')?.addEventListener('change', refreshProviderWalletBalance);
+        refreshProviderWalletBalance();
     </script>
   
 }

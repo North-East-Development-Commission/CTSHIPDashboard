@@ -35,6 +35,8 @@ namespace CTSHIPDashboard.Data
         public DbSet<DeathRegisterAuditLog> DeathRegisterAuditLogs { get; set; }
         public DbSet<EnrolleeWallet> EnrolleeWallets { get; set; }
         public DbSet<WalletTransaction> WalletTransactions { get; set; }
+        public DbSet<ProviderWallet> ProviderWallets { get; set; }
+        public DbSet<ProviderWalletTransaction> ProviderWalletTransactions { get; set; }
         public DbSet<StateOfficeMonthlyReport> StateOfficeMonthlyReports { get; set; }
         public DbSet<ProgramMonitoringTarget> ProgramMonitoringTargets { get; set; }
         public DbSet<EncounterService> EncounterServices { get; set; }
@@ -106,6 +108,32 @@ namespace CTSHIPDashboard.Data
                 entity.Property(x => x.Amount).HasColumnType("decimal(18,2)");
                 entity.Property(x => x.Type).HasMaxLength(100);
                 entity.HasIndex(x => x.EnrolleeWalletId);
+            });
+
+            builder.Entity<ProviderWallet>(entity =>
+            {
+                entity.ToTable("ProviderWallets");
+                entity.HasKey(x => x.Id);
+                entity.Property(x => x.Balance).HasColumnType("decimal(18,2)");
+                entity.Property(x => x.TotalDisbursed).HasColumnType("decimal(18,2)");
+                entity.HasIndex(x => x.ProviderId).IsUnique();
+                entity.HasOne(x => x.Provider)
+                    .WithOne(x => x.Wallet)
+                    .HasForeignKey<ProviderWallet>(x => x.ProviderId)
+                    .OnDelete(DeleteBehavior.Restrict);
+                entity.HasMany(x => x.Transactions)
+                    .WithOne(x => x.ProviderWallet)
+                    .HasForeignKey(x => x.ProviderWalletId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            builder.Entity<ProviderWalletTransaction>(entity =>
+            {
+                entity.ToTable("ProviderWalletTransactions");
+                entity.HasKey(x => x.Id);
+                entity.Property(x => x.Amount).HasColumnType("decimal(18,2)");
+                entity.Property(x => x.Type).HasMaxLength(100);
+                entity.HasIndex(x => x.ProviderWalletId);
             });
 
             builder.Entity<DeathRegisterAuditLog>(entity =>

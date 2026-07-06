@@ -1,15 +1,76 @@
-@model CTSHIPDashboard.Models.Provider
+﻿@model CTSHIPDashboard.Models.Provider
 @{
     ViewData["Title"] = "Wallet Summary";
     var wallets = ViewBag.Wallets as Dictionary<int, CTSHIPDashboard.Models.EnrolleeWallet> ?? new Dictionary<int, CTSHIPDashboard.Models.EnrolleeWallet>();
+    var providerWallet = ViewBag.ProviderWallet as CTSHIPDashboard.Models.ProviderWallet;
+    var providerTransactions = ViewBag.ProviderWalletTransactions as List<CTSHIPDashboard.Models.ProviderWalletTransaction> ?? new List<CTSHIPDashboard.Models.ProviderWalletTransaction>();
+    decimal enrolleeWalletTotal = ViewBag.EnrolleeWalletTotal is decimal total ? total : 0m;
 }
 
 <div class="container-fluid py-4">
     <div class="card">
         <div class="card-header bg-primary text-white">
-            <h4 class="mb-0">Wallet Summary � @Model.Name</h4>
+            <h4 class="mb-0">Wallet Summary — @Model.Name</h4>
         </div>
         <div class="card-body">
+            <div class="row g-3 mb-4">
+                <div class="col-md-4">
+                    <div class="border rounded-3 p-3 h-100">
+                        <div class="text-muted">Provider Wallet Balance</div>
+                        <div class="h3 fw-bold text-success">₦@((providerWallet?.Balance ?? 0m).ToString("N2"))</div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="border rounded-3 p-3 h-100">
+                        <div class="text-muted">Provider Total Disbursed</div>
+                        <div class="h3 fw-bold text-primary">₦@((providerWallet?.TotalDisbursed ?? 0m).ToString("N2"))</div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="border rounded-3 p-3 h-100">
+                        <div class="text-muted">Sum of Enrollee Wallets</div>
+                        <div class="h3 fw-bold text-dark">₦@enrolleeWalletTotal.ToString("N2")</div>
+                    </div>
+                </div>
+            </div>
+
+            <h5 class="fw-bold text-primary">Recent Provider Wallet Transactions</h5>
+            <div class="table-responsive mb-4">
+                <table class="table table-sm table-striped">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Type</th>
+                            <th>Reference</th>
+                            <th class="text-end">Amount (NGN)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (providerTransactions.Any())
+                        {
+                            foreach (var transaction in providerTransactions)
+                            {
+                                <tr>
+                                    <td>@transaction.Timestamp.ToString("yyyy-MM-dd HH:mm")</td>
+                                    <td>@transaction.Type</td>
+                                    <td>@(transaction.Reference ?? "-")</td>
+                                    <td class="text-end @(transaction.Amount < 0 ? "text-danger" : "text-success")">
+                                        ₦@transaction.Amount.ToString("N2")
+                                    </td>
+                                </tr>
+                            }
+                        }
+                        else
+                        {
+                            <tr>
+                                <td colspan="4" class="text-center text-muted">No provider wallet transactions yet.</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            <h5 class="fw-bold text-primary">Enrollee Wallets</h5>
             <table class="table table-hover">
                 <thead>
                     <tr>
@@ -27,8 +88,8 @@
                         <tr>
                             <td>@e.FullName</td>
                             <td>@e.EnrollmentNumber</td>
-                            <td>?@((w?.Balance ?? 0m).ToString("N2"))</td>
-                            <td>?@((w?.MonthlyAllocation ?? 0m).ToString("N2"))</td>
+                            <td>₦@((w?.Balance ?? 0m).ToString("N2"))</td>
+                            <td>₦@((w?.MonthlyAllocation ?? 0m).ToString("N2"))</td>
                             <td>@(w?.LastDisbursedAt?.ToString("yyyy-MM-dd") ?? "-")</td>
                         </tr>
                     }

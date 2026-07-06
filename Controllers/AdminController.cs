@@ -184,6 +184,17 @@ namespace CTSHIPDashboard.Controllers
                     Reference = "Monthly Allocation",
                     Timestamp = DateTime.UtcNow
                 });
+
+                if (e.ProviderId.HasValue)
+                {
+                    await ProviderWalletHelper.CreditAsync(
+                        _context,
+                        e.ProviderId.Value,
+                        amountPerEnrollee,
+                        $"Monthly Allocation - {e.EnrollmentNumber}",
+                        DateTime.UtcNow);
+                }
+
                 await _context.SaveChangesAsync();
                 count++;
             }

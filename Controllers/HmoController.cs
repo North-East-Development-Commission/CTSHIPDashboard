@@ -134,9 +134,16 @@ public class HmoController : Controller
             eligibleQuery = eligibleQuery.Where(enrollee => enrollee.Status == model.Status);
         }
 
-        List<int> enrolleeIds = await eligibleQuery
-            .Select(enrollee => enrollee.Id)
+        var eligibleEnrollees = await eligibleQuery
+            .Select(enrollee => new
+            {
+                enrollee.Id,
+                enrollee.ProviderId
+            })
             .ToListAsync();
+        List<int> enrolleeIds = eligibleEnrollees
+            .Select(enrollee => enrollee.Id)
+            .ToList();
 
         if (enrolleeIds.Count == 0)
         {
@@ -188,9 +195,29 @@ public class HmoController : Controller
         {
             await _context.SaveChangesAsync();
 
+            var providerCredits = eligibleEnrollees
+                .Where(enrollee => enrollee.ProviderId.HasValue)
+                .GroupBy(enrollee => enrollee.ProviderId!.Value)
+                .Select(group => new
+                {
+                    ProviderId = group.Key,
+                    Amount = model.AmountPerEnrollee * group.Count()
+                })
+                .ToList();
+
             string statusLabel = string.Equals(model.Status, "All", StringComparison.OrdinalIgnoreCase)
                 ? "All Statuses"
                 : model.Status;
+
+            foreach (var providerCredit in providerCredits)
+            {
+                await ProviderWalletHelper.CreditAsync(
+                    _context,
+                    providerCredit.ProviderId,
+                    providerCredit.Amount,
+                    $"HMO {model.Category} - {statusLabel}",
+                    disbursedAt);
+            }
 
             _context.WalletTransactions.AddRange(enrolleeIds.Select(enrolleeId => new WalletTransaction
             {

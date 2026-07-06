@@ -1,4 +1,5 @@
 ﻿using CTSHIPDashboard.Data;
+using CTSHIPDashboard.Helpers;
 using CTSHIPDashboard.Hubs;
 using CTSHIPDashboard.Models;
 using Microsoft.AspNetCore.Authorization;
@@ -135,6 +136,7 @@ namespace CTSHIPDashboard.Controllers
                 ModelState.Remove(nameof(encounter.ProviderId));
             }
 
+            NormalizeEncounterWalletSource(encounter);
             ValidateSelectedServices(encounter);
             Doctor? attendingDoctor = await ValidateDoctorSelectionAsync(
                 encounter.ProviderId,
@@ -153,15 +155,28 @@ namespace CTSHIPDashboard.Controllers
 
                 try
                 {
-                    var wallet = await _context.EnrolleeWallets
-                        .FirstOrDefaultAsync(w => w.EnrolleeId == encounter.EnrolleeId);
+                    EnrolleeWallet? enrolleeWallet = null;
+                    ProviderWallet? providerWallet = null;
+                    decimal availableBalance;
 
-                    if (wallet == null || wallet.Balance < encounter.TotalAmount)
+                    if (string.Equals(encounter.WalletSource, EncounterWalletSource.ProviderWallet, StringComparison.OrdinalIgnoreCase))
+                    {
+                        providerWallet = await ProviderWalletHelper.GetOrCreateAsync(_context, encounter.ProviderId);
+                        availableBalance = providerWallet.Balance;
+                    }
+                    else
+                    {
+                        enrolleeWallet = await _context.EnrolleeWallets
+                            .FirstOrDefaultAsync(w => w.EnrolleeId == encounter.EnrolleeId);
+                        availableBalance = enrolleeWallet?.Balance ?? 0m;
+                    }
+
+                    if (availableBalance < encounter.TotalAmount)
                     {
                         await transaction.RollbackAsync();
                         ModelState.AddModelError(
                             string.Empty,
-                            $"Insufficient wallet balance. Encounter total: {encounter.TotalAmount:C}; available balance: {(wallet?.Balance ?? 0):C}.");
+                            $"Insufficient {EncounterWalletSource.DisplayName(encounter.WalletSource).ToLowerInvariant()} balance. Encounter total: {encounter.TotalAmount:C}; available balance: {availableBalance:C}.");
                         await PopulateDropdowns(encounter.ProviderId, encounter.DoctorId);
                         return View(encounter);
                     }
@@ -184,15 +199,30 @@ namespace CTSHIPDashboard.Controllers
                     SetEncounterServices(encounter);
                     _context.Encounters.Add(encounter);
 
-                    wallet.Balance -= encounter.TotalAmount;
-                    _context.WalletTransactions.Add(new WalletTransaction
+                    if (string.Equals(encounter.WalletSource, EncounterWalletSource.ProviderWallet, StringComparison.OrdinalIgnoreCase))
                     {
-                        EnrolleeWallet = wallet,
-                        Amount = -encounter.TotalAmount,
-                        Type = "Deduction",
-                        Reference = $"Encounter {encounter.EncounterNumber}",
-                        Timestamp = DateTime.UtcNow
-                    });
+                        providerWallet!.Balance -= encounter.TotalAmount;
+                        _context.ProviderWalletTransactions.Add(new ProviderWalletTransaction
+                        {
+                            ProviderWallet = providerWallet,
+                            Amount = -encounter.TotalAmount,
+                            Type = "Deduction",
+                            Reference = $"Encounter {encounter.EncounterNumber}",
+                            Timestamp = DateTime.UtcNow
+                        });
+                    }
+                    else
+                    {
+                        enrolleeWallet!.Balance -= encounter.TotalAmount;
+                        _context.WalletTransactions.Add(new WalletTransaction
+                        {
+                            EnrolleeWallet = enrolleeWallet,
+                            Amount = -encounter.TotalAmount,
+                            Type = "Deduction",
+                            Reference = $"Encounter {encounter.EncounterNumber}",
+                            Timestamp = DateTime.UtcNow
+                        });
+                    }
 
                     await _context.SaveChangesAsync();
                     await transaction.CommitAsync();
@@ -202,10 +232,10 @@ namespace CTSHIPDashboard.Controllers
                         "EncounterDeduction",
                         actor,
                         encounter.EnrolleeId.ToString(),
-                        $"Encounter {encounter.EncounterNumber}; deducted total {encounter.TotalAmount:C}; new balance {wallet.Balance:C}.");
+                        $"Encounter {encounter.EncounterNumber}; source {EncounterWalletSource.DisplayName(encounter.WalletSource)}; deducted total {encounter.TotalAmount:C}; available before deduction {availableBalance:C}.");
 
                     TempData["Success"] =
-                        $"Encounter {encounter.EncounterNumber} recorded. {encounter.TotalAmount:C} was deducted from the enrollee wallet.";
+                        $"Encounter {encounter.EncounterNumber} recorded. {encounter.TotalAmount:C} was deducted from the {EncounterWalletSource.DisplayName(encounter.WalletSource).ToLowerInvariant()}.";
 
                     if (User.IsInRole("Provider"))
                     {
@@ -376,6 +406,11 @@ namespace CTSHIPDashboard.Controllers
             if (enrollee == null)
                 return Json(new { success = false });
 
+            decimal walletBalance = await _context.EnrolleeWallets
+                .Where(wallet => wallet.EnrolleeId == enrollee.Id)
+                .Select(wallet => (decimal?)wallet.Balance)
+                .FirstOrDefaultAsync() ?? 0m;
+
             return Json(new
             {
                 success = true,
@@ -386,9 +421,33 @@ namespace CTSHIPDashboard.Controllers
                     enrollmentNumber = enrollee.EnrollmentNumber,
                     photoPath = enrollee.PhotoPath ?? "/img/icon-192.png",
                     hmoName = enrollee.Hmo?.Name ?? "Not Assigned",
-                    state = enrollee.State
+                    state = enrollee.State,
+                    walletBalance
                 }
             });
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> GetProviderWalletBalance(int providerId)
+        {
+            if (!await CanAccessProviderAsync(providerId))
+            {
+                return Json(new { success = false });
+            }
+
+            decimal? walletBalance = await _context.ProviderWallets
+                .Where(wallet => wallet.ProviderId == providerId)
+                .Select(wallet => (decimal?)wallet.Balance)
+                .FirstOrDefaultAsync();
+
+            if (!walletBalance.HasValue)
+            {
+                walletBalance = await _context.EnrolleeWallets
+                    .Where(wallet => wallet.Enrollee != null && wallet.Enrollee.ProviderId == providerId)
+                    .SumAsync(wallet => (decimal?)wallet.Balance) ?? 0m;
+            }
+
+            return Json(new { success = true, balance = walletBalance.Value });
         }
 
         // CREATE CLAIM FROM ENCOUNTER — 100% SAFE & ACCURATE
@@ -521,6 +580,29 @@ namespace CTSHIPDashboard.Controllers
                 new(EncounterServiceCatalog.Outpatient, EncounterServiceCatalog.Outpatient),
                 new(EncounterServiceCatalog.Inpatient, EncounterServiceCatalog.Inpatient)
             };
+            ViewBag.WalletSources = new List<SelectListItem>
+            {
+                new(EncounterWalletSource.ProviderWallet, "Provider Wallet"),
+                new(EncounterWalletSource.EnrolleeWallet, "Enrollee Personal Wallet")
+            };
+
+            decimal? providerWalletBalance = null;
+            if (selectedProviderId.HasValue)
+            {
+                providerWalletBalance = await _context.ProviderWallets
+                    .Where(wallet => wallet.ProviderId == selectedProviderId.Value)
+                    .Select(wallet => (decimal?)wallet.Balance)
+                    .FirstOrDefaultAsync();
+
+                if (!providerWalletBalance.HasValue)
+                {
+                    providerWalletBalance = await _context.EnrolleeWallets
+                        .Where(wallet => wallet.Enrollee != null && wallet.Enrollee.ProviderId == selectedProviderId.Value)
+                        .SumAsync(wallet => (decimal?)wallet.Balance) ?? 0m;
+                }
+            }
+
+            ViewBag.ProviderWalletBalance = providerWalletBalance ?? 0m;
             ViewBag.OutpatientServices = EncounterServiceCatalog.OutpatientServices;
             ViewBag.InpatientServices = EncounterServiceCatalog.InpatientServices;
         }
@@ -589,6 +671,24 @@ namespace CTSHIPDashboard.Controllers
             {
                 ModelState.AddModelError(nameof(encounter.SelectedServices), "One or more services do not match the selected service setting.");
             }
+        }
+
+        private void NormalizeEncounterWalletSource(Encounter encounter)
+        {
+            string requestedWalletSource = encounter.WalletSource;
+
+            if (string.IsNullOrWhiteSpace(requestedWalletSource))
+            {
+                encounter.WalletSource = EncounterWalletSource.EnrolleeWallet;
+                return;
+            }
+
+            if (!EncounterWalletSource.IsValid(requestedWalletSource))
+            {
+                ModelState.AddModelError(nameof(Encounter.WalletSource), "Select a valid wallet source.");
+            }
+
+            encounter.WalletSource = EncounterWalletSource.Normalize(requestedWalletSource);
         }
 
         private static void SetEncounterServices(Encounter encounter, IEnumerable<string>? selectedServices = null)

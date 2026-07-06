@@ -147,14 +147,39 @@ public class ProvidersController : Controller
     {
         var provider = await _context.Providers
             .Include(p => p.Enrollees)
+            .Include(p => p.Wallet)
             .FirstOrDefaultAsync(p => p.Id == id);
 
         if (provider == null) return NotFound();
+
+        ApplicationUser? currentUser = await _userManager.GetUserAsync(User);
+        if (User.IsInRole("Provider"))
+        {
+            if (currentUser?.ProviderId != id)
+            {
+                return Forbid();
+            }
+        }
+        else if (!await CanManageProviderAsync(provider))
+        {
+            return Forbid();
+        }
 
         // For each enrollee under this provider, load wallet
         var enrolleeIds = provider.Enrollees?.Select(e => e.Id).ToList() ?? new List<int>();
         var wallets = await _context.EnrolleeWallets
             .Where(w => enrolleeIds.Contains(w.EnrolleeId))
+            .ToListAsync();
+
+        ProviderWallet providerWallet = await ProviderWalletHelper.GetOrCreateAsync(_context, provider.Id);
+        await _context.SaveChangesAsync();
+
+        ViewBag.ProviderWallet = providerWallet;
+        ViewBag.EnrolleeWalletTotal = wallets.Sum(wallet => wallet.Balance);
+        ViewBag.ProviderWalletTransactions = await _context.ProviderWalletTransactions
+            .Where(transaction => transaction.ProviderWalletId == providerWallet.Id)
+            .OrderByDescending(transaction => transaction.Timestamp)
+            .Take(15)
             .ToListAsync();
 
         var model = provider;

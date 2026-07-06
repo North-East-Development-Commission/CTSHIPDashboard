@@ -129,6 +129,7 @@
                             </td>
                             <td>
                                 <a asp-action="Details" asp-route-id="@p.Id" class="btn btn-info btn-sm">View</a>
+                                <a asp-action="WalletSummary" asp-route-id="@p.Id" class="btn btn-primary btn-sm">Wallet</a>
                                 @if (canManageProviders)
                                 {
                                     <a asp-action="Edit" asp-route-id="@p.Id" class="btn btn-warning btn-sm">Edit</a>
