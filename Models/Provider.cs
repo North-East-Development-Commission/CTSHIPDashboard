@@ -23,5 +23,6 @@ namespace CTSHIPDashboard.Models
         public ProviderWallet? Wallet { get; set; }
         public DateTime DateRegistered { get; set; }
         public int HmoId { get; set; }
+        public string? WalletSource { get; set; }  // <-- new column
     }
 }
