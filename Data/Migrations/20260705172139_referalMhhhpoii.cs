@@ -30,17 +30,9 @@ namespace CTSHIPDashboard.Migrations
                 name: "FK_AspNetUserRoles_AspNetUsers_UserId",
                 table: "AspNetUserRoles");
 
-            migrationBuilder.DropForeignKey(
-                name: "FK_AspNetUsers_Hmos_HmoId",
-                table: "AspNetUsers");
-
-            migrationBuilder.DropForeignKey(
-                name: "FK_AspNetUsers_Organizations_OrganizationId",
-                table: "AspNetUsers");
-
-            migrationBuilder.DropForeignKey(
-                name: "FK_AspNetUsers_Providers_ProviderId",
-                table: "AspNetUsers");
+            DropForeignKeyIfExists(migrationBuilder, "AspNetUsers", "FK_AspNetUsers_Hmos_HmoId");
+            DropForeignKeyIfExists(migrationBuilder, "AspNetUsers", "FK_AspNetUsers_Organizations_OrganizationId");
+            DropForeignKeyIfExists(migrationBuilder, "AspNetUsers", "FK_AspNetUsers_Providers_ProviderId");
 
             migrationBuilder.DropForeignKey(
                 name: "FK_AspNetUserTokens_AspNetUsers_UserId",
@@ -124,7 +116,7 @@ namespace CTSHIPDashboard.Migrations
                 column: "RoleId",
                 principalTable: "AspNetRoles",
                 principalColumn: "Id",
-                onDelete: ReferentialAction.Cascade);
+                onDelete: ReferentialAction.Restrict);
 
             migrationBuilder.AddForeignKey(
                 name: "FK_AspNetUserClaims_AspNetUsers_UserId",
@@ -132,7 +124,7 @@ namespace CTSHIPDashboard.Migrations
                 column: "UserId",
                 principalTable: "AspNetUsers",
                 principalColumn: "Id",
-                onDelete: ReferentialAction.Cascade);
+                onDelete: ReferentialAction.Restrict);
 
             migrationBuilder.AddForeignKey(
                 name: "FK_AspNetUserLogins_AspNetUsers_UserId",
@@ -140,7 +132,7 @@ namespace CTSHIPDashboard.Migrations
                 column: "UserId",
                 principalTable: "AspNetUsers",
                 principalColumn: "Id",
-                onDelete: ReferentialAction.Cascade);
+                onDelete: ReferentialAction.Restrict);
 
             migrationBuilder.AddForeignKey(
                 name: "FK_AspNetUserRoles_AspNetRoles_RoleId",
@@ -148,7 +140,7 @@ namespace CTSHIPDashboard.Migrations
                 column: "RoleId",
                 principalTable: "AspNetRoles",
                 principalColumn: "Id",
-                onDelete: ReferentialAction.Cascade);
+                onDelete: ReferentialAction.Restrict);
 
             migrationBuilder.AddForeignKey(
                 name: "FK_AspNetUserRoles_AspNetUsers_UserId",
@@ -156,7 +148,7 @@ namespace CTSHIPDashboard.Migrations
                 column: "UserId",
                 principalTable: "AspNetUsers",
                 principalColumn: "Id",
-                onDelete: ReferentialAction.Cascade);
+                onDelete: ReferentialAction.Restrict);
 
             migrationBuilder.AddForeignKey(
                 name: "FK_AspNetUsers_Hmos_HmoId",
@@ -164,7 +156,7 @@ namespace CTSHIPDashboard.Migrations
                 column: "HmoId",
                 principalTable: "Hmos",
                 principalColumn: "Id",
-                onDelete: ReferentialAction.Cascade);
+                onDelete: ReferentialAction.Restrict);
 
             migrationBuilder.AddForeignKey(
                 name: "FK_AspNetUsers_Organizations_OrganizeId",
@@ -172,7 +164,7 @@ namespace CTSHIPDashboard.Migrations
                 column: "OrganizationId",
                 principalTable: "Organizations",
                 principalColumn: "Id",
-                onDelete: ReferentialAction.Cascade);
+                onDelete: ReferentialAction.Restrict);
 
             migrationBuilder.AddForeignKey(
                 name: "FK_AspNetUsers_Providers_ProviderId",
@@ -180,7 +172,7 @@ namespace CTSHIPDashboard.Migrations
                 column: "ProviderId",
                 principalTable: "Providers",
                 principalColumn: "Id",
-                onDelete: ReferentialAction.Cascade);
+                onDelete: ReferentialAction.Restrict);
 
             migrationBuilder.AddForeignKey(
                 name: "FK_AspNetUserTokens_AspNetUsers_UserId",
@@ -188,7 +180,7 @@ namespace CTSHIPDashboard.Migrations
                 column: "UserId",
                 principalTable: "AspNetUsers",
                 principalColumn: "Id",
-                onDelete: ReferentialAction.Cascade);
+                onDelete: ReferentialAction.Restrict);
 
             migrationBuilder.AddForeignKey(
                 name: "FK_Claims_Hmos_HmoId",
@@ -196,7 +188,7 @@ namespace CTSHIPDashboard.Migrations
                 column: "HmoId",
                 principalTable: "Hmos",
                 principalColumn: "Id",
-                onDelete: ReferentialAction.Cascade);
+                onDelete: ReferentialAction.Restrict);
 
             migrationBuilder.AddForeignKey(
                 name: "FK_Complaints_Enrollees_EnrolleeId",
@@ -204,7 +196,7 @@ namespace CTSHIPDashboard.Migrations
                 column: "EnrolleeId",
                 principalTable: "Enrollees",
                 principalColumn: "Id",
-                onDelete: ReferentialAction.Cascade);
+                onDelete: ReferentialAction.Restrict);
 
             migrationBuilder.AddForeignKey(
                 name: "FK_Complaints_Hmos_HmoId",
@@ -212,7 +204,7 @@ namespace CTSHIPDashboard.Migrations
                 column: "HmoId",
                 principalTable: "Hmos",
                 principalColumn: "Id",
-                onDelete: ReferentialAction.Cascade);
+                onDelete: ReferentialAction.Restrict);
 
             migrationBuilder.AddForeignKey(
                 name: "FK_Complaints_Providers_ProviderId",
@@ -220,7 +212,7 @@ namespace CTSHIPDashboard.Migrations
                 column: "ProviderId",
                 principalTable: "Providers",
                 principalColumn: "Id",
-                onDelete: ReferentialAction.Cascade);
+                onDelete: ReferentialAction.Restrict);
 
             migrationBuilder.AddForeignKey(
                 name: "FK_DeathRegisterAuditLogs_DeathRegisters_DeathRegisterId",
@@ -228,7 +220,7 @@ namespace CTSHIPDashboard.Migrations
                 column: "DeathRegisterId",
                 principalTable: "DeathRegisters",
                 principalColumn: "Id",
-                onDelete: ReferentialAction.Cascade);
+                onDelete: ReferentialAction.Restrict);
 
             migrationBuilder.AddForeignKey(
                 name: "FK_Doctors_Providers_ProviderId",
@@ -236,7 +228,7 @@ namespace CTSHIPDashboard.Migrations
                 column: "ProviderId",
                 principalTable: "Providers",
                 principalColumn: "Id",
-                onDelete: ReferentialAction.Cascade);
+                onDelete: ReferentialAction.Restrict);
 
             migrationBuilder.AddForeignKey(
                 name: "FK_Encounters_Claims_ClaimId",
@@ -244,7 +236,7 @@ namespace CTSHIPDashboard.Migrations
                 column: "ClaimId",
                 principalTable: "Claims",
                 principalColumn: "Id",
-                onDelete: ReferentialAction.Cascade);
+                onDelete: ReferentialAction.Restrict);
 
             migrationBuilder.AddForeignKey(
                 name: "FK_EncounterServices_Encounters_EncounterId",
@@ -252,7 +244,7 @@ namespace CTSHIPDashboard.Migrations
                 column: "EncounterId",
                 principalTable: "Encounters",
                 principalColumn: "Id",
-                onDelete: ReferentialAction.Cascade);
+                onDelete: ReferentialAction.Restrict);
 
             migrationBuilder.AddForeignKey(
                 name: "FK_Enrollees_Providers_ProviderId",
@@ -260,7 +252,7 @@ namespace CTSHIPDashboard.Migrations
                 column: "ProviderId",
                 principalTable: "Providers",
                 principalColumn: "Id",
-                onDelete: ReferentialAction.Cascade);
+                onDelete: ReferentialAction.Restrict);
 
             migrationBuilder.AddForeignKey(
                 name: "FK_EnrolleeWallets_Enrollees_EnrolleeId",
@@ -268,7 +260,7 @@ namespace CTSHIPDashboard.Migrations
                 column: "EnrolleeId",
                 principalTable: "Enrollees",
                 principalColumn: "Id",
-                onDelete: ReferentialAction.Cascade);
+                onDelete: ReferentialAction.Restrict);
 
             migrationBuilder.AddForeignKey(
                 name: "FK_Feedbacks_Enrollees_EnrolleeId",
@@ -276,7 +268,7 @@ namespace CTSHIPDashboard.Migrations
                 column: "EnrolleeId",
                 principalTable: "Enrollees",
                 principalColumn: "Id",
-                onDelete: ReferentialAction.Cascade);
+                onDelete: ReferentialAction.Restrict);
 
             migrationBuilder.AddForeignKey(
                 name: "FK_Feedbacks_Providers_ProviderId",
@@ -284,7 +276,7 @@ namespace CTSHIPDashboard.Migrations
                 column: "ProviderId",
                 principalTable: "Providers",
                 principalColumn: "Id",
-                onDelete: ReferentialAction.Cascade);
+                onDelete: ReferentialAction.Restrict);
 
             migrationBuilder.AddForeignKey(
                 name: "FK_MedicalHistories_Enrollees_EnrolleeId",
@@ -292,7 +284,7 @@ namespace CTSHIPDashboard.Migrations
                 column: "EnrolleeId",
                 principalTable: "Enrollees",
                 principalColumn: "Id",
-                onDelete: ReferentialAction.Cascade);
+                onDelete: ReferentialAction.Restrict);
 
             migrationBuilder.AddForeignKey(
                 name: "FK_Providers_Hmos_HmoId",
@@ -300,7 +292,7 @@ namespace CTSHIPDashboard.Migrations
                 column: "HmoId",
                 principalTable: "Hmos",
                 principalColumn: "Id",
-                onDelete: ReferentialAction.Cascade);
+                onDelete: ReferentialAction.Restrict);
 
             migrationBuilder.AddForeignKey(
                 name: "FK_ReferralAuditLogs_Referrals_ReferralId",
@@ -308,7 +300,7 @@ namespace CTSHIPDashboard.Migrations
                 column: "ReferralId",
                 principalTable: "Referrals",
                 principalColumn: "Id",
-                onDelete: ReferentialAction.Cascade);
+                onDelete: ReferentialAction.Restrict);
 
             migrationBuilder.AddForeignKey(
                 name: "FK_Referrals_ReferralHospitals_ReferredHospitalId",
@@ -316,7 +308,7 @@ namespace CTSHIPDashboard.Migrations
                 column: "ReferredHospitalId",
                 principalTable: "ReferralHospitals",
                 principalColumn: "Id",
-                onDelete: ReferentialAction.Cascade);
+                onDelete: ReferentialAction.Restrict);
 
             migrationBuilder.AddForeignKey(
                 name: "FK_UserActivities_AspNetUsers_UserId",
@@ -324,7 +316,7 @@ namespace CTSHIPDashboard.Migrations
                 column: "UserId",
                 principalTable: "AspNetUsers",
                 principalColumn: "Id",
-                onDelete: ReferentialAction.Cascade);
+                onDelete: ReferentialAction.Restrict);
 
             migrationBuilder.AddForeignKey(
                 name: "FK_WalletTransactions_EnrolleeWallets_EnrolleeWalletId",
@@ -332,7 +324,7 @@ namespace CTSHIPDashboard.Migrations
                 column: "EnrolleeWalletId",
                 principalTable: "EnrolleeWallets",
                 principalColumn: "Id",
-                onDelete: ReferentialAction.Cascade);
+                onDelete: ReferentialAction.Restrict);
         }
 
         /// <inheritdoc />
@@ -358,17 +350,9 @@ namespace CTSHIPDashboard.Migrations
                 name: "FK_AspNetUserRoles_AspNetUsers_UserId",
                 table: "AspNetUserRoles");
 
-            migrationBuilder.DropForeignKey(
-                name: "FK_AspNetUsers_Hmos_HmoId",
-                table: "AspNetUsers");
-
-            migrationBuilder.DropForeignKey(
-                name: "FK_AspNetUsers_Organizations_OrganizeId",
-                table: "AspNetUsers");
-
-            migrationBuilder.DropForeignKey(
-                name: "FK_AspNetUsers_Providers_ProviderId",
-                table: "AspNetUsers");
+            DropForeignKeyIfExists(migrationBuilder, "AspNetUsers", "FK_AspNetUsers_Hmos_HmoId");
+            DropForeignKeyIfExists(migrationBuilder, "AspNetUsers", "FK_AspNetUsers_Organizations_OrganizeId");
+            DropForeignKeyIfExists(migrationBuilder, "AspNetUsers", "FK_AspNetUsers_Providers_ProviderId");
 
             migrationBuilder.DropForeignKey(
                 name: "FK_AspNetUserTokens_AspNetUsers_UserId",
@@ -671,6 +655,20 @@ END
                 principalTable: "EnrolleeWallets",
                 principalColumn: "Id",
                 onDelete: ReferentialAction.Restrict);
+        }
+
+        private static void DropForeignKeyIfExists(MigrationBuilder migrationBuilder, string tableName, string foreignKeyName)
+        {
+            migrationBuilder.Sql($@"
+IF EXISTS (
+    SELECT 1
+    FROM sys.foreign_keys
+    WHERE name = N'{foreignKeyName}'
+    AND parent_object_id = OBJECT_ID(N'{tableName}')
+)
+BEGIN
+    ALTER TABLE [{tableName}] DROP CONSTRAINT [{foreignKeyName}]
+END");
         }
     }
 }

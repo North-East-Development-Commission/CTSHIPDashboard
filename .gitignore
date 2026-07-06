@@ -345,3 +345,4 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+/Data/Migrations/20260706041832_wallet.cs
