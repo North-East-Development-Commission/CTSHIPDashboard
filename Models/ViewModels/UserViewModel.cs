@@ -9,9 +9,14 @@ public class UserViewModel
     public string Email { get; set; } = string.Empty;
     public int OrganizationId { get; set; }
     public Organization? organization { get; set; }
+    public int? ProviderId { get; set; }
+    public Provider? Provider { get; set; }
+    public int? HmoId { get; set; }
+    public Hmo? hmo { get; set; }
     public List<string> Roles { get; set; } = new();
     public string? State { get; set; }
     public string? ContactInfo { get; set; }
+    public bool EmailConfirmed { get; set; }
     public bool IsLocked { get; set; }
 }
 

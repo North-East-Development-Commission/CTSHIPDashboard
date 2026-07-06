@@ -255,14 +255,54 @@ namespace CTSHIPDashboard.Controllers
                     OrganizationId = user.OrganizationId ?? 0,
                     // Pass the loaded object to the viewmodel
                     organization = user.Organizations,
+                    ProviderId = user.ProviderId,
+                    Provider = user.Provider,
+                    HmoId = user.HmoId,
+                    hmo = user.hmo,
                     Roles = roles.ToList(),
                     State = user.State,
                     ContactInfo = user.ContactInfo,
+                    EmailConfirmed = user.EmailConfirmed,
                     IsLocked = await _userManager.IsLockedOutAsync(user)
                 });
             }
 
             ViewBag.Search = search;
+            return View(model);
+        }
+
+        public async Task<IActionResult> UserDetails(string id)
+        {
+            if (string.IsNullOrWhiteSpace(id)) return NotFound();
+
+            var user = await _userManager.Users
+                .Include(u => u.Organizations)
+                .Include(u => u.Provider)
+                .Include(u => u.hmo)
+                .FirstOrDefaultAsync(u => u.Id == id);
+
+            if (user == null) return NotFound();
+
+            var roles = await _userManager.GetRolesAsync(user);
+
+            var model = new UserViewModel
+            {
+                Id = user.Id,
+                FullName = user.FullName ?? "Not Set",
+                Email = user.Email ?? string.Empty,
+                OrganizationId = user.OrganizationId ?? 0,
+                organization = user.Organizations,
+                ProviderId = user.ProviderId,
+                Provider = user.Provider,
+                HmoId = user.HmoId,
+                hmo = user.hmo,
+                Roles = roles.ToList(),
+                State = user.State,
+                ContactInfo = user.ContactInfo,
+                EmailConfirmed = user.EmailConfirmed,
+                IsLocked = await _userManager.IsLockedOutAsync(user)
+            };
+
             return View(model);
         }
 

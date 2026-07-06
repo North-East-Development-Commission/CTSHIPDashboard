@@ -1,0 +1,86 @@
+@model UserViewModel
+@{
+    ViewData["Title"] = "User Details";
+}
+
+<div class="container-fluid py-4 py-md-5">
+    <div class="row justify-content-center">
+        <div class="col-12 col-lg-10 col-xl-8">
+            <div class="card border-0 shadow-lg rounded-4 overflow-hidden">
+                <div class="bg-success text-white text-center py-4">
+                    <h3 class="fw-bold mb-1">USER DETAILS</h3>
+                    <p class="mb-0 opacity-75">@Model.Email</p>
+                </div>
+
+                <div class="card-body p-4 p-md-5">
+                    <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
+                        <div>
+                            <h4 class="fw-bold text-success mb-1">@Model.FullName</h4>
+                            <div class="text-muted">@Model.Email</div>
+                        </div>
+                        <div class="d-flex flex-wrap gap-2">
+                            <span class="badge fs-6 @(Model.EmailConfirmed ? "bg-success" : "bg-secondary")">
+                                @(Model.EmailConfirmed ? "Email Confirmed" : "Email Not Confirmed")
+                            </span>
+                            <span class="badge fs-6 @(Model.IsLocked ? "bg-danger" : "bg-primary")">
+                                @(Model.IsLocked ? "Locked" : "Active")
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="row g-4">
+                        <div class="col-md-6">
+                            <div class="border rounded-4 p-4 h-100">
+                                <h5 class="text-success fw-bold mb-3">Contact</h5>
+                                <dl class="row mb-0">
+                                    <dt class="col-sm-5">Phone</dt>
+                                    <dd class="col-sm-7">@(Model.ContactInfo ?? "-")</dd>
+                                    <dt class="col-sm-5">State</dt>
+                                    <dd class="col-sm-7">@(Model.State ?? "-")</dd>
+                                </dl>
+                            </div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <div class="border rounded-4 p-4 h-100">
+                                <h5 class="text-success fw-bold mb-3">Organization</h5>
+                                <dl class="row mb-0">
+                                    <dt class="col-sm-5">Type</dt>
+                                    <dd class="col-sm-7">@(Model.organization?.Name ?? "-")</dd>
+                                    <dt class="col-sm-5">Provider</dt>
+                                    <dd class="col-sm-7">@(Model.Provider?.Name ?? "-")</dd>
+                                    <dt class="col-sm-5">HMO</dt>
+                                    <dd class="col-sm-7">@(Model.hmo?.Name ?? "-")</dd>
+                                </dl>
+                            </div>
+                        </div>
+
+                        <div class="col-12">
+                            <div class="border rounded-4 p-4">
+                                <h5 class="text-success fw-bold mb-3">Roles</h5>
+                                @if (Model.Roles.Any())
+                                {
+                                    foreach (var role in Model.Roles)
+                                    {
+                                        <span class="badge bg-primary me-1 mb-1">@role</span>
+                                    }
+                                }
+                                else
+                                {
+                                    <span class="text-muted">No roles assigned</span>
+                                }
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="d-grid d-md-flex justify-content-end gap-2 mt-5 pt-4 border-top">
+                        <a asp-action="Users" class="btn btn-outline-secondary btn-lg px-4">Back</a>
+                        <a asp-action="AssignRole" asp-route-id="@Model.Id" class="btn btn-warning btn-lg px-4">Roles</a>
+                        <a asp-action="EditUser" asp-route-id="@Model.Id" class="btn btn-success btn-lg px-4">Edit</a>
+                        <a asp-action="DeleteUser" asp-route-id="@Model.Id" class="btn btn-danger btn-lg px-4">Delete</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
