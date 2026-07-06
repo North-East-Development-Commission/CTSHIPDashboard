@@ -1,4 +1,6 @@
 ﻿
+using System.ComponentModel.DataAnnotations.Schema;
+
 namespace CTSHIPDashboard.Models
 {
     public class Provider
@@ -23,6 +25,7 @@ namespace CTSHIPDashboard.Models
         public ProviderWallet? Wallet { get; set; }
         public DateTime DateRegistered { get; set; }
         public int HmoId { get; set; }
+        [NotMapped]
         public string? WalletSource { get; set; }  // <-- new column
     }
 }
