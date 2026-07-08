@@ -8,6 +8,10 @@
     {
         homeUrl = User.IsInRole("Admin")
             ? Url.Action("Index", "Analytics", new { area = "" }) ?? Url.Content("~/Analytics/Index")
+            : User.IsInRole("Reviewer")
+                ? Url.Action("Dashboard", "Claims", new { area = "" }) ?? Url.Content("~/Claims/Dashboard")
+            : User.IsInRole("ReferralPro")
+                ? Url.Action("Index", "ReferralPro", new { area = "" }) ?? Url.Content("~/ReferralPro/Referrals")
             : User.IsInRole("HMO")
                 ? Url.Action("Dashboard", "Hmo", new { area = "" }) ?? Url.Content("~/Hmo/Dashboard")
                 : User.IsInRole("Provider")
@@ -124,15 +128,15 @@
                 <span class="ct-brand-copy">
                     <span class="ct-brand-title">NORTH EAST DEVELOPMENT COMMISSION (NEDC)</span>
                     <span class="ct-brand-subtitle d-none d-md-block">COMMUNITY TARGETED SOCIAL HEALTH INSURANCE PROGRAM (CTSHIP)</span>
-                    <span class="ct-brand-subtitle d-md-none">NEDC CTSHIP DIGITAL SYSTEM</span>
+                    <span class="ct-brand-subtitle d-md-none">NEDC CTSHIP Monitor SYSTEM</span>
                 </span>
             </a>
             @if (SignInManager.IsSignedIn(User))
             {
                 <div class="d-flex align-items-center">
-                    <a asp-area="Identity" asp-page="/Account/Manage/Index" class="ct-user-link d-none d-lg-flex">
+                    <a asp-area="Identity" asp-page="/Account/Manage/Index" class="ct-user-link d-flex" title="Open profile">
                         <i class="bi bi-person-circle"></i>
-                        <span>
+                        <span class="d-none d-sm-flex">
                             <small>Welcome</small>
                             <strong>@User.Identity?.Name</strong>
                         </span>
@@ -181,6 +185,9 @@
                     <a asp-controller="Hmo" asp-action="MyProviders" class="nav-link">
                         <i class="bi bi-hospital-fill"></i> My Providers
                     </a>
+                    <a asp-controller="StateOffice" asp-action="MonthlyReports" class="nav-link">
+                        <i class="bi bi-clipboard-data"></i> Provider Reports
+                    </a>
                     <a asp-controller="HmoReferrals" asp-action="Index" class="nav-link">
                         <i class="bi bi-hospital-fill"></i> Referrals
                     </a>
@@ -192,6 +199,20 @@
                     </a>
                     <a asp-controller="Enrollees" asp-action="BulkUpload" class="nav-link">
                         <i class="bi bi-person-plus-fill"></i> Bulk Enrolment with Excel
+                    </a>
+            }
+
+            @if (User.IsInRole("Reviewer") && !User.IsInRole("HMO"))
+            {
+                    <a asp-controller="Claims" asp-action="Dashboard" class="nav-link text-white">
+                        <i class="bi bi-file-medical-fill"></i> HMO Claims
+                    </a>
+            }
+
+            @if (User.IsInRole("ReferralPro"))
+            {
+                    <a asp-controller="ReferralPro" asp-action="Index" class="nav-link">
+                        <i class="bi bi-hospital-fill"></i> Received Referrals
                     </a>
             }
 
@@ -341,9 +362,12 @@
                     <a asp-controller="Monitoring" asp-action="Index" class="nav-link">
                         <i class="bi bi-bar-chart-line-fill"></i> Monitoring & Evaluation
                     </a>
-             }
+            }
 
             <hr class="ct-logout-divider mx-3 my-2">
+            <a asp-area="Identity" asp-page="/Account/Manage/Index" class="nav-link">
+                <i class="bi bi-person-circle"></i> Profile & Password
+            </a>
             <a asp-area="Identity" asp-page="/Account/Logout" class="nav-link">
                 <i class="bi bi-box-arrow-right"></i> Logout
             </a>
@@ -416,6 +440,13 @@
                         width: '100%'
                     });
                 }
+            });
+
+            $('.select2-search__field').each(function (index) {
+                const generatedId = this.id || `select2-search-field-${index + 1}`;
+                this.id = generatedId;
+                this.name = this.name || generatedId;
+                this.setAttribute('aria-label', this.getAttribute('aria-label') || 'Search options');
             });
         });
     </script>

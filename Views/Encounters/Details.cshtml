@@ -85,6 +85,10 @@
                         </div>
                     </div>
                     <div class="text-center mt-5">
+                        @if (User.IsInRole("Provider") && Model.ClaimId == null && Model.Status != "Cancelled")
+                        {
+                            <a asp-action="CreateClaim" asp-route-id="@Model.Id" class="btn btn-primary btn-lg px-6 me-2">Create Claim</a>
+                        }
                         <a asp-action="Index" class="btn btn-secondary btn-lg px-6">Back to List</a>
                     </div>
                 </div>

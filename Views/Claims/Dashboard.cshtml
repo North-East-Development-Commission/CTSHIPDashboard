@@ -60,11 +60,14 @@
             </div>
         </div>
     </div>
-    <div class="mb-3">
-        <a asp-controller="Hmo" asp-action="ExportClaims" class="btn btn-success btn-lg shadow-lg px-5">
-            <i class="bi bi-file-earmark-excel me-2"></i> Export to Excel
-        </a>
-    </div>
+    @if (User.IsInRole("HMO"))
+    {
+        <div class="mb-3">
+            <a asp-controller="Hmo" asp-action="ExportClaims" class="btn btn-success btn-lg shadow-lg px-5">
+                <i class="bi bi-file-earmark-excel me-2"></i> Export to Excel
+            </a>
+        </div>
+    }
 
     <!-- SEARCH & FILTER -->
     <div class="card border-0 shadow mb-4">
@@ -146,12 +149,12 @@
                             </td>
                             <td>
                                 <a asp-action="Details" asp-route-id="@c.Id" class="btn btn-info btn-sm">View</a>
-                                        @if (c.Status == "Submitted")
+                                        @if (c.Status == "Submitted" && User.IsInRole("Reviewer"))
                                         {
                                             <a asp-action="Review" asp-route-id="@c.Id" class="btn btn-primary btn-sm">Review</a>
                                         }
 
-                                        @if (c.Status == "Approved" && User.IsInRole("HMO"))
+                                        @if (c.Status == "Approved" && User.IsInRole("Reviewer"))
                                         {
                                             <a asp-action="Approve" asp-route-id="@c.Id" class="btn btn-success btn-sm">Pay</a>
                                         }

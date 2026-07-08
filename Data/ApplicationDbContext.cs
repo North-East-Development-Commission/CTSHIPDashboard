@@ -395,6 +395,13 @@ namespace CTSHIPDashboard.Data
                 .OnDelete(DeleteBehavior.SetNull)    // Safe because HmoId is nullable
                 .IsRequired(false);
 
+            modelBuilder.Entity<Enrollee>()
+                .HasOne(e => e.provider)
+                .WithMany(p => p.Enrollees)
+                .HasForeignKey(e => e.ProviderId)
+                .OnDelete(DeleteBehavior.Restrict)
+                .IsRequired(false);
+
             base.OnModelCreating(modelBuilder);
         
 

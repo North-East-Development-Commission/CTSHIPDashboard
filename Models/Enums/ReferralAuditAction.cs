@@ -8,5 +8,8 @@ public enum ReferralAuditAction
     Verified = 4,
     Rejected = 5,
     Audited = 6,
-    Closed = 7
+    Closed = 7,
+    Received = 8,
+    EncounterSubmitted = 9,
+    ClaimSubmitted = 10
 }

@@ -55,7 +55,7 @@
                             <th>Enrollment ID</th>
                             <th>HMO</th>
                             <th>Phone</th>
-                            <th>Death Register</th>
+                            <th>Status</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
@@ -105,9 +105,7 @@
                                                asp-route-hmoName="@e.Hmo?.Name"
                                                class="btn btn-sm btn-outline-danger">Register Death</a>
                                         }
-                                    </td>
-
-                                    <td>
+                                   
                                         <a asp-action="EnDetails" asp-route-id="@e.Id"
                                            class="btn btn-info btn-sm rounded-pill px-4">View Profile</a>
                                     </td>

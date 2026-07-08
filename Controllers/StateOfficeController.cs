@@ -15,7 +15,7 @@ using System.Drawing;
 using System.Globalization;
 
 
-[Authorize(Roles = "StateOffice,CTSHIPAdmin,Admin")]
+[Authorize(Roles = "StateOffice,CTSHIPAdmin,Admin,HMO")]
 public class StateOfficeController : Controller
 {
     private readonly ApplicationDbContext _context;
@@ -35,6 +35,7 @@ public class StateOfficeController : Controller
         _auditService = auditService;
     }
 
+    [Authorize(Roles = "StateOffice,CTSHIPAdmin,Admin")]
     public async Task<IActionResult> Index()
     {
         var user = await _userManager.GetUserAsync(User);
@@ -89,6 +90,7 @@ public class StateOfficeController : Controller
 
     // ====================== ENROLLEES LIST ======================
     [Authorize(Roles = "CTSHIPAdmin,StateOffice")]
+    [Authorize(Roles = "StateOffice,CTSHIPAdmin,Admin")]
     public async Task<IActionResult> Enrollees(string state = "", string search = "", int page = 1, int pageSize = 25)
     {
         var user = await _userManager.GetUserAsync(User);
@@ -159,6 +161,7 @@ public class StateOfficeController : Controller
 
     // ====================== PROVIDERS LIST ======================
     [Authorize(Roles = "CTSHIPAdmin,StateOffice")]
+    [Authorize(Roles = "StateOffice,CTSHIPAdmin,Admin")]
     public async Task<IActionResult> Providers(string state = "", string search = "", int page = 1, int pageSize = 20)
     {
         var user = await _userManager.GetUserAsync(User);
@@ -216,6 +219,7 @@ public class StateOfficeController : Controller
     }
 
     [Authorize(Roles = "CTSHIPAdmin,StateOffice")]
+    [Authorize(Roles = "StateOffice,CTSHIPAdmin,Admin")]
     public async Task<IActionResult> Claims(
         string state = "",
         string status = "All",
@@ -363,6 +367,7 @@ public class StateOfficeController : Controller
     }
 
     [Authorize(Roles = "CTSHIPAdmin,StateOffice")]
+    [Authorize(Roles = "StateOffice,CTSHIPAdmin,Admin")]
     public async Task<IActionResult> ClaimDetails(int id, CancellationToken cancellationToken = default)
     {
         var user = await _userManager.GetUserAsync(User);
@@ -402,6 +407,7 @@ public class StateOfficeController : Controller
     }
 
 
+    [Authorize(Roles = "StateOffice,CTSHIPAdmin,Admin")]
     public async Task<IActionResult> ExportEnrollees(string state)
     {
         if (string.IsNullOrEmpty(state))
@@ -468,19 +474,15 @@ public class StateOfficeController : Controller
             return Forbid();
         }
 
-        IQueryable<StateOfficeMonthlyReport> query = _context.StateOfficeMonthlyReports.AsNoTracking();
+        IQueryable<StateOfficeMonthlyReport> query =
+            ApplyMonthlyReportScope(_context.StateOfficeMonthlyReports.AsNoTracking(), user);
 
-        if (!CanManageReports())
+        if (!CanManageReports() && User.IsInRole("StateOffice"))
         {
-            if (string.IsNullOrWhiteSpace(user.State))
-            {
-                return Forbid();
-            }
-
             state = user.State;
-            query = query.Where(x => x.State == state);
         }
-        else if (!string.IsNullOrWhiteSpace(state))
+
+        if (!string.IsNullOrWhiteSpace(state))
         {
             state = state.Trim();
             query = query.Where(x => x.State == state);
@@ -498,7 +500,8 @@ public class StateOfficeController : Controller
 
         ViewBag.ReportingPeriod = reportingPeriod;
         ViewBag.State = state;
-        ViewBag.AvailableStates = await GetAvailableStatesAsync(cancellationToken);
+        ViewBag.AvailableStates = await GetReportAvailableStatesAsync(user, cancellationToken);
+        ViewBag.CanFilterReportsByState = CanManageReports() || User.IsInRole("HMO");
         ViewBag.CanManageReports = CanManageReports();
 
         return View(await query
@@ -518,7 +521,7 @@ public class StateOfficeController : Controller
 
         var model = new StateOfficeMonthlyReportViewModel
         {
-            State = CanManageReports() ? string.Empty : user.State,
+            State = CanManageReports() ? string.Empty : await GetDefaultReportStateAsync(user, cancellationToken) ?? string.Empty,
             ReportingOfficerName = user.FullName ?? user.UserName ?? string.Empty
         };
 
@@ -538,17 +541,6 @@ public class StateOfficeController : Controller
             return Forbid();
         }
 
-        if (!CanManageReports())
-        {
-            if (string.IsNullOrWhiteSpace(user.State)
-                || !string.Equals(model.State, user.State, StringComparison.OrdinalIgnoreCase))
-            {
-                return Forbid();
-            }
-
-            model.State = user.State;
-        }
-
         if (!DateTime.TryParseExact(
             $"{model.ReportingPeriod}-01",
             "yyyy-MM-dd",
@@ -562,6 +554,11 @@ public class StateOfficeController : Controller
         model.State = model.State?.Trim() ?? string.Empty;
         model.Lga = model.Lga?.Trim() ?? string.Empty;
         model.Ward = model.Ward?.Trim() ?? string.Empty;
+
+        if (!await CanAccessReportStateAsync(model.State, user, cancellationToken))
+        {
+            return Forbid();
+        }
 
         if (!NorthEastLocationData.IsValidLga(model.State, model.Lga))
         {
@@ -578,7 +575,8 @@ public class StateOfficeController : Controller
                     cancellationToken);
         }
 
-        if (facility == null)
+        if (facility == null
+            || !await CanAccessReportProviderAsync(facility.Id, model.State, user, cancellationToken))
         {
             ModelState.AddModelError(nameof(model.ProviderId), "Select a valid facility for the chosen state.");
         }
@@ -652,19 +650,18 @@ public class StateOfficeController : Controller
             return NotFound();
         }
 
-        if (!CanManageReports()
-            && !string.Equals(report.State, user.State, StringComparison.OrdinalIgnoreCase))
+        if (!await CanAccessMonthlyReportAsync(report, user, cancellationToken))
         {
             return NotFound();
         }
 
-        ViewBag.CanAuditReports = CanManageReports();
+        ViewBag.CanAuditReports = await CanAuditMonthlyReportAsync(report, user, cancellationToken);
         return View(report);
     }
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    [Authorize(Roles = "CTSHIPAdmin,Admin")]
+    [Authorize(Roles = "CTSHIPAdmin,Admin,StateOffice,HMO")]
     public async Task<IActionResult> AuditMonthlyReport(
         int id,
         string auditStatus,
@@ -683,6 +680,11 @@ public class StateOfficeController : Controller
         if (report == null)
         {
             return NotFound();
+        }
+
+        if (!await CanAuditMonthlyReportAsync(report, user, cancellationToken))
+        {
+            return Forbid();
         }
 
         string[] allowedStatuses = { "Audited", "Needs Correction" };
@@ -712,7 +714,8 @@ public class StateOfficeController : Controller
     [HttpGet]
     public async Task<IActionResult> MonthlyReportLgas(string state, CancellationToken cancellationToken)
     {
-        if (!await CanAccessStateAsync(state))
+        var user = await _userManager.GetUserAsync(User);
+        if (user == null || !await CanAccessReportStateAsync(state, user, cancellationToken))
         {
             return Forbid();
         }
@@ -728,7 +731,8 @@ public class StateOfficeController : Controller
         string lga,
         CancellationToken cancellationToken)
     {
-        if (!await CanAccessStateAsync(state))
+        var user = await _userManager.GetUserAsync(User);
+        if (user == null || !await CanAccessReportStateAsync(state, user, cancellationToken))
         {
             return Forbid();
         }
@@ -747,13 +751,13 @@ public class StateOfficeController : Controller
     [HttpGet]
     public async Task<IActionResult> MonthlyReportFacilities(string state, CancellationToken cancellationToken)
     {
-        if (!await CanAccessStateAsync(state))
+        var user = await _userManager.GetUserAsync(User);
+        if (user == null || !await CanAccessReportStateAsync(state, user, cancellationToken))
         {
             return Forbid();
         }
 
-        var facilities = await _context.Providers
-            .AsNoTracking()
+        var facilities = await ApplyProviderReportScope(_context.Providers.AsNoTracking(), user)
             .Where(x => x.State == state)
             .OrderBy(x => x.Name)
             .Select(x => new { id = x.Id, name = x.Name, code = x.Code })
@@ -771,7 +775,10 @@ public class StateOfficeController : Controller
         string? ward,
         CancellationToken cancellationToken)
     {
-        if (!await CanAccessStateAsync(state))
+        var user = await _userManager.GetUserAsync(User);
+        if (user == null
+            || !await CanAccessReportStateAsync(state, user, cancellationToken)
+            || !await CanAccessReportProviderAsync(providerId, state, user, cancellationToken))
         {
             return Forbid();
         }
@@ -815,8 +822,7 @@ public class StateOfficeController : Controller
             return NotFound();
         }
 
-        if (!CanManageReports()
-            && !string.Equals(report.State, user.State, StringComparison.OrdinalIgnoreCase))
+        if (!await CanAccessMonthlyReportAsync(report, user, cancellationToken))
         {
             return NotFound();
         }
@@ -834,7 +840,10 @@ public class StateOfficeController : Controller
         string? ward,
         CancellationToken cancellationToken)
     {
-        if (!await CanAccessStateAsync(state))
+        var user = await _userManager.GetUserAsync(User);
+        if (user == null
+            || !await CanAccessReportStateAsync(state, user, cancellationToken)
+            || !await CanAccessReportProviderAsync(providerId, state, user, cancellationToken))
         {
             return Forbid();
         }
@@ -873,10 +882,15 @@ public class StateOfficeController : Controller
         }
         else
         {
-            states = string.IsNullOrWhiteSpace(user.State)
-                ? new List<string>()
-                : new List<string> { user.State };
-            model.State = user.State;
+            states = await GetReportAvailableStatesAsync(user, cancellationToken);
+            if (User.IsInRole("StateOffice"))
+            {
+                model.State = user.State;
+            }
+            else if (string.IsNullOrWhiteSpace(model.State) && states.Count == 1)
+            {
+                model.State = states[0];
+            }
         }
 
         model.States = states
@@ -889,8 +903,7 @@ public class StateOfficeController : Controller
                 .Select(x => new SelectListItem(x, x, x == model.Lga))
                 .ToList();
 
-            model.Facilities = await _context.Providers
-                .AsNoTracking()
+            model.Facilities = await ApplyProviderReportScope(_context.Providers.AsNoTracking(), user)
                 .Where(x => x.State == model.State)
                 .OrderBy(x => x.Name)
                 .Select(x => new SelectListItem(x.Name, x.Id.ToString(), x.Id == model.ProviderId))
@@ -907,17 +920,142 @@ public class StateOfficeController : Controller
         }
     }
 
-    private async Task<bool> CanAccessStateAsync(string state)
+    private IQueryable<StateOfficeMonthlyReport> ApplyMonthlyReportScope(
+        IQueryable<StateOfficeMonthlyReport> query,
+        ApplicationUser user)
+    {
+        if (CanManageReports())
+        {
+            return query;
+        }
+
+        if (User.IsInRole("HMO") && user.HmoId.HasValue)
+        {
+            int hmoId = user.HmoId.Value;
+            return query.Where(report => _context.Providers
+                .Any(provider => provider.Id == report.ProviderId && provider.HmoId == hmoId));
+        }
+
+        if (User.IsInRole("StateOffice") && !string.IsNullOrWhiteSpace(user.State))
+        {
+            string userState = user.State.Trim();
+            return query.Where(report => report.State == userState);
+        }
+
+        return query.Where(report => false);
+    }
+
+    private IQueryable<Provider> ApplyProviderReportScope(
+        IQueryable<Provider> query,
+        ApplicationUser user)
+    {
+        if (CanManageReports())
+        {
+            return query;
+        }
+
+        if (User.IsInRole("HMO") && user.HmoId.HasValue)
+        {
+            int hmoId = user.HmoId.Value;
+            return query.Where(provider => provider.HmoId == hmoId);
+        }
+
+        if (User.IsInRole("StateOffice") && !string.IsNullOrWhiteSpace(user.State))
+        {
+            string userState = user.State.Trim();
+            return query.Where(provider => provider.State == userState);
+        }
+
+        return query.Where(provider => false);
+    }
+
+    private async Task<bool> CanAccessReportStateAsync(
+        string? state,
+        ApplicationUser user,
+        CancellationToken cancellationToken)
+    {
+        state = state?.Trim();
+        if (string.IsNullOrWhiteSpace(state))
+        {
+            return false;
+        }
+
+        if (CanManageReports())
+        {
+            return true;
+        }
+
+        if (User.IsInRole("StateOffice"))
+        {
+            return !string.IsNullOrWhiteSpace(user.State)
+                && string.Equals(user.State.Trim(), state, StringComparison.OrdinalIgnoreCase);
+        }
+
+        if (User.IsInRole("HMO") && user.HmoId.HasValue)
+        {
+            int hmoId = user.HmoId.Value;
+            return await _context.Providers
+                .AsNoTracking()
+                .AnyAsync(provider => provider.HmoId == hmoId && provider.State == state, cancellationToken);
+        }
+
+        return false;
+    }
+
+    private async Task<bool> CanAccessReportProviderAsync(
+        int providerId,
+        string? state,
+        ApplicationUser user,
+        CancellationToken cancellationToken)
+    {
+        state = state?.Trim();
+        if (providerId <= 0 || string.IsNullOrWhiteSpace(state))
+        {
+            return false;
+        }
+
+        return await ApplyProviderReportScope(_context.Providers.AsNoTracking(), user)
+            .AnyAsync(provider => provider.Id == providerId && provider.State == state, cancellationToken);
+    }
+
+    private async Task<bool> CanAccessMonthlyReportAsync(
+        StateOfficeMonthlyReport report,
+        ApplicationUser user,
+        CancellationToken cancellationToken)
     {
         if (CanManageReports())
         {
             return true;
         }
 
-        ApplicationUser? user = await _userManager.GetUserAsync(User);
-        return user != null
-            && !string.IsNullOrWhiteSpace(state)
-            && string.Equals(user.State, state, StringComparison.OrdinalIgnoreCase);
+        if (User.IsInRole("StateOffice"))
+        {
+            return !string.IsNullOrWhiteSpace(user.State)
+                && string.Equals(report.State, user.State.Trim(), StringComparison.OrdinalIgnoreCase);
+        }
+
+        if (User.IsInRole("HMO") && user.HmoId.HasValue)
+        {
+            int hmoId = user.HmoId.Value;
+            return await _context.Providers
+                .AsNoTracking()
+                .AnyAsync(provider => provider.Id == report.ProviderId && provider.HmoId == hmoId, cancellationToken);
+        }
+
+        return false;
+    }
+
+    private async Task<bool> CanAuditMonthlyReportAsync(
+        StateOfficeMonthlyReport report,
+        ApplicationUser user,
+        CancellationToken cancellationToken)
+    {
+        if (!CanManageReports() && !User.IsInRole("StateOffice") && !User.IsInRole("HMO"))
+        {
+            return false;
+        }
+
+        return await CanAccessMonthlyReportAsync(report, user, cancellationToken);
     }
 
     private bool CanManageReports()
@@ -1204,6 +1342,43 @@ public class StateOfficeController : Controller
             .Distinct()
             .OrderBy(x => x)
             .ToListAsync(cancellationToken);
+    }
+
+    private async Task<List<string>> GetReportAvailableStatesAsync(
+        ApplicationUser user,
+        CancellationToken cancellationToken)
+    {
+        if (CanManageReports())
+        {
+            return await GetAvailableStatesAsync(cancellationToken);
+        }
+
+        if (User.IsInRole("StateOffice") && !string.IsNullOrWhiteSpace(user.State))
+        {
+            return new List<string> { user.State.Trim() };
+        }
+
+        if (User.IsInRole("HMO") && user.HmoId.HasValue)
+        {
+            int hmoId = user.HmoId.Value;
+            return await _context.Providers
+                .AsNoTracking()
+                .Where(provider => provider.HmoId == hmoId && provider.State != "")
+                .Select(provider => provider.State)
+                .Distinct()
+                .OrderBy(state => state)
+                .ToListAsync(cancellationToken);
+        }
+
+        return new List<string>();
+    }
+
+    private async Task<string?> GetDefaultReportStateAsync(
+        ApplicationUser user,
+        CancellationToken cancellationToken)
+    {
+        List<string> states = await GetReportAvailableStatesAsync(user, cancellationToken);
+        return states.FirstOrDefault();
     }
 
     private async Task<string?> GetDefaultStateAsync(CancellationToken cancellationToken)

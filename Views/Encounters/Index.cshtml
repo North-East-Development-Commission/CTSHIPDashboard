@@ -89,20 +89,20 @@
                                                                             e.Status == "Claimed" ? "bg-primary" :
                                                                             e.Status == "Cancelled" ? "bg-danger" :
                                                                             "bg-secondary")">
-                            @if (e.ClaimId == null && e.Status != "Cancelled")
-                                    {
-                                        <a asp-action="CreateClaim" asp-route-id="@e.Id" class="btn btn-primary btn-sm">Create Claim</a>
-                                    }
-                                    else if (e.ClaimId != null)
-                                    {
-                                        <span class="badge bg-success">Claimed</span>
-                                    }
-                        </span>
-                    </td>
-                    <td>
-                        <a asp-action="Details" asp-route-id="@e.Id" class="btn btn-info btn-sm">View</a>
-                        <a asp-action="Edit" asp-route-id="@e.Id" class="btn btn-warning btn-sm">Edit</a>
-                        <a asp-action="Delete" asp-route-id="@e.Id" class="btn btn-danger btn-sm">Delete</a>
+                                    @e.Status
+                                </span>
+                            </td>
+                            <td>
+                                <a asp-action="Details" asp-route-id="@e.Id" class="btn btn-info btn-sm">View</a>
+                                <a asp-action="Edit" asp-route-id="@e.Id" class="btn btn-warning btn-sm">Edit</a>
+                                @if (User.IsInRole("Provider") && e.ClaimId == null && e.Status != "Cancelled")
+                                {
+                                    <a asp-action="CreateClaim" asp-route-id="@e.Id" class="btn btn-primary btn-sm">Create Claim</a>
+                                }
+                                @if (e.ClaimId == null)
+                                {
+                                    <a asp-action="Delete" asp-route-id="@e.Id" class="btn btn-danger btn-sm">Delete</a>
+                                }
                             </td>
                         </tr>
                     }

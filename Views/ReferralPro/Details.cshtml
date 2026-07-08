@@ -1,0 +1,169 @@
+@model CTSHIPDashboard.ViewModels.ReferralDetailsViewModel
+@using CTSHIPDashboard.Enums
+@{
+    ViewData["Title"] = "Referral Details";
+    int? enrolleeId = ViewBag.EnrolleeId as int?;
+}
+
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3">
+    <div>
+        <h2 class="mb-1">Referral Details</h2>
+        <div class="text-muted">@Model.EnrolleeFullName - @Model.EnrolleeNumber</div>
+    </div>
+    <a asp-controller="ReferralPro" asp-action="Index" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i> Back To Referrals
+    </a>
+</div>
+
+<div class="row g-3">
+    <div class="col-lg-8">
+        <div class="card mb-3">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <strong>Referral Information</strong>
+                @await Html.PartialAsync("_ReferralStatusBadge", Model.Status)
+            </div>
+            <div class="card-body">
+                <dl class="row mb-0">
+                    <dt class="col-sm-4">Encounter Reference</dt>
+                    <dd class="col-sm-8">@(!string.IsNullOrWhiteSpace(Model.EncounterReference) ? Model.EncounterReference : "Not submitted")</dd>
+
+                    <dt class="col-sm-4">Enrollee</dt>
+                    <dd class="col-sm-8">
+                        <strong>@Model.EnrolleeFullName</strong><br />
+                        <span class="text-muted">@Model.EnrolleeNumber</span>
+                        @if (enrolleeId.HasValue && (User.IsInRole("CTSHIPAdmin") || User.IsInRole("HMO") || User.IsInRole("Provider") || User.IsInRole("Monitoring")))
+                        {
+                            <div class="mt-2">
+                                <a asp-controller="Enrollees" asp-action="Details" asp-route-id="@enrolleeId.Value" class="btn btn-sm btn-outline-primary">
+                                    Enrollee Details
+                                </a>
+                            </div>
+                        }
+                    </dd>
+
+                    <dt class="col-sm-4">From Provider</dt>
+                    <dd class="col-sm-8">@Model.FromProviderName</dd>
+
+                    <dt class="col-sm-4">Referred Hospital</dt>
+                    <dd class="col-sm-8">@Model.ReferredHospitalName</dd>
+
+                    <dt class="col-sm-4">Hospital Address</dt>
+                    <dd class="col-sm-8">@Model.ReferredHospitalAddress</dd>
+
+                    <dt class="col-sm-4">HMO</dt>
+                    <dd class="col-sm-8">@Model.HmoName (@Model.HmoCode)</dd>
+
+                    <dt class="col-sm-4">Priority</dt>
+                    <dd class="col-sm-8">@Model.Priority</dd>
+
+                    <dt class="col-sm-4">Diagnosis</dt>
+                    <dd class="col-sm-8">@Model.Diagnosis</dd>
+
+                    <dt class="col-sm-4">Reason For Referral</dt>
+                    <dd class="col-sm-8">@Model.ReasonForReferral</dd>
+
+                    <dt class="col-sm-4">Clinical Summary</dt>
+                    <dd class="col-sm-8">@Model.ClinicalSummary</dd>
+
+                    <dt class="col-sm-4">Treatment Given</dt>
+                    <dd class="col-sm-8">@Model.TreatmentGiven</dd>
+
+                    <dt class="col-sm-4">Investigation Summary</dt>
+                    <dd class="col-sm-8">@Model.InvestigationSummary</dd>
+
+                    <dt class="col-sm-4">HMO Verification Note</dt>
+                    <dd class="col-sm-8">@Model.HmoVerificationNote</dd>
+
+                    <dt class="col-sm-4">Audit Note</dt>
+                    <dd class="col-sm-8">@Model.AuditNote</dd>
+                </dl>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card mb-3">
+            <div class="card-header"><strong>Referral Actions</strong></div>
+            <div class="card-body d-grid gap-2">
+                @if (Model.Status == ReferralStatus.Verified || Model.Status == ReferralStatus.Audited)
+                {
+                    <form asp-controller="ReferralPro" asp-action="Receive" asp-route-id="@Model.Id" method="post">
+                        @Html.AntiForgeryToken()
+                        <button type="submit" class="btn btn-success w-100">
+                            <i class="bi bi-check2-circle"></i> Receive Referral
+                        </button>
+                    </form>
+                }
+                @if (Model.Status == ReferralStatus.Received)
+                {
+                    <a asp-controller="ReferralPro" asp-action="Encounter" asp-route-id="@Model.Id" class="btn btn-success">
+                        <i class="bi bi-file-medical"></i> Record Referral Encounter
+                    </a>
+                }
+                @if (Model.Status == ReferralStatus.Closed)
+                {
+                    <div class="alert alert-success mb-0">
+                        Encounter and claim have been submitted for this referral.
+                    </div>
+                }
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header"><strong>Timeline</strong></div>
+            <div class="card-body">
+                <div class="mb-2">
+                    <div class="text-muted small">Created</div>
+                    <strong>@Model.CreatedAt.ToLocalTime().ToString("dd MMM yyyy HH:mm")</strong>
+                </div>
+                <div class="mb-2">
+                    <div class="text-muted small">Submitted To HMO</div>
+                    <strong>@(Model.SubmittedToHmoAt.HasValue ? Model.SubmittedToHmoAt.Value.ToLocalTime().ToString("dd MMM yyyy HH:mm") : "Not submitted")</strong>
+                </div>
+                <div class="mb-2">
+                    <div class="text-muted small">Verified</div>
+                    <strong>@(Model.VerifiedAt.HasValue ? Model.VerifiedAt.Value.ToLocalTime().ToString("dd MMM yyyy HH:mm") : "Not verified")</strong>
+                </div>
+                <div>
+                    <div class="text-muted small">Audited</div>
+                    <strong>@(Model.AuditedAt.HasValue ? Model.AuditedAt.Value.ToLocalTime().ToString("dd MMM yyyy HH:mm") : "Not audited")</strong>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card mt-3">
+    <div class="card-header"><strong>Audit Trail</strong></div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-striped mb-0">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Action</th>
+                        <th>By</th>
+                        <th>Note</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var log in Model.AuditLogs)
+                    {
+                        <tr>
+                            <td>@log.CreatedAt.ToLocalTime().ToString("dd MMM yyyy HH:mm")</td>
+                            <td>@log.Action</td>
+                            <td>@log.PerformedByName</td>
+                            <td>@log.Note</td>
+                        </tr>
+                    }
+                    @if (!Model.AuditLogs.Any())
+                    {
+                        <tr>
+                            <td colspan="4" class="text-center text-muted py-4">No audit activity yet.</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>

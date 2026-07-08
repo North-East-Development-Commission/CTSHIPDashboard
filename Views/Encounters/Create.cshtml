@@ -1,8 +1,4 @@
 ﻿@model CTSHIPDashboard.Models.Encounter
-@{
-    decimal providerWalletBalance = ViewBag.ProviderWalletBalance is decimal balance ? balance : 0m;
-}
-
 <div class="container-fluid py-4">
     <div class="row justify-content-center">
         <div class="col-lg-11">
@@ -14,19 +10,19 @@
                 </div>
 
                 <div class="card-body p-5">
-                    <form asp-action="Create" method="post">
+                    <form asp-action="Create" method="post" id="encounterForm" novalidate>
                         @Html.AntiForgeryToken()
                         <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
 
                         <div class="row g-4">
                             <!-- ENROLLEE SEARCH -->
                             <div class="col-12">
-                                <label class="form-label text-success fw-bold fs-5">
+                                <label for="enrollmentSearch" class="form-label text-success fw-bold fs-5">
                                     Search Enrollee by Enrollment Number <span class="text-danger">*</span>
                                 </label>
                                 <div class="input-group input-group-lg">
                                     <input type="text" id="enrollmentSearch" class="form-control rounded-start-3"
-                                           placeholder="e.g., CTH-2025-LA-001234" required />
+                                           placeholder="e.g., CTH-2025-LA-001234" />
                                     <button type="button" class="btn btn-success rounded-end-3" onclick="searchEnrollee()">
                                         <i class="bi bi-search"></i>
                                     </button>
@@ -45,7 +41,6 @@
                                             <p class="mb-1"><strong>ID:</strong> <span id="previewNumber" class="text-primary fw-bold fs-5">—</span></p>
                                             <p class="mb-1"><strong>HMO:</strong> <span id="previewHmo">—</span></p>
                                             <p class="mb-0"><strong>State:</strong> <span id="previewState">—</span></p>
-                                            <p class="mb-0"><strong>Personal Wallet:</strong> ₦<span id="previewWalletBalance">0.00</span></p>
                                             <input type="hidden" asp-for="EnrolleeId" id="selectedEnrolleeId" />
                                         </div>
                                     </div>
@@ -55,17 +50,14 @@
                             <!-- VISIT DETAILS -->
                             <div class="col-md-4">
                                 <label asp-for="VisitDate" class="form-label text-success fw-bold">Visit Date & Time</label>
-                                <input asp-for="VisitDate" class="form-control form-control" type="datetime-local" required />
+                                <input asp-for="VisitDate" class="form-control form-control" type="datetime-local" step="1" />
+                                <span asp-validation-for="VisitDate" class="text-danger"></span>
                             </div>
 
                             <div class="col-md-4">
                                 <label asp-for="VisitType" class="form-label text-success fw-bold">Visit Type</label>
-                                <select asp-for="VisitType" class="form-select" required>
+                                <select asp-for="VisitType" class="form-select form-select-lg" asp-items="ViewBag.VisitTypes">
                                     <option value="">Select visit type</option>
-                                    <option>New Visit</option>
-                                    <option>Follow-up</option>
-                                    <option>Emergency</option>
-                                    <option>Referral</option>
                                 </select>
                             </div>
                             <partial name="_ServiceSelection" model="Model" />
@@ -73,28 +65,28 @@
                                 <label asp-for="BloodPressure" class="form-label text-success fw-bold">Blood Pressure</label>
                                 <input asp-for="BloodPressure"
                                        class="form-control"
-                                       placeholder="e.g., 120/80"
-                                       pattern="^\d{2,3}\/\d{2,3}$" />
+                                       placeholder="e.g., 120/80" />
+                                <span asp-validation-for="BloodPressure" class="text-danger"></span>
                             </div>
 
                             <!-- STATUS DROPDOWN — ADDED! -->
                             <div class="col-md-4">
                                 <label asp-for="Status" class="form-label text-success fw-bold">Status</label>
-                                <select asp-for="Status" class="form-select form-select-lg" asp-items="ViewBag.Statuses" required>
+                                <select asp-for="Status" class="form-select form-select-lg" asp-items="ViewBag.Statuses">
                                     <option value="">Select Status</option>
                                 </select>
                             </div>
 
                             <div class="col-md-4">
                                 <label asp-for="ProviderId" class="form-label text-success fw-bold fs-5">Facility</label>
-                                <select asp-for="ProviderId" class="form-select form-select-lg w-100" asp-items="ViewBag.Providers" required>
+                                <select asp-for="ProviderId" class="form-select form-select-lg w-100" asp-items="ViewBag.Providers">
                                     <option value="">Select Facility</option>
                                 </select>
                             </div>
 
                             <div class="col-md-4">
                                 <label asp-for="DoctorId" class="form-label text-success fw-bold">Attending Doctor</label>
-                                <select asp-for="DoctorId" class="form-select form-select-lg" asp-items="ViewBag.Doctors" required>
+                                <select asp-for="DoctorId" class="form-select form-select-lg" asp-items="ViewBag.Doctors" data-selected-doctor="@Model.DoctorId">
                                     <option value="">Select Doctor</option>
                                 </select>
                                 <span asp-validation-for="DoctorId" class="text-danger"></span>
@@ -104,63 +96,72 @@
                             <div class="col-md-4">
                                 <label asp-for="Temperature" class="form-label text-success fw-bold">Temperature (°C)</label>
                                 <input asp-for="Temperature" class="form-control form-control" type="number" step="0.1" />
+                                <span asp-validation-for="Temperature" class="text-danger"></span>
                             </div>
                         
                             <div class="col-md-4">
                                 <label asp-for="PulseRate" class="form-label text-success fw-bold">Pulse Rate</label>
-                                <input asp-for="PulseRate" class="form-control form-control" type="number" />
+                                <input asp-for="PulseRate" class="form-control form-control" type="number" step="1" />
+                                <span asp-validation-for="PulseRate" class="text-danger"></span>
                             </div>
 
                             <!-- CLINICAL -->
                             <div class="col-12">
                                 <label asp-for="ChiefComplaint" class="form-label text-success fw-bold">Complaint</label>
-                                <textarea asp-for="ChiefComplaint" class="form-control form-control" required></textarea>
+                                <textarea asp-for="ChiefComplaint" class="form-control form-control"></textarea>
+                                <span asp-validation-for="ChiefComplaint" class="text-danger"></span>
                             </div>
 
                             <div class="col-12">
                                 <label asp-for="Diagnosis" class="form-label text-success fw-bold">Diagnosis</label>
-                                <textarea asp-for="Diagnosis" class="form-control form-control" required></textarea>
+                                <textarea asp-for="Diagnosis" class="form-control form-control"></textarea>
+                                <span asp-validation-for="Diagnosis" class="text-danger"></span>
                             </div>
 
                             <div class="col-12">
                                 <label asp-for="TreatmentGiven" class="form-label text-success fw-bold">Treatment Given</label>
-                                <textarea asp-for="TreatmentGiven" class="form-control form-control" required></textarea>
+                                <textarea asp-for="TreatmentGiven" class="form-control form-control"></textarea>
+                                <span asp-validation-for="TreatmentGiven" class="text-danger"></span>
                             </div>
 
                             <!-- FEES -->
                             <div class="col-md-4">
                                 <label asp-for="ConsultationFee" class="form-label text-success fw-bold">Consultation Fee (₦)</label>
-                                <input asp-for="ConsultationFee" class="form-control form-control-lg text-end" type="number" />
+                                <input asp-for="ConsultationFee" class="form-control form-control-lg text-end" type="number" min="0" step="0.01" />
                             </div>
                             <div class="col-md-4">
                                 <label asp-for="LabFee" class="form-label text-success fw-bold">Lab Fee (₦)</label>
-                                <input asp-for="LabFee" class="form-control form-control-lg text-end" type="number" value="0" />
+                                <input asp-for="LabFee" class="form-control form-control-lg text-end" type="number" min="0" step="0.01" value="0" />
                             </div>
                             <div class="col-md-4">
                                 <label asp-for="DrugFee" class="form-label text-success fw-bold">Drug Fee (₦)</label>
-                                <input asp-for="DrugFee" class="form-control form-control-lg text-end" type="number" value="0" />
+                                <input asp-for="DrugFee" class="form-control form-control-lg text-end" type="number" min="0" step="0.01" value="0" />
                             </div>
 
-                            <div class="col-md-4">
-                                <label asp-for="WalletSource" class="form-label text-success fw-bold">Wallet to Deduct</label>
-                                <select asp-for="WalletSource" class="form-select form-select-lg" asp-items="ViewBag.WalletSources" required>
-                                    <option value="">Select wallet</option>
-                                </select>
-                                <small class="text-muted d-block">
-                                    Provider wallet: ₦<span id="providerWalletBalance">@providerWalletBalance.ToString("N2")</span>
-                                </small>
-                                <small class="text-muted d-block">
-                                    Enrollee wallet: ₦<span id="enrolleeWalletBalance">0.00</span>
-                                </small>
-                                <span asp-validation-for="WalletSource" class="text-danger"></span>
+                            <div class="col-md-12 d-flex align-items-end">
+                                <div class="form-check form-switch">
+                                    <input asp-for="FeesWaived" class="form-check-input" type="checkbox" />
+                                    <label asp-for="FeesWaived" class="form-check-label fw-bold text-success">Fees Waived</label>
+                                    <div class="text-muted small">Use only when all fee amounts are zero.</div>
+                                    <span asp-validation-for="FeesWaived" class="text-danger"></span>
+                                </div>
                             </div>
                         </div>
 
                         <!-- Submit -->
                         <div class="text-center mt-5 pt-4 border-top">
-                            <button type="submit" class="btn btn-success btn-lg px-5 shadow-lg fw-bold fs-4" id="submitBtn" disabled>
-                                SAVE ENCOUNTER
-                            </button>
+                            @if (Model.EnrolleeId <= 0)
+                            {
+                                <button type="submit" class="btn btn-success btn-lg px-5 shadow-lg fw-bold fs-4" id="submitBtn" name="submitAction" value="save" formnovalidate disabled>
+                                    SAVE ENCOUNTER
+                                </button>
+                            }
+                            else
+                            {
+                                <button type="submit" class="btn btn-success btn-lg px-5 shadow-lg fw-bold fs-4" id="submitBtn" name="submitAction" value="save" formnovalidate>
+                                    SAVE ENCOUNTER
+                                </button>
+                            }
                             @if (User.IsInRole("Provider"))
                             {
                                 <a asp-controller="Providers" asp-action="MyEncounters" class="btn btn-secondary btn-lg px-6 ms-3">
@@ -190,22 +191,51 @@
 
 @section Scripts {
     <script>
-        function filterServicesBySetting() {
+        (function disableEncounterClientValidation() {
+            const form = document.getElementById('encounterForm');
+            if (!form || !window.jQuery) return;
+
+            const $form = $(form);
+            $form.removeData('validator');
+            $form.removeData('unobtrusiveValidation');
+            $form.off('.validate');
+
+            $form.find(':input').each(function () {
+                Array.from(this.attributes)
+                    .filter(attribute => attribute.name.startsWith('data-val'))
+                    .forEach(attribute => this.removeAttribute(attribute.name));
+                this.classList.remove('input-validation-error', 'is-invalid');
+            });
+        })();
+
+        function syncServiceDropdown(selectFirstIfEmpty) {
             const setting = document.getElementById('serviceSetting').value;
             const select = document.getElementById('selectedServices');
+            if (!setting || !select) return;
+
+            let hasSelectedEnabledOption = false;
 
             Array.from(select.querySelectorAll('optgroup')).forEach(group => {
                 const enabled = group.dataset.setting === setting;
                 Array.from(group.children).forEach(option => {
                     option.disabled = !enabled;
                     if (!enabled) option.selected = false;
+                    if (enabled && option.selected) hasSelectedEnabledOption = true;
                 });
             });
+
+            if (selectFirstIfEmpty && !hasSelectedEnabledOption) {
+                const firstEnabledOption = Array.from(select.options).find(option => !option.disabled);
+                if (firstEnabledOption) {
+                    firstEnabledOption.selected = true;
+                }
+            }
+
             $(select).trigger('change.select2');
         }
 
-        document.getElementById('serviceSetting').addEventListener('change', filterServicesBySetting);
-        filterServicesBySetting();
+        document.getElementById('serviceSetting')?.addEventListener('change', () => syncServiceDropdown(true));
+        syncServiceDropdown(true);
 
         async function searchEnrollee() {
             const query = document.getElementById('enrollmentSearch').value.trim();
@@ -222,12 +252,6 @@
                     document.getElementById('previewNumber').textContent = e.enrollmentNumber;
                     document.getElementById('previewHmo').textContent = e.hmoName;
                     document.getElementById('previewState').textContent = e.state;
-                    const enrolleeWalletBalance = Number(e.walletBalance || 0).toLocaleString(undefined, {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2
-                    });
-                    document.getElementById('previewWalletBalance').textContent = enrolleeWalletBalance;
-                    document.getElementById('enrolleeWalletBalance').textContent = enrolleeWalletBalance;
                     document.getElementById('selectedEnrolleeId').value = e.id;
 
                     document.getElementById('enrolleePreview').style.display = 'block';
@@ -235,15 +259,11 @@
                 } else {
                     Swal.fire('Not Found', 'No enrollee with that number', 'warning');
                     document.getElementById('enrolleePreview').style.display = 'none';
-                    document.getElementById('previewWalletBalance').textContent = '0.00';
-                    document.getElementById('enrolleeWalletBalance').textContent = '0.00';
                     document.getElementById('submitBtn').disabled = true;
                 }
             } catch {
                 Swal.fire('Error', 'Search failed', 'error');
                 document.getElementById('enrolleePreview').style.display = 'none';
-                document.getElementById('previewWalletBalance').textContent = '0.00';
-                document.getElementById('enrolleeWalletBalance').textContent = '0.00';
                 document.getElementById('submitBtn').disabled = true;
             }
         }
@@ -251,30 +271,162 @@
         document.getElementById('enrollmentSearch')
             .addEventListener('keypress', e => e.key === 'Enter' && (e.preventDefault(), searchEnrollee()));
 
-        async function refreshProviderWalletBalance() {
+        async function refreshDoctorDropdown() {
             const providerSelect = document.getElementById('ProviderId');
-            const providerWalletBalance = document.getElementById('providerWalletBalance');
+            const doctorSelect = document.getElementById('DoctorId');
+            if (!providerSelect || !doctorSelect) return;
 
-            if (!providerSelect || !providerWalletBalance || !providerSelect.value) {
+            const selectedDoctorId = doctorSelect.dataset.selectedDoctor || doctorSelect.value;
+            doctorSelect.innerHTML = '<option value="">Select Doctor</option>';
+
+            if (!providerSelect.value) {
                 return;
             }
 
             try {
-                const res = await fetch(`/Encounters/GetProviderWalletBalance?providerId=${encodeURIComponent(providerSelect.value)}`);
-                const data = await res.json();
-                if (data.success) {
-                    providerWalletBalance.textContent = Number(data.balance || 0).toLocaleString(undefined, {
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2
-                    });
+                const response = await fetch(`/Encounters/GetDoctorsByProvider?providerId=${encodeURIComponent(providerSelect.value)}&selectedDoctorId=${encodeURIComponent(selectedDoctorId || '')}`);
+                const data = await response.json();
+
+                if (!data.success || !Array.isArray(data.doctors)) {
+                    return;
                 }
+
+                data.doctors.forEach(doctor => {
+                    const option = document.createElement('option');
+                    option.value = doctor.id;
+                    option.textContent = doctor.text;
+                    option.selected = Boolean(doctor.selected);
+                    doctorSelect.appendChild(option);
+                });
+
+                if (!doctorSelect.value && data.doctors.length === 1) {
+                    doctorSelect.value = data.doctors[0].id;
+                }
+
+                doctorSelect.dataset.selectedDoctor = doctorSelect.value;
             } catch {
-                providerWalletBalance.textContent = '0.00';
+                doctorSelect.innerHTML = '<option value="">Select Doctor</option>';
             }
         }
 
-        document.getElementById('ProviderId')?.addEventListener('change', refreshProviderWalletBalance);
-        refreshProviderWalletBalance();
+        document.getElementById('ProviderId')?.addEventListener('change', async () => {
+            const doctorSelect = document.getElementById('DoctorId');
+            if (doctorSelect) doctorSelect.dataset.selectedDoctor = '';
+            await refreshDoctorDropdown();
+        });
+        refreshDoctorDropdown();
+
+        function addValidationError(errors, selector, message) {
+            const field = document.querySelector(selector);
+            if (field) {
+                field.classList.add('is-invalid');
+            }
+            errors.push(message);
+        }
+
+        function getEncounterFeeTotal() {
+            const consultation = Number(document.getElementById('ConsultationFee')?.value || 0);
+            const lab = Number(document.getElementById('LabFee')?.value || 0);
+            const drug = Number(document.getElementById('DrugFee')?.value || 0);
+            return consultation + lab + drug;
+        }
+
+        function syncFeesWaivedWithFees() {
+            const feesWaived = document.getElementById('FeesWaived');
+            if (!feesWaived) return;
+
+            feesWaived.checked = getEncounterFeeTotal() <= 0;
+        }
+
+        document.querySelectorAll('#ConsultationFee, #LabFee, #DrugFee').forEach(input => {
+            input.addEventListener('input', syncFeesWaivedWithFees);
+        });
+        syncFeesWaivedWithFees();
+
+        function validateEncounterForm(event) {
+            const form = document.getElementById('encounterForm');
+            if (!form) return true;
+
+            form.querySelectorAll('.is-invalid').forEach(field => field.classList.remove('is-invalid'));
+
+            const errors = [];
+            const temperature = Number(document.getElementById('Temperature')?.value || 0);
+            const pulseRate = Number(document.getElementById('PulseRate')?.value || 0);
+            const bloodPressure = document.getElementById('BloodPressure')?.value.trim() || '';
+            const bloodPressureMatch = bloodPressure.match(/^(\d{2,3})\/(\d{2,3})$/);
+            const selectedServices = Array.from(document.getElementById('selectedServices')?.selectedOptions || [])
+                .filter(option => !option.disabled);
+            const consultation = Number(document.getElementById('ConsultationFee')?.value || 0);
+            const lab = Number(document.getElementById('LabFee')?.value || 0);
+            const drug = Number(document.getElementById('DrugFee')?.value || 0);
+            const total = getEncounterFeeTotal();
+            const feesWaived = document.getElementById('FeesWaived')?.checked === true;
+            const visitDateValue = document.getElementById('VisitDate')?.value;
+
+            if (!document.getElementById('selectedEnrolleeId')?.value) {
+                errors.push('Search and select a valid enrollee.');
+            }
+
+            if (!document.getElementById('ChiefComplaint')?.value.trim()) {
+                addValidationError(errors, '#ChiefComplaint', 'Complaint is required.');
+            }
+
+            if (!document.getElementById('Diagnosis')?.value.trim()) {
+                addValidationError(errors, '#Diagnosis', 'Diagnosis is required.');
+            }
+
+            if (!document.getElementById('TreatmentGiven')?.value.trim()) {
+                addValidationError(errors, '#TreatmentGiven', 'Treatment given is required.');
+            }
+
+            if (!visitDateValue || new Date(visitDateValue) > new Date()) {
+                addValidationError(errors, '#VisitDate', 'Encounter date cannot be in the future.');
+            }
+
+            if (selectedServices.length === 0) {
+                addValidationError(errors, '#selectedServices', 'Select at least one service delivered.');
+            }
+
+            if (temperature < 35 || temperature > 42) {
+                addValidationError(errors, '#Temperature', 'Temperature must be between 35 and 42 °C.');
+            }
+
+            if (pulseRate < 40 || pulseRate > 180) {
+                addValidationError(errors, '#PulseRate', 'Pulse rate must be between 40 and 180 bpm.');
+            }
+
+            if (!bloodPressureMatch) {
+                addValidationError(errors, '#BloodPressure', 'Blood pressure must be in systolic/diastolic format, for example 120/80.');
+            } else {
+                const systolic = Number(bloodPressureMatch[1]);
+                const diastolic = Number(bloodPressureMatch[2]);
+                if (systolic < 70 || systolic > 250 || diastolic < 40 || diastolic > 150 || systolic <= diastolic) {
+                    addValidationError(errors, '#BloodPressure', 'Blood pressure values are outside the accepted medical range.');
+                }
+            }
+
+            if (consultation < 0 || lab < 0 || drug < 0) {
+                errors.push('Fees cannot be negative.');
+            }
+
+            if (selectedServices.length > 0 && total <= 0 && !feesWaived) {
+                errors.push('Enter at least one fee amount or tick Fees Waived.');
+            }
+
+            if (feesWaived && total > 0) {
+                errors.push('Fees Waived can only be used when all fees are zero.');
+            }
+
+            if (errors.length > 0) {
+                event.preventDefault();
+                Swal.fire('Check Encounter Form', errors.join('<br>'), 'warning');
+                return false;
+            }
+
+            return true;
+        }
+
+        document.getElementById('encounterForm')?.addEventListener('submit', validateEncounterForm);
     </script>
   
 }

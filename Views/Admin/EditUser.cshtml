@@ -63,15 +63,23 @@
 
                             <div class="col-12 col-md-6" id="providerWrapper" style="display:none;">
                                 <label asp-for="ProviderId" class="form-label text-success fw-bold">Provider</label>
-                                <select asp-for="ProviderId" class="form-select form-select-lg rounded-3" asp-items="@ViewBag.Provider">
+                                <select asp-for="ProviderId" class="form-select form-select-lg rounded-3" asp-items="@ViewBag.Provider" data-selected-provider="@Model.ProviderId">
                                     <option value="">-- Select Provider --</option>
                                 </select>
                                 <span asp-validation-for="ProviderId" class="text-danger small"></span>
                             </div>
 
+                            <div class="col-12 col-md-6" id="referralProviderWrapper" style="display:none;">
+                                <label asp-for="ReferralHospitalId" class="form-label text-success fw-bold">Referral Provider</label>
+                                <select asp-for="ReferralHospitalId" class="form-select form-select-lg rounded-3" asp-items="@ViewBag.ReferralHospitals" data-selected-referral="@Model.ReferralHospitalId">
+                                    <option value="">-- Select Referral Provider --</option>
+                                </select>
+                                <span asp-validation-for="ReferralHospitalId" class="text-danger small"></span>
+                            </div>
+
                             <div class="col-12 col-md-6" id="hmoWrapper" style="display:none;">
                                 <label asp-for="HmoId" class="form-label text-success fw-bold">HMO</label>
-                                <select asp-for="HmoId" class="form-select form-select-lg rounded-3" asp-items="@ViewBag.Hmos">
+                                <select asp-for="HmoId" class="form-select form-select-lg rounded-3" asp-items="@ViewBag.Hmos" data-selected-hmo="@Model.HmoId">
                                     <option value="">-- Select HMO --</option>
                                 </select>
                                 <span asp-validation-for="HmoId" class="text-danger small"></span>
@@ -82,7 +90,7 @@
                                 <label class="form-label text-success fw-bold fs-5">
                                     Assign Roles <span class="text-muted fs-6">(Hold Ctrl/Cmd to select multiple)</span>
                                 </label>
-                                <select name="SelectedRoles" multiple class="form-select form-select-lg" size="10">
+                                <select name="SelectedRoles" id="SelectedRoles" multiple class="form-select form-select-lg" size="10">
                                     @foreach (var role in Model.AllRoles)
                                     {
                                         <option value="@role"
@@ -143,11 +151,16 @@
         document.addEventListener("DOMContentLoaded", function () {
             const organizationSelect = document.getElementById("OrganizationId");
             const providerWrapper = document.getElementById("providerWrapper");
+            const referralProviderWrapper = document.getElementById("referralProviderWrapper");
             const hmoWrapper = document.getElementById("hmoWrapper");
             const providerSelect = document.getElementById("ProviderId");
+            const referralProviderSelect = document.getElementById("ReferralHospitalId");
             const hmoSelect = document.getElementById("HmoId");
+            const roleSelect = document.getElementById("SelectedRoles");
+            const providerEndpoint = "@Url.Action("GetProvidersByHmo", "Admin")";
+            const referralProviderEndpoint = "@Url.Action("GetReferralProvidersByHmo", "Admin")";
 
-            if (!organizationSelect || !providerWrapper || !hmoWrapper) {
+            if (!organizationSelect || !providerWrapper || !hmoWrapper || !referralProviderWrapper) {
                 return;
             }
 
@@ -166,21 +179,109 @@
                 }
             }
 
-            function toggleFields() {
+            function resetSelect(select, placeholder) {
+                if (!select) {
+                    return;
+                }
+
+                select.innerHTML = "";
+                const option = document.createElement("option");
+                option.value = "";
+                option.textContent = placeholder;
+                select.appendChild(option);
+            }
+
+            async function loadProviderOptions() {
+                if (!providerSelect) return;
+
+                resetSelect(providerSelect, "-- Select Provider --");
+                if (!hmoSelect?.value) {
+                    providerSelect.disabled = true;
+                    return;
+                }
+
+                const selectedProviderId = providerSelect.dataset.selectedProvider || providerSelect.value || "";
+                const response = await fetch(`${providerEndpoint}?hmoId=${encodeURIComponent(hmoSelect.value)}&selectedProviderId=${encodeURIComponent(selectedProviderId)}`);
+                const data = await response.json();
+                if (!data.success || !Array.isArray(data.providers)) return;
+
+                data.providers.forEach(provider => {
+                    const option = document.createElement("option");
+                    option.value = provider.id;
+                    option.textContent = provider.text;
+                    option.selected = Boolean(provider.selected);
+                    providerSelect.appendChild(option);
+                });
+
+                providerSelect.disabled = false;
+            }
+
+            async function loadReferralProviderOptions() {
+                if (!referralProviderSelect) return;
+
+                resetSelect(referralProviderSelect, "-- Select Referral Provider --");
+                if (!hmoSelect?.value) {
+                    referralProviderSelect.disabled = true;
+                    return;
+                }
+
+                const selectedReferralId = referralProviderSelect.dataset.selectedReferral || referralProviderSelect.value || "";
+                const response = await fetch(`${referralProviderEndpoint}?hmoId=${encodeURIComponent(hmoSelect.value)}&selectedReferralHospitalId=${encodeURIComponent(selectedReferralId)}`);
+                const data = await response.json();
+                if (!data.success || !Array.isArray(data.providers)) return;
+
+                data.providers.forEach(provider => {
+                    const option = document.createElement("option");
+                    option.value = provider.id;
+                    option.textContent = provider.text;
+                    option.selected = Boolean(provider.selected);
+                    referralProviderSelect.appendChild(option);
+                });
+
+                referralProviderSelect.disabled = false;
+            }
+
+            async function toggleFields() {
                 const selectedOption = organizationSelect.options[organizationSelect.selectedIndex];
                 if (!selectedOption) return;
 
                 const selectedText = selectedOption.textContent.toLowerCase().trim();
-                const isProvider = selectedText.includes("provider");
-                const isHmo = selectedText.includes("health maintenance organization")
+                const selectedRoles = Array.from(roleSelect?.selectedOptions || [])
+                    .map(option => option.value.toLowerCase());
+                const isReferral = selectedText.includes("referral") || selectedRoles.includes("referralpro");
+                const isProvider = !isReferral && selectedText.includes("provider");
+                const hasHmoScopedRole = selectedRoles.includes("hmo") || selectedRoles.includes("reviewer");
+                const isHmo = hasHmoScopedRole
+                    || isProvider
+                    || isReferral
+                    || selectedText.includes("health maintenance organization")
                     || selectedText.includes("health maintenance organisation")
                     || /\bhmo\b/.test(selectedText);
 
                 setDropdownState(providerWrapper, providerSelect, isProvider);
+                setDropdownState(referralProviderWrapper, referralProviderSelect, isReferral);
                 setDropdownState(hmoWrapper, hmoSelect, isHmo);
+
+                if (isProvider) {
+                    await loadProviderOptions();
+                }
+
+                if (isReferral) {
+                    await loadReferralProviderOptions();
+                }
             }
 
-            organizationSelect.addEventListener("change", toggleFields);
+            organizationSelect.addEventListener("change", function () {
+                if (providerSelect) providerSelect.dataset.selectedProvider = "";
+                if (referralProviderSelect) referralProviderSelect.dataset.selectedReferral = "";
+                toggleFields();
+            });
+            hmoSelect?.addEventListener("change", function () {
+                if (providerSelect) providerSelect.dataset.selectedProvider = "";
+                if (referralProviderSelect) referralProviderSelect.dataset.selectedReferral = "";
+                toggleFields();
+            });
+            roleSelect?.addEventListener("change", toggleFields);
             toggleFields();
         });
     </script>

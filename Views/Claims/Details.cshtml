@@ -1,8 +1,8 @@
 ﻿@model CTSHIPDashboard.Models.Claim
 @{
     ViewData["Title"] = "Claim Details - " + Model.ClaimNumber;
-    bool canReviewClaims = User.IsInRole("CTSHIPAdmin") || User.IsInRole("HMO");
-    bool canFinalizeClaims = User.IsInRole("CTSHIPAdmin") || User.IsInRole("Admin");
+    bool canReviewClaims = User.IsInRole("Reviewer");
+    bool canFinalizeClaims = User.IsInRole("Reviewer");
     bool canDeleteClaims = User.IsInRole("CTSHIPAdmin") || User.IsInRole("Admin");
 }
 
@@ -123,7 +123,7 @@
                         @if (Model.Status == "Approved" && canFinalizeClaims)
                         {
                             <a asp-action="Approve" asp-route-id="@Model.Id" class="btn btn-success btn-lg px-6 shadow-lg me-3">
-                                Final Payment
+                                Pay Claim
                             </a>
                         }
                         @if (canDeleteClaims)
@@ -133,9 +133,9 @@
                             </a>
                         }
 
-                        @if (User.IsInRole("HMO"))
+                        @if (User.IsInRole("HMO") || User.IsInRole("Reviewer"))
                         {
-                            <a asp-action="Dashboard" asp-route-id="@Model.Id" class="btn btn-primary btn-lg px-6 shadow-lg me-3">
+                            <a asp-action="Dashboard" class="btn btn-primary btn-lg px-6 shadow-lg me-3">
                                 Back to Claims
                             </a>
                         }

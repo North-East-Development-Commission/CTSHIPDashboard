@@ -1,9 +1,10 @@
 ﻿@model IEnumerable<CTSHIPDashboard.Models.Claim>
 @{
     ViewData["Title"] = "Claims Dashboard";
-    bool canManageClaims = User.IsInRole("CTSHIPAdmin") || User.IsInRole("Admin") || User.IsInRole("HMO");
-    bool canReviewClaims = User.IsInRole("CTSHIPAdmin") || User.IsInRole("HMO");
-    bool canFinalizeClaims = User.IsInRole("CTSHIPAdmin") || User.IsInRole("Admin");
+    bool canCreateClaims = false;
+    bool canEditClaims = User.IsInRole("CTSHIPAdmin") || User.IsInRole("Admin");
+    bool canReviewClaims = User.IsInRole("Reviewer");
+    bool canFinalizeClaims = User.IsInRole("Reviewer");
     bool canDeleteClaims = User.IsInRole("CTSHIPAdmin") || User.IsInRole("Admin");
 }
 
@@ -14,7 +15,7 @@
             <h1 class="display-5 text-success fw-bold mb-0">Claims Processing Center</h1>
             <p class="lead text-muted mb-0">NEDC CTSHIP Digital System</p>
         </div>
-        @if (canManageClaims)
+        @if (canCreateClaims)
         {
             <a asp-action="Create" class="btn btn-success btn-lg shadow-lg">
                 Submit New Claim
@@ -123,7 +124,7 @@
                         <td>@c.DateSubmitted</td>
                         <td>
                             <a asp-action="Details" asp-route-id="@c.Id" class="btn btn-info btn-sm">View</a>
-                            @if (c.Status == "Submitted" && canManageClaims)
+                            @if (c.Status == "Submitted" && canEditClaims)
                                 {
                                     <a asp-action="Edit" asp-route-id="@c.Id" class="btn btn-warning btn-sm">Edit</a>
                                 }

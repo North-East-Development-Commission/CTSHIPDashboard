@@ -13,7 +13,7 @@ namespace CTSHIPDashboard.ViewModels
         public string State { get; set; } = string.Empty;
 
         // Stats
-        public int TotalUniqueEnrollees { get; set; }
+        public int? TotalUniqueEnrollees { get; set; }
         public int TotalDoctors { get; set; }
         public int TotalEncounters { get; set; }
         public int TotalClaims { get; set; }

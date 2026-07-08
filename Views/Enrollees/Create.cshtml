@@ -47,24 +47,14 @@
                     <partial name="_NorthEastLocationFields" model="Model" />
                     <div class="col-md-6">
                         <label asp-for="HmoId" class="form-label text-success fw-bold">Assigned HMO</label>
-                        <select asp-for="HmoId" class="form-select form-select-lg" id="HmoId" required>
+                        <select asp-for="HmoId" class="form-select form-select-lg" id="HmoId" asp-items="ViewBag.Hmos" required>
                             <option value="">Select HMO</option>
-                            @foreach (var hmo in ViewBag.Hmos ?? Enumerable.Empty<Hmo>())
-                            {
-                                @* Change @hmo.Id to @hmo.Value and @hmo.FullName to @hmo.Text *@
-                                <option value="@hmo.Value">@hmo.Text</option>
-                            }
                         </select>
                     </div>
                     <div class="col-md-6">
-                        <label asp-for="ProviderId" class="form-label text-success fw-bold">Assigned Provider</label>
-                        <select asp-for="ProviderId" class="form-select form-select-lg" id="ProviderId" required>
-                            <option value="">Select Provider</option>
-                            @foreach (var pro in ViewBag.Provider)
-                            {
-                                @* Change @hmo.Id to @hmo.Value and @hmo.FullName to @hmo.Text *@
-                                <option value="@pro.Value">@pro.Text</option>
-                            }
+                        <label asp-for="ProviderId" class="form-label text-success fw-bold">Assigned Facility</label>
+                        <select asp-for="ProviderId" class="form-select form-select-lg" id="ProviderId" asp-items="ViewBag.Provider" required>
+                            <option value="">Select Facility</option>
                         </select>
                     </div>
 

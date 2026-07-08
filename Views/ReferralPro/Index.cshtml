@@ -1,0 +1,129 @@
+@model IEnumerable<CTSHIPDashboard.ViewModels.ReferralIndexViewModel>
+@using CTSHIPDashboard.Enums
+@{
+    ViewData["Title"] = "Referral Facility Dashboard";
+    string currentStatus = ViewBag.Status as string ?? "All";
+}
+
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+    <div>
+        <h2 class="mb-1">Referral Facility Dashboard</h2>
+        <div class="text-muted">
+            @(string.IsNullOrWhiteSpace(ViewBag.CurrentHospitalName as string) ? "Verified referrals allocated to referred hospitals." : ViewBag.CurrentHospitalName)
+        </div>
+    </div>
+    <a asp-controller="ReferralPro" asp-action="Index" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-clockwise"></i> Refresh
+    </a>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body">
+                <div class="text-muted small">Ready To Receive</div>
+                <div class="display-6 fw-bold text-success">@ViewBag.PendingCount</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body">
+                <div class="text-muted small">Received</div>
+                <div class="display-6 fw-bold text-primary">@ViewBag.ReceivedCount</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body">
+                <div class="text-muted small">Encounter Submitted</div>
+                <div class="display-6 fw-bold text-dark">@ViewBag.CompletedCount</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<form method="get" class="card card-body mb-3">
+    <div class="row g-2">
+        <div class="col-md-7">
+            <label for="search" class="form-label">Search</label>
+            <input id="search" name="search" value="@ViewBag.Search" class="form-control" placeholder="Search by enrollee, provider, diagnosis or HMO" />
+        </div>
+        <div class="col-md-3">
+            <label for="status" class="form-label">Status</label>
+            <select id="status" name="status" class="form-select">
+                <option value="All" selected="@(currentStatus == "All")">All</option>
+                <option value="Verified" selected="@(currentStatus == "Verified")">Verified</option>
+                <option value="Audited" selected="@(currentStatus == "Audited")">Audited</option>
+                <option value="Received" selected="@(currentStatus == "Received")">Received</option>
+                <option value="Closed" selected="@(currentStatus == "Closed")">Closed</option>
+            </select>
+        </div>
+        <div class="col-md-2 d-grid align-items-end">
+            <button type="submit" class="btn btn-success">
+                <i class="bi bi-search"></i> Search
+            </button>
+        </div>
+    </div>
+</form>
+
+<div class="table-responsive">
+    <table class="table table-bordered table-striped align-middle">
+        <thead class="table-light">
+            <tr>
+                <th>Verified</th>
+                <th>Enrollee</th>
+                <th>From Provider</th>
+                <th>HMO</th>
+                <th>Diagnosis</th>
+                <th>Priority</th>
+                <th>Status</th>
+                <th class="text-end">Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var item in Model)
+            {
+                <tr>
+                    <td>@((item.VerifiedAt ?? item.AuditedAt ?? item.SubmittedToHmoAt ?? item.CreatedAt).ToLocalTime().ToString("dd MMM yyyy HH:mm"))</td>
+                    <td>
+                        <strong>@item.EnrolleeFullName</strong><br />
+                        <small class="text-muted">@item.EnrolleeNumber</small>
+                    </td>
+                    <td>@item.FromProviderName</td>
+                    <td>@item.HmoName</td>
+                    <td>@item.Diagnosis</td>
+                    <td>@item.Priority</td>
+                    <td>@await Html.PartialAsync("_ReferralStatusBadge", item.Status)</td>
+                    <td class="text-end">
+                        <div class="btn-group btn-group-sm" role="group" aria-label="Referral actions">
+                            <a asp-controller="ReferralPro" asp-action="Details" asp-route-id="@item.Id" class="btn btn-outline-primary">
+                                View
+                            </a>
+                            @if (item.Status == ReferralStatus.Verified || item.Status == ReferralStatus.Audited)
+                            {
+                                <form asp-controller="ReferralPro" asp-action="Receive" asp-route-id="@item.Id" method="post" class="d-inline">
+                                    @Html.AntiForgeryToken()
+                                    <button type="submit" class="btn btn-outline-success">Receive</button>
+                                </form>
+                            }
+                            @if (item.Status == ReferralStatus.Received)
+                            {
+                                <a asp-controller="ReferralPro" asp-action="Encounter" asp-route-id="@item.Id" class="btn btn-success">
+                                    Encounter
+                                </a>
+                            }
+                        </div>
+                    </td>
+                </tr>
+            }
+            @if (!Model.Any())
+            {
+                <tr>
+                    <td colspan="8" class="text-center text-muted py-4">No referrals found.</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>

@@ -36,7 +36,7 @@
                     </div>
 
                     <!-- Edit Form -->
-                    <form asp-action="EncEdit" method="post">
+                    <form asp-action="EncEdit" method="post" id="encounterForm" novalidate>
                         @Html.AntiForgeryToken()
                         <input type="hidden" asp-for="Id" />
                         <input type="hidden" asp-for="EncounterNumber" />
@@ -46,7 +46,7 @@
                             <!-- Visit Details -->
                             <div class="col-md-6">
                                 <div class="form-floating">
-                                    <input asp-for="VisitDate" class="form-control" type="datetime-local" required />
+                                    <input asp-for="VisitDate" class="form-control" type="datetime-local" />
                                     <label asp-for="VisitDate">Visit Date & Time</label>
                                 </div>
                             </div>
@@ -54,7 +54,7 @@
                             <div class="col-md-6">
                                 <label asp-for="Status">Status</label>
                                 <div class="form-floating">
-                                    <select asp-for="Status" class="form-select" asp-items="ViewBag.Statuses" required>
+                                    <select asp-for="Status" class="form-select" asp-items="ViewBag.Statuses">
                                         <option value="">Select Status</option>
                                     </select>
                                 </div>
@@ -63,14 +63,14 @@
                             <div class="col-md-6">
                                 <label asp-for="ProviderId">Facility</label>
                                 <div class="form-floating">
-                                    <select asp-for="ProviderId" class="form-select" asp-items="ViewBag.Providers" required>
+                                    <select asp-for="ProviderId" class="form-select" asp-items="ViewBag.Providers">
                                         <option value="">Select Facility</option>
                                     </select>
                                 </div>
                             </div>
                             <div class="col-md-6">
                                 <label asp-for="DoctorId" class="form-label fw-bold">Attending Doctor</label>
-                                <select asp-for="DoctorId" class="form-select form-select-lg" asp-items="ViewBag.Doctors" required>
+                                <select asp-for="DoctorId" class="form-select form-select-lg" asp-items="ViewBag.Doctors" data-selected-doctor="@Model.DoctorId">
                                     <option value="">Select Doctor</option>
                                 </select>
                                 <span asp-validation-for="DoctorId" class="text-danger"></span>
@@ -79,21 +79,21 @@
                             <!-- Clinical Details -->
                             <div class="col-12">
                                 <div class="form-floating">
-                                    <textarea asp-for="ChiefComplaint" class="form-control" rows="3" required></textarea>
+                                    <textarea asp-for="ChiefComplaint" class="form-control" rows="3"></textarea>
                                     <label asp-for="ChiefComplaint">Chief Complaint</label>
                                 </div>
                             </div>
 
                             <div class="col-12">
                                 <div class="form-floating">
-                                    <textarea asp-for="Diagnosis" class="form-control" rows="4" required></textarea>
+                                    <textarea asp-for="Diagnosis" class="form-control" rows="4"></textarea>
                                     <label asp-for="Diagnosis">Diagnosis</label>
                                 </div>
                             </div>
 
                             <div class="col-12">
                                 <div class="form-floating">
-                                    <textarea asp-for="TreatmentGiven" class="form-control" rows="5" required></textarea>
+                                    <textarea asp-for="TreatmentGiven" class="form-control" rows="5"></textarea>
                                     <label asp-for="TreatmentGiven">Treatment Given</label>
                                 </div>
                             </div>
@@ -128,7 +128,7 @@
 
                         <!-- Submit -->
                         <div class="text-center mt-5 pt-4 border-top">
-                            <button type="submit" class="btn btn-success btn-lg px-5 shadow-lg fw-bold">
+                            <button type="submit" class="btn btn-success btn-lg px-5 shadow-lg fw-bold" name="submitAction" value="save" formnovalidate>
                                 SAVE CHANGES
                             </button>
                             <a asp-action="ENCDetails" asp-route-id="@Model.Id" class="btn btn-info btn-lg px-5 ms-3">
@@ -144,15 +144,74 @@
 
 
 @section Scripts {
-    <partial name="_ValidationScriptsPartial" />
     <script>
+        (function disableEncounterClientValidation() {
+            const form = document.getElementById('encounterForm');
+            if (!form || !window.jQuery) return;
+
+            const $form = $(form);
+            $form.removeData('validator');
+            $form.removeData('unobtrusiveValidation');
+            $form.off('.validate');
+
+            $form.find(':input').each(function () {
+                Array.from(this.attributes)
+                    .filter(attribute => attribute.name.startsWith('data-val'))
+                    .forEach(attribute => this.removeAttribute(attribute.name));
+                this.classList.remove('input-validation-error', 'is-invalid');
+            });
+        })();
+
+        async function refreshDoctorDropdown() {
+            const providerSelect = document.getElementById('ProviderId');
+            const doctorSelect = document.getElementById('DoctorId');
+            if (!providerSelect || !doctorSelect || !providerSelect.value) return;
+
+            const selectedDoctorId = doctorSelect.dataset.selectedDoctor || doctorSelect.value;
+            doctorSelect.innerHTML = '<option value="">Select Doctor</option>';
+
+            try {
+                const response = await fetch(`/Encounters/GetDoctorsByProvider?providerId=${encodeURIComponent(providerSelect.value)}&selectedDoctorId=${encodeURIComponent(selectedDoctorId || '')}`);
+                const data = await response.json();
+
+                if (!data.success || !Array.isArray(data.doctors)) {
+                    return;
+                }
+
+                data.doctors.forEach(doctor => {
+                    const option = document.createElement('option');
+                    option.value = doctor.id;
+                    option.textContent = doctor.text;
+                    option.selected = Boolean(doctor.selected);
+                    doctorSelect.appendChild(option);
+                });
+
+                if (!doctorSelect.value && data.doctors.length === 1) {
+                    doctorSelect.value = data.doctors[0].id;
+                }
+
+                doctorSelect.dataset.selectedDoctor = doctorSelect.value;
+            } catch {
+                doctorSelect.innerHTML = '<option value="">Select Doctor</option>';
+            }
+        }
+
+        document.getElementById('ProviderId')?.addEventListener('change', async () => {
+            const doctorSelect = document.getElementById('DoctorId');
+            if (doctorSelect) doctorSelect.dataset.selectedDoctor = '';
+            await refreshDoctorDropdown();
+        });
+        refreshDoctorDropdown();
 
         // Auto-calculate total amount
         function updateTotal() {
-            const consultation = parseFloat(document.querySelector('[asp-for="ConsultationFee"]').value) || 0;
-            const lab = parseFloat(document.querySelector('[asp-for="LabFee"]').value) || 0;
-            const drug = parseFloat(document.querySelector('[asp-for="DrugFee"]').value) || 0;
-            document.getElementById('totalAmount').textContent = (consultation + lab + drug).toLocaleString();
+            const totalAmount = document.getElementById('totalAmount');
+            if (!totalAmount) return;
+
+            const consultation = parseFloat(document.getElementById('ConsultationFee')?.value) || 0;
+            const lab = parseFloat(document.getElementById('LabFee')?.value) || 0;
+            const drug = parseFloat(document.getElementById('DrugFee')?.value) || 0;
+            totalAmount.textContent = (consultation + lab + drug).toLocaleString();
         }
 
         document.querySelectorAll('input[type="number"]').forEach(input => {

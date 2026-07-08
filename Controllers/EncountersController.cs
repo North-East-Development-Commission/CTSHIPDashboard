@@ -102,7 +102,7 @@ namespace CTSHIPDashboard.Controllers
         // CREATE GET
         public async Task<IActionResult> Create()
         {
-            Encounter model = new();
+            Encounter model = BuildDefaultEncounter();
             ApplicationUser? currentUser = await _userManager.GetUserAsync(User);
             if (User.IsInRole("Provider"))
             {
@@ -115,6 +115,7 @@ namespace CTSHIPDashboard.Controllers
                 model.ProviderId = currentUser!.ProviderId!.Value;
             }
 
+            EnsureEncounterDefaults(model);
             await PopulateDropdowns(model.ProviderId, model.DoctorId);
             return View(model);
         }
@@ -136,17 +137,16 @@ namespace CTSHIPDashboard.Controllers
                 ModelState.Remove(nameof(encounter.ProviderId));
             }
 
-            NormalizeEncounterWalletSource(encounter);
+            EnsureEncounterDefaults(encounter);
+            encounter.WalletSource = EncounterWalletSource.ProviderWallet;
+            ModelState.Remove(nameof(Encounter.WalletSource));
             ValidateSelectedServices(encounter);
+            ValidateEncounterInput(encounter);
+            await ValidateEnrolleeAssignmentAsync(encounter.EnrolleeId, encounter.ProviderId);
             Doctor? attendingDoctor = await ValidateDoctorSelectionAsync(
                 encounter.ProviderId,
                 encounter.DoctorId,
                 activeOnly: true);
-
-            if (encounter.TotalAmount <= 0)
-            {
-                ModelState.AddModelError(string.Empty, "The total encounter amount must be greater than zero.");
-            }
 
             if (ModelState.IsValid)
             {
@@ -155,32 +155,6 @@ namespace CTSHIPDashboard.Controllers
 
                 try
                 {
-                    EnrolleeWallet? enrolleeWallet = null;
-                    ProviderWallet? providerWallet = null;
-                    decimal availableBalance;
-
-                    if (string.Equals(encounter.WalletSource, EncounterWalletSource.ProviderWallet, StringComparison.OrdinalIgnoreCase))
-                    {
-                        providerWallet = await ProviderWalletHelper.GetOrCreateAsync(_context, encounter.ProviderId);
-                        availableBalance = providerWallet.Balance;
-                    }
-                    else
-                    {
-                        enrolleeWallet = await _context.EnrolleeWallets
-                            .FirstOrDefaultAsync(w => w.EnrolleeId == encounter.EnrolleeId);
-                        availableBalance = enrolleeWallet?.Balance ?? 0m;
-                    }
-
-                    if (availableBalance < encounter.TotalAmount)
-                    {
-                        await transaction.RollbackAsync();
-                        ModelState.AddModelError(
-                            string.Empty,
-                            $"Insufficient {EncounterWalletSource.DisplayName(encounter.WalletSource).ToLowerInvariant()} balance. Encounter total: {encounter.TotalAmount:C}; available balance: {availableBalance:C}.");
-                        await PopulateDropdowns(encounter.ProviderId, encounter.DoctorId);
-                        return View(encounter);
-                    }
-
                     var lastEncounterId = await _context.Encounters
                         .OrderByDescending(e => e.Id)
                         .Select(e => (int?)e.Id)
@@ -193,49 +167,26 @@ namespace CTSHIPDashboard.Controllers
                         ?? currentUser?.Email
                         ?? "Unknown User";
                     ApplyDoctorSnapshot(encounter, attendingDoctor!);
+                    encounter.VisitDate = TrimToSecond(encounter.VisitDate);
                     encounter.Status = "Completed";
                     encounter.IsBilled = false;
 
                     SetEncounterServices(encounter);
                     _context.Encounters.Add(encounter);
 
-                    if (string.Equals(encounter.WalletSource, EncounterWalletSource.ProviderWallet, StringComparison.OrdinalIgnoreCase))
-                    {
-                        providerWallet!.Balance -= encounter.TotalAmount;
-                        _context.ProviderWalletTransactions.Add(new ProviderWalletTransaction
-                        {
-                            ProviderWallet = providerWallet,
-                            Amount = -encounter.TotalAmount,
-                            Type = "Deduction",
-                            Reference = $"Encounter {encounter.EncounterNumber}",
-                            Timestamp = DateTime.UtcNow
-                        });
-                    }
-                    else
-                    {
-                        enrolleeWallet!.Balance -= encounter.TotalAmount;
-                        _context.WalletTransactions.Add(new WalletTransaction
-                        {
-                            EnrolleeWallet = enrolleeWallet,
-                            Amount = -encounter.TotalAmount,
-                            Type = "Deduction",
-                            Reference = $"Encounter {encounter.EncounterNumber}",
-                            Timestamp = DateTime.UtcNow
-                        });
-                    }
-
                     await _context.SaveChangesAsync();
                     await transaction.CommitAsync();
 
                     var actor = currentUser?.Email ?? User.Identity?.Name ?? "System";
                     await _auditService.LogAsync(
-                        "EncounterDeduction",
+                        "EncounterCreated",
                         actor,
                         encounter.EnrolleeId.ToString(),
-                        $"Encounter {encounter.EncounterNumber}; source {EncounterWalletSource.DisplayName(encounter.WalletSource)}; deducted total {encounter.TotalAmount:C}; available before deduction {availableBalance:C}.");
+                        $"Encounter {encounter.EncounterNumber}; total {encounter.TotalAmount:C}; no wallet deduction at encounter creation.");
 
-                    TempData["Success"] =
-                        $"Encounter {encounter.EncounterNumber} recorded. {encounter.TotalAmount:C} was deducted from the {EncounterWalletSource.DisplayName(encounter.WalletSource).ToLowerInvariant()}.";
+                    TempData["Success"] = encounter.TotalAmount > 0
+                        ? $"Encounter {encounter.EncounterNumber} recorded. Claim amount is {encounter.TotalAmount:C}; no wallet deduction was made."
+                        : $"Encounter {encounter.EncounterNumber} recorded. Fees were waived and no wallet deduction was made.";
 
                     if (User.IsInRole("Provider"))
                     {
@@ -253,7 +204,7 @@ namespace CTSHIPDashboard.Controllers
                     await transaction.RollbackAsync();
                     ModelState.AddModelError(
                         string.Empty,
-                        "The encounter and wallet deduction could not be completed. No funds were deducted.");
+                        "The encounter could not be completed. No funds were deducted.");
                 }
             }
 
@@ -273,6 +224,8 @@ namespace CTSHIPDashboard.Controllers
             if (encounter == null) return NotFound();
             if (!await CanAccessProviderAsync(encounter.ProviderId)) return Forbid();
 
+            encounter.VisitDate = TrimToSecond(encounter.VisitDate);
+            encounter.FeesWaived = encounter.TotalAmount <= 0;
             encounter.SelectedServices = encounter.Services.Select(x => x.ServiceName).ToList();
             await PopulateDropdowns(encounter.ProviderId, encounter.DoctorId);
             return View(encounter);
@@ -285,9 +238,14 @@ namespace CTSHIPDashboard.Controllers
         {
             if (id != encounter.Id) return NotFound();
 
+            EnsureEncounterDefaults(encounter);
             ValidateSelectedServices(encounter);
+            ValidateEncounterInput(encounter);
 
             Encounter? existing = await _context.Encounters
+                .Include(x => x.Enrollee)
+                    .ThenInclude(x => x!.Hmo)
+                .Include(x => x.Doctor)
                 .Include(x => x.Services)
                 .FirstOrDefaultAsync(x => x.Id == id);
 
@@ -313,6 +271,7 @@ namespace CTSHIPDashboard.Controllers
                 try
                 {
                     existing.VisitDate = encounter.VisitDate;
+                    existing.VisitDate = TrimToSecond(existing.VisitDate);
                     existing.VisitType = encounter.VisitType;
                     existing.ServiceSetting = encounter.ServiceSetting;
                     existing.Status = encounter.Status;
@@ -345,6 +304,8 @@ namespace CTSHIPDashboard.Controllers
             }
 
             // ONLY CALL ONCE
+            encounter.Enrollee = existing.Enrollee;
+            encounter.Doctor = existing.Doctor;
             await PopulateDropdowns(existing.ProviderId, encounter.DoctorId);
             return View(encounter);
         }
@@ -367,7 +328,9 @@ namespace CTSHIPDashboard.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> DeleteConfirmed(int id)
         {
-            var encounter = await _context.Encounters.FindAsync(id);
+            var encounter = await _context.Encounters
+                .Include(e => e.Services)
+                .FirstOrDefaultAsync(e => e.Id == id);
             if (encounter != null)
             {
                 if (!await CanAccessProviderAsync(encounter.ProviderId))
@@ -381,12 +344,58 @@ namespace CTSHIPDashboard.Controllers
                     return RedirectToAction(nameof(Details), new { id });
                 }
 
-                var services = await _context.EncounterServices
-                    .Where(x => x.EncounterId == id)
-                    .ToListAsync();
-                _context.EncounterServices.RemoveRange(services);
+                await using var transaction = await _context.Database.BeginTransactionAsync();
+                string deductionReference = $"Encounter {encounter.EncounterNumber}";
+                ProviderWalletTransaction? providerDeduction = await _context.ProviderWalletTransactions
+                    .Include(walletTransaction => walletTransaction.ProviderWallet)
+                    .FirstOrDefaultAsync(walletTransaction =>
+                        walletTransaction.Reference == deductionReference
+                        && walletTransaction.Amount < 0
+                        && walletTransaction.ProviderWallet != null
+                        && walletTransaction.ProviderWallet.ProviderId == encounter.ProviderId);
+
+                if (providerDeduction?.ProviderWallet != null)
+                {
+                    decimal refundAmount = Math.Abs(providerDeduction.Amount);
+                    providerDeduction.ProviderWallet.Balance += refundAmount;
+                    _context.ProviderWalletTransactions.Add(new ProviderWalletTransaction
+                    {
+                        ProviderWallet = providerDeduction.ProviderWallet,
+                        Amount = refundAmount,
+                        Type = "Refund",
+                        Reference = $"Deleted encounter {encounter.EncounterNumber}",
+                        Timestamp = TrimToSecond(DateTime.UtcNow)
+                    });
+                }
+                else
+                {
+                    WalletTransaction? enrolleeDeduction = await _context.WalletTransactions
+                        .Include(walletTransaction => walletTransaction.EnrolleeWallet)
+                        .FirstOrDefaultAsync(walletTransaction =>
+                            walletTransaction.Reference == deductionReference
+                            && walletTransaction.Amount < 0
+                            && walletTransaction.EnrolleeWallet != null
+                            && walletTransaction.EnrolleeWallet.EnrolleeId == encounter.EnrolleeId);
+
+                    if (enrolleeDeduction?.EnrolleeWallet != null)
+                    {
+                        decimal refundAmount = Math.Abs(enrolleeDeduction.Amount);
+                        enrolleeDeduction.EnrolleeWallet.Balance += refundAmount;
+                        _context.WalletTransactions.Add(new WalletTransaction
+                        {
+                            EnrolleeWallet = enrolleeDeduction.EnrolleeWallet,
+                            Amount = refundAmount,
+                            Type = "Refund",
+                            Reference = $"Deleted encounter {encounter.EncounterNumber}",
+                            Timestamp = TrimToSecond(DateTime.UtcNow)
+                        });
+                    }
+                }
+
+                _context.EncounterServices.RemoveRange(encounter.Services);
                 _context.Encounters.Remove(encounter);
                 await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
                 TempData["Success"] = $"Encounter {encounter.EncounterNumber} deleted.";
             }
             return RedirectToAction(nameof(Index));
@@ -406,10 +415,13 @@ namespace CTSHIPDashboard.Controllers
             if (enrollee == null)
                 return Json(new { success = false });
 
-            decimal walletBalance = await _context.EnrolleeWallets
-                .Where(wallet => wallet.EnrolleeId == enrollee.Id)
-                .Select(wallet => (decimal?)wallet.Balance)
-                .FirstOrDefaultAsync() ?? 0m;
+            ApplicationUser? currentUser = await _userManager.GetUserAsync(User);
+            if (User.IsInRole("Provider")
+                && currentUser?.ProviderId.HasValue == true
+                && enrollee.ProviderId != currentUser.ProviderId.Value)
+            {
+                return Json(new { success = false });
+            }
 
             return Json(new
             {
@@ -421,37 +433,37 @@ namespace CTSHIPDashboard.Controllers
                     enrollmentNumber = enrollee.EnrollmentNumber,
                     photoPath = enrollee.PhotoPath ?? "/img/icon-192.png",
                     hmoName = enrollee.Hmo?.Name ?? "Not Assigned",
-                    state = enrollee.State,
-                    walletBalance
+                    state = enrollee.State
                 }
             });
         }
 
         [HttpGet]
-        public async Task<IActionResult> GetProviderWalletBalance(int providerId)
+        public async Task<IActionResult> GetDoctorsByProvider(int providerId, int? selectedDoctorId = null)
         {
             if (!await CanAccessProviderAsync(providerId))
             {
-                return Json(new { success = false });
+                return Json(new { success = false, doctors = Array.Empty<object>() });
             }
 
-            decimal? walletBalance = await _context.ProviderWallets
-                .Where(wallet => wallet.ProviderId == providerId)
-                .Select(wallet => (decimal?)wallet.Balance)
-                .FirstOrDefaultAsync();
+            var doctors = await _context.Doctors
+                .Where(doctor =>
+                    doctor.ProviderId == providerId
+                    && (doctor.IsActive || doctor.Id == selectedDoctorId))
+                .OrderBy(doctor => doctor.FullName)
+                .Select(doctor => new
+                {
+                    id = doctor.Id,
+                    text = doctor.FullName + " - " + doctor.Specialty,
+                    selected = selectedDoctorId.HasValue && doctor.Id == selectedDoctorId.Value
+                })
+                .ToListAsync();
 
-            if (!walletBalance.HasValue)
-            {
-                walletBalance = await _context.EnrolleeWallets
-                    .Where(wallet => wallet.Enrollee != null && wallet.Enrollee.ProviderId == providerId)
-                    .SumAsync(wallet => (decimal?)wallet.Balance) ?? 0m;
-            }
-
-            return Json(new { success = true, balance = walletBalance.Value });
+            return Json(new { success = true, doctors });
         }
 
         // CREATE CLAIM FROM ENCOUNTER — 100% SAFE & ACCURATE
-        [Authorize(Roles = "Provider,CTSHIPAdmin,HMO")]
+        [Authorize(Roles = "Provider")]
         public async Task<IActionResult> CreateClaim(int id)
         {
             var encounter = await _context.Encounters
@@ -470,6 +482,12 @@ namespace CTSHIPDashboard.Controllers
             if (!await CanAccessProviderAsync(encounter.ProviderId))
             {
                 return Forbid();
+            }
+
+            if (encounter.Status == "Cancelled")
+            {
+                TempData["Error"] = "Cancelled encounters cannot be claimed.";
+                return RedirectToAction(nameof(Details), new { id });
             }
 
             // ENROLLEE HAS NO HMO — BLOCK CLAIM
@@ -507,14 +525,14 @@ namespace CTSHIPDashboard.Controllers
             {
                 claim.Id,
                 claim.ClaimNumber,
-                EnrolleeName = encounter.Enrollee.FullName,
-                HmoName = encounter.Enrollee.Hmo.Name,
-                ProviderName = encounter.Provider.Name,
+                EnrolleeName = encounter.Enrollee!.FullName,
+                HmoName = encounter.Enrollee.Hmo!.Name,
+                ProviderName = encounter.Provider!.Name,
                 Amount = claim.Amount,
                 Status = "Submitted"
             });
 
-            TempData["Success"] = $"Claim {claim.ClaimNumber} successfully created for {encounter.Enrollee.Hmo.Name}!";
+            TempData["Success"] = $"Claim {claim.ClaimNumber} successfully created for {encounter.Enrollee.Hmo!.Name}!";
             // Audit claim creation
             try
             {
@@ -522,7 +540,7 @@ namespace CTSHIPDashboard.Controllers
                 await _auditService.LogAsync("ClaimCreated", actor, encounter.Enrollee?.EnrollmentNumber, $"Claim:{claim.ClaimNumber}; Amount:{claim.Amount:C}; Encounter:{encounter.EncounterNumber}");
             }
             catch { }
-            return RedirectToAction("Index", "Claims");
+            return RedirectToAction("MyClaims", "Providers");
         }
 
         private async Task PopulateDropdowns(int? selectedProviderId = null, int? selectedDoctorId = null)
@@ -544,7 +562,8 @@ namespace CTSHIPDashboard.Controllers
                 .Select(p => new SelectListItem
                 {
                     Value = p.Id.ToString(),
-                    Text = $"{p.Name} - {p.State}"
+                    Text = $"{p.Name} - {p.State}",
+                    Selected = selectedProviderId.HasValue && p.Id == selectedProviderId.Value
                 })
                 .ToList();
 
@@ -561,18 +580,18 @@ namespace CTSHIPDashboard.Controllers
                 .Select(doctor => new SelectListItem
                 {
                     Value = doctor.Id.ToString(),
-                    Text = doctor.FullName + " — " + doctor.Specialty,
+                    Text = doctor.FullName + " - " + doctor.Specialty,
                     Selected = doctor.Id == selectedDoctorId
                 })
                 .ToListAsync();
 
             ViewBag.Statuses = new List<SelectListItem>
             {
-                new() { Value = "Completed", Text = "Completed" },
-                new() { Value = "Pending", Text = "Pending" },
-                new() { Value = "Cancelled", Text = "Cancelled" },
-                new() { Value = "Referred", Text = "Referred" },
-                new() { Value = "Claimed", Text = "Claimed" }
+                new() { Value = "Completed", Text = "Completed", Selected = string.Equals(Request.HasFormContentType ? Request.Form[nameof(Encounter.Status)].ToString() : null, "Completed", StringComparison.OrdinalIgnoreCase) },
+                new() { Value = "Pending", Text = "Pending", Selected = string.Equals(Request.HasFormContentType ? Request.Form[nameof(Encounter.Status)].ToString() : null, "Pending", StringComparison.OrdinalIgnoreCase) },
+                new() { Value = "Cancelled", Text = "Cancelled", Selected = string.Equals(Request.HasFormContentType ? Request.Form[nameof(Encounter.Status)].ToString() : null, "Cancelled", StringComparison.OrdinalIgnoreCase) },
+                new() { Value = "Referred", Text = "Referred", Selected = string.Equals(Request.HasFormContentType ? Request.Form[nameof(Encounter.Status)].ToString() : null, "Referred", StringComparison.OrdinalIgnoreCase) },
+                new() { Value = "Claimed", Text = "Claimed", Selected = string.Equals(Request.HasFormContentType ? Request.Form[nameof(Encounter.Status)].ToString() : null, "Claimed", StringComparison.OrdinalIgnoreCase) }
             };
 
             ViewBag.ServiceSettings = new List<SelectListItem>
@@ -580,29 +599,13 @@ namespace CTSHIPDashboard.Controllers
                 new(EncounterServiceCatalog.Outpatient, EncounterServiceCatalog.Outpatient),
                 new(EncounterServiceCatalog.Inpatient, EncounterServiceCatalog.Inpatient)
             };
-            ViewBag.WalletSources = new List<SelectListItem>
+            ViewBag.VisitTypes = new List<SelectListItem>
             {
-                new(EncounterWalletSource.ProviderWallet, "Provider Wallet"),
-                new(EncounterWalletSource.EnrolleeWallet, "Enrollee Personal Wallet")
+                new("New Visit", "New Visit"),
+                new("Follow-up", "Follow-up"),
+                new("Emergency", "Emergency"),
+                new("Referral", "Referral")
             };
-
-            decimal? providerWalletBalance = null;
-            if (selectedProviderId.HasValue)
-            {
-                providerWalletBalance = await _context.ProviderWallets
-                    .Where(wallet => wallet.ProviderId == selectedProviderId.Value)
-                    .Select(wallet => (decimal?)wallet.Balance)
-                    .FirstOrDefaultAsync();
-
-                if (!providerWalletBalance.HasValue)
-                {
-                    providerWalletBalance = await _context.EnrolleeWallets
-                        .Where(wallet => wallet.Enrollee != null && wallet.Enrollee.ProviderId == selectedProviderId.Value)
-                        .SumAsync(wallet => (decimal?)wallet.Balance) ?? 0m;
-                }
-            }
-
-            ViewBag.ProviderWalletBalance = providerWalletBalance ?? 0m;
             ViewBag.OutpatientServices = EncounterServiceCatalog.OutpatientServices;
             ViewBag.InpatientServices = EncounterServiceCatalog.InpatientServices;
         }
@@ -614,6 +617,18 @@ namespace CTSHIPDashboard.Controllers
         {
             if (!doctorId.HasValue)
             {
+                List<Doctor> providerDoctors = await _context.Doctors
+                    .Where(candidate => candidate.ProviderId == providerId && (!activeOnly || candidate.IsActive))
+                    .OrderBy(candidate => candidate.FullName)
+                    .Take(2)
+                    .ToListAsync();
+
+                if (providerDoctors.Count == 1)
+                {
+                    ModelState.Remove(nameof(Encounter.DoctorId));
+                    return providerDoctors[0];
+                }
+
                 ModelState.AddModelError(nameof(Encounter.DoctorId), "Select the attending doctor.");
                 return null;
             }
@@ -631,6 +646,68 @@ namespace CTSHIPDashboard.Controllers
             }
 
             return doctor;
+        }
+
+        private static Encounter BuildDefaultEncounter()
+        {
+            Encounter encounter = new()
+            {
+                VisitDate = TrimToSecond(DateTime.Now),
+                VisitType = "New Visit",
+                ServiceSetting = EncounterServiceCatalog.Outpatient,
+                Status = "Completed",
+                WalletSource = EncounterWalletSource.ProviderWallet,
+                FeesWaived = true
+            };
+            encounter.SelectedServices.Add("Management of common infectious diseases");
+            return encounter;
+        }
+
+        private void EnsureEncounterDefaults(Encounter encounter)
+        {
+            if (string.IsNullOrWhiteSpace(encounter.VisitType))
+            {
+                encounter.VisitType = "New Visit";
+                ModelState.Remove(nameof(Encounter.VisitType));
+            }
+
+            if (string.IsNullOrWhiteSpace(encounter.ServiceSetting))
+            {
+                encounter.ServiceSetting = EncounterServiceCatalog.Outpatient;
+                ModelState.Remove(nameof(Encounter.ServiceSetting));
+            }
+
+            if (string.IsNullOrWhiteSpace(encounter.Status))
+            {
+                encounter.Status = "Completed";
+                ModelState.Remove(nameof(Encounter.Status));
+            }
+
+            if (string.IsNullOrWhiteSpace(encounter.WalletSource))
+            {
+                encounter.WalletSource = EncounterWalletSource.ProviderWallet;
+                ModelState.Remove(nameof(Encounter.WalletSource));
+            }
+        }
+
+        private async Task<Enrollee?> ValidateEnrolleeAssignmentAsync(int enrolleeId, int providerId)
+        {
+            Enrollee? enrollee = await _context.Enrollees
+                .AsNoTracking()
+                .FirstOrDefaultAsync(candidate => candidate.Id == enrolleeId);
+
+            if (enrollee == null)
+            {
+                ModelState.AddModelError(nameof(Encounter.EnrolleeId), "Select a valid enrollee.");
+                return null;
+            }
+
+            if (enrollee.ProviderId != providerId)
+            {
+                ModelState.AddModelError(nameof(Encounter.EnrolleeId), "This enrollee is not assigned to the selected facility.");
+            }
+
+            return enrollee;
         }
 
         private async Task<bool> CanAccessProviderAsync(int providerId)
@@ -663,7 +740,7 @@ namespace CTSHIPDashboard.Controllers
 
             if (encounter.SelectedServices.Count == 0)
             {
-                ModelState.AddModelError(nameof(encounter.SelectedServices), "Select at least one service delivered.");
+                ModelState.AddModelError(nameof(Encounter.SelectedServices), "Select at least one service delivered.");
                 return;
             }
 
@@ -673,22 +750,91 @@ namespace CTSHIPDashboard.Controllers
             }
         }
 
-        private void NormalizeEncounterWalletSource(Encounter encounter)
+        private void ValidateEncounterInput(Encounter encounter)
         {
-            string requestedWalletSource = encounter.WalletSource;
-
-            if (string.IsNullOrWhiteSpace(requestedWalletSource))
+            if (string.IsNullOrWhiteSpace(encounter.ChiefComplaint))
             {
-                encounter.WalletSource = EncounterWalletSource.EnrolleeWallet;
-                return;
+                ModelState.AddModelError(nameof(Encounter.ChiefComplaint), "Complaint is required.");
             }
 
-            if (!EncounterWalletSource.IsValid(requestedWalletSource))
+            if (string.IsNullOrWhiteSpace(encounter.Diagnosis))
             {
-                ModelState.AddModelError(nameof(Encounter.WalletSource), "Select a valid wallet source.");
+                ModelState.AddModelError(nameof(Encounter.Diagnosis), "Diagnosis is required.");
             }
 
-            encounter.WalletSource = EncounterWalletSource.Normalize(requestedWalletSource);
+            if (string.IsNullOrWhiteSpace(encounter.TreatmentGiven))
+            {
+                ModelState.AddModelError(nameof(Encounter.TreatmentGiven), "Treatment given is required.");
+            }
+
+            if (encounter.VisitDate > DateTime.Now)
+            {
+                ModelState.AddModelError(nameof(Encounter.VisitDate), "Encounter date cannot be in the future.");
+            }
+
+            if (encounter.Temperature < 35m || encounter.Temperature > 42m)
+            {
+                ModelState.AddModelError(nameof(Encounter.Temperature), "Temperature must be between 35 and 42 °C.");
+            }
+
+            if (encounter.PulseRate < 40 || encounter.PulseRate > 180)
+            {
+                ModelState.AddModelError(nameof(Encounter.PulseRate), "Pulse rate must be between 40 and 180 bpm.");
+            }
+
+            if (!IsValidBloodPressure(encounter.BloodPressure))
+            {
+                ModelState.AddModelError(nameof(Encounter.BloodPressure), "Blood pressure must be in systolic/diastolic format, for example 120/80.");
+            }
+
+            if (encounter.ConsultationFee < 0 || encounter.LabFee < 0 || encounter.DrugFee < 0)
+            {
+                ModelState.AddModelError(string.Empty, "Fees cannot be negative.");
+            }
+
+            if (encounter.SelectedServices.Count > 0 && encounter.TotalAmount <= 0 && !encounter.FeesWaived)
+            {
+                ModelState.AddModelError(string.Empty, "Enter at least one fee amount or tick Fees Waived.");
+            }
+
+            if (encounter.TotalAmount > 0 && encounter.FeesWaived)
+            {
+                ModelState.AddModelError(nameof(Encounter.FeesWaived), "Fees Waived can only be used when all fees are zero.");
+            }
+        }
+
+        private static bool IsValidBloodPressure(string? bloodPressure)
+        {
+            if (string.IsNullOrWhiteSpace(bloodPressure))
+            {
+                return false;
+            }
+
+            string[] parts = bloodPressure.Split('/', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+            if (parts.Length != 2
+                || !int.TryParse(parts[0], out int systolic)
+                || !int.TryParse(parts[1], out int diastolic))
+            {
+                return false;
+            }
+
+            return systolic >= 70
+                && systolic <= 250
+                && diastolic >= 40
+                && diastolic <= 150
+                && systolic > diastolic;
+        }
+
+        private static DateTime TrimToSecond(DateTime value)
+        {
+            return new DateTime(
+                value.Year,
+                value.Month,
+                value.Day,
+                value.Hour,
+                value.Minute,
+                value.Second,
+                value.Kind);
         }
 
         private static void SetEncounterServices(Encounter encounter, IEnumerable<string>? selectedServices = null)

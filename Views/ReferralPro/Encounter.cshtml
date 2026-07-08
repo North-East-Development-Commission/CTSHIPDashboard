@@ -1,0 +1,252 @@
+@model CTSHIPDashboard.ViewModels.ReferralHospitalEncounterViewModel
+@using CTSHIPDashboard.Models
+@{
+    ViewData["Title"] = "Referral Encounter";
+}
+
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3">
+    <div>
+        <h2 class="mb-1">Referral Encounter</h2>
+        <div class="text-muted">@Model.EnrolleeFullName - @Model.EnrolleeNumber</div>
+    </div>
+    <a asp-controller="ReferralPro" asp-action="Details" asp-route-id="@Model.ReferralId" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i> Back To Referral
+    </a>
+</div>
+
+<div class="row g-3">
+    <div class="col-lg-4">
+        <div class="card mb-3">
+            <div class="card-header"><strong>Referral Summary</strong></div>
+            <div class="card-body">
+                <dl class="mb-0">
+                    <dt>From Provider</dt>
+                    <dd>@Model.FromProviderName</dd>
+
+                    <dt>Referral Hospital</dt>
+                    <dd>@Model.ReferredHospitalName</dd>
+
+                    <dt>HMO</dt>
+                    <dd>@Model.HmoName</dd>
+
+                    <dt>Referral Diagnosis</dt>
+                    <dd>@Model.DiagnosisFromReferral</dd>
+
+                    <dt>Reason For Referral</dt>
+                    <dd>@Model.ReasonForReferral</dd>
+                </dl>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-8">
+        <form asp-controller="ReferralPro" asp-action="Encounter" asp-route-id="@Model.ReferralId" method="post" id="referralEncounterForm" class="card card-body" novalidate>
+            @Html.AntiForgeryToken()
+            <input asp-for="ReferralId" type="hidden" />
+            <input asp-for="EnrolleeNumber" type="hidden" />
+            <input asp-for="EnrolleeFullName" type="hidden" />
+            <input asp-for="FromProviderName" type="hidden" />
+            <input asp-for="ReferredHospitalName" type="hidden" />
+            <input asp-for="HmoName" type="hidden" />
+            <input asp-for="DiagnosisFromReferral" type="hidden" />
+            <input asp-for="ReasonForReferral" type="hidden" />
+
+            <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label asp-for="VisitDate" class="form-label"></label>
+                    <input asp-for="VisitDate" class="form-control" type="datetime-local" step="1" />
+                    <span asp-validation-for="VisitDate" class="text-danger"></span>
+                </div>
+
+                <div class="col-md-4">
+                    <label asp-for="VisitType" class="form-label"></label>
+                    <select asp-for="VisitType" asp-items="Model.VisitTypes" class="form-select"></select>
+                    <span asp-validation-for="VisitType" class="text-danger"></span>
+                </div>
+
+                <div class="col-md-4">
+                    <label asp-for="ServiceSetting" class="form-label"></label>
+                    <select asp-for="ServiceSetting" asp-items="Model.ServiceSettings" class="form-select" id="serviceSetting"></select>
+                    <span asp-validation-for="ServiceSetting" class="text-danger"></span>
+                </div>
+
+                <div class="col-12">
+                    <label asp-for="SelectedServices" class="form-label"></label>
+                    <select asp-for="SelectedServices" class="form-select select2" id="selectedServices" multiple data-placeholder="Select services delivered">
+                        <optgroup label="Outpatient Services" data-setting="@EncounterServiceCatalog.Outpatient">
+                            @foreach (string service in EncounterServiceCatalog.OutpatientServices)
+                            {
+                                if (Model.SelectedServices.Contains(service, StringComparer.OrdinalIgnoreCase))
+                                {
+                                    <option value="@service" selected>@service</option>
+                                }
+                                else
+                                {
+                                    <option value="@service">@service</option>
+                                }
+                            }
+                        </optgroup>
+                        <optgroup label="Inpatient Services" data-setting="@EncounterServiceCatalog.Inpatient">
+                            @foreach (string service in EncounterServiceCatalog.InpatientServices)
+                            {
+                                if (Model.SelectedServices.Contains(service, StringComparer.OrdinalIgnoreCase))
+                                {
+                                    <option value="@service" selected>@service</option>
+                                }
+                                else
+                                {
+                                    <option value="@service">@service</option>
+                                }
+                            }
+                        </optgroup>
+                    </select>
+                    <span asp-validation-for="SelectedServices" class="text-danger"></span>
+                    <div class="form-text">Select every service delivered during this referral encounter.</div>
+                </div>
+
+                <div class="col-md-4">
+                    <label asp-for="Temperature" class="form-label"></label>
+                    <input asp-for="Temperature" class="form-control" type="number" step="0.1" min="35" max="42" />
+                    <span asp-validation-for="Temperature" class="text-danger"></span>
+                </div>
+
+                <div class="col-md-4">
+                    <label asp-for="PulseRate" class="form-label"></label>
+                    <input asp-for="PulseRate" class="form-control" type="number" step="1" min="40" max="180" />
+                    <span asp-validation-for="PulseRate" class="text-danger"></span>
+                </div>
+
+                <div class="col-md-4">
+                    <label asp-for="BloodPressure" class="form-label"></label>
+                    <input asp-for="BloodPressure" class="form-control" placeholder="120/80" />
+                    <span asp-validation-for="BloodPressure" class="text-danger"></span>
+                </div>
+
+                <div class="col-12">
+                    <label asp-for="ChiefComplaint" class="form-label"></label>
+                    <textarea asp-for="ChiefComplaint" class="form-control" rows="3"></textarea>
+                    <span asp-validation-for="ChiefComplaint" class="text-danger"></span>
+                </div>
+
+                <div class="col-12">
+                    <label asp-for="Diagnosis" class="form-label"></label>
+                    <textarea asp-for="Diagnosis" class="form-control" rows="3"></textarea>
+                    <span asp-validation-for="Diagnosis" class="text-danger"></span>
+                </div>
+
+                <div class="col-12">
+                    <label asp-for="TreatmentGiven" class="form-label"></label>
+                    <textarea asp-for="TreatmentGiven" class="form-control" rows="3"></textarea>
+                    <span asp-validation-for="TreatmentGiven" class="text-danger"></span>
+                </div>
+
+                <div class="col-md-4">
+                    <label asp-for="ConsultationFee" class="form-label"></label>
+                    <input asp-for="ConsultationFee" class="form-control text-end" type="number" min="0" step="0.01" />
+                    <span asp-validation-for="ConsultationFee" class="text-danger"></span>
+                </div>
+
+                <div class="col-md-4">
+                    <label asp-for="LabFee" class="form-label"></label>
+                    <input asp-for="LabFee" class="form-control text-end" type="number" min="0" step="0.01" />
+                    <span asp-validation-for="LabFee" class="text-danger"></span>
+                </div>
+
+                <div class="col-md-4">
+                    <label asp-for="DrugFee" class="form-label"></label>
+                    <input asp-for="DrugFee" class="form-control text-end" type="number" min="0" step="0.01" />
+                    <span asp-validation-for="DrugFee" class="text-danger"></span>
+                </div>
+
+                <div class="col-md-12">
+                    <div class="form-check form-switch">
+                        <input asp-for="FeesWaived" class="form-check-input" type="checkbox" />
+                        <label asp-for="FeesWaived" class="form-check-label fw-semibold"></label>
+                        <div class="form-text">Tick only when no amount should be claimed for this encounter.</div>
+                        <span asp-validation-for="FeesWaived" class="text-danger"></span>
+                    </div>
+                </div>
+
+                <div class="col-12">
+                    <label asp-for="Notes" class="form-label"></label>
+                    <textarea asp-for="Notes" class="form-control" rows="3"></textarea>
+                    <span asp-validation-for="Notes" class="text-danger"></span>
+                </div>
+            </div>
+
+            <div class="d-flex flex-wrap justify-content-end gap-2 mt-4 pt-3 border-top">
+                <a asp-controller="ReferralPro" asp-action="Details" asp-route-id="@Model.ReferralId" class="btn btn-light">Cancel</a>
+                <button type="submit" class="btn btn-success">
+                    <i class="bi bi-send-check"></i> Submit Encounter And Claim
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        (function disableReferralEncounterClientValidation() {
+            const form = document.getElementById('referralEncounterForm');
+            if (!form || !window.jQuery) return;
+
+            const $form = $(form);
+            $form.removeData('validator');
+            $form.removeData('unobtrusiveValidation');
+            $form.off('.validate');
+
+            $form.find(':input').each(function () {
+                Array.from(this.attributes)
+                    .filter(attribute => attribute.name.startsWith('data-val'))
+                    .forEach(attribute => this.removeAttribute(attribute.name));
+                this.classList.remove('input-validation-error', 'is-invalid');
+            });
+        })();
+
+        function syncServiceOptions(selectFirstIfEmpty) {
+            const setting = document.getElementById('serviceSetting')?.value;
+            const serviceSelect = document.getElementById('selectedServices');
+            if (!setting || !serviceSelect) return;
+
+            let hasSelectedService = false;
+            Array.from(serviceSelect.querySelectorAll('optgroup')).forEach(group => {
+                const enabled = group.dataset.setting === setting;
+                Array.from(group.children).forEach(option => {
+                    option.disabled = !enabled;
+                    if (!enabled) option.selected = false;
+                    if (enabled && option.selected) hasSelectedService = true;
+                });
+            });
+
+            if (selectFirstIfEmpty && !hasSelectedService) {
+                const firstEnabled = Array.from(serviceSelect.options).find(option => !option.disabled);
+                if (firstEnabled) firstEnabled.selected = true;
+            }
+
+            if (window.jQuery) {
+                $(serviceSelect).trigger('change.select2');
+            }
+        }
+
+        function feeTotal() {
+            return Number(document.getElementById('ConsultationFee')?.value || 0) +
+                Number(document.getElementById('LabFee')?.value || 0) +
+                Number(document.getElementById('DrugFee')?.value || 0);
+        }
+
+        function syncFeesWaived() {
+            const feesWaived = document.getElementById('FeesWaived');
+            if (feesWaived) feesWaived.checked = feeTotal() <= 0;
+        }
+
+        document.getElementById('serviceSetting')?.addEventListener('change', () => syncServiceOptions(true));
+        document.querySelectorAll('#ConsultationFee, #LabFee, #DrugFee').forEach(input => {
+            input.addEventListener('input', syncFeesWaived);
+        });
+
+        syncServiceOptions(true);
+        syncFeesWaived();
+    </script>
+}

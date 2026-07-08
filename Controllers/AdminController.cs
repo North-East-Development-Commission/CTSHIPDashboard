@@ -449,8 +449,12 @@ namespace CTSHIPDashboard.Controllers
                 model.OrganizationId,
                 model.ProviderId,
                 model.HmoId,
+                model.ReferralHospitalId,
                 providerId => model.ProviderId = providerId,
-                hmoId => model.HmoId = hmoId);
+                hmoId => model.HmoId = hmoId,
+                referralHospitalId => model.ReferralHospitalId = referralHospitalId,
+                RequiresHmoScope(model.SelectedRoles),
+                RequiresReferralScope(model.SelectedRoles));
 
             if (ModelState.IsValid)
             {
@@ -523,6 +527,7 @@ namespace CTSHIPDashboard.Controllers
                 OrganizationId = user.OrganizationId, // Maps to the OrganizeId foreign key
                 ProviderId = user.ProviderId,
                 HmoId = user.HmoId,
+                ReferralHospitalId = await GetReferralHospitalIdForProviderAsync(user.ProviderId),
                 CurrentRoles = userRoles.ToList(),
                 AllRoles = await _roleManager.Roles.Select(r => r.Name!).ToListAsync()
             };
@@ -543,8 +548,12 @@ namespace CTSHIPDashboard.Controllers
                 model.OrganizationId,
                 model.ProviderId,
                 model.HmoId,
+                model.ReferralHospitalId,
                 providerId => model.ProviderId = providerId,
-                hmoId => model.HmoId = hmoId);
+                hmoId => model.HmoId = hmoId,
+                referralHospitalId => model.ReferralHospitalId = referralHospitalId,
+                RequiresHmoScope(model.SelectedRoles),
+                RequiresReferralScope(model.SelectedRoles));
 
             if (!ModelState.IsValid)
             {
@@ -678,11 +687,24 @@ namespace CTSHIPDashboard.Controllers
                 Value = h.Id.ToString(),
                 Text = h.Name
             }).ToListAsync();
-            ViewBag.Provider = await _context.Providers.Select(h => new SelectListItem
-            {
-                Value = h.Id.ToString(),
-                Text = h.Name
-            }).ToListAsync();
+            ViewBag.Provider = await _context.Providers
+                .Where(h => h.IsActive)
+                .OrderBy(h => h.Name)
+                .Select(h => new SelectListItem
+                {
+                    Value = h.Id.ToString(),
+                    Text = h.Name
+                })
+                .ToListAsync();
+            ViewBag.ReferralHospitals = await _context.ReferralHospitals
+                .Where(h => h.IsActive)
+                .Select(h => new SelectListItem
+                {
+                    Value = h.Id.ToString(),
+                    Text = string.IsNullOrWhiteSpace(h.State) ? h.Name : h.Name + " - " + h.State
+                })
+                .OrderBy(x => x.Text)
+                .ToListAsync();
             ViewBag.Oga = await _context.Organizations.Select(h => new SelectListItem
             {
                 Value = h.Id.ToString(),
@@ -690,17 +712,90 @@ namespace CTSHIPDashboard.Controllers
             }).ToListAsync();
         }
 
+        [HttpGet]
+        [Authorize(Roles = "CTSHIPAdmin")]
+        public async Task<IActionResult> GetProvidersByHmo(int hmoId, int? selectedProviderId = null)
+        {
+            if (hmoId <= 0)
+            {
+                return Json(new { success = false, providers = Array.Empty<object>() });
+            }
+
+            var providers = await _context.Providers
+                .Where(provider => provider.IsActive && provider.HmoId == hmoId)
+                .OrderBy(provider => provider.Name)
+                .Select(provider => new
+                {
+                    id = provider.Id,
+                    text = provider.Name + " - " + provider.State,
+                    selected = selectedProviderId.HasValue && provider.Id == selectedProviderId.Value
+                })
+                .ToListAsync();
+
+            return Json(new { success = true, providers });
+        }
+
+        [HttpGet]
+        [Authorize(Roles = "CTSHIPAdmin")]
+        public async Task<IActionResult> GetReferralProvidersByHmo(int hmoId, Guid? selectedReferralHospitalId = null)
+        {
+            bool hmoExists = await _context.Hmos.AnyAsync(hmo => hmo.Id == hmoId);
+            if (!hmoExists)
+            {
+                return Json(new { success = false, providers = Array.Empty<object>() });
+            }
+
+            var providers = await _context.ReferralHospitals
+                .Where(hospital => hospital.IsActive)
+                .OrderBy(hospital => hospital.Name)
+                .Select(hospital => new
+                {
+                    id = hospital.Id,
+                    text = string.IsNullOrWhiteSpace(hospital.State)
+                        ? hospital.Name
+                        : hospital.Name + " - " + hospital.State,
+                    selected = selectedReferralHospitalId.HasValue && hospital.Id == selectedReferralHospitalId.Value
+                })
+                .ToListAsync();
+
+            return Json(new { success = true, providers });
+        }
+
         private async Task ValidateAndNormalizeOrganizationLinksAsync(
             int? organizationId,
             int? providerId,
             int? hmoId,
+            Guid? referralHospitalId,
             Action<int?> setProviderId,
-            Action<int?> setHmoId)
+            Action<int?> setHmoId,
+            Action<Guid?> setReferralHospitalId,
+            bool requiresHmoScope = false,
+            bool requiresReferralScope = false)
         {
             if (!organizationId.HasValue)
             {
                 setProviderId(null);
-                setHmoId(null);
+                setReferralHospitalId(null);
+                if (requiresReferralScope)
+                {
+                    ModelState.AddModelError(nameof(CreateUserViewModel.OrganizationId), "Select the referral organization type for this ReferralPro user.");
+                    if (!hmoId.HasValue)
+                    {
+                        ModelState.AddModelError(nameof(CreateUserViewModel.HmoId), "Select the HMO for this referral provider.");
+                    }
+                    if (!referralHospitalId.HasValue)
+                    {
+                        ModelState.AddModelError(nameof(CreateUserViewModel.ReferralHospitalId), "Select a referral provider.");
+                    }
+                }
+                if (!requiresHmoScope)
+                {
+                    setHmoId(null);
+                }
+                else if (!hmoId.HasValue)
+                {
+                    ModelState.AddModelError(nameof(CreateUserViewModel.HmoId), "Select an HMO for this reviewer.");
+                }
                 return;
             }
 
@@ -714,16 +809,76 @@ namespace CTSHIPDashboard.Controllers
                 ModelState.AddModelError(nameof(CreateUserViewModel.OrganizationId), "Select a valid organization type.");
                 setProviderId(null);
                 setHmoId(null);
+                setReferralHospitalId(null);
+                return;
+            }
+
+            if (IsReferralOrganization(organizationName) || requiresReferralScope)
+            {
+                if (!hmoId.HasValue)
+                {
+                    ModelState.AddModelError(nameof(CreateUserViewModel.HmoId), "Select the HMO for this referral provider.");
+                }
+
+                if (!referralHospitalId.HasValue)
+                {
+                    ModelState.AddModelError(nameof(CreateUserViewModel.ReferralHospitalId), "Select a referral provider.");
+                }
+
+                if (hmoId.HasValue && referralHospitalId.HasValue)
+                {
+                    int? referralProviderId = await GetOrCreateReferralProviderAsync(referralHospitalId.Value, hmoId.Value);
+                    if (referralProviderId.HasValue)
+                    {
+                        setProviderId(referralProviderId.Value);
+                    }
+                    else
+                    {
+                        ModelState.AddModelError(nameof(CreateUserViewModel.ReferralHospitalId), "Select an active referral provider.");
+                        setProviderId(null);
+                    }
+                }
+                else
+                {
+                    setProviderId(null);
+                }
+
+                setReferralHospitalId(referralHospitalId);
+                return;
+            }
+
+            setReferralHospitalId(null);
+
+            if (requiresHmoScope)
+            {
+                setProviderId(null);
+                if (!hmoId.HasValue)
+                {
+                    ModelState.AddModelError(nameof(CreateUserViewModel.HmoId), "Select an HMO for this reviewer.");
+                }
                 return;
             }
 
             if (IsProviderOrganization(organizationName))
             {
-                setHmoId(null);
+                if (!hmoId.HasValue)
+                {
+                    ModelState.AddModelError(nameof(CreateUserViewModel.HmoId), "Select the HMO before selecting a provider.");
+                }
+
                 if (!providerId.HasValue)
                 {
                     ModelState.AddModelError(nameof(CreateUserViewModel.ProviderId), "Select a provider.");
                 }
+                else if (hmoId.HasValue
+                    && !await _context.Providers.AnyAsync(provider =>
+                        provider.Id == providerId.Value &&
+                        provider.HmoId == hmoId.Value &&
+                        provider.IsActive))
+                {
+                    ModelState.AddModelError(nameof(CreateUserViewModel.ProviderId), "Select a provider under the selected HMO.");
+                }
+
                 return;
             }
 
@@ -741,9 +896,94 @@ namespace CTSHIPDashboard.Controllers
             setHmoId(null);
         }
 
+        private async Task<int?> GetOrCreateReferralProviderAsync(Guid referralHospitalId, int hmoId)
+        {
+            ReferredHospital? hospital = await _context.ReferralHospitals
+                .FirstOrDefaultAsync(x => x.Id == referralHospitalId && x.IsActive);
+            if (hospital == null)
+            {
+                return null;
+            }
+
+            string providerCode = BuildReferralProviderCode(referralHospitalId, hmoId);
+            Provider? provider = await _context.Providers.FirstOrDefaultAsync(x =>
+                x.HmoId == hmoId &&
+                (x.Code == providerCode ||
+                 x.Name == hospital.Name ||
+                 (!string.IsNullOrWhiteSpace(hospital.Email) && x.Email == hospital.Email)));
+
+            if (provider != null)
+            {
+                provider.IsActive = true;
+                provider.Code = string.IsNullOrWhiteSpace(provider.Code) ? providerCode : provider.Code;
+                provider.Level = string.IsNullOrWhiteSpace(provider.Level) ? "Referral Hospital" : provider.Level;
+                provider.State = string.IsNullOrWhiteSpace(provider.State) ? hospital.State ?? "N/A" : provider.State;
+                provider.LGA = string.IsNullOrWhiteSpace(provider.LGA) ? hospital.Lga ?? "N/A" : provider.LGA;
+                provider.Location = string.IsNullOrWhiteSpace(provider.Location) ? hospital.Address : provider.Location;
+                provider.Phone = string.IsNullOrWhiteSpace(provider.Phone) ? hospital.PhoneNumber ?? "N/A" : provider.Phone;
+                provider.Email = string.IsNullOrWhiteSpace(provider.Email) ? hospital.Email ?? string.Empty : provider.Email;
+                await _context.SaveChangesAsync();
+                return provider.Id;
+            }
+
+            provider = new Provider
+            {
+                Name = hospital.Name,
+                Location = hospital.Address,
+                IsActive = true,
+                PatientRatio = 0,
+                State = string.IsNullOrWhiteSpace(hospital.State) ? "N/A" : hospital.State,
+                LGA = string.IsNullOrWhiteSpace(hospital.Lga) ? "N/A" : hospital.Lga,
+                Phone = string.IsNullOrWhiteSpace(hospital.PhoneNumber) ? "N/A" : hospital.PhoneNumber,
+                Email = hospital.Email ?? string.Empty,
+                Code = providerCode,
+                Level = "Referral Hospital",
+                DateRegistered = DateTime.Now,
+                HmoId = hmoId
+            };
+
+            _context.Providers.Add(provider);
+            await _context.SaveChangesAsync();
+            return provider.Id;
+        }
+
+        private async Task<Guid?> GetReferralHospitalIdForProviderAsync(int? providerId)
+        {
+            if (!providerId.HasValue)
+            {
+                return null;
+            }
+
+            Provider? provider = await _context.Providers
+                .AsNoTracking()
+                .FirstOrDefaultAsync(x => x.Id == providerId.Value);
+            if (provider == null)
+            {
+                return null;
+            }
+
+            return await _context.ReferralHospitals
+                .AsNoTracking()
+                .Where(hospital => hospital.IsActive &&
+                    (hospital.Name == provider.Name ||
+                     (!string.IsNullOrWhiteSpace(hospital.Email) && hospital.Email == provider.Email)))
+                .Select(hospital => (Guid?)hospital.Id)
+                .FirstOrDefaultAsync();
+        }
+
+        private static string BuildReferralProviderCode(Guid referralHospitalId, int hmoId)
+        {
+            return $"REF-{hmoId}-{referralHospitalId:N}"[..18].ToUpperInvariant();
+        }
+
         private static bool IsProviderOrganization(string organizationName)
         {
             return organizationName.Contains("provider", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static bool IsReferralOrganization(string organizationName)
+        {
+            return organizationName.Contains("referral", StringComparison.OrdinalIgnoreCase);
         }
 
         private static bool IsHmoOrganization(string organizationName)
@@ -752,12 +992,26 @@ namespace CTSHIPDashboard.Controllers
                 || organizationName.Contains("hmo", StringComparison.OrdinalIgnoreCase);
         }
 
+        private static bool RequiresHmoScope(IEnumerable<string>? roles)
+        {
+            return roles?.Any(role =>
+                string.Equals(role, "Reviewer", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(role, "HMO", StringComparison.OrdinalIgnoreCase)) == true;
+        }
+
+        private static bool RequiresReferralScope(IEnumerable<string>? roles)
+        {
+            return roles?.Any(role =>
+                string.Equals(role, "ReferralPro", StringComparison.OrdinalIgnoreCase)) == true;
+        }
+
         // MAKE IT STATIC!
         private static string GetFriendlyRoleName(string role) => role switch
         {
             "CTSHIPAdmin" => "System Administrator",
             "HMO" => "HMO Officer",
             "Provider" => "Hospital/Provider Staff",
+            "ReferralPro" => "Referral Provider",
             "Reviewer" => "Claims Reviewer",
             "Auditor" => "Internal Auditor",
             "Finance" => "Finance Officer",

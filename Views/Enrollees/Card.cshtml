@@ -1,141 +1,241 @@
-﻿@model Enrollee
+@model Enrollee
 @{
-    ViewData["Title"] = "My Health Card";
+    ViewData["Title"] = "Enrollee ID Card";
 }
 
 <div class="container-fluid py-4">
-    <div class="row justify-content-center">
-        <div class="col-12 col-md-10 col-lg-8 col-xl-6">
-            <!-- DIGITAL CARD -->
-            <div class="card border-0 shadow-lg rounded-4 overflow-hidden" style="background: linear-gradient(135deg, #3B703B, #2B572F); color: white;">
-
-                <!-- Header -->
-                <div class="p-4 text-center">
-                    <img src="/img/coat.jpeg" alt="Nigeria" class="mb-3" style="height:60px;" />
-                    <h6 class="fw-bold mb-1">FEDERAL REPUBLIC OF NIGERIA</h6>
-                    <h6 class="fw-bold opacity-90">NORTH EAST DEVELOPMENT COMMISSION (NEDC)</h6>
-                    <h6 class="display-6 fw-bold mt-3">CTSHIP DIGITAL HEALTH CARD</h6>
-                </div>
-
-                <div class="bg-white text-dark">
-                    <div class="row g-0">
-                        <!-- Left: Photo + Info -->
-                        <div class="col-12 col-md-5 p-4 text-center">
-                            @if (!string.IsNullOrEmpty(Model.PhotoPath))
-                            {
-                                <img src="@Model.PhotoPath" alt="Photo" class="rounded-3 shadow" style="width:160px; height:180px; object-fit:cover;" />
-                            }
-                            else
-                            {
-                                <div class="bg-light rounded-3 d-flex align-items-center justify-content-center border" style="width:160px; height:180px; margin:0 auto;">
-                                    <i class="bi bi-person-fill text-secondary" style="font-size:5rem;"></i>
-                                </div>
-                            }
-
-                            <!-- QR CODE -->
-                            <div class="mt-4 p-3 bg-light rounded-3">
-                                <img src="@ViewBag.QrCodeImage" alt="QR Code" class="img-fluid" style="max-width:140px;" />
-                                <small class="d-block text-muted mt-2">Scan to verify identity</small>
-                            </div>
-                        </div>
-
-                        <!-- Right: Details -->
-                        <div class="col-12 col-md-7 p-1">
-                            <table class="table table-borderless text-dark mb-0">
-                                <tr>
-                                    <td class="fw-bold text-success">Full Name</td>
-                                    <td class="text-end fw-bold">@Model.FullName.ToUpper()</td>
-                                </tr>
-                                <tr>
-                                    <td class="fw-bold text-success">Enrollment No.</td>
-                                    <td class="text-end fw-bold fs-5 text-primary">@Model.EnrollmentNumber</td>
-                                </tr>
-                                <tr>
-                                    <td class="fw-bold text-success">Date of Birth</td>
-                                    <td class="text-end">@Model.DateOfBirth.ToString("MMM dd, yyyy")</td>
-                                </tr>
-                                <tr>
-                                    <td class="fw-bold text-success">Gender</td>
-                                    <td class="text-end">@Model.Gender</td>
-                                </tr>
-                                <tr>
-                                    <td class="fw-bold text-success">Blood Group</td>
-                                    <td class="text-end">O+</td>
-                                </tr>
-                                <tr>
-                                    <td class="fw-bold text-success">HMO</td>
-                                    <td class="text-end">@Model.Hmo?.Name</td>
-                                </tr>
-                                <tr>
-                                    <td class="fw-bold text-success">State</td>
-                                    <td class="text-end">@Model.State</td>
-                                </tr>
-                                <tr>
-                                    <td class="fw-bold text-success">LGA</td>
-                                    <td class="text-end">@Model.LGA</td>
-                                </tr>
-                                <tr>
-                                    <td class="fw-bold text-success">Ward</td>
-                                    <td class="text-end">@Model.Ward</td>
-                                </tr>
-                                <tr>
-                                    <td class="fw-bold text-success">Valid Until</td>
-                                    <td class="text-end text-danger fw-bold">31 DEC 2026</td>
-                                </tr>
-                            </table>
-
-                            <div class="text-center mt-4">
-                                <span class="badge bg-success fs-6 px-4 py-2">ACTIVE COVERAGE</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Footer -->
-                <div class="text-center">
-                    <p class=" small opacity-90">
-                        Universal Health Coverage • One Nigeria • One Health | For support: 0800-CTSHIP-HELP | www.ctship.gov.ng
-                    </p>
-                  
+    <div class="ct-id-card-stage">
+        <div class="ct-id-card" aria-label="CTSHIP enrollee ID card">
+            <div class="ct-id-card__header">
+                <img src="/img/coat.jpeg" alt="Nigeria coat of arms" />
+                <div>
+                    <div class="ct-id-card__country">Federal Republic of Nigeria</div>
+                    <div class="ct-id-card__program">NEDC CTSHIP Health Card</div>
                 </div>
             </div>
 
-            <!-- Action Buttons -->
-            <div class="text-center mt-4">
-                <a href="javascript:window.print()" class="btn btn-success btn-lg px-5 shadow">
-                    Print Card
-                </a>
-                <a asp-action="Index" class="btn btn-outline-secondary btn-lg px-5 ms-3">
-                    Back to List
-                </a>
+            <div class="ct-id-card__body">
+                <div class="ct-id-card__media">
+                    <img class="ct-id-card__photo"
+                         src="@(Model.PhotoPath ?? "/img/icon-192.png")"
+                         alt="@Model.FullName" />
+                    <img class="ct-id-card__qr"
+                         src="@ViewBag.QrCodeImage"
+                         alt="Verification QR code" />
+                </div>
+
+                <div class="ct-id-card__details">
+                    <div class="ct-id-card__name">@Model.FullName.ToUpperInvariant()</div>
+                    <div class="ct-id-card__number">@Model.EnrollmentNumber</div>
+
+                    <dl>
+                        <dt>DOB</dt>
+                        <dd>@Model.DateOfBirth.ToString("dd MMM yyyy")</dd>
+                        <dt>Gender</dt>
+                        <dd>@Model.Gender</dd>
+                        <dt>HMO</dt>
+                        <dd>@(Model.Hmo?.Name ?? "Not Assigned")</dd>
+                        <dt>State</dt>
+                        <dd>@Model.State</dd>
+                        <dt>LGA</dt>
+                        <dd>@Model.LGA</dd>
+                    </dl>
+
+                    <div class="ct-id-card__status">@Model.StatusDisplay</div>
+                </div>
             </div>
 
-            <div class="text-center mt-4 text-muted small">
-                This is your official CTSHIP Digital Health Card • Present at any accredited hospital nationwide
+            <div class="ct-id-card__footer">
+                Present at accredited CTSHIP facilities
             </div>
         </div>
+    </div>
+
+    <div class="text-center mt-4 d-print-none">
+        <a href="javascript:window.print()" class="btn btn-success btn-lg px-4 shadow">
+            Print Card
+        </a>
+        <a asp-action="Details" asp-route-id="@Model.Id" class="btn btn-primary btn-lg px-4 ms-2 shadow">
+            Enrollee Details
+        </a>
+        <a asp-action="Index" class="btn btn-outline-secondary btn-lg px-4 ms-2">
+            Back to List
+        </a>
     </div>
 </div>
 
 <style>
+    .ct-id-card-stage {
+        display: flex;
+        justify-content: center;
+        overflow-x: auto;
+        padding: 1rem;
+    }
+
+    .ct-id-card {
+        width: 85.6mm;
+        height: 54mm;
+        overflow: hidden;
+        color: #1f3f25;
+        background: #fff;
+        border: 1px solid #d7e5d9;
+        border-radius: 3mm;
+        box-shadow: 0 16px 36px rgba(43, 87, 47, .18);
+        font-family: Arial, sans-serif;
+    }
+
+    .ct-id-card__header {
+        display: flex;
+        align-items: center;
+        gap: 2.5mm;
+        height: 12mm;
+        padding: 1.5mm 3mm;
+        color: #fff;
+        background: linear-gradient(135deg, #2b572f, #3b703b);
+        border-bottom: 1mm solid #FE9031;
+    }
+
+    .ct-id-card__header img {
+        width: 8mm;
+        height: 8mm;
+        object-fit: contain;
+        border-radius: 50%;
+        background: #fff;
+    }
+
+    .ct-id-card__country {
+        font-size: 6pt;
+        font-weight: 700;
+        line-height: 1;
+        text-transform: uppercase;
+    }
+
+    .ct-id-card__program {
+        margin-top: .7mm;
+        color: #ffd2ad;
+        font-size: 8pt;
+        font-weight: 800;
+        line-height: 1;
+        text-transform: uppercase;
+    }
+
+    .ct-id-card__body {
+        display: grid;
+        grid-template-columns: 25mm 1fr;
+        gap: 2.5mm;
+        height: 37mm;
+        padding: 2.5mm 3mm 1.5mm;
+    }
+
+    .ct-id-card__media {
+        display: grid;
+        grid-template-columns: 14mm 9mm;
+        gap: 1.5mm;
+        align-items: start;
+    }
+
+    .ct-id-card__photo {
+        width: 14mm;
+        height: 18mm;
+        object-fit: cover;
+        border: .5mm solid #3b703b;
+        border-radius: 1.5mm;
+    }
+
+    .ct-id-card__qr {
+        width: 9mm;
+        height: 9mm;
+        object-fit: contain;
+        border: .3mm solid #d7e5d9;
+        border-radius: 1mm;
+    }
+
+    .ct-id-card__details {
+        min-width: 0;
+    }
+
+    .ct-id-card__name {
+        overflow: hidden;
+        color: #2b572f;
+        font-size: 8pt;
+        font-weight: 800;
+        line-height: 1.1;
+        text-overflow: ellipsis;
+        text-transform: uppercase;
+        white-space: nowrap;
+    }
+
+    .ct-id-card__number {
+        margin: .8mm 0 1.2mm;
+        color: #FE9031;
+        font-size: 7pt;
+        font-weight: 800;
+    }
+
+    .ct-id-card dl {
+        display: grid;
+        grid-template-columns: 13mm 1fr;
+        gap: .4mm 1mm;
+        margin: 0;
+        font-size: 5.5pt;
+        line-height: 1.15;
+    }
+
+    .ct-id-card dt {
+        color: #3b703b;
+        font-weight: 800;
+    }
+
+    .ct-id-card dd {
+        overflow: hidden;
+        margin: 0;
+        color: #26392a;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .ct-id-card__status {
+        display: inline-block;
+        margin-top: 1.5mm;
+        padding: .8mm 2mm;
+        color: #fff;
+        background: #3b703b;
+        border-radius: 8mm;
+        font-size: 5.5pt;
+        font-weight: 800;
+        text-transform: uppercase;
+    }
+
+    .ct-id-card__footer {
+        height: 5mm;
+        padding: 1.2mm 3mm;
+        color: #fff;
+        background: #2b572f;
+        font-size: 5pt;
+        font-weight: 700;
+        text-align: center;
+        text-transform: uppercase;
+    }
+
     @@media print {
+        @@page {
+            size: 85.6mm 54mm;
+            margin: 0;
+        }
+
         body * {
             visibility: hidden;
         }
 
-        .card, .card * {
+        .ct-id-card,
+        .ct-id-card * {
             visibility: visible;
         }
 
-        .card {
-            position: absolute;
-            left: 0;
-            top: 0;
-            width: 100%;
-        }
-
-        .btn, nav, footer {
-            display: none !important;
+        .ct-id-card {
+            position: fixed;
+            inset: 0;
+            box-shadow: none;
         }
     }
 </style>

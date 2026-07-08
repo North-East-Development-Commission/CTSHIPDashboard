@@ -42,6 +42,18 @@
                             </div>
 
                             <div class="col-md-6">
+                                <label asp-for="LGA" class="form-label fw-bold">Local Government Area <span class="text-danger">*</span></label>
+                                <select asp-for="LGA"
+                                        class="form-select form-select-lg"
+                                        asp-items="ViewBag.Lgas"
+                                        required
+                                        disabled="@(string.IsNullOrWhiteSpace(Model.State))">
+                                    <option value="">-- Select LGA --</option>
+                                </select>
+                                <span asp-validation-for="LGA" class="text-danger"></span>
+                            </div>
+
+                            <div class="col-md-6">
                                 <label asp-for="Level" class="form-label fw-bold">Facility Level <span class="text-danger">*</span></label>
                                 <select asp-for="Level" class="form-select form-select-lg" asp-items="ViewBag.Levels" required>
                                     <option value="">-- Select Facility Level --</option>
@@ -144,6 +156,7 @@
     <script>
         const providerNameInput = document.getElementById('Name');
         const providerStateInput = document.getElementById('State');
+        const providerLgaInput = document.getElementById('LGA');
         const previewCode = document.getElementById('previewCode');
 
         if (providerNameInput && providerStateInput && previewCode) {
@@ -171,5 +184,32 @@
             const stateCode = state.substring(0, 2).toUpperCase();
             previewCode.textContent = `${code}-${stateCode}-XXX`;
         }
+
+        async function loadProviderLgas(selectedLga) {
+            if (!providerStateInput || !providerLgaInput) return;
+
+            providerLgaInput.innerHTML = '<option value="">Loading LGAs...</option>';
+            providerLgaInput.disabled = true;
+
+            if (!providerStateInput.value) {
+                providerLgaInput.innerHTML = '<option value="">-- Select State First --</option>';
+                return;
+            }
+
+            const response = await fetch('@Url.Action("GetLgasByState", "Providers")' + `?state=${encodeURIComponent(providerStateInput.value)}`);
+            const lgas = response.ok ? await response.json() : [];
+
+            providerLgaInput.innerHTML = '<option value="">-- Select LGA --</option>';
+            lgas.forEach(lga => {
+                const option = document.createElement('option');
+                option.value = lga;
+                option.textContent = lga;
+                option.selected = selectedLga && selectedLga.toLowerCase() === lga.toLowerCase();
+                providerLgaInput.appendChild(option);
+            });
+            providerLgaInput.disabled = false;
+        }
+
+        providerStateInput?.addEventListener('change', () => loadProviderLgas(''));
     </script>
 }

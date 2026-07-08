@@ -1,24 +1,38 @@
 @model CTSHIPDashboard.Models.Encounter
 
 <div class="col-md-4">
-    <label asp-for="ServiceSetting" class="form-label text-success fw-bold">Service Setting</label>
+    <label for="serviceSetting" class="form-label text-success fw-bold">Service Setting</label>
     <select asp-for="ServiceSetting" asp-items="ViewBag.ServiceSettings"
-            class="form-select form-select-lg" id="serviceSetting" required></select>
+            class="form-select form-select-lg" id="serviceSetting"></select>
 </div>
 
 <div class="col-md-8">
-    <label asp-for="SelectedServices" class="form-label text-success fw-bold">Services Delivered</label>
-    <select asp-for="SelectedServices" class="form-select select2" id="selectedServices" multiple required>
+    <label for="selectedServices" class="form-label text-success fw-bold">Services Delivered</label>
+    <select asp-for="SelectedServices" class="form-select select2" id="selectedServices" multiple>
         <optgroup label="Outpatient Services" data-setting="Outpatient">
             @foreach (string service in ViewBag.OutpatientServices)
             {
-                <option value="@service">@service</option>
+                if (Model.SelectedServices.Contains(service, StringComparer.OrdinalIgnoreCase))
+                {
+                    <option value="@service" selected>@service</option>
+                }
+                else
+                {
+                    <option value="@service">@service</option>
+                }
             }
         </optgroup>
         <optgroup label="Inpatient Services" data-setting="Inpatient">
             @foreach (string service in ViewBag.InpatientServices)
             {
-                <option value="@service">@service</option>
+                if (Model.SelectedServices.Contains(service, StringComparer.OrdinalIgnoreCase))
+                {
+                    <option value="@service" selected>@service</option>
+                }
+                else
+                {
+                    <option value="@service">@service</option>
+                }
             }
         </optgroup>
     </select>

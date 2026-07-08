@@ -38,20 +38,20 @@
                             <p class="mb-0">Please delete those records first.</p>
                         </div>
 
-                        <a asp-action="Index" class="btn btn-secondary btn-lg px-5">Back to List</a>
+                        <a asp-action="EnrolleeDashboard" class="btn btn-secondary btn-lg px-5">Back to List</a>
                     }
                     else
                     {
                         <p class="lead text-danger fw-bold">This action cannot be undone.</p>
 
-                        <form asp-action="Delete" method="post" class="d-inline">
+                        <form asp-action="DeleteEnrollee" method="post" class="d-inline">
                             @Html.AntiForgeryToken()
                             <input type="hidden" asp-for="Id" />
                             <button type="submit" class="btn btn-danger btn-lg px-6 shadow-lg">
                                 YES, DELETE PERMANENTLY
                             </button>
                         </form>
-                        <a asp-action="Index" class="btn btn-secondary btn-lg px-5 ms-3">
+                        <a asp-action="EnrolleeDashboard" class="btn btn-secondary btn-lg px-5 ms-3">
                             Cancel
                         </a>
                     }

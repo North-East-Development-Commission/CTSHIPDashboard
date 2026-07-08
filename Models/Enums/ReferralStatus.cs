@@ -7,5 +7,6 @@ public enum ReferralStatus
     Verified = 3,
     Rejected = 4,
     Audited = 5,
-    Closed = 6
+    Closed = 6,
+    Received = 7
 }

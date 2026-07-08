@@ -179,30 +179,31 @@ public class EnrolleesController : Controller
     [Authorize(Roles = "CTSHIPAdmin,HMO")]
     public async Task<IActionResult> Create()
     {
-        ViewBag.Hmos = await _context.Hmos.Select(h => new SelectListItem
-        {
-            Value = h.Id.ToString(),
-            Text = h.Name
-        }).ToListAsync();
-        ViewBag.Provider = await _context.Providers.Select(h => new SelectListItem
-        {
-            Value = h.Id.ToString(),
-            Text = h.Name
-        }).ToListAsync();
-
-        ViewBag.States = GetNigerianStates();
-        ViewBag.LGAs = new List<SelectListItem>(); // Will be populated via AJAX
-
-        return View(new Enrollee());
+        var enrollee = new Enrollee();
+        await PopulateCreateDropdownsAsync(enrollee);
+        return View(enrollee);
     }
 
     // POST: Enrollee/Create
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Create(Enrollee enrollee, IFormFile? photo)
+    public async Task<IActionResult> Create(Enrollee enrollee)
     {
         // Remove EnrollmentNumber from validation (we generate it)
-        ModelState.Remove("EnrollmentNumber");
+        ModelState.Remove(nameof(Enrollee.EnrollmentNumber));
+
+        ApplicationUser? currentUser = await _userManager.GetUserAsync(User);
+        if (User.IsInRole("HMO"))
+        {
+            if (currentUser?.HmoId == null)
+            {
+                ModelState.AddModelError(nameof(Enrollee.HmoId), "Your account is not linked to an HMO.");
+            }
+            else
+            {
+                enrollee.HmoId = currentUser.HmoId.Value;
+            }
+        }
 
         if (!NorthEastLocationData.IsValidState(enrollee.State))
         {
@@ -213,78 +214,48 @@ public class EnrolleesController : Controller
             ModelState.AddModelError(nameof(enrollee.LGA), "Select an LGA belonging to the selected state.");
         }
 
+        if (enrollee.DateOfBirth >= DateTime.Today)
+        {
+            ModelState.AddModelError(nameof(enrollee.DateOfBirth), "Date of birth must be earlier than today.");
+        }
+
+        await ValidateEnrollmentAssignmentAsync(enrollee, "Select a facility assigned to the selected HMO.");
+
+        //check if both name and nin exists
+        bool alreadyExists = await _context.Enrollees
+            .AnyAsync(e => e.NIN == enrollee.NIN);
+        if (alreadyExists)
+        {
+            ModelState.AddModelError(nameof(Enrollee.NIN), "An enrollee with this NIN already exists.");
+        }
+
         if (ModelState.IsValid)
         {
-            // 1. Upload Photo (if provided)
+            enrollee.EnrollmentNumber = await GenerateEnrollmentNumber(enrollee.State);
+
             if (enrollee.PhotoFile != null)
             {
-                // Delete old photo
-                if (!string.IsNullOrEmpty(enrollee.PhotoPath))
+                try
                 {
-                    var oldPath = Path.Combine(_hostEnvironment.WebRootPath, enrollee.PhotoPath.TrimStart('/'));
-                    if (System.IO.File.Exists(oldPath)) System.IO.File.Delete(oldPath);
+                    enrollee.PhotoPath = await EnrolleePhotoStorage.SaveAsync(
+                        enrollee.PhotoFile,
+                        enrollee.EnrollmentNumber,
+                        null,
+                        _hostEnvironment,
+                        HttpContext.RequestAborted);
                 }
-
-                var uploadsFolder = Path.Combine(_hostEnvironment.WebRootPath, "uploads/enrollees");
-                var uniqueFileName = $"{enrollee.EnrollmentNumber}_{enrollee.PhotoFile.FileName}";
-                var filePath = Path.Combine(uploadsFolder, uniqueFileName);
-
-                using (var stream = new FileStream(filePath, FileMode.Create))
+                catch (InvalidOperationException exception)
                 {
-                    await enrollee.PhotoFile.CopyToAsync(stream);
+                    ModelState.AddModelError(nameof(Enrollee.PhotoFile), exception.Message);
+                    await PopulateCreateDropdownsAsync(enrollee);
+                    return View(enrollee);
                 }
-
-                enrollee.PhotoPath = "/uploads/enrollees/" + uniqueFileName;
             }
-
-            // 2. AUTO-GENERATE ENROLLMENT NUMBER (Nigerian Standard)
-            var lastEnrollee = await _context.Enrollees
-                .OrderByDescending(e => e.Id)
-                .FirstOrDefaultAsync();
-
-            int nextId = (lastEnrollee?.Id ?? 0) + 1;
-            var stateCode = enrollee.State switch
-            {
-                "Adamawa" => "AD",
-                "Borno" => "BN",
-                "Bauchi" => "BC",
-                "Taraba" => "TR",
-                "Yobe" => "YB",
-                "Gombe" => "GB",
-                _ => "NG"
-            };
-
-            //string stateCode = enrollee.State ?? "";
-            string year = DateTime.Now.ToString("yyyy");
-
-            enrollee.EnrollmentNumber = $"CTH-{year}-{stateCode}-{nextId:D6}";
-            var currentUser = await _userManager.GetUserAsync(User);
 
             // 3. Set other fields
             enrollee.DateRegistered = DateTime.Now;
             enrollee.Status = "Active";
-            enrollee.RegisteredBy = currentUser.Email;
-
-            //check if both name and nin exists
-            bool alreadyExists = await _context.Enrollees
-                .AnyAsync(e => e.NIN == enrollee.NIN);
-            if (alreadyExists)
-            {
-                ModelState.AddModelError("NIN", "An enrollee with this NIN already exists.");
-                ViewBag.Hmos = await _context.Hmos.Select(h => new SelectListItem
-                {
-                    Value = h.Id.ToString(),
-                    Text = h.Name
-                }).ToListAsync();
-                ViewBag.Provider = await _context.Providers.Select(h => new SelectListItem
-                {
-                    Value = h.Id.ToString(),
-                    Text = h.Name
-                }).ToListAsync();
-
-                ViewBag.States = GetNigerianStates();
-                return View(enrollee);
-            }
+            enrollee.RegisteredBy = currentUser?.Email ?? User.Identity?.Name;
 
             // 4. Save to database
             _context.Enrollees.Add(enrollee);
@@ -292,7 +263,7 @@ public class EnrolleesController : Controller
 
             TempData["Success"] = $"Enrollee registered successfully! Enrollment ID: {enrollee.EnrollmentNumber}";
             // Redirect based on Role
-            if (User.IsInRole("Hmo"))
+            if (User.IsInRole("HMO"))
             {
                 return RedirectToAction("EnrolleeDashboard", "Hmo");
             }
@@ -304,21 +275,83 @@ public class EnrolleesController : Controller
         }
 
         // If failed, repopulate dropdowns
-        ViewBag.Hmos = await _context.Hmos.Select(h => new SelectListItem
+        await PopulateCreateDropdownsAsync(enrollee);
+        return View(enrollee);
+    }
+
+    private async Task PopulateCreateDropdownsAsync(Enrollee enrollee)
+    {
+        ApplicationUser? currentUser = await _userManager.GetUserAsync(User);
+        int? restrictedHmoId = User.IsInRole("HMO") ? currentUser?.HmoId : null;
+
+        if (restrictedHmoId.HasValue)
         {
-            Value = h.Id.ToString(),
-            Text = h.Name
-        }).ToListAsync();
-        ViewBag.Provider = await _context.Providers.Select(h => new SelectListItem
+            enrollee.HmoId = restrictedHmoId.Value;
+        }
+
+        ViewBag.CanChangeHmo = !restrictedHmoId.HasValue;
+
+        IQueryable<Hmo> hmoQuery = _context.Hmos.AsNoTracking();
+        if (restrictedHmoId.HasValue)
         {
-            Value = h.Id.ToString(),
-            Text = h.Name
-        }).ToListAsync();
+            hmoQuery = hmoQuery.Where(h => h.Id == restrictedHmoId.Value);
+        }
+
+        ViewBag.Hmos = await hmoQuery
+            .OrderBy(h => h.Name)
+            .Select(h => new SelectListItem
+            {
+                Value = h.Id.ToString(),
+                Text = h.Name,
+                Selected = h.Id == enrollee.HmoId
+            })
+            .ToListAsync();
+
+        int? providerHmoId = restrictedHmoId ?? enrollee.HmoId;
+        IQueryable<Provider> providerQuery = _context.Providers.AsNoTracking()
+            .Where(p => p.IsActive || p.Id == enrollee.ProviderId);
+
+        if (providerHmoId.HasValue)
+        {
+            providerQuery = providerQuery.Where(p => p.HmoId == providerHmoId.Value);
+        }
+
+        ViewBag.Provider = await providerQuery
+            .OrderBy(p => p.Name)
+            .Select(p => new SelectListItem
+            {
+                Value = p.Id.ToString(),
+                Text = p.Name,
+                Selected = p.Id == enrollee.ProviderId
+            })
+            .ToListAsync();
 
         ViewBag.States = GetNigerianStates();
-        //ViewBag.LGAs = GetLGAsByState(enrollee.State);
+        ViewBag.LGAs = new List<SelectListItem>();
+    }
 
-        return View(enrollee);
+    private async Task ValidateEnrollmentAssignmentAsync(Enrollee enrollee, string providerErrorMessage)
+    {
+        if (!enrollee.HmoId.HasValue)
+        {
+            ModelState.AddModelError(nameof(Enrollee.HmoId), "Select an HMO.");
+        }
+        else if (!await _context.Hmos.AnyAsync(h => h.Id == enrollee.HmoId.Value))
+        {
+            ModelState.AddModelError(nameof(Enrollee.HmoId), "Select a valid HMO.");
+        }
+
+        if (!enrollee.ProviderId.HasValue)
+        {
+            ModelState.AddModelError(nameof(Enrollee.ProviderId), "Select an assigned facility.");
+        }
+        else if (!await _context.Providers.AnyAsync(p =>
+            p.Id == enrollee.ProviderId.Value
+            && p.HmoId == enrollee.HmoId
+            && p.IsActive))
+        {
+            ModelState.AddModelError(nameof(Enrollee.ProviderId), providerErrorMessage);
+        }
     }
 
     // EDIT
@@ -380,7 +413,7 @@ public class EnrolleesController : Controller
                 p.Id == enrollee.ProviderId.Value
                 && (!requestedHmoId.HasValue || p.HmoId == requestedHmoId.Value)))
         {
-            ModelState.AddModelError(nameof(Enrollee.ProviderId), "Select a provider assigned to the selected HMO.");
+            ModelState.AddModelError(nameof(Enrollee.ProviderId), "Select a facility assigned to the selected HMO.");
         }
 
         if (ModelState.IsValid)
@@ -601,7 +634,7 @@ public class EnrolleesController : Controller
         do
         {
             var seq = new Random().Next(1, 999999);
-            number = $"CTSHIP-{DateTime.Now:yyyy}-{GetStateCode}-{seq:D6}";
+            number = $"CTH-{DateTime.Now:yyyy}-{GetStateCode(state)}-{seq:D6}";
         }
         while (await _context.Enrollees.AnyAsync(e => e.EnrollmentNumber == number));
 

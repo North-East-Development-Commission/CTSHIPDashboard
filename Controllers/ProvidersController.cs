@@ -112,7 +112,7 @@ public class ProvidersController : Controller
                 State = p.State,
                 Level = p.Level,
                 IsActive = p.IsActive,
-                EnrolleeCount = p.Enrollees.Count,
+                EnrolleeCount = _context.Enrollees.Count(e => e.ProviderId == p.Id),
                 EncounterCount = p.Encounters.Count,
                 ClaimCount = p.Claims.Count,
                 TotalRevenue = p.Claims.Where(c => c.Status == "Paid").Sum(c => c.Amount),
@@ -254,7 +254,7 @@ public class ProvidersController : Controller
             }
         }
 
-        await PopulateProviderFormDropdownsAsync(provider.State, provider.Level, provider.HmoId);
+        await PopulateProviderFormDropdownsAsync(provider.State, provider.LGA, provider.Level, provider.HmoId);
         return View(provider);
     }
 
@@ -273,7 +273,7 @@ public class ProvidersController : Controller
             return Forbid();
         }
 
-        await PopulateProviderFormDropdownsAsync(provider.State, provider.Level, provider.HmoId);
+        await PopulateProviderFormDropdownsAsync(provider.State, provider.LGA, provider.Level, provider.HmoId);
         return View(provider);
     }
 
@@ -317,6 +317,7 @@ public class ProvidersController : Controller
                 existing.Latitude = provider.Latitude;
                 existing.Longitude = provider.Longitude;
                 existing.State = provider.State;
+                existing.LGA = provider.LGA;
                 existing.Phone = provider.Phone;
                 existing.Email = provider.Email;
                 existing.Level = provider.Level;
@@ -335,7 +336,7 @@ public class ProvidersController : Controller
 
         provider.Code = existing.Code;
         provider.DateRegistered = existing.DateRegistered;
-        await PopulateProviderFormDropdownsAsync(provider.State, provider.Level, provider.HmoId);
+        await PopulateProviderFormDropdownsAsync(provider.State, provider.LGA, provider.Level, provider.HmoId);
 
         return View(provider);
     }
@@ -468,6 +469,15 @@ public class ProvidersController : Controller
         {
             ModelState.AddModelError(nameof(Provider.State), "Select a valid North-East state.");
         }
+
+        provider.LGA = NorthEastLocationData.GetLgas(provider.State)
+            .FirstOrDefault(lga => string.Equals(lga, provider.LGA?.Trim(), StringComparison.OrdinalIgnoreCase))
+            ?? string.Empty;
+
+        if (!NorthEastLocationData.IsValidLga(provider.State, provider.LGA))
+        {
+            ModelState.AddModelError(nameof(Provider.LGA), "Select an LGA belonging to the selected state.");
+        }
     }
 
     private async Task ApplyAndValidateProviderHmoAsync(Provider provider, int? existingHmoId = null)
@@ -515,6 +525,7 @@ public class ProvidersController : Controller
 
     private async Task PopulateProviderFormDropdownsAsync(
         string? selectedState = null,
+        string? selectedLga = null,
         string? selectedLevel = null,
         int? selectedHmoId = null)
     {
@@ -527,6 +538,14 @@ public class ProvidersController : Controller
     };
 
         ViewBag.States = StateSelectListHelper.NorthEastStates(selectedState);
+        ViewBag.Lgas = NorthEastLocationData.GetLgas(selectedState)
+            .Select(lga => new SelectListItem
+            {
+                Value = lga,
+                Text = lga,
+                Selected = string.Equals(lga, selectedLga, StringComparison.OrdinalIgnoreCase)
+            })
+            .ToList();
         ViewBag.Levels = new SelectList(levels, "Value", "Text", selectedLevel);
 
         bool hmoLocked = IsHmoOnlyUser();
@@ -556,6 +575,18 @@ public class ProvidersController : Controller
                 Selected = selectedHmoId.HasValue && hmo.Id == selectedHmoId.Value
             })
             .ToListAsync();
+    }
+
+    [HttpGet]
+    [Authorize(Roles = "CTSHIPAdmin,Admin,HMO")]
+    public IActionResult GetLgasByState(string state)
+    {
+        if (!NorthEastLocationData.IsValidState(state))
+        {
+            return Json(Array.Empty<string>());
+        }
+
+        return Json(NorthEastLocationData.GetLgas(state));
     }
 
     private async Task<string> GenerateProviderCodeAsync(Provider provider)
@@ -661,14 +692,10 @@ public class ProvidersController : Controller
             return RedirectToAction("Index", "Home");
         }
 
-        // UNIQUE ENROLLEES
-        var uniqueEnrolleeIds = provider.Encounters?
-            .Select(e => e.EnrolleeId)
-            .Distinct()
-            .ToList() ?? new List<int>();
-
         var enrollees = await _context.Enrollees
-            .Where(e => uniqueEnrolleeIds.Contains(e.Id))
+            .AsNoTracking()
+            .Where(e => e.ProviderId == provider.Id)
+            .OrderByDescending(e => e.DateRegistered)
             .ToListAsync();
 
         // TOP DOCTORS
@@ -709,7 +736,7 @@ public class ProvidersController : Controller
             Level = provider.Level,
             State = provider.State,
 
-            TotalUniqueEnrollees = uniqueEnrolleeIds.Count,
+            TotalUniqueEnrollees = enrollees.Count,
             TotalDoctors = provider.Doctors?.Count(doctor => doctor.IsActive) ?? 0,
             TotalEncounters = provider.Encounters?.Count ?? 0,
             TotalClaims = provider.Claims?.Count ?? 0,
@@ -745,7 +772,7 @@ public class ProvidersController : Controller
         var providerId = currentUser.ProviderId.Value;
 
         var provider = await _context.Providers
-            .Include(p => p.Encounters)
+            .AsNoTracking()
             .FirstOrDefaultAsync(p => p.Id == providerId);
 
         if (provider == null)
@@ -754,15 +781,10 @@ public class ProvidersController : Controller
             return RedirectToAction("Index", "Home");
         }
 
-        // GET UNIQUE ENROLLEE IDs FROM ENCOUNTERS AT THIS PROVIDER
-        var enrolleeIds = provider.Encounters?
-            .Select(e => e.EnrolleeId)
-            .Distinct()
-            .ToList() ?? new List<int>();
-
         var query = _context.Enrollees
+            .AsNoTracking()
             .Include(e => e.Hmo)
-            .Where(e => enrolleeIds.Contains(e.Id));
+            .Where(e => e.ProviderId == providerId);
 
         // SEARCH
         if (!string.IsNullOrWhiteSpace(search))
@@ -787,6 +809,7 @@ public class ProvidersController : Controller
 
         ViewBag.ProviderName = provider.Name;
         ViewBag.ProviderCode = provider.Code;
+        ViewBag.ProviderId = provider.Id;
         ViewBag.TotalEnrollees = totalItems;
         ViewBag.Search = search;
         ViewBag.CurrentPage = page;
@@ -877,11 +900,12 @@ public class ProvidersController : Controller
         }
 
         ViewBag.Providers = await _context.Providers
-            .Where(p => p.IsActive && (User.IsInRole("CTSHIPAdmin") || p.Id == encounter.ProviderId))
+            .Where(p => p.Id == encounter.ProviderId)
             .Select(p => new SelectListItem
             {
                 Value = p.Id.ToString(),
-                Text = $"{p.Name} - {p.State}"
+                Text = $"{p.Name} - {p.State}",
+                Selected = p.Id == encounter.ProviderId
             })
             .ToListAsync();
 
@@ -892,14 +916,15 @@ public class ProvidersController : Controller
             .Select(doctor => new SelectListItem
             {
                 Value = doctor.Id.ToString(),
-                Text = doctor.FullName + " — " + doctor.Specialty
+                Text = doctor.FullName + " - " + doctor.Specialty,
+                Selected = doctor.Id == encounter.DoctorId
             })
             .ToListAsync();
 
         ViewBag.Statuses = new SelectList(new[]
         {
-        "Pending", "Completed", "Cancelled", "Referred", "Claimed"
-    });
+            "Pending", "Completed", "Cancelled", "Referred", "Claimed"
+        }, encounter.Status);
 
         return View(encounter);
     }
@@ -941,7 +966,8 @@ public class ProvidersController : Controller
                 .Select(provider => new SelectListItem
                 {
                     Value = provider.Id.ToString(),
-                    Text = provider.Name + " - " + provider.State
+                    Text = provider.Name + " - " + provider.State,
+                    Selected = provider.Id == encounter.ProviderId
                 })
                 .ToListAsync();
             ViewBag.Doctors = await _context.Doctors
@@ -951,10 +977,11 @@ public class ProvidersController : Controller
                 .Select(candidate => new SelectListItem
                 {
                     Value = candidate.Id.ToString(),
-                    Text = candidate.FullName + " — " + candidate.Specialty
+                    Text = candidate.FullName + " - " + candidate.Specialty,
+                    Selected = candidate.Id == model.DoctorId
                 })
                 .ToListAsync();
-            ViewBag.Statuses = new SelectList(new[] { "Pending", "Completed", "Cancelled", "Referred", "Claimed" });
+            ViewBag.Statuses = new SelectList(new[] { "Pending", "Completed", "Cancelled", "Referred", "Claimed" }, model.Status);
             return View(model);
         }
 

@@ -9,9 +9,9 @@ using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
 
-namespace CTHIPDashboard.Controllers
+namespace CTSHIPDashboard.Controllers
 {
-    [Authorize(Roles = "CTSHIPAdmin,Admin,HMO,Monitoring")]
+    [Authorize(Roles = "CTSHIPAdmin,Admin,HMO,Monitoring,Reviewer")]
     public class ClaimsController : Controller
     {
         private readonly ApplicationDbContext _context;
@@ -34,12 +34,6 @@ namespace CTHIPDashboard.Controllers
             int page = 1, 
             int pageSize = 20)
         {
-            // Stats
-            ViewBag.TotalClaims = await _context.Claims.CountAsync();
-            ViewBag.PendingClaims = await _context.Claims.CountAsync(c => c.Status == "Submitted" || c.Status == "Approved");
-            ViewBag.PaidClaims = await _context.Claims.CountAsync(c => c.Status == "Paid");
-            ViewBag.RejectedClaims = await _context.Claims.CountAsync(c => c.Status == "Rejected");
-
             ViewBag.Status = status;
             ViewBag.Search = search;
 
@@ -48,6 +42,13 @@ namespace CTHIPDashboard.Controllers
                .ThenInclude(e => e.Hmo!)
                .Include(c => c.Provider!)
                .AsQueryable();
+
+            query = await ScopeClaimsToCurrentUserAsync(query);
+
+            ViewBag.TotalClaims = await query.CountAsync();
+            ViewBag.PendingClaims = await query.CountAsync(c => c.Status == "Submitted" || c.Status == "Approved");
+            ViewBag.PaidClaims = await query.CountAsync(c => c.Status == "Paid");
+            ViewBag.RejectedClaims = await query.CountAsync(c => c.Status == "Rejected");
 
             // SEARCH
             if (!string.IsNullOrWhiteSpace(search))
@@ -89,88 +90,24 @@ namespace CTHIPDashboard.Controllers
                 .FirstOrDefaultAsync(c => c.Id == id);
 
             if (claim == null) return NotFound();
+            if (!await CanAccessClaimAsync(claim)) return Forbid();
             return View(claim);
         }
 
-        // CREATE GET — FIXED!
         [Authorize(Roles = "CTSHIPAdmin,Admin,HMO")]
-        public async Task<IActionResult> Create()
+        public IActionResult Create()
         {
-            // CORRECT: Must be SelectListItem, not raw Provider objects
-            ViewBag.Providers = await _context.Providers
-                .Where(p => p.IsActive)
-                .Select(p => new SelectListItem
-                {
-                    Value = p.Id.ToString(),
-                    Text = p.Name + " - " + p.State
-                })
-                .OrderBy(p => p.Text)
-                .ToListAsync();
-
-            return View();
+            TempData["Error"] = "Claims must be created by providers from completed encounters.";
+            return RedirectToClaimsLanding();
         }
 
-        // CREATE POST
         [HttpPost]
         [ValidateAntiForgeryToken]
         [Authorize(Roles = "CTSHIPAdmin,Admin,HMO")]
-        public async Task<IActionResult> Create(Claim claim)
+        public IActionResult Create(Claim claim)
         {
-            claim.ClaimNumber = "CLM-" + DateTime.Now.ToString("yyyyMMddHHmmss");
-            claim.Status = "Submitted";
-            claim.SubmittedBy = User.Identity?.Name ?? "System";
-            claim.DateSubmitted = DateTime.Now;
-            ModelState.Remove(nameof(Claim.ClaimNumber));
-            ModelState.Remove(nameof(Claim.Status));
-            ModelState.Remove(nameof(Claim.SubmittedBy));
-            ModelState.Remove(nameof(Claim.DateSubmitted));
-
-            if (ModelState.IsValid)
-            {
-                // GET ENROLLEE + HMO
-                var enrollee = await _context.Enrollees
-                    .Include(e => e.Hmo)
-                    .FirstOrDefaultAsync(e => e.Id == claim.EnrolleeId);
-
-                if (enrollee == null)
-                {
-                    TempData["Error"] = "Enrollee not found.";
-                    ViewBag.Providers = await _context.Providers
-                        .Where(p => p.IsActive)
-                        .Select(p => new SelectListItem
-                        {
-                            Value = p.Id.ToString(),
-                            Text = p.Name + " - " + p.State
-                        })
-                        .OrderBy(p => p.Text)
-                        .ToListAsync();
-
-                    return View(claim);
-                }
-
-                claim.HmoId = enrollee.HmoId;
-                claim.Hmos = enrollee.Hmo;
-
-                _context.Claims.Add(claim);
-                await _context.SaveChangesAsync();
-
-                await _hubContext.Clients.All.SendAsync("ClaimSubmitted", claim);
-                TempData["Success"] = $"Claim {claim.ClaimNumber} submitted for {enrollee.Hmo?.Name}!";
-                return RedirectToAction(nameof(Index));
-            }
-
-            // RE-POPULATE DROPDOWN ON ERROR
-            ViewBag.Providers = await _context.Providers
-                .Where(p => p.IsActive)
-                .Select(p => new SelectListItem
-                {
-                    Value = p.Id.ToString(),
-                    Text = p.Name + " - " + p.State
-                })
-                .OrderBy(p => p.Text)
-                .ToListAsync();
-
-            return View(claim);
+            TempData["Error"] = "Claims must be created by providers from completed encounters.";
+            return RedirectToClaimsLanding();
         }
 
         // SEARCH ENROLLEE BY ENROLLMENT NUMBER (AJAX)
@@ -235,7 +172,7 @@ namespace CTHIPDashboard.Controllers
         }
 
         // EDIT CLAIM (Only if status is Submitted)
-        [Authorize(Roles = "CTSHIPAdmin,Admin,HMO")]
+        [Authorize(Roles = "CTSHIPAdmin,Admin")]
         public async Task<IActionResult> Edit(int id)
         {
             var claim = await _context.Claims
@@ -263,7 +200,7 @@ namespace CTHIPDashboard.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
-        [Authorize(Roles = "CTSHIPAdmin,Admin,HMO")]
+        [Authorize(Roles = "CTSHIPAdmin,Admin")]
         public async Task<IActionResult> Edit(int id, Claim claim)
         {
             if (id != claim.Id) return NotFound();
@@ -330,50 +267,52 @@ namespace CTHIPDashboard.Controllers
             return RedirectToAction(nameof(Index));
         }
 
-       // REVIEW CLAIM(HMO Level)
-        [Authorize(Roles = "HMO,CTSHIPAdmin")]
+       // REVIEW CLAIM(HMO reviewer validation)
+        [Authorize(Roles = "Reviewer")]
         public async Task<IActionResult> Review(int id)
         {
             var claim = await _context.Claims
-                .Include(c => c.Enrollee).ThenInclude(e => e.Hmo)
+                .Include(c => c.Enrollee).ThenInclude(e => e!.Hmo)
                 .Include(c => c.Provider)
                 .FirstOrDefaultAsync(c => c.Id == id && c.Status == "Submitted");
 
             if (claim == null) return NotFound();
+            if (!await CanAccessHmoScopedClaimAsync(claim)) return Forbid();
             return View(claim);
         }
 
         [HttpPost]
-        [Authorize(Roles = "HMO,CTSHIPAdmin")]
+        [ValidateAntiForgeryToken]
+        [Authorize(Roles = "Reviewer")]
         public async Task<IActionResult> Review(int id, string action, string notes)
         {
             var claim = await _context.Claims.FindAsync(id);
             if (claim == null || claim.Status != "Submitted") return NotFound();
+            if (!await CanAccessHmoScopedClaimAsync(claim)) return Forbid();
 
             var user = await _userManager.GetUserAsync(User);
 
             if (action == "approve")
             {
                 claim.Status = "Approved";
-                claim.ReviewedBy = user?.FullName ?? user?.Email ?? "HMO";
+                claim.ReviewedBy = user?.FullName ?? user?.Email ?? "Reviewer";
                 claim.DateReviewed = DateTime.Now;
                 claim.ReviewNotes = notes;
             }
             else if (action == "reject")
             {
                 claim.Status = "Rejected";
-                claim.RejectedBy = user?.FullName ?? user?.Email ?? "HMO";
+                claim.RejectedBy = user?.FullName ?? user?.Email ?? "Reviewer";
                 claim.DateRejected = DateTime.Now;
                 claim.RejectionReason = notes;
             }
 
             await _context.SaveChangesAsync();
             TempData["Success"] = $"Claim {claim.ClaimNumber} has been {claim.Status}!";
-            return RedirectToAction(nameof(Index));
+            return RedirectToClaimsLanding();
         }
 
-        // FINAL APPROVAL & PAYMENT (Admin/Finance)
-        [Authorize(Roles = "CTSHIPAdmin,Admin")]
+        [Authorize(Roles = "Reviewer")]
         public async Task<IActionResult> Approve(int id)
         {
             var claim = await _context.Claims
@@ -382,42 +321,50 @@ namespace CTHIPDashboard.Controllers
                 .FirstOrDefaultAsync(c => c.Id == id && c.Status == "Approved");
 
             if (claim == null) return NotFound();
+            if (!await CanAccessHmoScopedClaimAsync(claim)) return Forbid();
             return View(claim);
         }
 
         [HttpPost]
-        [Authorize(Roles = "CTSHIPAdmin,Admin")]
-        public async Task<IActionResult> Approve(int id, string action, string paymentRef = "")
+        [ValidateAntiForgeryToken]
+        [Authorize(Roles = "Reviewer")]
+        public async Task<IActionResult> Approve(int id, string action, string paymentRef = "", string? notes = null)
         {
             var claim = await _context.Claims.FindAsync(id);
             if (claim == null || claim.Status != "Approved") return NotFound();
+            if (!await CanAccessHmoScopedClaimAsync(claim)) return Forbid();
 
             var user = await _userManager.GetUserAsync(User);
 
             if (action == "pay")
             {
                 claim.Status = "Paid";
-                claim.PaidBy = user?.FullName ?? user?.Email ?? "Finance";
+                claim.PaidBy = user?.FullName ?? user?.Email ?? "Reviewer";
                 claim.DatePaid = DateTime.Now;
+                claim.DateProcessed = DateTime.Now;
+                claim.ApprovalNotes = notes?.Trim();
                 claim.PaymentReference = string.IsNullOrEmpty(paymentRef)
-                    ? "NEDC-PAY-" + DateTime.Now.ToString("yyyyMMddHHmmss")
+                    ? "HMO-PAY-" + DateTime.Now.ToString("yyyyMMddHHmmss")
                     : paymentRef;
             }
             else if (action == "reject")
             {
                 claim.Status = "Rejected";
-                claim.RejectedBy = user?.FullName ?? user?.Email ?? "Finance";
+                claim.RejectedBy = user?.FullName ?? user?.Email ?? "Reviewer";
                 claim.DateRejected = DateTime.Now;
-                claim.RejectionReason = "Final rejection after review";
+                claim.DateProcessed = DateTime.Now;
+                claim.RejectionReason = string.IsNullOrWhiteSpace(notes)
+                    ? "Rejected during payment validation"
+                    : notes.Trim();
             }
 
             await _context.SaveChangesAsync();
             TempData["Success"] = $"Claim {claim.ClaimNumber} is now {claim.Status}!";
-            return RedirectToAction(nameof(Index));
+            return RedirectToClaimsLanding();
         }
 
 
-        [Authorize(Roles = "HMO")]
+        [Authorize(Roles = "HMO,Reviewer")]
         public async Task<IActionResult> Dashboard(
             string search = "",
             string status = "All",
@@ -481,6 +428,78 @@ namespace CTHIPDashboard.Controllers
             ViewBag.TotalPages = (int)Math.Ceiling(totalItems / (double)pageSize);
 
             return View(claims);
+        }
+
+        private async Task<IQueryable<Claim>> ScopeClaimsToCurrentUserAsync(IQueryable<Claim> query)
+        {
+            if (User.IsInRole("CTSHIPAdmin")
+                || User.IsInRole("Admin")
+                || User.IsInRole("Monitoring"))
+            {
+                return query;
+            }
+
+            if (IsHmoScopedClaimsUser())
+            {
+                var currentUser = await _userManager.GetUserAsync(User);
+                if (!currentUser?.HmoId.HasValue ?? true)
+                {
+                    return query.Where(claim => false);
+                }
+
+                int hmoId = currentUser!.HmoId!.Value;
+                query = query.Where(claim => claim.HmoId == hmoId);
+            }
+
+            return query;
+        }
+
+        private async Task<bool> CanAccessClaimAsync(Claim claim)
+        {
+            if (User.IsInRole("CTSHIPAdmin")
+                || User.IsInRole("Admin")
+                || User.IsInRole("Monitoring"))
+            {
+                return true;
+            }
+
+            if (IsHmoScopedClaimsUser())
+            {
+                var currentUser = await _userManager.GetUserAsync(User);
+                return currentUser?.HmoId.HasValue == true
+                    && claim.HmoId == currentUser.HmoId.Value;
+            }
+
+            return false;
+        }
+
+        private async Task<bool> CanAccessHmoScopedClaimAsync(Claim claim)
+        {
+            var currentUser = await _userManager.GetUserAsync(User);
+            return currentUser?.HmoId.HasValue == true
+                && claim.HmoId == currentUser.HmoId.Value;
+        }
+
+        private IActionResult RedirectToClaimsLanding()
+        {
+            if (User.IsInRole("CTSHIPAdmin")
+                || User.IsInRole("Admin")
+                || User.IsInRole("Monitoring"))
+            {
+                return RedirectToAction(nameof(Index));
+            }
+
+            if (IsHmoScopedClaimsUser())
+            {
+                return RedirectToAction(nameof(Dashboard));
+            }
+
+            return RedirectToAction(nameof(Index));
+        }
+
+        private bool IsHmoScopedClaimsUser()
+        {
+            return User.IsInRole("HMO") || User.IsInRole("Reviewer");
         }
     }
 }

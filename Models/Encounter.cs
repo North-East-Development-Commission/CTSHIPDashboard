@@ -55,6 +55,10 @@ namespace CTSHIPDashboard.Models
 
         [NotMapped]
         public List<string> SelectedServices { get; set; } = new();
+
+        [NotMapped]
+        public bool FeesWaived { get; set; }
+
         public int PulseRate { get; set; }
         public string? Notes { get; set; }
         public string? AttendedBy { get; set; }

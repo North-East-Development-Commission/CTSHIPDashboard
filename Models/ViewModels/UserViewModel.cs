@@ -40,6 +40,7 @@ public class CreateUserViewModel
     public Hmo? hmo { get; set; }
     public int? ProviderId { get; set; }
     public Provider? Provider { get; set; }
+    public Guid? ReferralHospitalId { get; set; }
     public List<string> AllRoles { get; set; } = new();
 
     // CHANGED FROM string TO List<string>
@@ -61,6 +62,7 @@ public class EditUserViewModel
     public Hmo? hmo { get; set; }
     public int? ProviderId { get; set; }
     public Provider? Provider { get; set; }
+    public Guid? ReferralHospitalId { get; set; }
     public List<string> CurrentRoles { get; set; } = new();
     public List<string> AllRoles { get; set; } = new();
     public List<string>? SelectedRoles { get; set; }

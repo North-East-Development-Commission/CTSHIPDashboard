@@ -1,6 +1,7 @@
 ﻿@model CTSHIPDashboard.Models.Claim
 @{
-    ViewData["Title"] = "Final Payment Approval";
+    ViewData["Title"] = "Claim Payment";
+    bool isReviewer = User.IsInRole("Reviewer");
 }
 
 <div class="container-fluid py-5">
@@ -9,14 +10,14 @@
             <div class="card border-0 shadow-lg rounded-4 overflow-hidden">
                 <!-- Header -->
                 <div class="bg-success text-white text-center py-5">
-                    <h1 class="display-5 fw-bold mb-3">FINAL PAYMENT APPROVAL</h1>
+                    <h1 class="display-5 fw-bold mb-3">CLAIM PAYMENT</h1>
                     <p class="lead mb-0 opacity-90">Claim #: <strong>@Model.ClaimNumber</strong> • Amount: ₦@Model.Amount</p>
                 </div>
 
                 <div class="card-body p-5">
                     <div class="alert alert-success border-0 shadow-sm rounded-4">
                         <i class="bi bi-check-circle-fill fs-3 me-2"></i>
-                        <strong>HMO has approved this claim</strong> — You are now authorizing final payment.
+                        <strong>Claim has been reviewed</strong> — You are now authorizing payment.
                     </div>
 
                     <!-- Claim Summary -->
@@ -72,7 +73,7 @@
                                        placeholder="e.g., GIFMIS-2025-123456 or NHIA-BULK-DEC2025" />
                             </div>
                             <div class="col-12">
-                                <label class="form-label text-success fw-bold fs-5">Final Approval Notes</label>
+                                <label class="form-label text-success fw-bold fs-5">Payment Notes</label>
                                 <textarea name="notes" class="form-control form-control-lg rounded-3" rows="4"
                                           placeholder="e.g., Claim verified and approved for immediate payment"></textarea>
                             </div>
@@ -87,9 +88,14 @@
                             <button name="action" value="reject" class="btn btn-danger btn-lg px-6 shadow-lg fw-bold ms-3">
                                 REJECT PAYMENT
                             </button>
-                            <a asp-action="Index" class="btn btn-secondary btn-lg px-6 ms-3">
-                                Cancel
-                            </a>
+                            @if (isReviewer)
+                            {
+                                <a asp-action="Dashboard" class="btn btn-secondary btn-lg px-6 ms-3">Cancel</a>
+                            }
+                            else
+                            {
+                                <a asp-action="Index" class="btn btn-secondary btn-lg px-6 ms-3">Cancel</a>
+                            }
                         </div>
                     </form>
                 </div>

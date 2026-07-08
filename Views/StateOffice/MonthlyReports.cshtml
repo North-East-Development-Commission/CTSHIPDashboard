@@ -5,6 +5,7 @@
     var availableStates = ViewBag.AvailableStates as List<string> ?? new List<string>();
     string selectedState = ViewBag.State as string ?? string.Empty;
     bool canManageReports = ViewBag.CanManageReports as bool? ?? false;
+    bool canFilterReportsByState = ViewBag.CanFilterReportsByState as bool? ?? canManageReports;
 }
 
 <div class="ct-page">
@@ -24,7 +25,7 @@
             <label class="form-label">Reporting Month</label>
             <input type="month" name="reportingPeriod" value="@ViewBag.ReportingPeriod" class="form-control" />
         </div>
-        @if (canManageReports)
+        @if (canFilterReportsByState)
         {
             <div class="col-md-3">
                 <label class="form-label">State</label>

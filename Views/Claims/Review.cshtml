@@ -68,15 +68,9 @@
                                 REJECT CLAIM
                             </button>
 
-                            @if (User.IsInRole("HMO"))
+                            @if (User.IsInRole("Reviewer") || User.IsInRole("HMO"))
                             {
                                 <a asp-action="Dashboard" class="btn btn-secondary btn-lg px-6 ms-3">
-                                    Cancel
-                                </a>
-                            }
-                            @if (User.IsInRole("CTSHIPAdmin"))
-                            {
-                                <a asp-action="Index" class="btn btn-secondary btn-lg px-6 ms-3">
                                     Cancel
                                 </a>
                             }

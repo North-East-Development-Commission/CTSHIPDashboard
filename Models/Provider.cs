@@ -1,4 +1,5 @@
 ﻿
+using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace CTSHIPDashboard.Models
@@ -13,6 +14,8 @@ namespace CTSHIPDashboard.Models
         public double? Latitude { get; set; } 
         public double? Longitude { get; set; } 
         public string State { get; set; }
+        [Display(Name = "Local Government Area")]
+        public string LGA { get; set; } = string.Empty;
         public string Phone { get; set; }
         public string Email { get; set; }
 
