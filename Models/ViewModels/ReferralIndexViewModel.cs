@@ -29,4 +29,16 @@ public class ReferralIndexViewModel
     public DateTime? VerifiedAt { get; set; }
 
     public DateTime? AuditedAt { get; set; }
+
+    public DateTime? ReferralVerificationCodeExpiresAt { get; set; }
+
+    public DateTime? ReferralVerificationCodeVerifiedAt { get; set; }
+
+    public bool HasActiveReferralVerificationCode =>
+        ReferralVerificationCodeExpiresAt.HasValue
+        && ReferralVerificationCodeExpiresAt.Value > DateTime.UtcNow;
+
+    public bool ReferralVerificationCodeExpired =>
+        ReferralVerificationCodeExpiresAt.HasValue
+        && ReferralVerificationCodeExpiresAt.Value <= DateTime.UtcNow;
 }

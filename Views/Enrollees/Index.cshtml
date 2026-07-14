@@ -102,21 +102,6 @@
                             <td>@e.DateRegistered.ToString("MMM dd, yyyy")</td>                          
                             <td> 
                                 @await Html.PartialAsync("_EnrolleeDeathStatusBadge", e.DeathStatus)
-                                @if (canManageEnrollees && e.DeathStatus != null && e.DeathStatus.IsDeceased && e.DeathStatus.DeathRegisterId.HasValue)
-                                {
-                                    <a asp-controller="ProviderDeathRegisters" asp-action="Details" asp-route-id="@e.DeathStatus.DeathRegisterId" class="btn btn-sm btn-outline-dark">View Death Record</a>
-                                }
-                                else if (canManageEnrollees)
-                                {
-                                    <a asp-controller="ProviderDeathRegisters"
-                                       asp-action="Create"
-                                       asp-route-enrolleeId="@e.Id"
-                                       asp-route-enrolleeNumber="@e.EnrollmentNumber"
-                                       asp-route-enrolleeFullName="@e.FullName"
-                                       asp-route-hmoCode="@e.HmoCode"
-                                       asp-route-hmoName="@e.HmoName"
-                                       class="btn btn-sm btn-outline-danger">Register Death</a>
-                                }
                             </td>
 
                             <td>

@@ -11,5 +11,7 @@ public enum ReferralAuditAction
     Closed = 7,
     Received = 8,
     EncounterSubmitted = 9,
-    ClaimSubmitted = 10
+    ClaimSubmitted = 10,
+    ReferralCodeIssued = 11,
+    ReferralCodeVerified = 12
 }

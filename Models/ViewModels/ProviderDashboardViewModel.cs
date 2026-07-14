@@ -11,6 +11,7 @@ namespace CTSHIPDashboard.ViewModels
         public string ProviderCode { get; set; } = string.Empty;
         public string Level { get; set; } = string.Empty;
         public string State { get; set; } = string.Empty;
+        public bool CanUseClaims { get; set; }
 
         // Stats
         public int? TotalUniqueEnrollees { get; set; }

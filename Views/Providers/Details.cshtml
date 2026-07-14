@@ -125,9 +125,6 @@
 
                     <!-- Action Buttons -->
                     <div class="text-center mt-5 pt-4 border-top">
-                        <a asp-action="WalletSummary" asp-route-id="@Model.Id" class="btn btn-primary btn-lg px-6 shadow">
-                            Wallet
-                        </a>
                         @if (canManageProviders)
                         {
                             <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-warning btn-lg px-6 shadow">

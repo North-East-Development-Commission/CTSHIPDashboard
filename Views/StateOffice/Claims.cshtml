@@ -1,4 +1,4 @@
-@model CTSHIPDashboard.Models.ViewModels.StateOfficeClaimsViewModel
+﻿@model CTSHIPDashboard.Models.ViewModels.StateOfficeClaimsViewModel
 
 @{
     ViewData["Title"] = $"{Model.StateName} Claims";
@@ -86,24 +86,6 @@
                     <i class="bi bi-receipt text-primary fs-2"></i>
                     <h6 class="text-muted mt-2">Total Claim Value</h6>
                     <h2 class="fw-bold mb-0">NGN @Model.TotalClaimValue.ToString("N0")</h2>
-                </div>
-            </div>
-        </div>
-        <div class="col-xl-3 col-md-6">
-            <div class="card border-0 shadow-sm h-100">
-                <div class="card-body">
-                    <i class="bi bi-bank text-success fs-2"></i>
-                    <h6 class="text-muted mt-2">Capitation Disbursed</h6>
-                    <h2 class="fw-bold mb-0">NGN @Model.CapitationDisbursed.ToString("N0")</h2>
-                </div>
-            </div>
-        </div>
-        <div class="col-xl-3 col-md-6">
-            <div class="card border-0 shadow-sm h-100">
-                <div class="card-body">
-                    <i class="bi bi-wallet2 text-secondary fs-2"></i>
-                    <h6 class="text-muted mt-2">Wallet Balance</h6>
-                    <h2 class="fw-bold mb-0">NGN @Model.WalletBalance.ToString("N0")</h2>
                 </div>
             </div>
         </div>

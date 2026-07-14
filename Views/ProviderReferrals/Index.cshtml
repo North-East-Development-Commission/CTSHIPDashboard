@@ -3,37 +3,41 @@
     ViewData["Title"] = "Provider Referrals";
 }
 
-<div class="d-flex justify-content-between align-items-center mb-3">
-    <div>
-        <h2 class="mb-0">Provider Referrals</h2>
-        <small class="text-muted">Manage referrals and submit them to HMOs for verification.</small>
-    </div>
-    <a asp-controller="ProviderReferrals" asp-action="Create" class="btn btn-primary">Create Referral</a>
-</div>
-
-@if (TempData["SuccessMessage"] != null)
-{
-    <div class="alert alert-success">@TempData["SuccessMessage"]</div>
-}
-@if (TempData["ErrorMessage"] != null)
-{
-    <div class="alert alert-danger">@TempData["ErrorMessage"]</div>
-}
-
-<form method="get" class="card card-body mb-3">
-    <div class="row g-2">
-        <div class="col-md-10">
-            <input name="search" value="@ViewBag.Search" class="form-control" placeholder="Search by enrollee, hospital, provider, diagnosis or HMO" />
+<div class="ct-page">
+    <div class="ct-page-header d-flex flex-wrap justify-content-between align-items-center gap-3">
+        <div>
+            <h2>Provider Referrals</h2>
+            <p class="mb-0">Manage referrals and submit them to HMOs for verification.</p>
         </div>
-        <div class="col-md-2 d-grid">
-            <button type="submit" class="btn btn-outline-primary">Search</button>
-        </div>
+        <a asp-controller="ProviderReferrals" asp-action="Create" class="btn btn-light">
+            <i class="bi bi-plus-circle"></i> Create Referral
+        </a>
     </div>
-</form>
 
-<div class="table-responsive">
-    <table class="table table-bordered table-striped align-middle">
-        <thead class="table-light">
+    @if (TempData["SuccessMessage"] != null)
+    {
+        <div class="alert alert-success">@TempData["SuccessMessage"]</div>
+    }
+    @if (TempData["ErrorMessage"] != null)
+    {
+        <div class="alert alert-danger">@TempData["ErrorMessage"]</div>
+    }
+
+    <form method="get" class="card card-body mb-3 border-0 shadow-lg">
+        <div class="row g-2">
+            <div class="col-md-10">
+                <input name="search" value="@ViewBag.Search" class="form-control" placeholder="Search by enrollee, hospital, provider, diagnosis or HMO" />
+            </div>
+            <div class="col-md-2 d-grid">
+                <button type="submit" class="btn btn-success">Search</button>
+            </div>
+        </div>
+    </form>
+
+    <div class="card border-0 shadow-lg">
+        <div class="table-responsive">
+    <table class="table table-bordered table-striped align-middle mb-0">
+        <thead>
             <tr>
                 <th>Created</th>
                 <th>Enrollee</th>
@@ -66,4 +70,6 @@
             }
         </tbody>
     </table>
+        </div>
+    </div>
 </div>

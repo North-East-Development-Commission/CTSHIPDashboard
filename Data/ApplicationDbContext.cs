@@ -33,13 +33,10 @@ namespace CTSHIPDashboard.Data
         public DbSet<DeathRegister> DeathRegisters { get; set; }
 
         public DbSet<DeathRegisterAuditLog> DeathRegisterAuditLogs { get; set; }
-        public DbSet<EnrolleeWallet> EnrolleeWallets { get; set; }
-        public DbSet<WalletTransaction> WalletTransactions { get; set; }
-        public DbSet<ProviderWallet> ProviderWallets { get; set; }
-        public DbSet<ProviderWalletTransaction> ProviderWalletTransactions { get; set; }
         public DbSet<StateOfficeMonthlyReport> StateOfficeMonthlyReports { get; set; }
         public DbSet<ProgramMonitoringTarget> ProgramMonitoringTargets { get; set; }
         public DbSet<EncounterService> EncounterServices { get; set; }
+        public DbSet<CapitationPayment> CapitationPayments { get; set; }
 
         private static void ConfigureDeathRegisterEntities(ModelBuilder builder)
         {
@@ -72,6 +69,11 @@ namespace CTSHIPDashboard.Data
                 entity.Property(x => x.VerifiedByUserId).HasMaxLength(450);
                 entity.Property(x => x.VerifiedByName).HasMaxLength(200);
                 entity.Property(x => x.HmoVerificationNote).HasMaxLength(1000);
+                entity.Property(x => x.ReferralVerificationCode).HasMaxLength(30);
+                entity.Property(x => x.ReferralVerificationCodeIssuedByUserId).HasMaxLength(450);
+                entity.Property(x => x.ReferralVerificationCodeIssuedByName).HasMaxLength(200);
+                entity.Property(x => x.ReferralVerificationCodeVerifiedByUserId).HasMaxLength(450);
+                entity.Property(x => x.ReferralVerificationCodeVerifiedByName).HasMaxLength(200);
                 entity.Property(x => x.AuditedByUserId).HasMaxLength(450);
                 entity.Property(x => x.AuditedByName).HasMaxLength(200);
                 entity.Property(x => x.AuditNote).HasMaxLength(1000);
@@ -88,52 +90,6 @@ namespace CTSHIPDashboard.Data
                     .WithOne(x => x.DeathRegister)
                     .HasForeignKey(x => x.DeathRegisterId)
                     .OnDelete(DeleteBehavior.Cascade);
-            });
-
-            // Wallet entities
-            builder.Entity<EnrolleeWallet>(entity =>
-            {
-                entity.ToTable("EnrolleeWallets");
-                entity.HasKey(x => x.Id);
-                entity.Property(x => x.Balance).HasColumnType("decimal(18,2)");
-                entity.Property(x => x.MonthlyAllocation).HasColumnType("decimal(18,2)");
-                entity.HasIndex(x => x.EnrolleeId);
-                entity.HasMany(x => x.Transactions).WithOne(t => t.EnrolleeWallet).HasForeignKey(t => t.EnrolleeWalletId).OnDelete(DeleteBehavior.Cascade);
-            });
-
-            builder.Entity<WalletTransaction>(entity =>
-            {
-                entity.ToTable("WalletTransactions");
-                entity.HasKey(x => x.Id);
-                entity.Property(x => x.Amount).HasColumnType("decimal(18,2)");
-                entity.Property(x => x.Type).HasMaxLength(100);
-                entity.HasIndex(x => x.EnrolleeWalletId);
-            });
-
-            builder.Entity<ProviderWallet>(entity =>
-            {
-                entity.ToTable("ProviderWallets");
-                entity.HasKey(x => x.Id);
-                entity.Property(x => x.Balance).HasColumnType("decimal(18,2)");
-                entity.Property(x => x.TotalDisbursed).HasColumnType("decimal(18,2)");
-                entity.HasIndex(x => x.ProviderId).IsUnique();
-                entity.HasOne(x => x.Provider)
-                    .WithOne(x => x.Wallet)
-                    .HasForeignKey<ProviderWallet>(x => x.ProviderId)
-                    .OnDelete(DeleteBehavior.Restrict);
-                entity.HasMany(x => x.Transactions)
-                    .WithOne(x => x.ProviderWallet)
-                    .HasForeignKey(x => x.ProviderWalletId)
-                    .OnDelete(DeleteBehavior.Cascade);
-            });
-
-            builder.Entity<ProviderWalletTransaction>(entity =>
-            {
-                entity.ToTable("ProviderWalletTransactions");
-                entity.HasKey(x => x.Id);
-                entity.Property(x => x.Amount).HasColumnType("decimal(18,2)");
-                entity.Property(x => x.Type).HasMaxLength(100);
-                entity.HasIndex(x => x.ProviderWalletId);
             });
 
             builder.Entity<DeathRegisterAuditLog>(entity =>
@@ -202,6 +158,9 @@ namespace CTSHIPDashboard.Data
                 entity.HasIndex(x => x.FromProviderId);
                 entity.HasIndex(x => x.Status);
                 entity.HasIndex(x => x.CreatedAt);
+                entity.HasIndex(x => x.ReferralVerificationCode)
+                    .IsUnique()
+                    .HasFilter("[ReferralVerificationCode] IS NOT NULL");
             });
 
             builder.Entity<ReferralAuditLog>(entity =>
@@ -278,6 +237,29 @@ namespace CTSHIPDashboard.Data
                     .WithMany(x => x.Services)
                     .HasForeignKey(x => x.EncounterId)
                     .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            modelBuilder.Entity<CapitationPayment>(entity =>
+            {
+                entity.ToTable("CapitationPayments");
+                entity.HasKey(x => x.Id);
+                entity.Property(x => x.ReportingMonth).HasColumnType("date");
+                entity.Property(x => x.CapitationPerEnrollee).HasColumnType("decimal(18,2)");
+                entity.Property(x => x.UtilizationRate).HasColumnType("decimal(18,2)");
+                entity.Property(x => x.PaymentStatus).IsRequired().HasMaxLength(50).HasDefaultValue("Pending");
+                entity.Property(x => x.PaymentReference).HasMaxLength(100);
+                entity.Property(x => x.ProofOfPaymentPath).HasMaxLength(500);
+                entity.HasIndex(x => x.HmoId);
+                entity.HasIndex(x => x.ProviderId);
+                entity.HasIndex(x => new { x.HmoId, x.ProviderId, x.ReportingMonth }).IsUnique();
+                entity.HasOne(x => x.Hmo)
+                    .WithMany()
+                    .HasForeignKey(x => x.HmoId)
+                    .OnDelete(DeleteBehavior.Restrict);
+                entity.HasOne(x => x.Provider)
+                    .WithMany()
+                    .HasForeignKey(x => x.ProviderId)
+                    .OnDelete(DeleteBehavior.Restrict);
             });
 
             modelBuilder.Entity<Encounter>()

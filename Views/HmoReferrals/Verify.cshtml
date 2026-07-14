@@ -4,46 +4,58 @@
     CTSHIPDashboard.ViewModels.ReferralDetailsViewModel referral = ViewBag.Referral;
 }
 
-<h2>Verify Referral</h2>
-<p class="text-muted">Approve or reject referral submitted by provider.</p>
-
-<div class="card mb-3">
-    <div class="card-body">
-        <strong>@referral.EnrolleeFullName</strong> (@referral.EnrolleeNumber)<br />
-        From: @referral.FromProviderName<br />
-        To: @referral.ReferredHospitalName<br />
-        Diagnosis: @referral.Diagnosis
+<div class="ct-page">
+    <div class="ct-page-header">
+        <h2>Verify Referral</h2>
+        <p class="mb-0">Approve or reject referral submitted by provider.</p>
     </div>
+    <div class="alert alert-info">
+        Approving this referral will generate a unique referral verification code valid for 7 days.
+    </div>
+
+    <div class="card mb-3 border-0 shadow-lg">
+        <div class="card-header bg-success text-white">
+            <strong>Referral Summary</strong>
+        </div>
+        <div class="card-body">
+            <strong>@referral.EnrolleeFullName</strong> (@referral.EnrolleeNumber)<br />
+            From: @referral.FromProviderName<br />
+            To: @referral.ReferredHospitalName<br />
+            Diagnosis: @referral.Diagnosis
+        </div>
+    </div>
+
+    <form asp-controller="HmoReferrals" asp-action="Verify" asp-route-id="@Model.ReferralId" method="post" class="card border-0 shadow-lg">
+        @Html.AntiForgeryToken()
+        <input asp-for="ReferralId" type="hidden" />
+        <div class="card-body p-4">
+            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+            <div class="mb-3">
+                <label class="form-label fw-bold">Decision</label>
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" asp-for="IsApproved" value="true" id="approve" />
+                    <label class="form-check-label" for="approve">Approve referral</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" asp-for="IsApproved" value="false" id="reject" />
+                    <label class="form-check-label" for="reject">Reject referral</label>
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="VerificationNote" class="form-label fw-bold"></label>
+                <textarea asp-for="VerificationNote" class="form-control" rows="4"></textarea>
+                <span asp-validation-for="VerificationNote" class="text-danger"></span>
+            </div>
+        </div>
+
+        <div class="card-footer bg-white d-flex flex-wrap gap-2 justify-content-end">
+            <a asp-controller="HmoReferrals" asp-action="Details" asp-route-id="@Model.ReferralId" class="btn btn-outline-secondary">Cancel</a>
+            <button type="submit" class="btn btn-success">Submit Verification</button>
+        </div>
+    </form>
 </div>
-
-<form asp-controller="HmoReferrals" asp-action="Verify" asp-route-id="@Model.ReferralId" method="post" class="card card-body">
-    @Html.AntiForgeryToken()
-    <input asp-for="ReferralId" type="hidden" />
-    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
-
-    <div class="mb-3">
-        <label class="form-label">Decision</label>
-        <div class="form-check">
-            <input class="form-check-input" type="radio" asp-for="IsApproved" value="true" id="approve" />
-            <label class="form-check-label" for="approve">Approve referral</label>
-        </div>
-        <div class="form-check">
-            <input class="form-check-input" type="radio" asp-for="IsApproved" value="false" id="reject" />
-            <label class="form-check-label" for="reject">Reject referral</label>
-        </div>
-    </div>
-
-    <div class="mb-3">
-        <label asp-for="VerificationNote" class="form-label"></label>
-        <textarea asp-for="VerificationNote" class="form-control" rows="4"></textarea>
-        <span asp-validation-for="VerificationNote" class="text-danger"></span>
-    </div>
-
-    <div class="d-flex gap-2">
-        <button type="submit" class="btn btn-primary">Submit Verification</button>
-        <a asp-controller="HmoReferrals" asp-action="Details" asp-route-id="@Model.ReferralId" class="btn btn-light">Cancel</a>
-    </div>
-</form>
 
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />

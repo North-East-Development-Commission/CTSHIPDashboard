@@ -115,8 +115,6 @@ namespace CTSHIPDashboard.Services
             IQueryable<Provider> providerQuery = _context.Providers.AsNoTracking().Where(x => x.IsActive);
             IQueryable<Encounter> encounterQuery = _context.Encounters.AsNoTracking();
             IQueryable<Claim> claimQuery = _context.Claims.AsNoTracking();
-            IQueryable<EnrolleeWallet> walletQuery = _context.EnrolleeWallets.AsNoTracking();
-            IQueryable<WalletTransaction> transactionQuery = _context.WalletTransactions.AsNoTracking();
             IQueryable<DeathRegister> deathQuery = _context.DeathRegisters
                 .AsNoTracking()
                 .Where(x => !x.IsDeleted
@@ -151,11 +149,6 @@ namespace CTSHIPDashboard.Services
 
                 encounterQuery = encounterQuery.Where(x => x.Enrollee != null && x.Enrollee.State == scope);
                 claimQuery = claimQuery.Where(x => x.Enrollee != null && x.Enrollee.State == scope);
-                walletQuery = walletQuery.Where(x => x.Enrollee != null && x.Enrollee.State == scope);
-                transactionQuery = transactionQuery.Where(
-                    x => x.EnrolleeWallet != null
-                        && x.EnrolleeWallet.Enrollee != null
-                        && x.EnrolleeWallet.Enrollee.State == scope);
                 complaintQuery = complaintQuery.Where(x => x.State == scope);
 
                 if (!string.IsNullOrWhiteSpace(selectedLga))
@@ -165,12 +158,6 @@ namespace CTSHIPDashboard.Services
                         x.Enrollee != null && x.Enrollee.LGA == selectedLgaValue);
                     claimQuery = claimQuery.Where(x =>
                         x.Enrollee != null && x.Enrollee.LGA == selectedLgaValue);
-                    walletQuery = walletQuery.Where(x =>
-                        x.Enrollee != null && x.Enrollee.LGA == selectedLgaValue);
-                    transactionQuery = transactionQuery.Where(
-                        x => x.EnrolleeWallet != null
-                            && x.EnrolleeWallet.Enrollee != null
-                            && x.EnrolleeWallet.Enrollee.LGA == selectedLgaValue);
                     complaintQuery = complaintQuery.Where(x =>
                         x.Enrollee != null && x.Enrollee.LGA == selectedLgaValue);
                 }
@@ -200,12 +187,6 @@ namespace CTSHIPDashboard.Services
             int rejectedClaims = claims.Count(x =>
                 string.Equals(x.Status, "Rejected", StringComparison.OrdinalIgnoreCase));
             int totalEncounters = await encounterQuery.CountAsync(cancellationToken);
-            decimal capitation = await transactionQuery
-                .Where(x => x.Type == "Disburse" && x.Amount > 0)
-                .SumAsync(x => (decimal?)x.Amount, cancellationToken) ?? 0m;
-            decimal deductions = -(await transactionQuery
-                .Where(x => x.Type == "Deduction" && x.Amount < 0)
-                .SumAsync(x => (decimal?)x.Amount, cancellationToken) ?? 0m);
             List<Referral> referrals = await referralQuery.ToListAsync(cancellationToken);
             int completedReferrals = referrals.Count(IsCompletedReferral);
             int rejectedReferrals = referrals.Count(x => x.Status == ReferralStatus.Rejected);
@@ -278,9 +259,6 @@ namespace CTSHIPDashboard.Services
                 PaidClaimValue = claims
                     .Where(x => string.Equals(x.Status, "Paid", StringComparison.OrdinalIgnoreCase))
                     .Sum(x => x.Amount),
-                CapitationDisbursed = capitation,
-                WalletBalance = await walletQuery.SumAsync(x => (decimal?)x.Balance, cancellationToken) ?? 0m,
-                EncounterDeductions = deductions,
                 AuditedDeaths = await deathQuery.CountAsync(cancellationToken),
                 DeathRatePerThousand = RatePerThousand(
                     await deathQuery.CountAsync(cancellationToken),
@@ -349,14 +327,6 @@ namespace CTSHIPDashboard.Services
                 IQueryable<Claim> claimQuery = _context.Claims
                     .AsNoTracking()
                     .Where(x => x.Enrollee != null && x.Enrollee.State == state);
-                IQueryable<WalletTransaction> transactionQuery = _context.WalletTransactions
-                    .AsNoTracking()
-                    .Where(x => x.EnrolleeWallet != null
-                        && x.EnrolleeWallet.Enrollee != null
-                        && x.EnrolleeWallet.Enrollee.State == state);
-                IQueryable<EnrolleeWallet> walletQuery = _context.EnrolleeWallets
-                    .AsNoTracking()
-                    .Where(x => x.Enrollee != null && x.Enrollee.State == state);
                 IQueryable<Complaint> complaintQuery = _context.Complaints
                     .AsNoTracking()
                     .Where(x => x.State == state);
@@ -370,12 +340,6 @@ namespace CTSHIPDashboard.Services
                     encounterQuery = encounterQuery.Where(x =>
                         x.Enrollee != null && x.Enrollee.LGA == selectedLgaValue);
                     claimQuery = claimQuery.Where(x =>
-                        x.Enrollee != null && x.Enrollee.LGA == selectedLgaValue);
-                    transactionQuery = transactionQuery.Where(x =>
-                        x.EnrolleeWallet != null
-                        && x.EnrolleeWallet.Enrollee != null
-                        && x.EnrolleeWallet.Enrollee.LGA == selectedLgaValue);
-                    walletQuery = walletQuery.Where(x =>
                         x.Enrollee != null && x.Enrollee.LGA == selectedLgaValue);
                     complaintQuery = complaintQuery.Where(x =>
                         x.Enrollee != null && x.Enrollee.LGA == selectedLgaValue);
@@ -392,13 +356,6 @@ namespace CTSHIPDashboard.Services
                 row.PaidClaimValue = stateClaims
                     .Where(x => string.Equals(x.Status, "Paid", StringComparison.OrdinalIgnoreCase))
                     .Sum(x => x.Amount);
-                row.CapitationDisbursed = await transactionQuery
-                    .Where(x => x.Type == "Disburse"
-                        && x.Amount > 0)
-                    .SumAsync(x => (decimal?)x.Amount, cancellationToken) ?? 0m;
-                row.WalletBalance = await walletQuery
-                    .SumAsync(x => (decimal?)x.Balance, cancellationToken) ?? 0m;
-
                 List<string> providerCodes = await providerQuery
                     .Select(x => x.Code)
                     .ToListAsync(cancellationToken);

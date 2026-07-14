@@ -62,13 +62,7 @@ END;
             SELECT COUNT(*)
             FROM dbo.Encounters AS encounter
             WHERE encounter.EnrolleeId = enrollee.Id
-        ) AS EncounterCount,
-        CASE WHEN EXISTS
-        (
-            SELECT 1
-            FROM dbo.EnrolleeWallets AS wallet
-            WHERE wallet.EnrolleeId = enrollee.Id
-        ) THEN 1 ELSE 0 END AS HasWallet
+        ) AS EncounterCount
     FROM dbo.Enrollees AS enrollee
 ),
 RankedEnrollees AS
@@ -81,7 +75,6 @@ RankedEnrollees AS
                 HasClaim DESC,
                 ClaimCount DESC,
                 EncounterCount DESC,
-                HasWallet DESC,
                 DateRegistered ASC,
                 Id ASC
         ) AS RowNumber
@@ -174,24 +167,6 @@ BEGIN
         FROM dbo.MedicalHistories AS history
         INNER JOIN #ExcessEnrollees AS excess
             ON excess.Id = history.EnrolleeId;
-    END;
-
-    IF OBJECT_ID('dbo.WalletTransactions', 'U') IS NOT NULL
-    BEGIN
-        DELETE walletTransaction
-        FROM dbo.WalletTransactions AS walletTransaction
-        INNER JOIN dbo.EnrolleeWallets AS wallet
-            ON wallet.Id = walletTransaction.EnrolleeWalletId
-        INNER JOIN #ExcessEnrollees AS excess
-            ON excess.Id = wallet.EnrolleeId;
-    END;
-
-    IF OBJECT_ID('dbo.EnrolleeWallets', 'U') IS NOT NULL
-    BEGIN
-        DELETE wallet
-        FROM dbo.EnrolleeWallets AS wallet
-        INNER JOIN #ExcessEnrollees AS excess
-            ON excess.Id = wallet.EnrolleeId;
     END;
 
     DELETE enrollee

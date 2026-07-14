@@ -52,6 +52,28 @@ public class ReferralDetailsViewModel
 
     public string? HmoVerificationNote { get; set; }
 
+    public string? ReferralVerificationCode { get; set; }
+
+    public DateTime? ReferralVerificationCodeIssuedAt { get; set; }
+
+    public DateTime? ReferralVerificationCodeExpiresAt { get; set; }
+
+    public string? ReferralVerificationCodeIssuedByName { get; set; }
+
+    public DateTime? ReferralVerificationCodeVerifiedAt { get; set; }
+
+    public string? ReferralVerificationCodeVerifiedByName { get; set; }
+
+    public bool HasActiveReferralVerificationCode =>
+        !string.IsNullOrWhiteSpace(ReferralVerificationCode)
+        && ReferralVerificationCodeExpiresAt.HasValue
+        && ReferralVerificationCodeExpiresAt.Value > DateTime.UtcNow;
+
+    public bool ReferralVerificationCodeExpired =>
+        !string.IsNullOrWhiteSpace(ReferralVerificationCode)
+        && ReferralVerificationCodeExpiresAt.HasValue
+        && ReferralVerificationCodeExpiresAt.Value <= DateTime.UtcNow;
+
     public string? AuditedByName { get; set; }
 
     public DateTime? AuditedAt { get; set; }

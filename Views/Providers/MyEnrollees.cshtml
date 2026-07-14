@@ -90,22 +90,6 @@
                                         @await Html.PartialAsync("_EnrolleeDeathStatusBadge", e.DeathStatus)
                                     </td>
                                     <td>
-                                        @if (e.DeathStatus != null && e.DeathStatus.IsDeceased && e.DeathStatus.DeathRegisterId.HasValue)
-                                        {
-                                            <a asp-controller="ProviderDeathRegisters" asp-action="Details" asp-route-id="@e.DeathStatus.DeathRegisterId" class="btn btn-sm btn-outline-dark">View Death Record</a>
-                                        }
-                                        else
-                                        {
-                                            <a asp-controller="ProviderDeathRegisters"
-                                               asp-action="Create"
-                                               asp-route-enrolleeId="@e.Id"
-                                               asp-route-enrolleeNumber="@e.EnrollmentNumber"
-                                               asp-route-enrolleeFullName="@e.FullName"
-                                               asp-route-hmoCode="@e.Hmo?.RegistrationNumber"
-                                               asp-route-hmoName="@e.Hmo?.Name"
-                                               class="btn btn-sm btn-outline-danger">Register Death</a>
-                                        }
-                                   
                                         <a asp-action="EnDetails" asp-route-id="@e.Id"
                                            class="btn btn-info btn-sm rounded-pill px-4">View Profile</a>
                                     </td>

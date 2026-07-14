@@ -10,8 +10,8 @@
         </h1>
         <p class="lead text-success fw-bold">HMO Performance Dashboard</p>
         <p class="text-muted">Real-time data as at @DateTime.Now</p>
-        <a asp-action="DisburseMonthly" class="btn btn-success btn-lg mt-2 shadow">
-            <i class="bi bi-wallet2 me-2"></i>Bulk Fund Disbursement
+        <a asp-action="Capitation" class="btn btn-success btn-lg mt-2">
+            <i class="bi bi-cash-stack me-1"></i> Capitation
         </a>
     </div>
 
@@ -55,25 +55,15 @@
         </div>
     </div>
 
-    <!-- Additional KPIs: Deaths & Wallets -->
+    <!-- Additional KPIs -->
     <div class="row g-4 mb-5 text-center">
-        <div class="col-md-6">
+        <div class="col-md-12">
             <div class="card border-0 shadow-lg h-100">
                 <div class="card-body py-4">
                     <i class="bi bi-heartbreak fs-1 mb-3 text-danger"></i>
                     <h5 class="fw-bold">Recorded Deaths (Audited)</h5>
                     <h2 class="display-5 fw-bold">@ViewBag.DeathCount</h2>
                     <p class="mb-0 opacity-75">Rate: @ViewBag.DeathRatePerThousand per 1,000 enrollees</p>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-6">
-            <div class="card border-0 shadow-lg h-100">
-                <div class="card-body py-4">
-                    <i class="bi bi-wallet2 fs-1 mb-3 text-success"></i>
-                    <h5 class="fw-bold">Enrollees Wallets</h5>
-                    <h2 class="display-5 fw-bold">₦@((int)ViewBag.TotalWalletBalance)</h2>
-                    <p class="mb-0 opacity-75">Average balance: ₦@((int)ViewBag.AverageWalletBalance)</p>
                 </div>
             </div>
         </div>

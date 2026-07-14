@@ -3,37 +3,37 @@
     ViewData["Title"] = "HMO Referral Verification";
 }
 
-<div class="text-center mb-5">
-    <h1 class="display-4 fw-bold text-primary mb-3">
-        HMO Referral Verification
-    </h1>
-    <p class="lead text-success fw-bold">Verify and audit referrals submitted by providers.</p>
-</div>
-
-
-@if (TempData["SuccessMessage"] != null)
-{
-    <div class="alert alert-success">@TempData["SuccessMessage"]</div>
-}
-@if (TempData["ErrorMessage"] != null)
-{
-    <div class="alert alert-danger">@TempData["ErrorMessage"]</div>
-}
-
-<form method="get" class="card card-body mb-3">
-    <div class="row g-2">
-        <div class="col-md-10">
-            <input name="search" value="@ViewBag.Search" class="form-control" placeholder="Search by enrollee, hospital, provider, diagnosis or HMO" />
-        </div>
-        <div class="col-md-2 d-grid">
-            <button type="submit" class="btn btn-outline-primary">Search</button>
-        </div>
+<div class="ct-page">
+    <div class="ct-page-header text-center">
+        <h1>HMO Referral Verification</h1>
+        <p class="lead mb-0">Verify and audit referrals submitted by providers.</p>
     </div>
-</form>
 
-<div class="table-responsive">
-    <table class="table table-bordered table-striped align-middle">
-        <thead class="table-light">
+
+    @if (TempData["SuccessMessage"] != null)
+    {
+        <div class="alert alert-success">@TempData["SuccessMessage"]</div>
+    }
+    @if (TempData["ErrorMessage"] != null)
+    {
+        <div class="alert alert-danger">@TempData["ErrorMessage"]</div>
+    }
+
+    <form method="get" class="card card-body mb-3 border-0 shadow-lg">
+        <div class="row g-2">
+            <div class="col-md-10">
+                <input name="search" value="@ViewBag.Search" class="form-control" placeholder="Search by enrollee, hospital, provider, diagnosis or HMO" />
+            </div>
+            <div class="col-md-2 d-grid">
+                <button type="submit" class="btn btn-success">Search</button>
+            </div>
+        </div>
+    </form>
+
+    <div class="card border-0 shadow-lg">
+        <div class="table-responsive">
+    <table class="table table-bordered table-striped align-middle mb-0">
+        <thead>
             <tr>
                 <th>Submitted</th>
                 <th>Enrollee</th>
@@ -66,4 +66,6 @@
             }
         </tbody>
     </table>
+        </div>
+    </div>
 </div>

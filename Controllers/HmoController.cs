@@ -14,10 +14,12 @@ using OfficeOpenXml;
 using OfficeOpenXml.Style;
 using QRCoder;
 using System.Drawing;
+using System.Globalization;
 
 public class HmoController : Controller
 {
     private const string HmoCrudRoles = "CTSHIPAdmin,Admin";
+    private static readonly string[] CapitationProofFileExtensions = { ".pdf", ".jpg", ".jpeg", ".png" };
 
     private readonly ApplicationDbContext _context;
     private readonly UserManager<ApplicationUser> _userManager;
@@ -65,260 +67,6 @@ public class HmoController : Controller
         }
     }
 
-
-    [Authorize(Roles = "HMO,CTSHIPAdmin")]
-    public async Task<IActionResult> DisburseMonthly()
-    {
-        var currentUser = await _userManager.GetUserAsync(User);
-        if (currentUser?.HmoId == null)
-        {
-            TempData["Error"] = "Your account is not linked to an HMO.";
-            return RedirectToAction("Index", "Home");
-        }
-
-        HmoBulkDisbursementViewModel model = await BuildDisbursementViewModelAsync(
-            currentUser.HmoId.Value,
-            new HmoBulkDisbursementViewModel());
-
-        return View(model);
-    }
-
-    [HttpPost]
-    [ValidateAntiForgeryToken]
-    [Authorize(Roles = "HMO,CTSHIPAdmin")]
-    public async Task<IActionResult> DisburseMonthly(HmoBulkDisbursementViewModel model)
-    {
-        var currentUser = await _userManager.GetUserAsync(User);
-        if (currentUser?.HmoId == null)
-        {
-            TempData["Error"] = "Your account is not linked to an HMO.";
-            return RedirectToAction("Index", "Home");
-        }
-
-        int hmoId = currentUser.HmoId.Value;
-        model = await BuildDisbursementViewModelAsync(hmoId, model);
-
-        HmoDisbursementStatusOptionViewModel? selectedStatus = model.StatusOptions
-            .FirstOrDefault(option => string.Equals(option.Value, model.Status?.Trim(), StringComparison.OrdinalIgnoreCase));
-        string? selectedCategory = model.CategoryOptions
-            .FirstOrDefault(category => string.Equals(category, model.Category?.Trim(), StringComparison.OrdinalIgnoreCase));
-
-        if (selectedStatus == null)
-        {
-            ModelState.AddModelError(nameof(model.Status), "Select a valid enrollee status.");
-        }
-        else
-        {
-            model.Status = selectedStatus.Value;
-        }
-
-        if (selectedCategory == null)
-        {
-            ModelState.AddModelError(nameof(model.Category), "Select a valid disbursement category.");
-        }
-        else
-        {
-            model.Category = selectedCategory;
-        }
-
-        if (!ModelState.IsValid)
-        {
-            return View(model);
-        }
-
-        IQueryable<Enrollee> eligibleQuery = _context.Enrollees
-            .Where(enrollee => enrollee.HmoId == hmoId);
-
-        if (!string.Equals(model.Status, "All", StringComparison.OrdinalIgnoreCase))
-        {
-            eligibleQuery = eligibleQuery.Where(enrollee => enrollee.Status == model.Status);
-        }
-
-        var eligibleEnrollees = await eligibleQuery
-            .Select(enrollee => new
-            {
-                enrollee.Id,
-                enrollee.ProviderId
-            })
-            .ToListAsync();
-        List<int> enrolleeIds = eligibleEnrollees
-            .Select(enrollee => enrollee.Id)
-            .ToList();
-
-        if (enrolleeIds.Count == 0)
-        {
-            ModelState.AddModelError(nameof(model.Status), $"There are no {model.Status.ToLowerInvariant()} enrollees eligible for this disbursement.");
-            return View(model);
-        }
-
-        DateTime disbursedAt = DateTime.UtcNow;
-        List<EnrolleeWallet> existingWallets = await _context.EnrolleeWallets
-            .Where(wallet => enrolleeIds.Contains(wallet.EnrolleeId))
-            .ToListAsync();
-
-        Dictionary<int, EnrolleeWallet> walletsByEnrollee = existingWallets
-            .GroupBy(wallet => wallet.EnrolleeId)
-            .ToDictionary(group => group.Key, group => group.OrderBy(wallet => wallet.Id).First());
-        bool isMonthlyAllocation = string.Equals(
-            model.Category,
-            "Monthly Allocation",
-            StringComparison.OrdinalIgnoreCase);
-
-        foreach (int enrolleeId in enrolleeIds)
-        {
-            if (!walletsByEnrollee.TryGetValue(enrolleeId, out EnrolleeWallet? wallet))
-            {
-                wallet = new EnrolleeWallet
-                {
-                    EnrolleeId = enrolleeId,
-                    Balance = model.AmountPerEnrollee,
-                    MonthlyAllocation = isMonthlyAllocation ? model.AmountPerEnrollee : 0m,
-                    LastDisbursedAt = disbursedAt
-                };
-                _context.EnrolleeWallets.Add(wallet);
-                walletsByEnrollee[enrolleeId] = wallet;
-            }
-            else
-            {
-                wallet.Balance += model.AmountPerEnrollee;
-                if (isMonthlyAllocation)
-                {
-                    wallet.MonthlyAllocation = model.AmountPerEnrollee;
-                }
-
-                wallet.LastDisbursedAt = disbursedAt;
-            }
-        }
-
-        await using var databaseTransaction = await _context.Database.BeginTransactionAsync();
-        try
-        {
-            await _context.SaveChangesAsync();
-
-            var providerCredits = eligibleEnrollees
-                .Where(enrollee => enrollee.ProviderId.HasValue)
-                .GroupBy(enrollee => enrollee.ProviderId!.Value)
-                .Select(group => new
-                {
-                    ProviderId = group.Key,
-                    Amount = model.AmountPerEnrollee * group.Count()
-                })
-                .ToList();
-
-            string statusLabel = string.Equals(model.Status, "All", StringComparison.OrdinalIgnoreCase)
-                ? "All Statuses"
-                : model.Status;
-
-            foreach (var providerCredit in providerCredits)
-            {
-                await ProviderWalletHelper.CreditAsync(
-                    _context,
-                    providerCredit.ProviderId,
-                    providerCredit.Amount,
-                    $"HMO {model.Category} - {statusLabel}",
-                    disbursedAt);
-            }
-
-            _context.WalletTransactions.AddRange(enrolleeIds.Select(enrolleeId => new WalletTransaction
-            {
-                EnrolleeWalletId = walletsByEnrollee[enrolleeId].Id,
-                Amount = model.AmountPerEnrollee,
-                Type = "Disburse",
-                Reference = $"HMO {model.Category} - {statusLabel}",
-                Timestamp = disbursedAt
-            }));
-
-            await _context.SaveChangesAsync();
-            await databaseTransaction.CommitAsync();
-        }
-        catch
-        {
-            await databaseTransaction.RollbackAsync();
-            ModelState.AddModelError(string.Empty, "The bulk disbursement could not be completed. No funds were disbursed.");
-            model = await BuildDisbursementViewModelAsync(hmoId, model);
-            return View(model);
-        }
-
-        try
-        {
-            var actor = User.Identity?.Name ?? "Unknown";
-            decimal totalAmount = model.AmountPerEnrollee * enrolleeIds.Count;
-            await _auditService.LogAsync(
-                "HmoBulkDisbursement",
-                actor,
-                currentUser.Email,
-                $"HmoId:{hmoId}; Category:{model.Category}; Status:{model.Status}; AmountPerEnrollee:{model.AmountPerEnrollee:C}; Total:{totalAmount:C}; Count:{enrolleeIds.Count}");
-        }
-        catch { }
-
-        string fundedStatus = string.Equals(model.Status, "All", StringComparison.OrdinalIgnoreCase)
-            ? "all statuses"
-            : model.Status;
-        TempData["Success"] = $"{model.Category}: successfully disbursed ₦{model.AmountPerEnrollee:N2} each to {enrolleeIds.Count:N0} {fundedStatus} enrollee(s).";
-        return RedirectToAction(nameof(DisburseMonthly));
-    }
-
-    private async Task<HmoBulkDisbursementViewModel> BuildDisbursementViewModelAsync(
-        int hmoId,
-        HmoBulkDisbursementViewModel model)
-    {
-        var statusGroups = await _context.Enrollees
-            .Where(enrollee => enrollee.HmoId == hmoId)
-            .GroupBy(enrollee => enrollee.Status)
-            .Select(group => new
-            {
-                Status = group.Key,
-                Count = group.Count()
-            })
-            .ToListAsync();
-
-        List<HmoDisbursementStatusOptionViewModel> statusOptions = statusGroups
-            .Where(group => !string.IsNullOrWhiteSpace(group.Status))
-            .OrderBy(group => string.Equals(group.Status, "Active", StringComparison.OrdinalIgnoreCase) ? 0 : 1)
-            .ThenBy(group => group.Status)
-            .Select(group => new HmoDisbursementStatusOptionViewModel
-            {
-                Value = group.Status,
-                Label = group.Status,
-                EligibleCount = group.Count
-            })
-            .ToList();
-
-        statusOptions.Insert(0, new HmoDisbursementStatusOptionViewModel
-        {
-            Value = "All",
-            Label = "All Statuses",
-            EligibleCount = statusGroups.Sum(group => group.Count)
-        });
-
-        model.HmoName = await _context.Hmos
-            .Where(hmo => hmo.Id == hmoId)
-            .Select(hmo => hmo.Name)
-            .FirstOrDefaultAsync() ?? "Your HMO";
-        model.CategoryOptions = new List<string>
-        {
-            "Monthly Allocation",
-            "Quarterly Allocation",
-            "Supplementary Allocation",
-            "Special Intervention Fund"
-        };
-        model.StatusOptions = statusOptions;
-
-        if (string.IsNullOrWhiteSpace(model.Category))
-        {
-            model.Category = "Monthly Allocation";
-        }
-
-        if (string.IsNullOrWhiteSpace(model.Status))
-        {
-            model.Status = statusOptions.Any(option =>
-                string.Equals(option.Value, "Active", StringComparison.OrdinalIgnoreCase))
-                ? "Active"
-                : "All";
-        }
-
-        return model;
-    }
 
     // LIST ALL HMOs
     [Authorize(Roles = HmoCrudRoles)]
@@ -677,23 +425,234 @@ public class HmoController : Controller
         ViewBag.DeathCount = deaths;
         ViewBag.DeathRatePerThousand = (ViewBag.EnrolleeCount > 0) ? Math.Round((double)deaths / (double)ViewBag.EnrolleeCount * 1000.0, 2) : 0;
 
-        // Wallet statistics for this HMO (sum/avg of wallets for enrollees belonging to this HMO)
-        var enrolleeIds = hmo.Enrollees?.Select(e => e.Id).ToList() ?? new List<int>();
-        if (enrolleeIds.Any())
-        {
-            var walletQuery = _context.EnrolleeWallets.Where(w => enrolleeIds.Contains(w.EnrolleeId));
-            ViewBag.TotalWalletBalance = await walletQuery.SumAsync(w => (decimal?)w.Balance) ?? 0m;
-            ViewBag.AverageWalletBalance = await walletQuery.AverageAsync(w => (decimal?)w.Balance) ?? 0m;
-        }
-        else
-        {
-            ViewBag.TotalWalletBalance = 0m;
-            ViewBag.AverageWalletBalance = 0m;
-        }
-
         ViewBag.Providers = hmo.Providers ?? new List<Provider>();
 
         return View(hmo);
+    }
+
+    [Authorize(Roles = "HMO")]
+    public async Task<IActionResult> Capitation(string? reportingMonth = null, decimal? capitationPerEnrollee = null)
+    {
+        ApplicationUser? currentUser = await _userManager.GetUserAsync(User);
+        if (currentUser?.HmoId == null)
+        {
+            TempData["Error"] = "Your account is not linked to any HMO.";
+            return RedirectToAction("Index", "Home");
+        }
+
+        int hmoId = currentUser.HmoId.Value;
+        Hmo? hmo = await _context.Hmos.AsNoTracking().FirstOrDefaultAsync(x => x.Id == hmoId);
+        if (hmo == null)
+        {
+            TempData["Error"] = "HMO not found.";
+            return RedirectToAction("Index", "Home");
+        }
+
+        DateTime month = ParseCapitationReportingMonth(reportingMonth);
+        DateTime nextMonth = month.AddMonths(1);
+        decimal defaultCapitationPerEnrollee = capitationPerEnrollee.GetValueOrDefault();
+
+        List<Provider> providers = await _context.Providers
+            .AsNoTracking()
+            .Where(provider => provider.HmoId == hmoId
+                && provider.IsActive
+                && provider.Level == "Primary")
+            .OrderBy(provider => provider.Name)
+            .ToListAsync();
+
+        List<int> providerIds = providers.Select(provider => provider.Id).ToList();
+        Dictionary<int, int> enrolleeCounts = new();
+        Dictionary<int, int> utilizationCounts = new();
+        Dictionary<int, CapitationPayment> payments = new();
+
+        if (providerIds.Count > 0)
+        {
+            enrolleeCounts = await _context.Enrollees
+                .AsNoTracking()
+                .Where(enrollee => enrollee.HmoId == hmoId
+                    && enrollee.ProviderId.HasValue
+                    && providerIds.Contains(enrollee.ProviderId.Value)
+                    && enrollee.Status == "Active")
+                .GroupBy(enrollee => enrollee.ProviderId)
+                .Select(group => new { ProviderId = group.Key ?? 0, Count = group.Count() })
+                .ToDictionaryAsync(x => x.ProviderId, x => x.Count);
+
+            utilizationCounts = await _context.Encounters
+                .AsNoTracking()
+                .Where(encounter => providerIds.Contains(encounter.ProviderId)
+                    && encounter.Enrollee != null
+                    && encounter.Enrollee.HmoId == hmoId
+                    && encounter.VisitDate >= month
+                    && encounter.VisitDate < nextMonth)
+                .Select(encounter => new { encounter.ProviderId, encounter.EnrolleeId })
+                .Distinct()
+                .GroupBy(encounter => encounter.ProviderId)
+                .Select(group => new { ProviderId = group.Key, Count = group.Count() })
+                .ToDictionaryAsync(x => x.ProviderId, x => x.Count);
+
+            payments = await _context.CapitationPayments
+                .AsNoTracking()
+                .Where(payment => payment.HmoId == hmoId
+                    && providerIds.Contains(payment.ProviderId)
+                    && payment.ReportingMonth == month)
+                .ToDictionaryAsync(payment => payment.ProviderId);
+        }
+
+        var model = new CapitationIndexViewModel
+        {
+            HmoName = hmo.Name,
+            HmoCode = hmo.RegistrationNumber,
+            ReportingMonth = month,
+            DefaultCapitationPerEnrollee = defaultCapitationPerEnrollee,
+            Providers = providers.Select(provider =>
+            {
+                enrolleeCounts.TryGetValue(provider.Id, out int enrolleeCount);
+                utilizationCounts.TryGetValue(provider.Id, out int utilizedEnrolleeCount);
+                payments.TryGetValue(provider.Id, out CapitationPayment? payment);
+
+                decimal utilizationRate = enrolleeCount == 0
+                    ? 0m
+                    : Math.Round((decimal)utilizedEnrolleeCount / enrolleeCount * 100m, 2);
+
+                return new CapitationProviderRowViewModel
+                {
+                    ProviderId = provider.Id,
+                    ProviderName = provider.Name,
+                    ProviderCode = provider.Code,
+                    ProviderLevel = provider.Level,
+                    EnrolleeCount = enrolleeCount,
+                    CapitationPerEnrollee = payment?.CapitationPerEnrollee > 0
+                        ? payment.CapitationPerEnrollee
+                        : defaultCapitationPerEnrollee,
+                    UtilizationRate = utilizationRate,
+                    PaymentStatus = payment?.PaymentStatus ?? "Pending",
+                    PaymentReference = payment?.PaymentReference,
+                    ProofOfPaymentPath = payment?.ProofOfPaymentPath
+                };
+            }).ToList()
+        };
+
+        return View(model);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [Authorize(Roles = "HMO")]
+    public async Task<IActionResult> UpdateCapitationPayment(
+        CapitationPaymentUpdateViewModel model,
+        IFormFile? proofOfPayment)
+    {
+        ApplicationUser? currentUser = await _userManager.GetUserAsync(User);
+        if (currentUser?.HmoId == null)
+        {
+            TempData["Error"] = "Your account is not linked to any HMO.";
+            return RedirectToAction("Index", "Home");
+        }
+
+        int hmoId = currentUser.HmoId.Value;
+        DateTime month = ParseCapitationReportingMonth(model.ReportingMonth);
+
+        if (!ModelState.IsValid)
+        {
+            TempData["Error"] = "Review the capitation payment details.";
+            return RedirectToAction(nameof(Capitation), new
+            {
+                reportingMonth = month.ToString("yyyy-MM"),
+                capitationPerEnrollee = model.CapitationPerEnrollee
+            });
+        }
+
+        Provider? provider = await _context.Providers.FirstOrDefaultAsync(x =>
+            x.Id == model.ProviderId
+            && x.HmoId == hmoId
+            && x.Level == "Primary");
+
+        if (provider == null)
+        {
+            TempData["Error"] = "Select a valid PHC provider under your HMO.";
+            return RedirectToAction(nameof(Capitation), new
+            {
+                reportingMonth = month.ToString("yyyy-MM"),
+                capitationPerEnrollee = model.CapitationPerEnrollee
+            });
+        }
+
+        string paymentStatus = NormalizeCapitationPaymentStatus(model.PaymentStatus);
+        CapitationPayment? payment = await _context.CapitationPayments.FirstOrDefaultAsync(x =>
+            x.HmoId == hmoId
+            && x.ProviderId == model.ProviderId
+            && x.ReportingMonth == month);
+
+        if (paymentStatus == "Paid"
+            && string.IsNullOrWhiteSpace(model.PaymentReference)
+            && proofOfPayment is not { Length: > 0 }
+            && string.IsNullOrWhiteSpace(payment?.ProofOfPaymentPath))
+        {
+            TempData["Error"] = "Enter a payment reference number or upload proof of payment.";
+            return RedirectToAction(nameof(Capitation), new
+            {
+                reportingMonth = month.ToString("yyyy-MM"),
+                capitationPerEnrollee = model.CapitationPerEnrollee
+            });
+        }
+
+        string? proofPath = null;
+        try
+        {
+            if (proofOfPayment is { Length: > 0 })
+            {
+                proofPath = await SaveCapitationProofAsync(proofOfPayment);
+            }
+        }
+        catch (InvalidOperationException ex)
+        {
+            TempData["Error"] = ex.Message;
+            return RedirectToAction(nameof(Capitation), new
+            {
+                reportingMonth = month.ToString("yyyy-MM"),
+                capitationPerEnrollee = model.CapitationPerEnrollee
+            });
+        }
+
+        (int enrolleeCount, decimal utilizationRate) = await GetCapitationProviderMetricsAsync(hmoId, model.ProviderId, month);
+
+        if (payment == null)
+        {
+            payment = new CapitationPayment
+            {
+                HmoId = hmoId,
+                ProviderId = model.ProviderId,
+                ReportingMonth = month,
+                CreatedAt = DateTime.UtcNow
+            };
+            _context.CapitationPayments.Add(payment);
+        }
+        else
+        {
+            payment.UpdatedAt = DateTime.UtcNow;
+        }
+
+        payment.EnrolleeCount = enrolleeCount;
+        payment.UtilizationRate = utilizationRate;
+        payment.CapitationPerEnrollee = model.CapitationPerEnrollee;
+        payment.PaymentStatus = paymentStatus;
+        payment.PaymentReference = string.IsNullOrWhiteSpace(model.PaymentReference)
+            ? null
+            : model.PaymentReference.Trim();
+
+        if (!string.IsNullOrWhiteSpace(proofPath))
+        {
+            payment.ProofOfPaymentPath = proofPath;
+        }
+
+        await _context.SaveChangesAsync();
+        TempData["Success"] = $"Capitation payment updated for {provider.Name}.";
+
+        return RedirectToAction(nameof(Capitation), new
+        {
+            reportingMonth = month.ToString("yyyy-MM"),
+            capitationPerEnrollee = model.CapitationPerEnrollee
+        });
     }
 
     // Helper: Nigerian States
@@ -788,6 +747,103 @@ public class HmoController : Controller
         string[] allowedStatuses = { "Active", "Inactive", "Suspended", "Revoked" };
         return allowedStatuses.FirstOrDefault(candidate =>
             string.Equals(candidate, normalizedStatus, StringComparison.OrdinalIgnoreCase)) ?? string.Empty;
+    }
+
+    private static DateTime ParseCapitationReportingMonth(string? reportingMonth)
+    {
+        if (DateTime.TryParseExact(
+                reportingMonth,
+                "yyyy-MM",
+                CultureInfo.InvariantCulture,
+                DateTimeStyles.None,
+                out DateTime parsedMonth))
+        {
+            return new DateTime(parsedMonth.Year, parsedMonth.Month, 1);
+        }
+
+        if (DateTime.TryParse(reportingMonth, out parsedMonth))
+        {
+            return new DateTime(parsedMonth.Year, parsedMonth.Month, 1);
+        }
+
+        DateTime today = DateTime.Today;
+        return new DateTime(today.Year, today.Month, 1);
+    }
+
+    private static string NormalizeCapitationPaymentStatus(string? status)
+    {
+        string normalizedStatus = status?.Trim() ?? string.Empty;
+        string[] allowedStatuses = { "Pending", "Paid" };
+
+        return allowedStatuses.FirstOrDefault(candidate =>
+            string.Equals(candidate, normalizedStatus, StringComparison.OrdinalIgnoreCase)) ?? "Pending";
+    }
+
+    private async Task<(int EnrolleeCount, decimal UtilizationRate)> GetCapitationProviderMetricsAsync(
+        int hmoId,
+        int providerId,
+        DateTime reportingMonth)
+    {
+        DateTime nextMonth = reportingMonth.AddMonths(1);
+
+        int enrolleeCount = await _context.Enrollees.CountAsync(enrollee =>
+            enrollee.HmoId == hmoId
+            && enrollee.ProviderId == providerId
+            && enrollee.Status == "Active");
+
+        int utilizedEnrolleeCount = await _context.Encounters
+            .Where(encounter => encounter.ProviderId == providerId
+                && encounter.Enrollee != null
+                && encounter.Enrollee.HmoId == hmoId
+                && encounter.VisitDate >= reportingMonth
+                && encounter.VisitDate < nextMonth)
+            .Select(encounter => encounter.EnrolleeId)
+            .Distinct()
+            .CountAsync();
+
+        decimal utilizationRate = enrolleeCount == 0
+            ? 0m
+            : Math.Round((decimal)utilizedEnrolleeCount / enrolleeCount * 100m, 2);
+
+        return (enrolleeCount, utilizationRate);
+    }
+
+    private async Task<string> SaveCapitationProofAsync(IFormFile proofOfPayment)
+    {
+        string extension = Path.GetExtension(proofOfPayment.FileName).ToLowerInvariant();
+        if (!CapitationProofFileExtensions.Contains(extension))
+        {
+            throw new InvalidOperationException("Upload proof as a PDF, JPG, JPEG, or PNG file.");
+        }
+
+        string webRootPath = _hostEnvironment.WebRootPath
+            ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
+        string uploadFolder = Path.Combine(webRootPath, "uploads", "capitation");
+        Directory.CreateDirectory(uploadFolder);
+
+        string originalName = Path.GetFileNameWithoutExtension(proofOfPayment.FileName);
+        string safeName = SanitizeCapitationProofFileName(originalName);
+        string fileName = $"{DateTime.UtcNow:yyyyMMddHHmmssfff}_{Guid.NewGuid():N}_{safeName}{extension}";
+        string filePath = Path.Combine(uploadFolder, fileName);
+
+        await using FileStream stream = new(filePath, FileMode.Create);
+        await proofOfPayment.CopyToAsync(stream);
+
+        return $"/uploads/capitation/{fileName}";
+    }
+
+    private static string SanitizeCapitationProofFileName(string fileName)
+    {
+        char[] invalidFileNameChars = Path.GetInvalidFileNameChars();
+        string safeName = new(fileName.Where(character => !invalidFileNameChars.Contains(character)).ToArray());
+        safeName = safeName.Trim();
+
+        if (string.IsNullOrWhiteSpace(safeName))
+        {
+            return "proof";
+        }
+
+        return safeName.Length > 80 ? safeName[..80] : safeName;
     }
 
 
@@ -1855,6 +1911,7 @@ public class HmoController : Controller
            .Include(c => c.Enrollee)
            .Include(c => c.Provider)
            .Where(c => c.HmoId == hmoId)
+           .WhereProviderCanUseClaims()
            .OrderByDescending(c => c.DateSubmitted) // Sort by the raw DateTime first
            .ToListAsync()) // Data is now in-memory
            .Select(c => new
@@ -1876,7 +1933,7 @@ public class HmoController : Controller
         if (!claims.Any())
         {
             TempData["Error"] = "No claims found under your HMO.";
-            return RedirectToAction("MyClaims");
+            return RedirectToAction("Dashboard", "Claims");
         }
 
         // Generate Excel

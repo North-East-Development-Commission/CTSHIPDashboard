@@ -1,4 +1,5 @@
 ﻿using CTSHIPDashboard.Data;
+using CTSHIPDashboard.Helpers;
 using CTSHIPDashboard.Hubs;
 using CTSHIPDashboard.Models;
 using Microsoft.AspNetCore.Authorization;
@@ -41,6 +42,7 @@ namespace CTSHIPDashboard.Controllers
                .Include(c => c.Enrollee!)
                .ThenInclude(e => e.Hmo!)
                .Include(c => c.Provider!)
+               .WhereProviderCanUseClaims()
                .AsQueryable();
 
             query = await ScopeClaimsToCurrentUserAsync(query);
@@ -90,6 +92,7 @@ namespace CTSHIPDashboard.Controllers
                 .FirstOrDefaultAsync(c => c.Id == id);
 
             if (claim == null) return NotFound();
+            if (!ProviderClaimAccessHelper.CanUseClaims(claim.Provider)) return NotFound();
             if (!await CanAccessClaimAsync(claim)) return Forbid();
             return View(claim);
         }
@@ -277,6 +280,7 @@ namespace CTSHIPDashboard.Controllers
                 .FirstOrDefaultAsync(c => c.Id == id && c.Status == "Submitted");
 
             if (claim == null) return NotFound();
+            if (!ProviderClaimAccessHelper.CanUseClaims(claim.Provider)) return NotFound();
             if (!await CanAccessHmoScopedClaimAsync(claim)) return Forbid();
             return View(claim);
         }
@@ -288,6 +292,7 @@ namespace CTSHIPDashboard.Controllers
         {
             var claim = await _context.Claims.FindAsync(id);
             if (claim == null || claim.Status != "Submitted") return NotFound();
+            if (!await _context.Claims.WhereProviderCanUseClaims().AnyAsync(x => x.Id == id)) return NotFound();
             if (!await CanAccessHmoScopedClaimAsync(claim)) return Forbid();
 
             var user = await _userManager.GetUserAsync(User);
@@ -321,6 +326,7 @@ namespace CTSHIPDashboard.Controllers
                 .FirstOrDefaultAsync(c => c.Id == id && c.Status == "Approved");
 
             if (claim == null) return NotFound();
+            if (!ProviderClaimAccessHelper.CanUseClaims(claim.Provider)) return NotFound();
             if (!await CanAccessHmoScopedClaimAsync(claim)) return Forbid();
             return View(claim);
         }
@@ -332,6 +338,7 @@ namespace CTSHIPDashboard.Controllers
         {
             var claim = await _context.Claims.FindAsync(id);
             if (claim == null || claim.Status != "Approved") return NotFound();
+            if (!await _context.Claims.WhereProviderCanUseClaims().AnyAsync(x => x.Id == id)) return NotFound();
             if (!await CanAccessHmoScopedClaimAsync(claim)) return Forbid();
 
             var user = await _userManager.GetUserAsync(User);
@@ -378,11 +385,14 @@ namespace CTSHIPDashboard.Controllers
                 return RedirectToAction("Index", "Home");
             }
 
-            var query = _context.Claims
+            var baseQuery = _context.Claims
                 .Include(c => c.Enrollee!)
                     .ThenInclude(e => e.Hmo)
                 .Include(c => c.Provider)
-                .Where(c => c.HmoId == currentUser.HmoId.Value);
+                .Where(c => c.HmoId == currentUser.HmoId.Value)
+                .WhereProviderCanUseClaims();
+
+            var query = baseQuery;
 
             // SEARCH
             if (!string.IsNullOrWhiteSpace(search))
@@ -413,13 +423,11 @@ namespace CTSHIPDashboard.Controllers
 
             ViewBag.HmoName = hmoName;
             ViewBag.TotalClaims = totalItems;
-            ViewBag.PendingClaims = await query.CountAsync(c => c.HmoId == currentUser.HmoId && c.Status == "Submitted");
-            ViewBag.ApprovedClaims = await _context.Claims.CountAsync(c => c.HmoId == currentUser.HmoId && c.Status == "Approved");
-            ViewBag.PaidClaims = await _context.Claims.CountAsync(c => c.HmoId == currentUser.HmoId && c.Status == "Paid");
-            ViewBag.RejectedClaims = await _context.Claims.CountAsync(c => c.HmoId == currentUser.HmoId && c.Status == "Rejected");
-            ViewBag.TotalAmount = await _context.Claims
-                .Where(c => c.HmoId == currentUser.HmoId)
-                .SumAsync(c => c.Amount);
+            ViewBag.PendingClaims = await baseQuery.CountAsync(c => c.Status == "Submitted");
+            ViewBag.ApprovedClaims = await baseQuery.CountAsync(c => c.Status == "Approved");
+            ViewBag.PaidClaims = await baseQuery.CountAsync(c => c.Status == "Paid");
+            ViewBag.RejectedClaims = await baseQuery.CountAsync(c => c.Status == "Rejected");
+            ViewBag.TotalAmount = await baseQuery.SumAsync(c => c.Amount);
 
             // FILTER VALUES
             ViewBag.Search = search;

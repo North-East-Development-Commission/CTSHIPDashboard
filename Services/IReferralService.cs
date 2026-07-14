@@ -20,6 +20,15 @@ public interface IReferralService
 
     Task<bool> VerifyReferralAsync(ReferralVerificationViewModel model, string? userId, string? userName, CancellationToken cancellationToken = default);
 
+    Task<bool> ReissueReferralVerificationCodeAsync(Guid referralId, string? userId, string? userName, CancellationToken cancellationToken = default);
+
+    Task<ReferralCodeVerificationResult> VerifyReferralCodeAsync(
+        ReferralCodeVerificationViewModel model,
+        Guid referredHospitalId,
+        string? userId,
+        string? userName,
+        CancellationToken cancellationToken = default);
+
     Task<bool> AuditReferralAsync(ReferralAuditViewModel model, string? userId, string? userName, CancellationToken cancellationToken = default);
 
     Task<EncounterReferralInputViewModel> BuildEncounterReferralInputAsync(EncounterReferralInputViewModel? model = null, CancellationToken cancellationToken = default);

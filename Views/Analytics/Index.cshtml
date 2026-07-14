@@ -1,4 +1,4 @@
-@model CTSHIPDashboard.Models.ViewModels.MonitoringDashboardViewModel
+﻿@model CTSHIPDashboard.Models.ViewModels.MonitoringDashboardViewModel
 
 @{
     ViewData["Title"] = "CTSHIP Analytics Dashboard";
@@ -106,36 +106,9 @@
             <div class="col-xl-3 col-md-6">
                 <div class="card h-100 border-success shadow-sm">
                     <div class="card-body">
-                        <div class="text-muted">Capitation Disbursed</div>
-                        <div class="h3 fw-bold text-success">₦@Model.CapitationDisbursed.ToString("N2")</div>
-                        <small>Positive wallet disbursements</small>
-                    </div>
-                </div>
-            </div>
-            <div class="col-xl-3 col-md-6">
-                <div class="card h-100 border-primary shadow-sm">
-                    <div class="card-body">
-                        <div class="text-muted">Current Wallet Balance</div>
-                        <div class="h3 fw-bold text-primary">₦@Model.WalletBalance.ToString("N2")</div>
-                        <small>Available enrollee funds</small>
-                    </div>
-                </div>
-            </div>
-            <div class="col-xl-3 col-md-6">
-                <div class="card h-100 border-success shadow-sm">
-                    <div class="card-body">
                         <div class="text-muted">Total Claim Value</div>
                         <div class="h3 fw-bold text-success">₦@Model.TotalClaimValue.ToString("N2")</div>
                         <small>Paid value: ₦@Model.PaidClaimValue.ToString("N2")</small>
-                    </div>
-                </div>
-            </div>
-            <div class="col-xl-3 col-md-6">
-                <div class="card h-100 border-primary shadow-sm">
-                    <div class="card-body">
-                        <div class="text-muted">Encounter Deductions</div>
-                        <div class="h3 fw-bold text-primary">₦@Model.EncounterDeductions.ToString("N2")</div>
-                        <small>Amounts deducted from wallets</small>
                     </div>
                 </div>
             </div>
@@ -256,8 +229,6 @@
                             <th>Claims</th>
                             <th>Paid</th>
                             <th>Claim Value</th>
-                            <th>Capitation</th>
-                            <th>Wallet Balance</th>
                             <th>Referrals</th>
                             <th>Completed</th>
                             <th>Completion</th>
@@ -275,8 +246,6 @@
                                 <td>@state.Claims.ToString("N0")</td>
                                 <td>@state.PaidClaims.ToString("N0")</td>
                                 <td>₦@state.ClaimValue.ToString("N0")</td>
-                                <td>₦@state.CapitationDisbursed.ToString("N0")</td>
-                                <td>₦@state.WalletBalance.ToString("N0")</td>
                                 <td>@state.Referrals.ToString("N0")</td>
                                 <td>@state.CompletedReferrals.ToString("N0")</td>
                                 <td>@state.ReferralCompletionRate%</td>

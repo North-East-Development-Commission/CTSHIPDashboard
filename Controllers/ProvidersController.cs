@@ -142,52 +142,6 @@ public class ProvidersController : Controller
         return View(model);
     }
 
-    [Authorize(Roles = "Provider,CTSHIPAdmin,Admin,HMO")]
-    public async Task<IActionResult> WalletSummary(int id)
-    {
-        var provider = await _context.Providers
-            .Include(p => p.Enrollees)
-            .Include(p => p.Wallet)
-            .FirstOrDefaultAsync(p => p.Id == id);
-
-        if (provider == null) return NotFound();
-
-        ApplicationUser? currentUser = await _userManager.GetUserAsync(User);
-        if (User.IsInRole("Provider"))
-        {
-            if (currentUser?.ProviderId != id)
-            {
-                return Forbid();
-            }
-        }
-        else if (!await CanManageProviderAsync(provider))
-        {
-            return Forbid();
-        }
-
-        // For each enrollee under this provider, load wallet
-        var enrolleeIds = provider.Enrollees?.Select(e => e.Id).ToList() ?? new List<int>();
-        var wallets = await _context.EnrolleeWallets
-            .Where(w => enrolleeIds.Contains(w.EnrolleeId))
-            .ToListAsync();
-
-        ProviderWallet providerWallet = await ProviderWalletHelper.GetOrCreateAsync(_context, provider.Id);
-        await _context.SaveChangesAsync();
-
-        ViewBag.ProviderWallet = providerWallet;
-        ViewBag.EnrolleeWalletTotal = wallets.Sum(wallet => wallet.Balance);
-        ViewBag.ProviderWalletTransactions = await _context.ProviderWalletTransactions
-            .Where(transaction => transaction.ProviderWalletId == providerWallet.Id)
-            .OrderByDescending(transaction => transaction.Timestamp)
-            .Take(15)
-            .ToListAsync();
-
-        var model = provider;
-        ViewBag.Wallets = wallets.ToDictionary(w => w.EnrolleeId, w => w);
-
-        return View(model);
-    }
-
     private List<SelectListItem> GetNigerianStatesWithAll(string? selectedState = null)
     {
         return StateSelectListHelper.NorthEastStatesWithAll(selectedState);
@@ -735,6 +689,7 @@ public class ProvidersController : Controller
             ProviderCode = provider.Code,
             Level = provider.Level,
             State = provider.State,
+            CanUseClaims = ProviderClaimAccessHelper.CanUseClaims(provider),
 
             TotalUniqueEnrollees = enrollees.Count,
             TotalDoctors = provider.Doctors?.Count(doctor => doctor.IsActive) ?? 0,
@@ -870,6 +825,7 @@ public class ProvidersController : Controller
         ViewBag.ProviderName = provider.Name;
         ViewBag.ProviderCode = provider.Code;
         ViewBag.TotalEncounters = totalItems;
+        ViewBag.CanUseClaims = ProviderClaimAccessHelper.CanUseClaims(provider);
         ViewBag.Search = search;
         ViewBag.CurrentPage = page;
         ViewBag.TotalPages = (int)Math.Ceiling(totalItems / (double)pageSize);
@@ -1053,6 +1009,12 @@ public class ProvidersController : Controller
             return RedirectToAction("Index", "Encounters");
         }
 
+        if (!ProviderClaimAccessHelper.CanUseClaims(encounter.Provider))
+        {
+            TempData["Error"] = ProviderClaimAccessHelper.ClaimsUnavailableMessage;
+            return RedirectToAction(nameof(ENCDetails), new { id });
+        }
+
         // ENROLLEE HAS NO HMO — BLOCK CLAIM
         if (encounter.Enrollee?.Hmo == null)
         {
@@ -1125,6 +1087,7 @@ public class ProvidersController : Controller
         return View(enrollee);
     }
 
+    [Authorize(Roles = "Provider")]
     public async Task<IActionResult> ClaimDetails(int id)
     {
         var claim = await _context.Claims
@@ -1133,6 +1096,13 @@ public class ProvidersController : Controller
             .FirstOrDefaultAsync(c => c.Id == id);
 
         if (claim == null) return NotFound();
+        ApplicationUser? currentUser = await _userManager.GetUserAsync(User);
+        if (currentUser?.ProviderId != claim.ProviderId) return Forbid();
+        if (!ProviderClaimAccessHelper.CanUseClaims(claim.Provider))
+        {
+            TempData["Error"] = ProviderClaimAccessHelper.ClaimsUnavailableMessage;
+            return RedirectToAction(nameof(Dashboard));
+        }
         return View(claim);
     }
 
@@ -1151,6 +1121,16 @@ public class ProvidersController : Controller
         }
 
         var providerId = currentUser.ProviderId.Value;
+        string? providerLevel = await _context.Providers
+            .Where(provider => provider.Id == providerId)
+            .Select(provider => provider.Level)
+            .FirstOrDefaultAsync();
+
+        if (!ProviderClaimAccessHelper.CanUseClaims(providerLevel))
+        {
+            TempData["Error"] = ProviderClaimAccessHelper.ClaimsUnavailableMessage;
+            return RedirectToAction(nameof(Dashboard));
+        }
 
         var query = _context.Claims
             .Include(c => c.Enrollee)
@@ -1242,10 +1222,21 @@ public class ProvidersController : Controller
                     $"Enrollees_{DateTime.Now:yyyyMMdd_HHmm}.xlsx");
     }
 
+    [Authorize(Roles = "Provider")]
     public async Task<IActionResult> ExportClaims()
     {
         var currentUser = await _userManager.GetUserAsync(User);
         if (!currentUser.ProviderId.HasValue) return BadRequest();
+        string? providerLevel = await _context.Providers
+            .Where(provider => provider.Id == currentUser.ProviderId.Value)
+            .Select(provider => provider.Level)
+            .FirstOrDefaultAsync();
+
+        if (!ProviderClaimAccessHelper.CanUseClaims(providerLevel))
+        {
+            TempData["Error"] = ProviderClaimAccessHelper.ClaimsUnavailableMessage;
+            return RedirectToAction(nameof(Dashboard));
+        }
 
         var claims = await _context.Claims
             .Include(c => c.Enrollee)

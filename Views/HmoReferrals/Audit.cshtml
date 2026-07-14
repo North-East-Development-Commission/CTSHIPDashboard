@@ -4,35 +4,44 @@
     CTSHIPDashboard.ViewModels.ReferralDetailsViewModel referral = ViewBag.Referral;
 }
 
-<h2>Audit Referral</h2>
-<p class="text-muted">Complete NHIA/Admin referral audit after HMO verification.</p>
-
-<div class="card mb-3">
-    <div class="card-body">
-        <strong>@referral.EnrolleeFullName</strong> (@referral.EnrolleeNumber)<br />
-        From: @referral.FromProviderName<br />
-        To: @referral.ReferredHospitalName<br />
-        Diagnosis: @referral.Diagnosis<br />
-        HMO Note: @referral.HmoVerificationNote
+<div class="ct-page">
+    <div class="ct-page-header">
+        <h2>Audit Referral</h2>
+        <p class="mb-0">Complete NHIA/Admin referral audit after HMO verification.</p>
     </div>
+
+    <div class="card mb-3 border-0 shadow-lg">
+        <div class="card-header bg-success text-white">
+            <strong>Referral Summary</strong>
+        </div>
+        <div class="card-body">
+            <strong>@referral.EnrolleeFullName</strong> (@referral.EnrolleeNumber)<br />
+            From: @referral.FromProviderName<br />
+            To: @referral.ReferredHospitalName<br />
+            Diagnosis: @referral.Diagnosis<br />
+            HMO Note: @referral.HmoVerificationNote
+        </div>
+    </div>
+
+    <form asp-controller="HmoReferrals" asp-action="Audit" asp-route-id="@Model.ReferralId" method="post" class="card border-0 shadow-lg">
+        @Html.AntiForgeryToken()
+        <input asp-for="ReferralId" type="hidden" />
+        <div class="card-body p-4">
+            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+            <div class="mb-3">
+                <label asp-for="AuditNote" class="form-label fw-bold"></label>
+                <textarea asp-for="AuditNote" class="form-control" rows="4"></textarea>
+                <span asp-validation-for="AuditNote" class="text-danger"></span>
+            </div>
+        </div>
+
+        <div class="card-footer bg-white d-flex flex-wrap gap-2 justify-content-end">
+            <a asp-controller="HmoReferrals" asp-action="Details" asp-route-id="@Model.ReferralId" class="btn btn-outline-secondary">Cancel</a>
+            <button type="submit" class="btn btn-success">Complete Audit</button>
+        </div>
+    </form>
 </div>
-
-<form asp-controller="HmoReferrals" asp-action="Audit" asp-route-id="@Model.ReferralId" method="post" class="card card-body">
-    @Html.AntiForgeryToken()
-    <input asp-for="ReferralId" type="hidden" />
-    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
-
-    <div class="mb-3">
-        <label asp-for="AuditNote" class="form-label"></label>
-        <textarea asp-for="AuditNote" class="form-control" rows="4"></textarea>
-        <span asp-validation-for="AuditNote" class="text-danger"></span>
-    </div>
-
-    <div class="d-flex gap-2">
-        <button type="submit" class="btn btn-primary">Complete Audit</button>
-        <a asp-controller="HmoReferrals" asp-action="Details" asp-route-id="@Model.ReferralId" class="btn btn-light">Cancel</a>
-    </div>
-</form>
 
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />

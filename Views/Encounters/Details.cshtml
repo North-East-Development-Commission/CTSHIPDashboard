@@ -1,5 +1,9 @@
 ﻿@model CTSHIPDashboard.Models.Encounter
 
+@{
+    bool canUseClaims = ViewBag.CanUseClaims == true;
+}
+
 <div class="container-fluid py-5">
     <div class="row justify-content-center">
         <div class="col-12 col-lg-10">
@@ -40,7 +44,6 @@
                                                 }
                                             </div>
                                             <p><strong>Provider:</strong> @Model.Provider?.Name</p>
-                                            <p><strong>Wallet Used:</strong> @CTSHIPDashboard.Models.EncounterWalletSource.DisplayName(Model.WalletSource)</p>
                                             <p>
                                                 <strong>Status:</strong>
                                                 <span class="badge bg-success fs-6">@Model.Status</span>
@@ -85,7 +88,7 @@
                         </div>
                     </div>
                     <div class="text-center mt-5">
-                        @if (User.IsInRole("Provider") && Model.ClaimId == null && Model.Status != "Cancelled")
+                        @if (User.IsInRole("Provider") && canUseClaims && Model.ClaimId == null && Model.Status != "Cancelled")
                         {
                             <a asp-action="CreateClaim" asp-route-id="@Model.Id" class="btn btn-primary btn-lg px-6 me-2">Create Claim</a>
                         }

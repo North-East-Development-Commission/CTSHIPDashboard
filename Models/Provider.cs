@@ -25,10 +25,7 @@ namespace CTSHIPDashboard.Models
         public virtual ICollection<Doctor> Doctors { get; set; } = new List<Doctor>();
         public virtual ICollection<Encounter> Encounters { get; set; } = new List<Encounter>();
         public virtual ICollection<Claim> Claims { get; set; } = new List<Claim>();
-        public ProviderWallet? Wallet { get; set; }
         public DateTime DateRegistered { get; set; }
         public int HmoId { get; set; }
-        
-        public string? WalletSource { get; set; }  // <-- new column
     }
 }

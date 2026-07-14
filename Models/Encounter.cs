@@ -39,8 +39,6 @@ namespace CTSHIPDashboard.Models
         [Range(typeof(decimal), "0", "9999999999999999")]
         public decimal DrugFee { get; set; }
         public decimal TotalAmount => ConsultationFee + LabFee + DrugFee;
-        public string WalletSource { get; set; } = EncounterWalletSource.EnrolleeWallet;
-
         public int? ClaimId { get; set; }  // Links to Claim (nullable until claimed)
         public Claim? Claim { get; set; }
 

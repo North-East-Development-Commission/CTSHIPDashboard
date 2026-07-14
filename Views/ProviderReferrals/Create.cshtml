@@ -4,22 +4,29 @@
     ViewData["Title"] = "Create Referral";
 }
 
-<h2>Create Referral</h2>
-<p class="text-muted">Create a referral and submit it to the HMO for verification.</p>
-
-<form asp-controller="ProviderReferrals" asp-action="Create" method="post" class="card card-body">
-    @Html.AntiForgeryToken()
-    <div asp-validation-summary="ModelOnly" class="text-danger"></div>
-
-    <input asp-for="EncounterId" type="hidden" />
-    <input asp-for="EnrolleeId" type="hidden" />
-    <input asp-for="FromProviderId" type="hidden" />
-
-    <div class="alert alert-success">
-        Provider and HMO details are taken from the logged-in provider account. The HMO will verify the referral after submission.
+<div class="ct-page">
+    <div class="ct-page-header">
+        <h2>Create Referral</h2>
+        <p class="mb-0">Create a referral and submit it to the HMO for verification.</p>
     </div>
 
-    <div class="row g-3">
+    <form asp-controller="ProviderReferrals" asp-action="Create" method="post" class="card border-0 shadow-lg">
+        @Html.AntiForgeryToken()
+        <div class="card-header bg-success text-white">
+            <strong>Referral Request</strong>
+        </div>
+        <div class="card-body p-4">
+            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+            <input asp-for="EncounterId" type="hidden" />
+            <input asp-for="EnrolleeId" type="hidden" />
+            <input asp-for="FromProviderId" type="hidden" />
+
+            <div class="alert alert-success">
+                Provider and HMO details are taken from the logged-in provider account. The HMO will verify the referral after submission.
+            </div>
+
+            <div class="row g-3">
         <div class="col-md-4">
             <label asp-for="EncounterReference" class="form-label"></label>
             <input asp-for="EncounterReference" class="form-control" />
@@ -87,14 +94,16 @@
             <textarea asp-for="InvestigationSummary" class="form-control" rows="3"></textarea>
             <span asp-validation-for="InvestigationSummary" class="text-danger"></span>
         </div>
-    </div>
+            </div>
+        </div>
 
-    <div class="mt-4 d-flex gap-2">
-        <button type="submit" name="submitAction" value="draft" class="btn btn-outline-secondary">Save Draft</button>
-        <button type="submit" name="submitAction" value="submit" class="btn btn-success">Submit To HMO</button>
-        <a asp-controller="ProviderReferrals" asp-action="Index" class="btn btn-light">Cancel</a>
-    </div>
-</form>
+        <div class="card-footer bg-white d-flex flex-wrap gap-2 justify-content-end">
+            <a asp-controller="ProviderReferrals" asp-action="Index" class="btn btn-outline-secondary">Cancel</a>
+            <button type="submit" name="submitAction" value="draft" class="btn btn-outline-secondary">Save Draft</button>
+            <button type="submit" name="submitAction" value="submit" class="btn btn-success">Submit To HMO</button>
+        </div>
+    </form>
+</div>
 
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />

@@ -43,8 +43,6 @@ namespace CTSHIPDashboard.Models.ViewModels
         public decimal TotalClaimValue { get; set; }
         public decimal PendingClaimValue { get; set; }
         public decimal PaidClaimValue { get; set; }
-        public decimal CapitationDisbursed { get; set; }
-        public decimal WalletBalance { get; set; }
         public List<string> AvailableStates { get; set; } = new();
         public List<StateOfficeClaimRowViewModel> Claims { get; set; } = new();
     }

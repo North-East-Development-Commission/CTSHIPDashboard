@@ -84,6 +84,27 @@ public class Referral
     [StringLength(1000)]
     public string? HmoVerificationNote { get; set; }
 
+    [StringLength(30)]
+    public string? ReferralVerificationCode { get; set; }
+
+    public DateTime? ReferralVerificationCodeIssuedAt { get; set; }
+
+    public DateTime? ReferralVerificationCodeExpiresAt { get; set; }
+
+    [StringLength(450)]
+    public string? ReferralVerificationCodeIssuedByUserId { get; set; }
+
+    [StringLength(200)]
+    public string? ReferralVerificationCodeIssuedByName { get; set; }
+
+    public DateTime? ReferralVerificationCodeVerifiedAt { get; set; }
+
+    [StringLength(450)]
+    public string? ReferralVerificationCodeVerifiedByUserId { get; set; }
+
+    [StringLength(200)]
+    public string? ReferralVerificationCodeVerifiedByName { get; set; }
+
     [StringLength(450)]
     public string? AuditedByUserId { get; set; }
 

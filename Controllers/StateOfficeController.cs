@@ -327,18 +327,6 @@ public class StateOfficeController : Controller
             PaidClaimValue = await stateClaims
                 .Where(c => c.Status == "Paid")
                 .SumAsync(c => (decimal?)c.Amount, cancellationToken) ?? 0m,
-            CapitationDisbursed = await _context.WalletTransactions
-                .AsNoTracking()
-                .Where(t => t.Type == "Disburse"
-                    && t.Amount > 0
-                    && t.EnrolleeWallet != null
-                    && t.EnrolleeWallet.Enrollee != null
-                    && t.EnrolleeWallet.Enrollee.State == state)
-                .SumAsync(t => (decimal?)t.Amount, cancellationToken) ?? 0m,
-            WalletBalance = await _context.EnrolleeWallets
-                .AsNoTracking()
-                .Where(w => w.Enrollee != null && w.Enrollee.State == state)
-                .SumAsync(w => (decimal?)w.Balance, cancellationToken) ?? 0m,
             AvailableStates = await GetAvailableStatesAsync(cancellationToken),
             Claims = await filteredClaims
                 .OrderByDescending(c => c.DateSubmitted)
@@ -1163,17 +1151,6 @@ public class StateOfficeController : Controller
             x => x.Status == "Paid",
             cancellationToken);
 
-        decimal amountCapitationPaid = await _context.WalletTransactions
-            .AsNoTracking()
-            .Where(x => x.Type == "Disburse"
-                && x.Amount > 0
-                && x.Timestamp >= monthStart
-                && x.Timestamp < nextMonth
-                && x.EnrolleeWallet != null
-                && x.EnrolleeWallet.Enrollee != null
-                && x.EnrolleeWallet.Enrollee.ProviderId == providerId)
-            .SumAsync(x => (decimal?)x.Amount, cancellationToken) ?? 0m;
-
         return new StateOfficeMonthlyReportMetricsViewModel
         {
             ReportingPeriod = monthStart.ToString("yyyy-MM", CultureInfo.InvariantCulture),
@@ -1200,10 +1177,8 @@ public class StateOfficeController : Controller
             TotalReferrals = totalReferrals,
             CompletedReferrals = completedReferrals,
             ReferralCompletionRate = Percentage(completedReferrals, totalReferrals),
-            AmountCapitationPaid = amountCapitationPaid,
-            CapitationToUtilizationRatio = serviceUtilization > 0
-                ? Math.Round(amountCapitationPaid / serviceUtilization, 2)
-                : 0m,
+            AmountCapitationPaid = 0m,
+            CapitationToUtilizationRatio = 0m,
             TotalClaims = totalClaims,
             TotalClaimsAmount = await monthlyClaims
                 .SumAsync(x => (decimal?)x.Amount, cancellationToken) ?? 0m,

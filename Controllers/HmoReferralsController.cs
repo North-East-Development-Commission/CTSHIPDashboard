@@ -130,6 +130,38 @@ public class HmoReferralsController : Controller
         return RedirectToAction(nameof(Details), new { id });
     }
 
+    [HttpPost("ReissueCode/{id:guid}")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> ReissueCode(Guid id, CancellationToken cancellationToken)
+    {
+        ReferralDetailsViewModel? referral =
+            await _referralService.GetReferralDetailsAsync(id, cancellationToken);
+
+        if (referral == null)
+        {
+            return NotFound();
+        }
+
+        if (!await CanAccessReferralAsync(referral, cancellationToken))
+        {
+            return Forbid();
+        }
+
+        string? userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        string? userName = User.Identity?.Name;
+        bool issued = await _referralService.ReissueReferralVerificationCodeAsync(
+            id,
+            userId,
+            userName,
+            cancellationToken);
+
+        TempData[issued ? "SuccessMessage" : "ErrorMessage"] = issued
+            ? "Referral verification code reissued for another 7 days."
+            : "A code can only be reissued for verified referrals that have not been received or closed.";
+
+        return RedirectToAction(nameof(Details), new { id });
+    }
+
     [HttpGet("Audit/{id:guid}")]
     [Authorize(Roles = "NHIA,CTSHIPAdmin")]
     public async Task<IActionResult> Audit(Guid id, CancellationToken cancellationToken)

@@ -1,4 +1,4 @@
-@model CTSHIPDashboard.Models.ViewModels.MonitoringDashboardViewModel
+﻿@model CTSHIPDashboard.Models.ViewModels.MonitoringDashboardViewModel
 
 @{
     ViewData["Title"] = "Monitoring & Evaluation";
@@ -192,30 +192,9 @@
 <div class="row g-3 mb-4">
     <div class="col-xl-3 col-md-6">
         <div class="card h-100 border-success"><div class="card-body">
-            <div class="text-muted">Capitation Disbursed</div>
-            <div class="h3 fw-bold text-success">₦@Model.CapitationDisbursed.ToString("N2")</div>
-            <small>Total positive wallet disbursements</small>
-        </div></div>
-    </div>
-    <div class="col-xl-3 col-md-6">
-        <div class="card h-100 border-warning"><div class="card-body">
-            <div class="text-muted">Current Wallet Balance</div>
-            <div class="h3 fw-bold" style="color:#8a6819;">₦@Model.WalletBalance.ToString("N2")</div>
-            <small>Available enrollee funds</small>
-        </div></div>
-    </div>
-    <div class="col-xl-3 col-md-6">
-        <div class="card h-100 border-success"><div class="card-body">
             <div class="text-muted">Total Claim Value</div>
             <div class="h3 fw-bold text-success">₦@Model.TotalClaimValue.ToString("N2")</div>
             <small>Paid: ₦@Model.PaidClaimValue.ToString("N2")</small>
-        </div></div>
-    </div>
-    <div class="col-xl-3 col-md-6">
-        <div class="card h-100 border-warning"><div class="card-body">
-            <div class="text-muted">Encounter Deductions</div>
-            <div class="h3 fw-bold text-warning-emphasis">₦@Model.EncounterDeductions.ToString("N2")</div>
-            <small>Amounts deducted from enrollee wallets</small>
         </div></div>
     </div>
 </div>
@@ -251,8 +230,6 @@
                     <th>Open Complaints</th>
                     <th>Paid</th>
                     <th>Claim Value</th>
-                    <th>Capitation</th>
-                    <th>Wallet Balance</th>
                     <th>Referrals</th>
                     <th>Completed</th>
                     <th>Completion Rate</th>
@@ -272,8 +249,6 @@
                         <td>@state.OpenComplaints.ToString("N0")</td>
                         <td>@state.PaidClaims.ToString("N0")</td>
                         <td>₦@state.ClaimValue.ToString("N0")</td>
-                        <td>₦@state.CapitationDisbursed.ToString("N0")</td>
-                        <td>₦@state.WalletBalance.ToString("N0")</td>
                         <td>@state.Referrals.ToString("N0")</td>
                         <td>@state.CompletedReferrals.ToString("N0")</td>
                         <td>@state.ReferralCompletionRate%</td>

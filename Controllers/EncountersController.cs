@@ -52,6 +52,15 @@ namespace CTSHIPDashboard.Controllers
                 }
 
                 query = query.Where(encounter => encounter.ProviderId == currentUser!.ProviderId!.Value);
+                string? providerLevel = await _context.Providers
+                    .Where(provider => provider.Id == currentUser!.ProviderId!.Value)
+                    .Select(provider => provider.Level)
+                    .FirstOrDefaultAsync();
+                ViewBag.CanUseClaims = ProviderClaimAccessHelper.CanUseClaims(providerLevel);
+            }
+            else
+            {
+                ViewBag.CanUseClaims = true;
             }
 
             if (!string.IsNullOrWhiteSpace(search))
@@ -96,6 +105,7 @@ namespace CTSHIPDashboard.Controllers
                 .FirstOrDefaultAsync(e => e.Id == id);
             if (encounter == null) return NotFound();
             if (!await CanAccessProviderAsync(encounter.ProviderId)) return Forbid();
+            ViewBag.CanUseClaims = ProviderClaimAccessHelper.CanUseClaims(encounter.Provider);
             return View(encounter);
         }
 
@@ -138,8 +148,6 @@ namespace CTSHIPDashboard.Controllers
             }
 
             EnsureEncounterDefaults(encounter);
-            encounter.WalletSource = EncounterWalletSource.ProviderWallet;
-            ModelState.Remove(nameof(Encounter.WalletSource));
             ValidateSelectedServices(encounter);
             ValidateEncounterInput(encounter);
             await ValidateEnrolleeAssignmentAsync(encounter.EnrolleeId, encounter.ProviderId);
@@ -182,11 +190,11 @@ namespace CTSHIPDashboard.Controllers
                         "EncounterCreated",
                         actor,
                         encounter.EnrolleeId.ToString(),
-                        $"Encounter {encounter.EncounterNumber}; total {encounter.TotalAmount:C}; no wallet deduction at encounter creation.");
+                        $"Encounter {encounter.EncounterNumber}; total {encounter.TotalAmount:C}.");
 
                     TempData["Success"] = encounter.TotalAmount > 0
-                        ? $"Encounter {encounter.EncounterNumber} recorded. Claim amount is {encounter.TotalAmount:C}; no wallet deduction was made."
-                        : $"Encounter {encounter.EncounterNumber} recorded. Fees were waived and no wallet deduction was made.";
+                        ? $"Encounter {encounter.EncounterNumber} recorded. Claim amount is {encounter.TotalAmount:C}."
+                        : $"Encounter {encounter.EncounterNumber} recorded. Fees were waived.";
 
                     if (User.IsInRole("Provider"))
                     {
@@ -344,58 +352,9 @@ namespace CTSHIPDashboard.Controllers
                     return RedirectToAction(nameof(Details), new { id });
                 }
 
-                await using var transaction = await _context.Database.BeginTransactionAsync();
-                string deductionReference = $"Encounter {encounter.EncounterNumber}";
-                ProviderWalletTransaction? providerDeduction = await _context.ProviderWalletTransactions
-                    .Include(walletTransaction => walletTransaction.ProviderWallet)
-                    .FirstOrDefaultAsync(walletTransaction =>
-                        walletTransaction.Reference == deductionReference
-                        && walletTransaction.Amount < 0
-                        && walletTransaction.ProviderWallet != null
-                        && walletTransaction.ProviderWallet.ProviderId == encounter.ProviderId);
-
-                if (providerDeduction?.ProviderWallet != null)
-                {
-                    decimal refundAmount = Math.Abs(providerDeduction.Amount);
-                    providerDeduction.ProviderWallet.Balance += refundAmount;
-                    _context.ProviderWalletTransactions.Add(new ProviderWalletTransaction
-                    {
-                        ProviderWallet = providerDeduction.ProviderWallet,
-                        Amount = refundAmount,
-                        Type = "Refund",
-                        Reference = $"Deleted encounter {encounter.EncounterNumber}",
-                        Timestamp = TrimToSecond(DateTime.UtcNow)
-                    });
-                }
-                else
-                {
-                    WalletTransaction? enrolleeDeduction = await _context.WalletTransactions
-                        .Include(walletTransaction => walletTransaction.EnrolleeWallet)
-                        .FirstOrDefaultAsync(walletTransaction =>
-                            walletTransaction.Reference == deductionReference
-                            && walletTransaction.Amount < 0
-                            && walletTransaction.EnrolleeWallet != null
-                            && walletTransaction.EnrolleeWallet.EnrolleeId == encounter.EnrolleeId);
-
-                    if (enrolleeDeduction?.EnrolleeWallet != null)
-                    {
-                        decimal refundAmount = Math.Abs(enrolleeDeduction.Amount);
-                        enrolleeDeduction.EnrolleeWallet.Balance += refundAmount;
-                        _context.WalletTransactions.Add(new WalletTransaction
-                        {
-                            EnrolleeWallet = enrolleeDeduction.EnrolleeWallet,
-                            Amount = refundAmount,
-                            Type = "Refund",
-                            Reference = $"Deleted encounter {encounter.EncounterNumber}",
-                            Timestamp = TrimToSecond(DateTime.UtcNow)
-                        });
-                    }
-                }
-
                 _context.EncounterServices.RemoveRange(encounter.Services);
                 _context.Encounters.Remove(encounter);
                 await _context.SaveChangesAsync();
-                await transaction.CommitAsync();
                 TempData["Success"] = $"Encounter {encounter.EncounterNumber} deleted.";
             }
             return RedirectToAction(nameof(Index));
@@ -482,6 +441,12 @@ namespace CTSHIPDashboard.Controllers
             if (!await CanAccessProviderAsync(encounter.ProviderId))
             {
                 return Forbid();
+            }
+
+            if (!ProviderClaimAccessHelper.CanUseClaims(encounter.Provider))
+            {
+                TempData["Error"] = ProviderClaimAccessHelper.ClaimsUnavailableMessage;
+                return RedirectToAction(nameof(Details), new { id });
             }
 
             if (encounter.Status == "Cancelled")
@@ -656,7 +621,6 @@ namespace CTSHIPDashboard.Controllers
                 VisitType = "New Visit",
                 ServiceSetting = EncounterServiceCatalog.Outpatient,
                 Status = "Completed",
-                WalletSource = EncounterWalletSource.ProviderWallet,
                 FeesWaived = true
             };
             encounter.SelectedServices.Add("Management of common infectious diseases");
@@ -681,12 +645,6 @@ namespace CTSHIPDashboard.Controllers
             {
                 encounter.Status = "Completed";
                 ModelState.Remove(nameof(Encounter.Status));
-            }
-
-            if (string.IsNullOrWhiteSpace(encounter.WalletSource))
-            {
-                encounter.WalletSource = EncounterWalletSource.ProviderWallet;
-                ModelState.Remove(nameof(Encounter.WalletSource));
             }
         }
 

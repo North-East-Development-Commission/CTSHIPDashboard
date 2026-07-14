@@ -4,6 +4,7 @@ using CTSHIPDashboard.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CTSHIPDashboard.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260714000520_walletout")]
+    partial class walletout
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1256,35 +1259,6 @@ namespace CTSHIPDashboard.Migrations
                         .HasMaxLength(1000)
                         .HasColumnType("nvarchar(1000)");
 
-                    b.Property<string>("ReferralVerificationCode")
-                        .HasMaxLength(30)
-                        .HasColumnType("nvarchar(30)");
-
-                    b.Property<DateTime?>("ReferralVerificationCodeExpiresAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<DateTime?>("ReferralVerificationCodeIssuedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("ReferralVerificationCodeIssuedByName")
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.Property<string>("ReferralVerificationCodeIssuedByUserId")
-                        .HasMaxLength(450)
-                        .HasColumnType("nvarchar(450)");
-
-                    b.Property<DateTime?>("ReferralVerificationCodeVerifiedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("ReferralVerificationCodeVerifiedByName")
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.Property<string>("ReferralVerificationCodeVerifiedByUserId")
-                        .HasMaxLength(450)
-                        .HasColumnType("nvarchar(450)");
-
                     b.Property<string>("InvestigationSummary")
                         .HasMaxLength(1000)
                         .HasColumnType("nvarchar(1000)");
@@ -1331,10 +1305,6 @@ namespace CTSHIPDashboard.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("ReferredHospitalId");
-
-                    b.HasIndex("ReferralVerificationCode")
-                        .IsUnique()
-                        .HasFilter("[ReferralVerificationCode] IS NOT NULL");
 
                     b.ToTable("Referrals");
                 });

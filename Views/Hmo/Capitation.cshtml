@@ -1,0 +1,210 @@
+@model CTSHIPDashboard.Models.ViewModels.CapitationIndexViewModel
+
+@{
+    ViewData["Title"] = "Capitation";
+}
+
+<div class="container-fluid py-5">
+    <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
+        <div>
+            <h1 class="display-5 fw-bold text-success mb-2">Capitation</h1>
+            <p class="lead mb-0">@Model.HmoName <span class="text-muted">(@Model.HmoCode)</span></p>
+        </div>
+        <a asp-action="Dashboard" class="btn btn-outline-primary btn-lg">
+            <i class="bi bi-arrow-left me-1"></i> Dashboard
+        </a>
+    </div>
+
+    @if (TempData["Success"] != null)
+    {
+        <div class="alert alert-success shadow-sm">@TempData["Success"]</div>
+    }
+
+    @if (TempData["Error"] != null)
+    {
+        <div class="alert alert-danger shadow-sm">@TempData["Error"]</div>
+    }
+
+    <form asp-action="Capitation" method="get" class="card border-0 shadow-sm mb-4">
+        <div class="card-body">
+            <div class="row g-3 align-items-end">
+                <div class="col-lg-4 col-md-6">
+                    <label class="form-label fw-bold">Reporting Month</label>
+                    <input type="month"
+                           name="reportingMonth"
+                           value="@Model.ReportingMonth.ToString("yyyy-MM")"
+                           class="form-control form-control-lg" />
+                </div>
+                <div class="col-lg-4 col-md-6">
+                    <label class="form-label fw-bold">Capitation per Enrollee</label>
+                    <input type="number"
+                           name="capitationPerEnrollee"
+                           value="@Model.DefaultCapitationPerEnrollee"
+                           min="0"
+                           step="0.01"
+                           class="form-control form-control-lg" />
+                </div>
+                <div class="col-lg-4">
+                    <button type="submit" class="btn btn-success btn-lg w-100">
+                        <i class="bi bi-funnel-fill me-1"></i> Apply
+                    </button>
+                </div>
+            </div>
+        </div>
+    </form>
+
+    <div class="row g-3 mb-4 text-center">
+        <div class="col-lg-3 col-md-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <p class="text-muted fw-bold mb-1">PHC Providers</p>
+                    <h2 class="fw-bold text-primary mb-0">@Model.Providers.Count</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <p class="text-muted fw-bold mb-1">Number of Enrollees</p>
+                    <h2 class="fw-bold text-success mb-0">@Model.TotalEnrollees.ToString("N0")</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <p class="text-muted fw-bold mb-1">Total Capitation</p>
+                    <h2 class="fw-bold text-dark mb-0">NGN @Model.TotalCapitation.ToString("N2")</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <p class="text-muted fw-bold mb-1">Utilization Rate</p>
+                    <h2 class="fw-bold text-info mb-0">@Model.AverageUtilizationRate.ToString("N2")%</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-lg">
+        <div class="card-header bg-success text-white py-3">
+            <h3 class="fw-bold mb-0">Monthly Capitation Payments</h3>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Provider</th>
+                            <th>Number of Enrollees</th>
+                            <th>Capitation per Enrollee</th>
+                            <th>Total Capitation</th>
+                            <th>Utilization Rate</th>
+                            <th>Payment Status</th>
+                            <th>Payment Reference / Proof of Payment</th>
+                            <th>Update</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (!Model.Providers.Any())
+                        {
+                            <tr>
+                                <td colspan="8" class="text-center py-5 text-muted fs-5">
+                                    No active PHC providers found for this HMO.
+                                </td>
+                            </tr>
+                        }
+                        else
+                        {
+                            @foreach (var provider in Model.Providers)
+                            {
+                                <tr>
+                                    <td>
+                                        <div class="fw-bold">@provider.ProviderName</div>
+                                        <div class="small text-muted">@provider.ProviderCode - @provider.ProviderLevel</div>
+                                    </td>
+                                    <td class="fw-bold">@provider.EnrolleeCount.ToString("N0")</td>
+                                    <td>NGN @provider.CapitationPerEnrollee.ToString("N2")</td>
+                                    <td class="fw-bold">NGN @provider.TotalCapitation.ToString("N2")</td>
+                                    <td>
+                                        <span class="badge bg-info text-dark">@provider.UtilizationRate.ToString("N2")%</span>
+                                    </td>
+                                    <td>
+                                        <span class="badge @(provider.PaymentStatus == "Paid" ? "bg-success" : "bg-warning text-dark")">
+                                            @provider.PaymentStatus
+                                        </span>
+                                    </td>
+                                    <td>
+                                        @if (!string.IsNullOrWhiteSpace(provider.PaymentReference))
+                                        {
+                                            <div class="fw-bold">@provider.PaymentReference</div>
+                                        }
+                                        else
+                                        {
+                                            <div class="text-muted">No reference recorded</div>
+                                        }
+
+                                        @if (!string.IsNullOrWhiteSpace(provider.ProofOfPaymentPath))
+                                        {
+                                            <a href="@provider.ProofOfPaymentPath" target="_blank" class="small">
+                                                View proof of payment
+                                            </a>
+                                        }
+                                    </td>
+                                    <td style="min-width: 340px;">
+                                        <form asp-action="UpdateCapitationPayment"
+                                              method="post"
+                                              enctype="multipart/form-data"
+                                              class="d-grid gap-2">
+                                            @Html.AntiForgeryToken()
+                                            <input type="hidden" name="ProviderId" value="@provider.ProviderId" />
+                                            <input type="hidden" name="ReportingMonth" value="@Model.ReportingMonth.ToString("yyyy-MM")" />
+
+                                            <div class="row g-2">
+                                                <div class="col-md-5">
+                                                    <input type="number"
+                                                           name="CapitationPerEnrollee"
+                                                           value="@provider.CapitationPerEnrollee"
+                                                           min="0"
+                                                           step="0.01"
+                                                           class="form-control form-control-sm"
+                                                           aria-label="Capitation per enrollee" />
+                                                </div>
+                                                <div class="col-md-7">
+                                                    <select name="PaymentStatus"
+                                                            class="form-select form-select-sm"
+                                                            aria-label="Payment status">
+                                                        <option value="Pending" selected="@(provider.PaymentStatus != "Paid")">Pending</option>
+                                                        <option value="Paid" selected="@(provider.PaymentStatus == "Paid")">Paid</option>
+                                                    </select>
+                                                </div>
+                                            </div>
+
+                                            <input type="text"
+                                                   name="PaymentReference"
+                                                   value="@provider.PaymentReference"
+                                                   maxlength="100"
+                                                   class="form-control form-control-sm"
+                                                   placeholder="Payment reference number" />
+
+                                            <input type="file"
+                                                   name="proofOfPayment"
+                                                   accept=".pdf,.jpg,.jpeg,.png"
+                                                   class="form-control form-control-sm" />
+
+                                            <button type="submit" class="btn btn-success btn-sm">
+                                                <i class="bi bi-check2-circle me-1"></i> Save
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>

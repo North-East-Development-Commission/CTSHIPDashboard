@@ -60,9 +60,6 @@ namespace CTSHIPDashboard.Models.ViewModels
         public decimal ClaimApprovalRate { get; set; }
         public decimal TotalClaimValue { get; set; }
         public decimal PaidClaimValue { get; set; }
-        public decimal CapitationDisbursed { get; set; }
-        public decimal WalletBalance { get; set; }
-        public decimal EncounterDeductions { get; set; }
         public int AuditedDeaths { get; set; }
         public decimal DeathRatePerThousand { get; set; }
         public int TotalReferrals { get; set; }
@@ -100,8 +97,6 @@ namespace CTSHIPDashboard.Models.ViewModels
         public int PaidClaims { get; set; }
         public decimal ClaimValue { get; set; }
         public decimal PaidClaimValue { get; set; }
-        public decimal CapitationDisbursed { get; set; }
-        public decimal WalletBalance { get; set; }
         public int Referrals { get; set; }
         public int CompletedReferrals { get; set; }
         public decimal ReferralCompletionRate { get; set; }

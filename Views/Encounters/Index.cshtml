@@ -1,5 +1,9 @@
 ﻿@model IEnumerable<CTSHIPDashboard.Models.Encounter>
 
+@{
+    bool canUseClaims = ViewBag.CanUseClaims == true;
+}
+
 <div class="container-fluid py-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
@@ -95,7 +99,7 @@
                             <td>
                                 <a asp-action="Details" asp-route-id="@e.Id" class="btn btn-info btn-sm">View</a>
                                 <a asp-action="Edit" asp-route-id="@e.Id" class="btn btn-warning btn-sm">Edit</a>
-                                @if (User.IsInRole("Provider") && e.ClaimId == null && e.Status != "Cancelled")
+                                @if (User.IsInRole("Provider") && canUseClaims && e.ClaimId == null && e.Status != "Cancelled")
                                 {
                                     <a asp-action="CreateClaim" asp-route-id="@e.Id" class="btn btn-primary btn-sm">Create Claim</a>
                                 }

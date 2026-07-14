@@ -167,10 +167,19 @@
         <a asp-action="MyEncounters" class="btn btn-outline-success btn-lg">
             <i class="bi bi-list-check me-2"></i>View Encounters
         </a>
-        <a asp-action="WalletSummary" asp-route-id="@Model.ProviderId" class="btn btn-outline-primary btn-lg">
-            <i class="bi bi-wallet2 me-2"></i>Provider Wallet
-        </a>
     </div>
+
+    @if (TempData["Error"] != null)
+    {
+        <div class="alert alert-warning shadow-sm mb-4">@TempData["Error"]</div>
+    }
+
+    @if (!Model.CanUseClaims)
+    {
+        <div class="alert alert-info shadow-sm mb-4">
+            PHC providers receive capitation only. Claims services are available only to secondary or referred providers.
+        </div>
+    }
 
     <!-- KPI CARDS -->
     <div class="row g-4 mb-5">
@@ -192,24 +201,48 @@
                 <h2 class="display-5 fw-bold mb-0">@Model.TotalEncounters</h2>
             </div>
         </div>
-        <div class="col-xl-3 col-md-6">
-            <div class="dashboard-card kpi-card" style="--bg-start:#3B703B; --bg-end:#FE9031;">
-                <div class="kpi-icon">
-                    <i class="bi bi-hourglass-split"></i>
+        @if (Model.CanUseClaims)
+        {
+            <div class="col-xl-3 col-md-6">
+                <div class="dashboard-card kpi-card" style="--bg-start:#3B703B; --bg-end:#FE9031;">
+                    <div class="kpi-icon">
+                        <i class="bi bi-hourglass-split"></i>
+                    </div>
+                    <h5>Pending Claims</h5>
+                    <h2 class="display-5 fw-bold mb-0">@Model.PendingClaims</h2>
                 </div>
-                <h5>Pending Claims</h5>
-                <h2 class="display-5 fw-bold mb-0">@Model.PendingClaims</h2>
             </div>
-        </div>
-        <div class="col-xl-3 col-md-6">
-            <div class="dashboard-card kpi-card" style="--bg-start:#FE9031; --bg-end:#3B703B;">
-                <div class="kpi-icon">
-                    <i class="bi bi-journal"></i>
+            <div class="col-xl-3 col-md-6">
+                <div class="dashboard-card kpi-card" style="--bg-start:#FE9031; --bg-end:#3B703B;">
+                    <div class="kpi-icon">
+                        <i class="bi bi-journal"></i>
+                    </div>
+                    <h5>Claims Value</h5>
+                    <h2 class="display-5 fw-bold mb-0">₦@((int)Model.TotalClaimAmount)</h2>
                 </div>
-                <h5>Claims Value</h5>
-                <h2 class="display-5 fw-bold mb-0">₦@((int)Model.TotalClaimAmount)</h2>
             </div>
-        </div>
+        }
+        else
+        {
+            <div class="col-xl-3 col-md-6">
+                <div class="dashboard-card kpi-card" style="--bg-start:#3B703B; --bg-end:#FE9031;">
+                    <div class="kpi-icon">
+                        <i class="bi bi-cash-stack"></i>
+                    </div>
+                    <h5>Capitation</h5>
+                    <h2 class="display-6 fw-bold mb-0">Monthly</h2>
+                </div>
+            </div>
+            <div class="col-xl-3 col-md-6">
+                <div class="dashboard-card kpi-card" style="--bg-start:#FE9031; --bg-end:#3B703B;">
+                    <div class="kpi-icon">
+                        <i class="bi bi-hospital"></i>
+                    </div>
+                    <h5>Provider Level</h5>
+                    <h2 class="display-6 fw-bold mb-0">PHC</h2>
+                </div>
+            </div>
+        }
     </div>
 
     <div class="dashboard-card mb-5">
@@ -334,7 +367,7 @@
                                                 }
                                             </td>
                                             <td>
-                                                @if (e.ClaimId == null)
+                                                @if (e.ClaimId == null && Model.CanUseClaims)
                                                 {
                                                     <a asp-action="CreateClaim" asp-route-id="@e.Id"
                                                        class="btn btn-primary btn-sm rounded-pill px-4">Create Claim</a>
