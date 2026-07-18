@@ -89,6 +89,7 @@ namespace CTSHIPDashboard.Controllers
             var claim = await _context.Claims
                 .Include(c => c.Enrollee).ThenInclude(e => e!.Hmo)
                 .Include(c => c.Provider)
+                .Include(c => c.SupportingDocuments)
                 .FirstOrDefaultAsync(c => c.Id == id);
 
             if (claim == null) return NotFound();
@@ -258,9 +259,12 @@ namespace CTSHIPDashboard.Controllers
         [Authorize(Roles = "CTSHIPAdmin,Admin")]
         public async Task<IActionResult> DeleteConfirmed(int id)
         {
-            var claim = await _context.Claims.FindAsync(id);
+            var claim = await _context.Claims
+                .Include(c => c.SupportingDocuments)
+                .FirstOrDefaultAsync(c => c.Id == id);
             if (claim != null)
             {
+                _context.ClaimSupportingDocuments.RemoveRange(claim.SupportingDocuments);
                 _context.Claims.Remove(claim);
                 await _context.SaveChangesAsync();
 
@@ -277,6 +281,7 @@ namespace CTSHIPDashboard.Controllers
             var claim = await _context.Claims
                 .Include(c => c.Enrollee).ThenInclude(e => e!.Hmo)
                 .Include(c => c.Provider)
+                .Include(c => c.SupportingDocuments)
                 .FirstOrDefaultAsync(c => c.Id == id && c.Status == "Submitted");
 
             if (claim == null) return NotFound();
@@ -323,6 +328,7 @@ namespace CTSHIPDashboard.Controllers
             var claim = await _context.Claims
                 .Include(c => c.Enrollee)
                 .Include(c => c.Provider)
+                .Include(c => c.SupportingDocuments)
                 .FirstOrDefaultAsync(c => c.Id == id && c.Status == "Approved");
 
             if (claim == null) return NotFound();

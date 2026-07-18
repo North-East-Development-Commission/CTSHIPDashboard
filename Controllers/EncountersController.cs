@@ -1,12 +1,13 @@
 ﻿using CTSHIPDashboard.Data;
+using CTSHIPDashboard.Enums;
 using CTSHIPDashboard.Helpers;
-using CTSHIPDashboard.Hubs;
 using CTSHIPDashboard.Models;
+using CTSHIPDashboard.Services;
+using CTSHIPDashboard.ViewModels;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
-using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using System.Data;
 
@@ -17,19 +18,19 @@ namespace CTSHIPDashboard.Controllers
     {
         private readonly ApplicationDbContext _context;
         private readonly UserManager<ApplicationUser> _userManager;
-        private readonly IHubContext<AnalyticsHub> _hubContext;
         private readonly CTSHIPDashboard.Services.IAuditService _auditService;
+        private readonly IAppNotificationService _notificationService;
 
         public EncountersController(
             ApplicationDbContext context,
-            IHubContext<AnalyticsHub> hubContext,
             UserManager<ApplicationUser> userManager,
-            CTSHIPDashboard.Services.IAuditService auditService)
+            CTSHIPDashboard.Services.IAuditService auditService,
+            IAppNotificationService notificationService)
         {
             _context = context;
-            _hubContext = hubContext;
             _userManager = userManager;
             _auditService = auditService;
+            _notificationService = notificationService;
         }
 
         // INDEX — FULL LIST WITH SEARCH & FILTER
@@ -126,7 +127,7 @@ namespace CTSHIPDashboard.Controllers
             }
 
             EnsureEncounterDefaults(model);
-            await PopulateDropdowns(model.ProviderId, model.DoctorId);
+            await PrepareEncounterFormAsync(model);
             return View(model);
         }
 
@@ -150,7 +151,10 @@ namespace CTSHIPDashboard.Controllers
             EnsureEncounterDefaults(encounter);
             ValidateSelectedServices(encounter);
             ValidateEncounterInput(encounter);
-            await ValidateEnrolleeAssignmentAsync(encounter.EnrolleeId, encounter.ProviderId);
+            Enrollee? selectedEnrollee =
+                await ValidateEnrolleeAssignmentAsync(encounter.EnrolleeId, encounter.ProviderId);
+            Provider? selectedProvider = await ValidateProviderSelectionAsync(encounter.ProviderId);
+            await ValidateReferralInputAsync(encounter, selectedEnrollee);
             Doctor? attendingDoctor = await ValidateDoctorSelectionAsync(
                 encounter.ProviderId,
                 encounter.DoctorId,
@@ -176,11 +180,26 @@ namespace CTSHIPDashboard.Controllers
                         ?? "Unknown User";
                     ApplyDoctorSnapshot(encounter, attendingDoctor!);
                     encounter.VisitDate = TrimToSecond(encounter.VisitDate);
-                    encounter.Status = "Completed";
                     encounter.IsBilled = false;
 
                     SetEncounterServices(encounter);
                     _context.Encounters.Add(encounter);
+                    Guid? referralId = null;
+
+                    if (RequiresEncounterReferral(encounter)
+                        && selectedEnrollee != null
+                        && selectedProvider != null)
+                    {
+                        Referral referral = BuildSubmittedReferralFromEncounter(
+                            encounter,
+                            selectedEnrollee,
+                            selectedProvider,
+                            currentUser);
+
+                        _context.Referrals.Add(referral);
+                        AddReferralAuditLogs(referral, currentUser);
+                        referralId = referral.Id;
+                    }
 
                     await _context.SaveChangesAsync();
                     await transaction.CommitAsync();
@@ -192,9 +211,14 @@ namespace CTSHIPDashboard.Controllers
                         encounter.EnrolleeId.ToString(),
                         $"Encounter {encounter.EncounterNumber}; total {encounter.TotalAmount:C}.");
 
-                    TempData["Success"] = encounter.TotalAmount > 0
-                        ? $"Encounter {encounter.EncounterNumber} recorded. Claim amount is {encounter.TotalAmount:C}."
-                        : $"Encounter {encounter.EncounterNumber} recorded. Fees were waived.";
+                    if (referralId.HasValue)
+                    {
+                        await _notificationService.NotifyReferralInitiatedAsync(referralId.Value);
+                    }
+
+                    TempData["Success"] = referralId.HasValue
+                        ? $"Encounter {encounter.EncounterNumber} recorded and referral submitted to HMO."
+                        : $"Encounter {encounter.EncounterNumber} recorded.";
 
                     if (User.IsInRole("Provider"))
                     {
@@ -216,7 +240,7 @@ namespace CTSHIPDashboard.Controllers
                 }
             }
 
-            await PopulateDropdowns(encounter.ProviderId, encounter.DoctorId);
+            await PrepareEncounterFormAsync(encounter);
             return View(encounter);
         }
 
@@ -233,9 +257,8 @@ namespace CTSHIPDashboard.Controllers
             if (!await CanAccessProviderAsync(encounter.ProviderId)) return Forbid();
 
             encounter.VisitDate = TrimToSecond(encounter.VisitDate);
-            encounter.FeesWaived = encounter.TotalAmount <= 0;
             encounter.SelectedServices = encounter.Services.Select(x => x.ServiceName).ToList();
-            await PopulateDropdowns(encounter.ProviderId, encounter.DoctorId);
+            await PrepareEncounterFormAsync(encounter);
             return View(encounter);
         }
 
@@ -284,16 +307,10 @@ namespace CTSHIPDashboard.Controllers
                     existing.ServiceSetting = encounter.ServiceSetting;
                     existing.Status = encounter.Status;
                     existing.DoctorId = encounter.DoctorId;
-                    existing.Temperature = encounter.Temperature;
-                    existing.BloodPressure = encounter.BloodPressure;
-                    existing.PulseRate = encounter.PulseRate;
                     existing.ChiefComplaint = encounter.ChiefComplaint;
                     existing.Diagnosis = encounter.Diagnosis;
                     existing.LabTests = encounter.LabTests;
                     existing.TreatmentGiven = encounter.TreatmentGiven;
-                    existing.ConsultationFee = encounter.ConsultationFee;
-                    existing.LabFee = encounter.LabFee;
-                    existing.DrugFee = encounter.DrugFee;
                     existing.Notes = encounter.Notes;
                     ApplyDoctorSnapshot(existing, attendingDoctor!);
                     _context.EncounterServices.RemoveRange(existing.Services);
@@ -314,7 +331,7 @@ namespace CTSHIPDashboard.Controllers
             // ONLY CALL ONCE
             encounter.Enrollee = existing.Enrollee;
             encounter.Doctor = existing.Doctor;
-            await PopulateDropdowns(existing.ProviderId, encounter.DoctorId);
+            await PrepareEncounterFormAsync(encounter);
             return View(encounter);
         }
 
@@ -485,17 +502,7 @@ namespace CTSHIPDashboard.Controllers
             encounter.Status = "Claimed";
             await _context.SaveChangesAsync();
 
-            // REAL-TIME NOTIFICATION
-            await _hubContext.Clients.All.SendAsync("ClaimSubmitted", new
-            {
-                claim.Id,
-                claim.ClaimNumber,
-                EnrolleeName = encounter.Enrollee!.FullName,
-                HmoName = encounter.Enrollee.Hmo!.Name,
-                ProviderName = encounter.Provider!.Name,
-                Amount = claim.Amount,
-                Status = "Submitted"
-            });
+            await _notificationService.NotifyClaimSubmittedAsync(claim.Id);
 
             TempData["Success"] = $"Claim {claim.ClaimNumber} successfully created for {encounter.Enrollee.Hmo!.Name}!";
             // Audit claim creation
@@ -506,6 +513,12 @@ namespace CTSHIPDashboard.Controllers
             }
             catch { }
             return RedirectToAction("MyClaims", "Providers");
+        }
+
+        private async Task PrepareEncounterFormAsync(Encounter encounter)
+        {
+            await PopulateDropdowns(encounter.ProviderId, encounter.DoctorId);
+            await PopulateReferralFieldsAsync(encounter);
         }
 
         private async Task PopulateDropdowns(int? selectedProviderId = null, int? selectedDoctorId = null)
@@ -575,6 +588,26 @@ namespace CTSHIPDashboard.Controllers
             ViewBag.InpatientServices = EncounterServiceCatalog.InpatientServices;
         }
 
+        private async Task PopulateReferralFieldsAsync(Encounter encounter)
+        {
+            encounter.Referral ??= new EncounterReferralInputViewModel();
+            encounter.Referral.RequiresReferral = RequiresEncounterReferral(encounter);
+            encounter.Referral.ReferredHospitals = await _context.ReferralHospitals
+                .AsNoTracking()
+                .Where(hospital => hospital.IsActive)
+                .OrderBy(hospital => hospital.Name)
+                .Select(hospital => new SelectListItem
+                {
+                    Value = hospital.Id.ToString(),
+                    Text = string.IsNullOrWhiteSpace(hospital.State)
+                        ? hospital.Name
+                        : hospital.Name + " - " + hospital.State,
+                    Selected = encounter.Referral.ReferredHospitalId.HasValue
+                        && encounter.Referral.ReferredHospitalId.Value == hospital.Id
+                })
+                .ToListAsync();
+        }
+
         private async Task<Doctor?> ValidateDoctorSelectionAsync(
             int providerId,
             int? doctorId,
@@ -620,8 +653,7 @@ namespace CTSHIPDashboard.Controllers
                 VisitDate = TrimToSecond(DateTime.Now),
                 VisitType = "New Visit",
                 ServiceSetting = EncounterServiceCatalog.Outpatient,
-                Status = "Completed",
-                FeesWaived = true
+                Status = "Completed"
             };
             encounter.SelectedServices.Add("Management of common infectious diseases");
             return encounter;
@@ -646,12 +678,20 @@ namespace CTSHIPDashboard.Controllers
                 encounter.Status = "Completed";
                 ModelState.Remove(nameof(Encounter.Status));
             }
+
+            if (IsReferralVisitType(encounter.VisitType)
+                && !IsReferralStatus(encounter.Status))
+            {
+                encounter.Status = "Referred";
+                ModelState.Remove(nameof(Encounter.Status));
+            }
         }
 
         private async Task<Enrollee?> ValidateEnrolleeAssignmentAsync(int enrolleeId, int providerId)
         {
             Enrollee? enrollee = await _context.Enrollees
                 .AsNoTracking()
+                .Include(candidate => candidate.Hmo)
                 .FirstOrDefaultAsync(candidate => candidate.Id == enrolleeId);
 
             if (enrollee == null)
@@ -666,6 +706,67 @@ namespace CTSHIPDashboard.Controllers
             }
 
             return enrollee;
+        }
+
+        private async Task<Provider?> ValidateProviderSelectionAsync(int providerId)
+        {
+            Provider? provider = await _context.Providers
+                .AsNoTracking()
+                .FirstOrDefaultAsync(candidate => candidate.Id == providerId && candidate.IsActive);
+
+            if (provider == null)
+            {
+                ModelState.AddModelError(nameof(Encounter.ProviderId), "Select an active facility.");
+            }
+
+            return provider;
+        }
+
+        private async Task ValidateReferralInputAsync(Encounter encounter, Enrollee? enrollee)
+        {
+            encounter.Referral ??= new EncounterReferralInputViewModel();
+            encounter.Referral.RequiresReferral = RequiresEncounterReferral(encounter);
+
+            if (!encounter.Referral.RequiresReferral)
+            {
+                return;
+            }
+
+            if (enrollee?.Hmo == null)
+            {
+                ModelState.AddModelError(
+                    nameof(Encounter.EnrolleeId),
+                    "The selected enrollee must have an HMO before a referral can be submitted.");
+            }
+
+            if (!encounter.Referral.ReferredHospitalId.HasValue)
+            {
+                ModelState.AddModelError(
+                    "Referral.ReferredHospitalId",
+                    "Select the referred hospital.");
+            }
+            else
+            {
+                bool hospitalIsActive = await _context.ReferralHospitals
+                    .AsNoTracking()
+                    .AnyAsync(hospital =>
+                        hospital.Id == encounter.Referral.ReferredHospitalId.Value
+                        && hospital.IsActive);
+
+                if (!hospitalIsActive)
+                {
+                    ModelState.AddModelError(
+                        "Referral.ReferredHospitalId",
+                        "Select an active referred hospital.");
+                }
+            }
+
+            if (string.IsNullOrWhiteSpace(encounter.Referral.ReasonForReferral))
+            {
+                ModelState.AddModelError(
+                    "Referral.ReasonForReferral",
+                    "Enter the reason for referral.");
+            }
         }
 
         private async Task<bool> CanAccessProviderAsync(int providerId)
@@ -686,6 +787,96 @@ namespace CTSHIPDashboard.Controllers
             encounter.Rank = string.IsNullOrWhiteSpace(doctor.Designation)
                 ? doctor.Specialty
                 : doctor.Designation;
+        }
+
+        private static Referral BuildSubmittedReferralFromEncounter(
+            Encounter encounter,
+            Enrollee enrollee,
+            Provider provider,
+            ApplicationUser? currentUser)
+        {
+            string actorName = currentUser?.FullName
+                ?? currentUser?.Email
+                ?? "Provider";
+
+            return new Referral
+            {
+                EncounterReference = LimitText(encounter.EncounterNumber, 100),
+                EnrolleeNumber = LimitText(enrollee.EnrollmentNumber, 100),
+                EnrolleeFullName = LimitText(enrollee.FullName, 200),
+                HmoCode = LimitOptionalText(enrollee.Hmo?.RegistrationNumber, 100),
+                HmoName = LimitOptionalText(enrollee.Hmo?.Name, 200),
+                FromProviderId = provider.Id.ToString(),
+                FromProviderName = LimitText(provider.Name, 200),
+                ReferredHospitalId = encounter.Referral.ReferredHospitalId.GetValueOrDefault(),
+                Diagnosis = LimitText(encounter.Diagnosis, 200, encounter.ChiefComplaint),
+                ReasonForReferral = LimitText(encounter.Referral.ReasonForReferral, 1000),
+                ClinicalSummary = BuildClinicalSummary(encounter),
+                TreatmentGiven = LimitOptionalText(encounter.TreatmentGiven, 1000),
+                InvestigationSummary = LimitOptionalText(encounter.LabTests, 1000),
+                Priority = encounter.Referral.Priority,
+                Status = ReferralStatus.SubmittedToHmo,
+                CreatedByUserId = currentUser?.Id,
+                CreatedByName = LimitOptionalText(actorName, 200),
+                CreatedAt = DateTime.UtcNow,
+                SubmittedByUserId = currentUser?.Id,
+                SubmittedToHmoAt = DateTime.UtcNow
+            };
+        }
+
+        private void AddReferralAuditLogs(Referral referral, ApplicationUser? currentUser)
+        {
+            string? actorName = currentUser?.FullName ?? currentUser?.Email;
+
+            _context.ReferralAuditLogs.Add(new ReferralAuditLog
+            {
+                ReferralId = referral.Id,
+                Action = ReferralAuditAction.Created,
+                PerformedByUserId = currentUser?.Id,
+                PerformedByName = actorName,
+                Note = "Referral created from provider encounter."
+            });
+
+            _context.ReferralAuditLogs.Add(new ReferralAuditLog
+            {
+                ReferralId = referral.Id,
+                Action = ReferralAuditAction.SubmittedToHmo,
+                PerformedByUserId = currentUser?.Id,
+                PerformedByName = actorName,
+                Note = "Referral submitted to HMO from provider encounter."
+            });
+        }
+
+        private static string? BuildClinicalSummary(Encounter encounter)
+        {
+            List<string> lines = new();
+
+            if (!string.IsNullOrWhiteSpace(encounter.ChiefComplaint))
+            {
+                lines.Add("Complaint: " + encounter.ChiefComplaint.Trim());
+            }
+
+            if (!string.IsNullOrWhiteSpace(encounter.Diagnosis))
+            {
+                lines.Add("Diagnosis: " + encounter.Diagnosis.Trim());
+            }
+
+            IEnumerable<string> services = encounter.SelectedServices.Count > 0
+                ? encounter.SelectedServices
+                : encounter.Services.Select(service => service.ServiceName);
+            string serviceSummary = string.Join(", ", services.Where(service => !string.IsNullOrWhiteSpace(service)));
+
+            if (!string.IsNullOrWhiteSpace(serviceSummary))
+            {
+                lines.Add("Services: " + serviceSummary);
+            }
+
+            if (!string.IsNullOrWhiteSpace(encounter.Notes))
+            {
+                lines.Add("Notes: " + encounter.Notes.Trim());
+            }
+
+            return LimitOptionalText(string.Join(Environment.NewLine, lines), 1000);
         }
 
         private void ValidateSelectedServices(Encounter encounter)
@@ -730,57 +921,41 @@ namespace CTSHIPDashboard.Controllers
                 ModelState.AddModelError(nameof(Encounter.VisitDate), "Encounter date cannot be in the future.");
             }
 
-            if (encounter.Temperature < 35m || encounter.Temperature > 42m)
-            {
-                ModelState.AddModelError(nameof(Encounter.Temperature), "Temperature must be between 35 and 42 °C.");
-            }
-
-            if (encounter.PulseRate < 40 || encounter.PulseRate > 180)
-            {
-                ModelState.AddModelError(nameof(Encounter.PulseRate), "Pulse rate must be between 40 and 180 bpm.");
-            }
-
-            if (!IsValidBloodPressure(encounter.BloodPressure))
-            {
-                ModelState.AddModelError(nameof(Encounter.BloodPressure), "Blood pressure must be in systolic/diastolic format, for example 120/80.");
-            }
-
-            if (encounter.ConsultationFee < 0 || encounter.LabFee < 0 || encounter.DrugFee < 0)
-            {
-                ModelState.AddModelError(string.Empty, "Fees cannot be negative.");
-            }
-
-            if (encounter.SelectedServices.Count > 0 && encounter.TotalAmount <= 0 && !encounter.FeesWaived)
-            {
-                ModelState.AddModelError(string.Empty, "Enter at least one fee amount or tick Fees Waived.");
-            }
-
-            if (encounter.TotalAmount > 0 && encounter.FeesWaived)
-            {
-                ModelState.AddModelError(nameof(Encounter.FeesWaived), "Fees Waived can only be used when all fees are zero.");
-            }
         }
 
-        private static bool IsValidBloodPressure(string? bloodPressure)
+        private static bool IsReferralStatus(string? status)
         {
-            if (string.IsNullOrWhiteSpace(bloodPressure))
+            return string.Equals(status, "Referred", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static bool IsReferralVisitType(string? visitType)
+        {
+            return string.Equals(visitType, "Referral", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static bool RequiresEncounterReferral(Encounter encounter)
+        {
+            return IsReferralStatus(encounter.Status) || IsReferralVisitType(encounter.VisitType);
+        }
+
+        private static string LimitText(string? value, int maxLength, string? fallback = null)
+        {
+            string text = string.IsNullOrWhiteSpace(value)
+                ? fallback?.Trim() ?? string.Empty
+                : value.Trim();
+
+            return text.Length <= maxLength ? text : text[..maxLength];
+        }
+
+        private static string? LimitOptionalText(string? value, int maxLength)
+        {
+            if (string.IsNullOrWhiteSpace(value))
             {
-                return false;
+                return null;
             }
 
-            string[] parts = bloodPressure.Split('/', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
-            if (parts.Length != 2
-                || !int.TryParse(parts[0], out int systolic)
-                || !int.TryParse(parts[1], out int diastolic))
-            {
-                return false;
-            }
-
-            return systolic >= 70
-                && systolic <= 250
-                && diastolic >= 40
-                && diastolic <= 150
-                && systolic > diastolic;
+            string text = value.Trim();
+            return text.Length <= maxLength ? text : text[..maxLength];
         }
 
         private static DateTime TrimToSecond(DateTime value)

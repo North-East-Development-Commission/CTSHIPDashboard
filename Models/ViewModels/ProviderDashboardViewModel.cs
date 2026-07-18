@@ -21,6 +21,12 @@ namespace CTSHIPDashboard.ViewModels
         public decimal TotalClaimAmount { get; set; }
         public int PendingClaims { get; set; }
         public int PaidClaims { get; set; }
+        public int TotalReferrals { get; set; }
+        public int PendingReferralVerification { get; set; }
+        public int IncomingReferrals { get; set; }
+        public int CompletedReferrals { get; set; }
+        public int RejectedReferrals { get; set; }
+        public decimal ReferralCompletionRate { get; set; }
 
         // Recent Encounters (Latest 10)
         public List<Encounter> RecentEncounters { get; set; } = new();

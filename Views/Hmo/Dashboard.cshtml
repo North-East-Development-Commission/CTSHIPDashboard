@@ -69,6 +69,64 @@
         </div>
     </div>
 
+    <!-- REFERRAL STATUS -->
+    <div class="card border-0 shadow-lg mb-5">
+        <div class="card-header bg-success text-white py-4">
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+                <h3 class="fw-bold mb-0">Referral Metrics</h3>
+                <a asp-controller="HmoReferrals" asp-action="Index" class="btn btn-warning fw-bold">
+                    <i class="bi bi-hospital me-1"></i> Manage Referrals
+                </a>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="row g-3 text-center">
+                <div class="col-xl-2 col-md-4 col-sm-6">
+                    <div class="border rounded-3 p-3 h-100">
+                        <i class="bi bi-send fs-2 text-success"></i>
+                        <h6 class="mt-2">Total</h6>
+                        <h2 class="fw-bold">@ViewBag.TotalReferrals</h2>
+                    </div>
+                </div>
+                <div class="col-xl-2 col-md-4 col-sm-6">
+                    <div class="border rounded-3 p-3 h-100">
+                        <i class="bi bi-hourglass-split fs-2 text-warning"></i>
+                        <h6 class="mt-2">Awaiting Verification</h6>
+                        <h2 class="fw-bold">@ViewBag.PendingReferralVerification</h2>
+                    </div>
+                </div>
+                <div class="col-xl-2 col-md-4 col-sm-6">
+                    <div class="border rounded-3 p-3 h-100">
+                        <i class="bi bi-activity fs-2 text-primary"></i>
+                        <h6 class="mt-2">Active</h6>
+                        <h2 class="fw-bold">@ViewBag.ActiveReferrals</h2>
+                    </div>
+                </div>
+                <div class="col-xl-2 col-md-4 col-sm-6">
+                    <div class="border rounded-3 p-3 h-100">
+                        <i class="bi bi-check-circle fs-2 text-success"></i>
+                        <h6 class="mt-2">Completed</h6>
+                        <h2 class="fw-bold">@ViewBag.CompletedReferrals</h2>
+                    </div>
+                </div>
+                <div class="col-xl-2 col-md-4 col-sm-6">
+                    <div class="border rounded-3 p-3 h-100">
+                        <i class="bi bi-x-circle fs-2 text-danger"></i>
+                        <h6 class="mt-2">Rejected</h6>
+                        <h2 class="fw-bold">@ViewBag.RejectedReferrals</h2>
+                    </div>
+                </div>
+                <div class="col-xl-2 col-md-4 col-sm-6">
+                    <div class="border rounded-3 p-3 h-100">
+                        <i class="bi bi-graph-up-arrow fs-2 text-success"></i>
+                        <h6 class="mt-2">Completion</h6>
+                        <h2 class="fw-bold">@ViewBag.ReferralCompletionRate.ToString("N1")%</h2>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- CLAIMS STATUS -->
     <div class="row g-4 mb-5">
         <div class="col-md-6">

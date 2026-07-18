@@ -1,0 +1,156 @@
+@model CTSHIPDashboard.ViewModels.ReferralPriceCatalogIndexViewModel
+@{
+    ViewData["Title"] = "Referral Price Catalog";
+}
+
+<div class="ct-page">
+    <div class="ct-page-header d-flex flex-wrap justify-content-between align-items-center gap-3">
+        <div>
+            <h2>Referral Price Catalog</h2>
+            <p class="mb-0">Prescription, laboratory, and surgery prices by provider state.</p>
+        </div>
+        <a asp-controller="Analytics" asp-action="Index" class="btn btn-light">
+            <i class="bi bi-arrow-left"></i> Admin Dashboard
+        </a>
+    </div>
+
+    <div class="row g-3">
+        <div class="col-lg-4">
+            <form asp-controller="PriceCatalog" asp-action="BulkUpload" method="post" class="card card-body">
+                @Html.AntiForgeryToken()
+                <h5 class="mb-3">Bulk Add Prices</h5>
+
+                <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+
+                <div class="mb-3">
+                    <label asp-for="BulkUpload.State" class="form-label fw-semibold"></label>
+                    <select asp-for="BulkUpload.State" asp-items="Model.StateOptions" class="form-select"></select>
+                    <span asp-validation-for="BulkUpload.State" class="text-danger"></span>
+                </div>
+
+                <div class="mb-3">
+                    <label asp-for="BulkUpload.Category" class="form-label fw-semibold"></label>
+                    <select asp-for="BulkUpload.Category" asp-items="Model.CategoryOptions" class="form-select"></select>
+                    <span asp-validation-for="BulkUpload.Category" class="text-danger"></span>
+                </div>
+
+                <div class="mb-3">
+                    <label asp-for="BulkUpload.ItemsText" class="form-label fw-semibold"></label>
+                    <textarea asp-for="BulkUpload.ItemsText"
+                              class="form-control"
+                              rows="10"
+                              placeholder="Paracetamol 500mg tablets, 1500&#10;Full blood count, 3000"></textarea>
+                    <span asp-validation-for="BulkUpload.ItemsText" class="text-danger"></span>
+                    <div class="form-text">One item per line. Use comma, tab, or pipe between title and price.</div>
+                </div>
+
+                <div class="form-check form-switch mb-3">
+                    <input asp-for="BulkUpload.ReplaceExisting" class="form-check-input" />
+                    <label asp-for="BulkUpload.ReplaceExisting" class="form-check-label"></label>
+                </div>
+
+                <button type="submit" class="btn btn-success fw-bold">
+                    <i class="bi bi-cloud-arrow-up-fill"></i> Save Catalog
+                </button>
+            </form>
+        </div>
+
+        <div class="col-lg-8">
+            <div class="card card-body mb-3">
+                <form asp-controller="PriceCatalog" asp-action="Index" method="get" class="row g-2 align-items-end">
+                    <div class="col-md-5">
+                        <label for="state" class="form-label fw-semibold">State</label>
+                        <select id="state" name="state" asp-items="Model.FilterStateOptions" class="form-select"></select>
+                    </div>
+                    <div class="col-md-5">
+                        <label for="category" class="form-label fw-semibold">Category</label>
+                        <select id="category" name="category" asp-items="Model.FilterCategoryOptions" class="form-select"></select>
+                    </div>
+                    <div class="col-md-2 d-grid">
+                        <button type="submit" class="btn btn-success">
+                            <i class="bi bi-search"></i> Filter
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <div class="card">
+                <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+                    <strong>Catalog Items</strong>
+                    <span class="badge bg-success">@Model.Items.Count item(s)</span>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>State</th>
+                                <th>Category</th>
+                                <th>Title</th>
+                                <th class="text-end">Price</th>
+                                <th>Status</th>
+                                <th class="text-end">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (Model.Items.Count == 0)
+                            {
+                                <tr>
+                                    <td colspan="6" class="text-center text-muted py-4">
+                                        No catalog items found for the selected filter.
+                                    </td>
+                                </tr>
+                            }
+                            else
+                            {
+                                foreach (var item in Model.Items)
+                                {
+                                    <tr>
+                                        <td>@item.State</td>
+                                        <td>@item.Category</td>
+                                        <td>@item.Title</td>
+                                        <td class="text-end">NGN @item.Price.ToString("N0")</td>
+                                        <td>
+                                            @if (item.IsActive)
+                                            {
+                                                <span class="badge bg-success">Active</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="badge bg-secondary">Inactive</span>
+                                            }
+                                        </td>
+                                        <td class="text-end">
+                                            <form asp-controller="PriceCatalog" asp-action="ToggleActive" method="post" class="d-inline">
+                                                @Html.AntiForgeryToken()
+                                                <input type="hidden" name="id" value="@item.Id" />
+                                                <input type="hidden" name="isActive" value="@(!item.IsActive)" />
+                                                <input type="hidden" name="state" value="@Model.State" />
+                                                <input type="hidden" name="category" value="@Model.Category" />
+                                                <button type="submit" class="btn btn-sm @(item.IsActive ? "btn-outline-secondary" : "btn-outline-success")">
+                                                    @if (item.IsActive)
+                                                    {
+                                                        <i class="bi bi-pause-circle"></i>
+                                                        <span>Deactivate</span>
+                                                    }
+                                                    else
+                                                    {
+                                                        <i class="bi bi-play-circle"></i>
+                                                        <span>Activate</span>
+                                                    }
+                                                </button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                }
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

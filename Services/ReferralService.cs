@@ -13,10 +13,14 @@ public class ReferralService : IReferralService
     private const int ReferralVerificationCodeValidDays = 7;
 
     private readonly ApplicationDbContext _context;
+    private readonly IAppNotificationService _notificationService;
 
-    public ReferralService(ApplicationDbContext context)
+    public ReferralService(
+        ApplicationDbContext context,
+        IAppNotificationService notificationService)
     {
         _context = context;
+        _notificationService = notificationService;
     }
 
     public async Task<List<ReferralIndexViewModel>> GetProviderReferralsAsync(string? providerId, string? search, CancellationToken cancellationToken = default)
@@ -245,6 +249,11 @@ public class ReferralService : IReferralService
         }
 
         await _context.SaveChangesAsync(cancellationToken);
+        if (submitToHmo)
+        {
+            await _notificationService.NotifyReferralInitiatedAsync(referral.Id, cancellationToken);
+        }
+
         return referral.Id;
     }
 
@@ -308,6 +317,7 @@ public class ReferralService : IReferralService
         });
 
         await _context.SaveChangesAsync(cancellationToken);
+        await _notificationService.NotifyReferralInitiatedAsync(referral.Id, cancellationToken);
         return true;
     }
 

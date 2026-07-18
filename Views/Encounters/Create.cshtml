@@ -61,13 +61,6 @@
                                 </select>
                             </div>
                             <partial name="_ServiceSelection" model="Model" />
-                            <div class="col-md-4">
-                                <label asp-for="BloodPressure" class="form-label text-success fw-bold">Blood Pressure</label>
-                                <input asp-for="BloodPressure"
-                                       class="form-control"
-                                       placeholder="e.g., 120/80" />
-                                <span asp-validation-for="BloodPressure" class="text-danger"></span>
-                            </div>
 
                             <!-- STATUS DROPDOWN — ADDED! -->
                             <div class="col-md-4">
@@ -92,18 +85,7 @@
                                 <span asp-validation-for="DoctorId" class="text-danger"></span>
                             </div>
 
-                            <!-- VITALS -->
-                            <div class="col-md-4">
-                                <label asp-for="Temperature" class="form-label text-success fw-bold">Temperature (°C)</label>
-                                <input asp-for="Temperature" class="form-control form-control" type="number" step="0.1" />
-                                <span asp-validation-for="Temperature" class="text-danger"></span>
-                            </div>
-                        
-                            <div class="col-md-4">
-                                <label asp-for="PulseRate" class="form-label text-success fw-bold">Pulse Rate</label>
-                                <input asp-for="PulseRate" class="form-control form-control" type="number" step="1" />
-                                <span asp-validation-for="PulseRate" class="text-danger"></span>
-                            </div>
+                            <partial name="_ReferralFields" model="Model.Referral" />
 
                             <!-- CLINICAL -->
                             <div class="col-12">
@@ -119,33 +101,11 @@
                             </div>
 
                             <div class="col-12">
-                                <label asp-for="TreatmentGiven" class="form-label text-success fw-bold">Treatment Given</label>
+                                <label asp-for="TreatmentGiven" class="form-label text-success fw-bold">Note</label>
                                 <textarea asp-for="TreatmentGiven" class="form-control form-control"></textarea>
                                 <span asp-validation-for="TreatmentGiven" class="text-danger"></span>
                             </div>
 
-                            <!-- FEES -->
-                            <div class="col-md-4">
-                                <label asp-for="ConsultationFee" class="form-label text-success fw-bold">Consultation Fee (₦)</label>
-                                <input asp-for="ConsultationFee" class="form-control form-control-lg text-end" type="number" min="0" step="0.01" />
-                            </div>
-                            <div class="col-md-4">
-                                <label asp-for="LabFee" class="form-label text-success fw-bold">Lab Fee (₦)</label>
-                                <input asp-for="LabFee" class="form-control form-control-lg text-end" type="number" min="0" step="0.01" value="0" />
-                            </div>
-                            <div class="col-md-4">
-                                <label asp-for="DrugFee" class="form-label text-success fw-bold">Drug Fee (₦)</label>
-                                <input asp-for="DrugFee" class="form-control form-control-lg text-end" type="number" min="0" step="0.01" value="0" />
-                            </div>
-
-                            <div class="col-md-12 d-flex align-items-end">
-                                <div class="form-check form-switch">
-                                    <input asp-for="FeesWaived" class="form-check-input" type="checkbox" />
-                                    <label asp-for="FeesWaived" class="form-check-label fw-bold text-success">Fees Waived</label>
-                                    <div class="text-muted small">Use only when all fee amounts are zero.</div>
-                                    <span asp-validation-for="FeesWaived" class="text-danger"></span>
-                                </div>
-                            </div>
                         </div>
 
                         <!-- Submit -->
@@ -324,24 +284,43 @@
             errors.push(message);
         }
 
-        function getEncounterFeeTotal() {
-            const consultation = Number(document.getElementById('ConsultationFee')?.value || 0);
-            const lab = Number(document.getElementById('LabFee')?.value || 0);
-            const drug = Number(document.getElementById('DrugFee')?.value || 0);
-            return consultation + lab + drug;
+        function isReferralEncounter() {
+            const status = (document.getElementById('Status')?.value || '').toLowerCase();
+            const visitType = (document.getElementById('VisitType')?.value || '').toLowerCase();
+            return status === 'referred' || visitType === 'referral';
         }
 
-        function syncFeesWaivedWithFees() {
-            const feesWaived = document.getElementById('FeesWaived');
-            if (!feesWaived) return;
+        function syncReferralFields() {
+            const referralActive = isReferralEncounter();
+            const referralFields = document.getElementById('referralFields');
+            const requiresReferral = document.getElementById('Referral_RequiresReferral');
+            const submitBtn = document.getElementById('submitBtn');
+            const statusSelect = document.getElementById('Status');
 
-            feesWaived.checked = getEncounterFeeTotal() <= 0;
+            if (referralFields) {
+                referralFields.style.display = referralActive ? 'block' : 'none';
+            }
+
+            if (requiresReferral) {
+                requiresReferral.value = referralActive ? 'true' : 'false';
+            }
+
+            if (submitBtn) {
+                submitBtn.textContent = referralActive ? 'SUBMIT TO HMO' : 'SAVE ENCOUNTER';
+            }
+
+            if (referralActive && statusSelect && statusSelect.value.toLowerCase() !== 'referred') {
+                const referredOption = Array.from(statusSelect.options)
+                    .find(option => option.value.toLowerCase() === 'referred');
+                if (referredOption) {
+                    statusSelect.value = referredOption.value;
+                }
+            }
         }
 
-        document.querySelectorAll('#ConsultationFee, #LabFee, #DrugFee').forEach(input => {
-            input.addEventListener('input', syncFeesWaivedWithFees);
-        });
-        syncFeesWaivedWithFees();
+        document.getElementById('Status')?.addEventListener('change', syncReferralFields);
+        document.getElementById('VisitType')?.addEventListener('change', syncReferralFields);
+        syncReferralFields();
 
         function validateEncounterForm(event) {
             const form = document.getElementById('encounterForm');
@@ -350,17 +329,8 @@
             form.querySelectorAll('.is-invalid').forEach(field => field.classList.remove('is-invalid'));
 
             const errors = [];
-            const temperature = Number(document.getElementById('Temperature')?.value || 0);
-            const pulseRate = Number(document.getElementById('PulseRate')?.value || 0);
-            const bloodPressure = document.getElementById('BloodPressure')?.value.trim() || '';
-            const bloodPressureMatch = bloodPressure.match(/^(\d{2,3})\/(\d{2,3})$/);
             const selectedServices = Array.from(document.getElementById('selectedServices')?.selectedOptions || [])
                 .filter(option => !option.disabled);
-            const consultation = Number(document.getElementById('ConsultationFee')?.value || 0);
-            const lab = Number(document.getElementById('LabFee')?.value || 0);
-            const drug = Number(document.getElementById('DrugFee')?.value || 0);
-            const total = getEncounterFeeTotal();
-            const feesWaived = document.getElementById('FeesWaived')?.checked === true;
             const visitDateValue = document.getElementById('VisitDate')?.value;
 
             if (!document.getElementById('selectedEnrolleeId')?.value) {
@@ -387,34 +357,14 @@
                 addValidationError(errors, '#selectedServices', 'Select at least one service delivered.');
             }
 
-            if (temperature < 35 || temperature > 42) {
-                addValidationError(errors, '#Temperature', 'Temperature must be between 35 and 42 °C.');
-            }
-
-            if (pulseRate < 40 || pulseRate > 180) {
-                addValidationError(errors, '#PulseRate', 'Pulse rate must be between 40 and 180 bpm.');
-            }
-
-            if (!bloodPressureMatch) {
-                addValidationError(errors, '#BloodPressure', 'Blood pressure must be in systolic/diastolic format, for example 120/80.');
-            } else {
-                const systolic = Number(bloodPressureMatch[1]);
-                const diastolic = Number(bloodPressureMatch[2]);
-                if (systolic < 70 || systolic > 250 || diastolic < 40 || diastolic > 150 || systolic <= diastolic) {
-                    addValidationError(errors, '#BloodPressure', 'Blood pressure values are outside the accepted medical range.');
+            if (isReferralEncounter()) {
+                if (!document.getElementById('Referral_ReferredHospitalId')?.value) {
+                    addValidationError(errors, '#Referral_ReferredHospitalId', 'Select the referred hospital.');
                 }
-            }
 
-            if (consultation < 0 || lab < 0 || drug < 0) {
-                errors.push('Fees cannot be negative.');
-            }
-
-            if (selectedServices.length > 0 && total <= 0 && !feesWaived) {
-                errors.push('Enter at least one fee amount or tick Fees Waived.');
-            }
-
-            if (feesWaived && total > 0) {
-                errors.push('Fees Waived can only be used when all fees are zero.');
+                if (!document.getElementById('Referral_ReasonForReferral')?.value.trim()) {
+                    addValidationError(errors, '#Referral_ReasonForReferral', 'Enter the reason for referral.');
+                }
             }
 
             if (errors.length > 0) {

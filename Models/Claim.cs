@@ -52,5 +52,7 @@ namespace CTSHIPDashboard.Models
         public string? RejectionReason { get; set; }
         public string? RejectedBy { get; set; }
         public DateTime? DateRejected { get; set; }
+
+        public ICollection<ClaimSupportingDocument> SupportingDocuments { get; set; } = new List<ClaimSupportingDocument>();
     }
 }

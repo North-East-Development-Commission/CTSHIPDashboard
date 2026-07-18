@@ -4,6 +4,7 @@ using CTSHIPDashboard.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CTSHIPDashboard.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260714131622_AlignReferralEntityConfiguration")]
+    partial class AlignReferralEntityConfiguration
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -294,62 +297,6 @@ namespace CTSHIPDashboard.Migrations
                     b.HasIndex("ProviderId");
 
                     b.ToTable("Claims");
-                });
-
-            modelBuilder.Entity("CTSHIPDashboard.Models.ClaimSupportingDocument", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("ClaimId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("ContentType")
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<string>("DocumentType")
-                        .IsRequired()
-                        .HasMaxLength(60)
-                        .HasColumnType("nvarchar(60)");
-
-                    b.Property<string>("FilePath")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
-
-                    b.Property<long>("FileSize")
-                        .HasColumnType("bigint");
-
-                    b.Property<string>("OriginalFileName")
-                        .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("nvarchar(255)");
-
-                    b.Property<string>("StoredFileName")
-                        .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("nvarchar(255)");
-
-                    b.Property<DateTime>("UploadedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("UploadedByName")
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.Property<string>("UploadedByUserId")
-                        .HasMaxLength(450)
-                        .HasColumnType("nvarchar(450)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ClaimId");
-
-                    b.ToTable("ClaimSupportingDocuments", (string)null);
                 });
 
             modelBuilder.Entity("CTSHIPDashboard.Models.Complaint", b =>
@@ -1441,63 +1388,6 @@ namespace CTSHIPDashboard.Migrations
                     b.ToTable("ReferralAuditLogs", (string)null);
                 });
 
-            modelBuilder.Entity("CTSHIPDashboard.Models.ReferralPriceCatalogItem", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("Category")
-                        .IsRequired()
-                        .HasMaxLength(40)
-                        .HasColumnType("nvarchar(40)");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("CreatedByName")
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.Property<string>("CreatedByUserId")
-                        .HasMaxLength(450)
-                        .HasColumnType("nvarchar(450)");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("bit");
-
-                    b.Property<decimal>("Price")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<string>("State")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<string>("Title")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("Category");
-
-                    b.HasIndex("IsActive");
-
-                    b.HasIndex("State");
-
-                    b.HasIndex("State", "Category", "Title")
-                        .IsUnique();
-
-                    b.ToTable("ReferralPriceCatalogItems", (string)null);
-                });
-
             modelBuilder.Entity("CTSHIPDashboard.Models.ReferredHospital", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1924,17 +1814,6 @@ namespace CTSHIPDashboard.Migrations
                     b.Navigation("Provider");
                 });
 
-            modelBuilder.Entity("CTSHIPDashboard.Models.ClaimSupportingDocument", b =>
-                {
-                    b.HasOne("CTSHIPDashboard.Models.Claim", "Claim")
-                        .WithMany("SupportingDocuments")
-                        .HasForeignKey("ClaimId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("Claim");
-                });
-
             modelBuilder.Entity("CTSHIPDashboard.Models.Complaint", b =>
                 {
                     b.HasOne("CTSHIPDashboard.Models.Enrollee", "Enrollee")
@@ -2163,11 +2042,6 @@ namespace CTSHIPDashboard.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
-                });
-
-            modelBuilder.Entity("CTSHIPDashboard.Models.Claim", b =>
-                {
-                    b.Navigation("SupportingDocuments");
                 });
 
             modelBuilder.Entity("CTSHIPDashboard.Models.DeathRegister", b =>

@@ -27,7 +27,7 @@
 
     <div class="row justify-content-center">
         <div class="col-xl-7 col-lg-8">
-            <form asp-controller="ReferralPro" asp-action="VerifyCode" method="post" class="card border-0 shadow-lg">
+            <form asp-controller="ReferralPro" asp-action="VerifyCode" asp-route-id="@Model.ReferralId" method="post" class="card border-0 shadow-lg">
                 @Html.AntiForgeryToken()
                 <input asp-for="ReferralId" type="hidden" />
 

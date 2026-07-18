@@ -1,53 +1,50 @@
-﻿@model CTSHIPDashboard.ViewModels.EncounterReferralInputViewModel
+@model CTSHIPDashboard.ViewModels.EncounterReferralInputViewModel
 @using CTSHIPDashboard.Enums
 
-<div class="card mt-3">
-    <div class="card-header">
-        <strong>Referral</strong>
-    </div>
-    <div class="card-body">
-        <div class="form-check mb-3">
-            <input asp-for="RequiresReferral" class="form-check-input" />
-            <label asp-for="RequiresReferral" class="form-check-label"></label>
+<div class="col-12" id="referralFields" style="display:none;">
+    <div class="card border-success border-2 shadow-sm">
+        <div class="card-header bg-success text-white">
+            <strong>Referral Details</strong>
         </div>
+        <div class="card-body">
+            <input type="hidden"
+                   id="Referral_RequiresReferral"
+                   name="Referral.RequiresReferral"
+                   value="@(Model.RequiresReferral.ToString().ToLowerInvariant())" />
 
-        <div class="row g-3">
-            <div class="col-md-6">
-                <label asp-for="ReferredHospitalId" class="form-label"></label>
-                <select asp-for="ReferredHospitalId" asp-items="Model.ReferredHospitals" class="form-select">
-                    <option value="">-- Select Referred Hospital --</option>
-                </select>
-                <span asp-validation-for="ReferredHospitalId" class="text-danger"></span>
-            </div>
-            <div class="col-md-3">
-                <label asp-for="Priority" class="form-label"></label>
-                <select asp-for="Priority" asp-items="Html.GetEnumSelectList<ReferralPriority>()" class="form-select"></select>
-                <span asp-validation-for="Priority" class="text-danger"></span>
-            </div>
-            <div class="col-md-3">
-                <label asp-for="Diagnosis" class="form-label"></label>
-                <input asp-for="Diagnosis" class="form-control" />
-                <span asp-validation-for="Diagnosis" class="text-danger"></span>
-            </div>
-            <div class="col-md-12">
-                <label asp-for="ReasonForReferral" class="form-label"></label>
-                <textarea asp-for="ReasonForReferral" class="form-control" rows="3"></textarea>
-                <span asp-validation-for="ReasonForReferral" class="text-danger"></span>
-            </div>
-            <div class="col-md-12">
-                <label asp-for="ClinicalSummary" class="form-label"></label>
-                <textarea asp-for="ClinicalSummary" class="form-control" rows="3"></textarea>
-                <span asp-validation-for="ClinicalSummary" class="text-danger"></span>
-            </div>
-            <div class="col-md-6">
-                <label asp-for="TreatmentGiven" class="form-label"></label>
-                <textarea asp-for="TreatmentGiven" class="form-control" rows="3"></textarea>
-                <span asp-validation-for="TreatmentGiven" class="text-danger"></span>
-            </div>
-            <div class="col-md-6">
-                <label asp-for="InvestigationSummary" class="form-label"></label>
-                <textarea asp-for="InvestigationSummary" class="form-control" rows="3"></textarea>
-                <span asp-validation-for="InvestigationSummary" class="text-danger"></span>
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label for="Referral_ReferredHospitalId" class="form-label text-success fw-bold">Referred Hospital</label>
+                    <select id="Referral_ReferredHospitalId" name="Referral.ReferredHospitalId" class="form-select form-select-lg">
+                        <option value="">Select referred hospital</option>
+                        @foreach (var hospital in Model.ReferredHospitals)
+                        {
+                            <option value="@hospital.Value" selected="@hospital.Selected">@hospital.Text</option>
+                        }
+                    </select>
+                    <span class="text-danger" data-valmsg-for="Referral.ReferredHospitalId" data-valmsg-replace="true"></span>
+                </div>
+
+                <div class="col-md-6">
+                    <label for="Referral_Priority" class="form-label text-success fw-bold">Priority</label>
+                    <select id="Referral_Priority" name="Referral.Priority" class="form-select form-select-lg">
+                        @foreach (var priority in Html.GetEnumSelectList<ReferralPriority>())
+                        {
+                            bool selected = priority.Value == ((int)Model.Priority).ToString();
+                            <option value="@priority.Value" selected="@selected">@priority.Text</option>
+                        }
+                    </select>
+                    <span class="text-danger" data-valmsg-for="Referral.Priority" data-valmsg-replace="true"></span>
+                </div>
+
+                <div class="col-12">
+                    <label for="Referral_ReasonForReferral" class="form-label text-success fw-bold">Reason For Referral</label>
+                    <textarea id="Referral_ReasonForReferral"
+                              name="Referral.ReasonForReferral"
+                              class="form-control form-control-lg"
+                              rows="3">@Model.ReasonForReferral</textarea>
+                    <span class="text-danger" data-valmsg-for="Referral.ReasonForReferral" data-valmsg-replace="true"></span>
+                </div>
             </div>
         </div>
     </div>

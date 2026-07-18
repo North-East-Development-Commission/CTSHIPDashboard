@@ -9,7 +9,7 @@
             <h2>Provider Referrals</h2>
             <p class="mb-0">Manage referrals and submit them to HMOs for verification.</p>
         </div>
-        <a asp-controller="ProviderReferrals" asp-action="Create" class="btn btn-light">
+        <a asp-controller="ProviderReferrals" asp-action="Create" class="btn btn-warning fw-bold shadow-lg px-4">
             <i class="bi bi-plus-circle"></i> Create Referral
         </a>
     </div>
@@ -29,7 +29,7 @@
                 <input name="search" value="@ViewBag.Search" class="form-control" placeholder="Search by enrollee, hospital, provider, diagnosis or HMO" />
             </div>
             <div class="col-md-2 d-grid">
-                <button type="submit" class="btn btn-success">Search</button>
+                <button type="submit" class="btn btn-success fw-bold shadow">Search</button>
             </div>
         </div>
     </form>
@@ -64,7 +64,7 @@
                     <td>@item.Priority</td>
                     <td>@await Html.PartialAsync("_ReferralStatusBadge", item.Status)</td>
                     <td class="text-end">
-                        <a asp-controller="ProviderReferrals" asp-action="Details" asp-route-id="@item.Id" class="btn btn-sm btn-outline-primary">View</a>
+                        <a asp-controller="ProviderReferrals" asp-action="Details" asp-route-id="@item.Id" class="btn btn-sm btn-success fw-bold">View</a>
                     </td>
                 </tr>
             }

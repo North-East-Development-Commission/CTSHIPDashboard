@@ -1,15 +1,16 @@
 using System.Data;
 using CTSHIPDashboard.Data;
 using CTSHIPDashboard.Enums;
-using CTSHIPDashboard.Hubs;
+using CTSHIPDashboard.Helpers;
 using CTSHIPDashboard.Models;
 using CTSHIPDashboard.Services;
 using CTSHIPDashboard.ViewModels;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
-using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using AppClaim = CTSHIPDashboard.Models.Claim;
 
@@ -19,21 +20,37 @@ namespace CTSHIPDashboard.Controllers;
 [Route("ReferralPro/Referrals")]
 public class ReferralProController : Controller
 {
+    private const long MaxClaimSupportFileBytes = 10 * 1024 * 1024;
+    private const int MaxSupportingDocumentCount = 10;
+
+    private static readonly HashSet<string> AllowedClaimSupportFileExtensions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ".pdf",
+        ".jpg",
+        ".jpeg",
+        ".png",
+        ".doc",
+        ".docx"
+    };
+
     private readonly ApplicationDbContext _context;
     private readonly IReferralService _referralService;
+    private readonly IAppNotificationService _notificationService;
     private readonly UserManager<ApplicationUser> _userManager;
-    private readonly IHubContext<AnalyticsHub> _hubContext;
+    private readonly IWebHostEnvironment _environment;
 
     public ReferralProController(
         ApplicationDbContext context,
         IReferralService referralService,
+        IAppNotificationService notificationService,
         UserManager<ApplicationUser> userManager,
-        IHubContext<AnalyticsHub> hubContext)
+        IWebHostEnvironment environment)
     {
         _context = context;
         _referralService = referralService;
+        _notificationService = notificationService;
         _userManager = userManager;
-        _hubContext = hubContext;
+        _environment = environment;
     }
 
     [HttpGet("")]
@@ -218,11 +235,23 @@ public class ReferralProController : Controller
     }
 
     [HttpPost("VerifyCode")]
+    [HttpPost("VerifyCode/{id:guid}")]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> VerifyCode(
+        Guid? id,
         ReferralCodeVerificationViewModel model,
         CancellationToken cancellationToken = default)
     {
+        if (id.HasValue)
+        {
+            if (model.ReferralId.HasValue && model.ReferralId.Value != id.Value)
+            {
+                return BadRequest();
+            }
+
+            model.ReferralId = id.Value;
+        }
+
         Guid? hospitalId = await GetReferralVerificationHospitalIdAsync(model.ReferralId, cancellationToken);
         if (!hospitalId.HasValue)
         {
@@ -280,6 +309,7 @@ public class ReferralProController : Controller
         }
 
         ReferralHospitalEncounterViewModel model = BuildEncounterViewModel(referral);
+        await PopulateEncounterCatalogAsync(model, referral, cancellationToken);
         PopulateEncounterLists(model);
         return View(model);
     }
@@ -313,8 +343,11 @@ public class ReferralProController : Controller
             return RedirectToAction(nameof(Details), new { id });
         }
 
+        await PopulateEncounterCatalogAsync(model, referral, cancellationToken);
         NormalizePostedModel(model, referral);
+        ApplyClaimSupportCatalog(model);
         ValidateEncounterInput(model);
+        ValidateClaimSupportingDocuments(model);
 
         Enrollee? enrollee = await _context.Enrollees
             .Include(x => x.Hmo)
@@ -354,6 +387,8 @@ public class ReferralProController : Controller
             ?? User.Identity?.Name
             ?? "ReferralPro";
 
+        List<string> savedClaimSupportFiles = new();
+
         await using var transaction =
             await _context.Database.BeginTransactionAsync(IsolationLevel.Serializable, cancellationToken);
 
@@ -378,15 +413,12 @@ public class ReferralProController : Controller
                 ChiefComplaint = model.ChiefComplaint.Trim(),
                 Diagnosis = model.Diagnosis.Trim(),
                 TreatmentGiven = model.TreatmentGiven.Trim(),
-                ConsultationFee = model.ConsultationFee,
+                ConsultationFee = model.SurgeryFee,
                 LabFee = model.LabFee,
                 DrugFee = model.DrugFee,
                 Status = "Claimed",
-                Temperature = model.Temperature,
-                BloodPressure = model.BloodPressure.Trim(),
                 VisitType = model.VisitType.Trim(),
                 ServiceSetting = model.ServiceSetting.Trim(),
-                PulseRate = model.PulseRate,
                 Notes = BuildEncounterNotes(model, referral),
                 AttendedBy = actorName,
                 SeenBy = actorName,
@@ -416,13 +448,24 @@ public class ReferralProController : Controller
                 HmoId = hmo.Id,
                 Amount = encounter.TotalAmount,
                 Diagnosis = encounter.Diagnosis ?? "Referral encounter",
-                Treatment = encounter.TreatmentGiven ?? "Referral care",
+                Treatment = BuildClaimTreatmentSummary(model, encounter.TreatmentGiven),
                 DateSubmitted = DateTime.Now,
                 Status = "Submitted",
                 SubmittedBy = actorName
             };
 
             _context.Claims.Add(claim);
+            await _context.SaveChangesAsync(cancellationToken);
+
+            List<ClaimSupportingDocument> supportingDocuments = await SaveClaimSupportingDocumentsAsync(
+                model,
+                claim,
+                currentUser,
+                actorName,
+                savedClaimSupportFiles,
+                cancellationToken);
+
+            _context.ClaimSupportingDocuments.AddRange(supportingDocuments);
             await _context.SaveChangesAsync(cancellationToken);
 
             encounter.ClaimId = claim.Id;
@@ -449,24 +492,23 @@ public class ReferralProController : Controller
             await _context.SaveChangesAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
 
-            await _hubContext.Clients.All.SendAsync("ClaimSubmitted", new
-            {
+            await _notificationService.NotifyClaimSubmittedAsync(
                 claim.Id,
-                claim.ClaimNumber,
-                EnrolleeName = enrollee.FullName,
-                HmoName = hmo.Name,
-                ProviderName = provider.Name,
-                Amount = claim.Amount,
-                Status = claim.Status
-            }, cancellationToken);
+                referral.Id,
+                cancellationToken);
 
             TempData["Success"] = $"Referral encounter {encounter.EncounterNumber} saved and claim {claim.ClaimNumber} submitted to {hmo.Name}.";
             return RedirectToAction(nameof(Details), new { id });
         }
-        catch (DbUpdateException)
+        catch (Exception exception) when (
+            exception is DbUpdateException ||
+            exception is IOException ||
+            exception is UnauthorizedAccessException ||
+            exception is InvalidOperationException)
         {
             await transaction.RollbackAsync(cancellationToken);
-            ModelState.AddModelError(string.Empty, "The referral encounter could not be saved. Please review the form and try again.");
+            DeleteSavedClaimSupportFiles(savedClaimSupportFiles);
+            ModelState.AddModelError(string.Empty, "The referral encounter, claim, and supporting documents could not be saved. Please review the form and try again.");
         }
 
         PopulateEncounterLists(model);
@@ -622,6 +664,7 @@ public class ReferralProController : Controller
             FromProviderName = referral.FromProviderName,
             ReferredHospitalName = referral.ReferredHospital?.Name ?? string.Empty,
             HmoName = referral.HmoName,
+            CatalogState = referral.ReferredHospital?.State ?? string.Empty,
             DiagnosisFromReferral = referral.Diagnosis,
             ReasonForReferral = referral.ReasonForReferral,
             VisitDate = TrimToSecond(DateTime.Now),
@@ -636,6 +679,61 @@ public class ReferralProController : Controller
 
         model.SelectedServices.Add("Management of common infectious diseases");
         return model;
+    }
+
+    private async Task PopulateEncounterCatalogAsync(
+        ReferralHospitalEncounterViewModel model,
+        Referral referral,
+        CancellationToken cancellationToken)
+    {
+        string? catalogState = NormalizeReferralCatalogState(referral.ReferredHospital?.State ?? model.CatalogState);
+        model.CatalogState = catalogState ?? referral.ReferredHospital?.State ?? model.CatalogState ?? string.Empty;
+        model.PrescriptionCatalog = new List<ReferralEncounterClaimCatalogItem>();
+        model.LaboratoryCatalog = new List<ReferralEncounterClaimCatalogItem>();
+        model.SurgeryCatalog = new List<ReferralEncounterClaimCatalogItem>();
+
+        if (catalogState == null)
+        {
+            return;
+        }
+
+        List<ReferralPriceCatalogItem> catalogItems = await _context.ReferralPriceCatalogItems
+            .AsNoTracking()
+            .Where(item => item.IsActive && item.State == catalogState)
+            .OrderBy(item => item.Category)
+            .ThenBy(item => item.Title)
+            .ToListAsync(cancellationToken);
+
+        model.PrescriptionCatalog = BuildCatalogItems(
+            catalogItems,
+            ReferralEncounterClaimCatalog.PrescriptionService);
+        model.LaboratoryCatalog = BuildCatalogItems(
+            catalogItems,
+            ReferralEncounterClaimCatalog.LaboratoryService);
+        model.SurgeryCatalog = BuildCatalogItems(
+            catalogItems,
+            ReferralEncounterClaimCatalog.SurgeryService);
+    }
+
+    private static List<ReferralEncounterClaimCatalogItem> BuildCatalogItems(
+        IEnumerable<ReferralPriceCatalogItem> catalogItems,
+        string category)
+    {
+        return catalogItems
+            .Where(item => string.Equals(item.Category, category, StringComparison.OrdinalIgnoreCase))
+            .Select(item => new ReferralEncounterClaimCatalogItem(item.Title, item.Price))
+            .ToList();
+    }
+
+    private static string? NormalizeReferralCatalogState(string? state)
+    {
+        if (string.IsNullOrWhiteSpace(state))
+        {
+            return null;
+        }
+
+        return NorthEastLocationData.States.FirstOrDefault(candidate =>
+            string.Equals(candidate, state.Trim(), StringComparison.OrdinalIgnoreCase));
     }
 
     private static void PopulateEncounterLists(ReferralHospitalEncounterViewModel model)
@@ -688,12 +786,35 @@ public class ReferralProController : Controller
         model.ChiefComplaint = model.ChiefComplaint?.Trim() ?? string.Empty;
         model.Diagnosis = model.Diagnosis?.Trim() ?? string.Empty;
         model.TreatmentGiven = model.TreatmentGiven?.Trim() ?? string.Empty;
-        model.BloodPressure = model.BloodPressure?.Trim() ?? string.Empty;
         model.SelectedServices = model.SelectedServices
             .Where(x => !string.IsNullOrWhiteSpace(x))
             .Select(x => x.Trim())
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
+        model.SelectedPrescriptions = ReferralEncounterClaimCatalog.NormalizeSelection(
+            model.SelectedPrescriptions,
+            model.PrescriptionCatalog);
+        model.SelectedLaboratoryTests = ReferralEncounterClaimCatalog.NormalizeSelection(
+            model.SelectedLaboratoryTests,
+            model.LaboratoryCatalog);
+        model.SelectedSurgeries = ReferralEncounterClaimCatalog.NormalizeSelection(
+            model.SelectedSurgeries,
+            model.SurgeryCatalog);
+    }
+
+    private static void ApplyClaimSupportCatalog(ReferralHospitalEncounterViewModel model)
+    {
+        model.ConsultationFee = 0m;
+        model.DrugFee = ReferralEncounterClaimCatalog.SumSelected(
+            model.SelectedPrescriptions,
+            model.PrescriptionCatalog);
+        model.LabFee = ReferralEncounterClaimCatalog.SumSelected(
+            model.SelectedLaboratoryTests,
+            model.LaboratoryCatalog);
+        model.SurgeryFee = ReferralEncounterClaimCatalog.SumSelected(
+            model.SelectedSurgeries,
+            model.SurgeryCatalog);
+        model.FeesWaived = model.TotalAmount <= 0m;
     }
 
     private void ValidateEncounterInput(ReferralHospitalEncounterViewModel model)
@@ -718,31 +839,57 @@ public class ReferralProController : Controller
             ModelState.AddModelError(nameof(model.VisitDate), "Encounter date cannot be in the future.");
         }
 
-        if (model.Temperature < 35m || model.Temperature > 42m)
-        {
-            ModelState.AddModelError(nameof(model.Temperature), "Temperature must be between 35 and 42 C.");
-        }
-
-        if (model.PulseRate < 40 || model.PulseRate > 180)
-        {
-            ModelState.AddModelError(nameof(model.PulseRate), "Pulse rate must be between 40 and 180 bpm.");
-        }
-
-        if (!IsValidBloodPressure(model.BloodPressure))
-        {
-            ModelState.AddModelError(nameof(model.BloodPressure), "Blood pressure must be in systolic/diastolic format, for example 120/80.");
-        }
-
         if (model.SelectedServices.Count == 0)
         {
             ModelState.AddModelError(nameof(model.SelectedServices), "Select at least one service delivered.");
         }
-        else if (model.SelectedServices.Any(x => !EncounterServiceCatalog.IsValid(model.ServiceSetting, x)))
+        else if (model.SelectedServices.Any(x =>
+            !EncounterServiceCatalog.IsValid(model.ServiceSetting, x)
+            && !ReferralEncounterClaimCatalog.IsClaimSupportService(x)))
         {
             ModelState.AddModelError(nameof(model.SelectedServices), "One or more services do not match the selected service setting.");
         }
 
-        if (model.ConsultationFee < 0 || model.LabFee < 0 || model.DrugFee < 0)
+        if (model.SelectedServices.Contains(ReferralEncounterClaimCatalog.PrescriptionService, StringComparer.OrdinalIgnoreCase)
+            && model.PrescriptionCatalog.Count == 0)
+        {
+            ModelState.AddModelError(
+                nameof(model.SelectedPrescriptions),
+                $"No active prescription price catalog is configured for {model.CatalogState}.");
+        }
+        else if (model.SelectedServices.Contains(ReferralEncounterClaimCatalog.PrescriptionService, StringComparer.OrdinalIgnoreCase)
+            && model.SelectedPrescriptions.Count == 0)
+        {
+            ModelState.AddModelError(nameof(model.SelectedPrescriptions), "Select at least one prescription item.");
+        }
+
+        if (model.SelectedServices.Contains(ReferralEncounterClaimCatalog.LaboratoryService, StringComparer.OrdinalIgnoreCase)
+            && model.LaboratoryCatalog.Count == 0)
+        {
+            ModelState.AddModelError(
+                nameof(model.SelectedLaboratoryTests),
+                $"No active laboratory price catalog is configured for {model.CatalogState}.");
+        }
+        else if (model.SelectedServices.Contains(ReferralEncounterClaimCatalog.LaboratoryService, StringComparer.OrdinalIgnoreCase)
+            && model.SelectedLaboratoryTests.Count == 0)
+        {
+            ModelState.AddModelError(nameof(model.SelectedLaboratoryTests), "Select at least one laboratory test.");
+        }
+
+        if (model.SelectedServices.Contains(ReferralEncounterClaimCatalog.SurgeryService, StringComparer.OrdinalIgnoreCase)
+            && model.SurgeryCatalog.Count == 0)
+        {
+            ModelState.AddModelError(
+                nameof(model.SelectedSurgeries),
+                $"No active surgery price catalog is configured for {model.CatalogState}.");
+        }
+        else if (model.SelectedServices.Contains(ReferralEncounterClaimCatalog.SurgeryService, StringComparer.OrdinalIgnoreCase)
+            && model.SelectedSurgeries.Count == 0)
+        {
+            ModelState.AddModelError(nameof(model.SelectedSurgeries), "Select at least one surgery.");
+        }
+
+        if (model.ConsultationFee < 0 || model.LabFee < 0 || model.DrugFee < 0 || model.SurgeryFee < 0)
         {
             ModelState.AddModelError(string.Empty, "Fees cannot be negative.");
         }
@@ -755,6 +902,190 @@ public class ReferralProController : Controller
         if (model.TotalAmount > 0 && model.FeesWaived)
         {
             ModelState.AddModelError(nameof(model.FeesWaived), "Fees Waived can only be used when all fees are zero.");
+        }
+    }
+
+    private void ValidateClaimSupportingDocuments(ReferralHospitalEncounterViewModel model)
+    {
+        if (model.FindingsEvidenceFile == null || model.FindingsEvidenceFile.Length == 0)
+        {
+            ModelState.AddModelError(
+                nameof(model.FindingsEvidenceFile),
+                "Upload evidence of findings before submitting the claim to the HMO.");
+        }
+        else
+        {
+            ValidateClaimSupportFile(model.FindingsEvidenceFile, nameof(model.FindingsEvidenceFile));
+        }
+
+        model.SupportingDocumentFiles = (model.SupportingDocumentFiles ?? new List<IFormFile>())
+            .Where(file => file is { Length: > 0 })
+            .ToList();
+
+        if (model.SupportingDocumentFiles.Count == 0)
+        {
+            ModelState.AddModelError(
+                nameof(model.SupportingDocumentFiles),
+                "Upload at least one supporting claim document before submitting the claim to the HMO.");
+        }
+
+        if (model.SupportingDocumentFiles.Count > MaxSupportingDocumentCount)
+        {
+            ModelState.AddModelError(
+                nameof(model.SupportingDocumentFiles),
+                $"Upload {MaxSupportingDocumentCount} or fewer supporting documents.");
+        }
+
+        foreach (IFormFile file in model.SupportingDocumentFiles)
+        {
+            ValidateClaimSupportFile(file, nameof(model.SupportingDocumentFiles));
+        }
+    }
+
+    private void ValidateClaimSupportFile(IFormFile file, string modelStateKey)
+    {
+        string extension = Path.GetExtension(file.FileName);
+        if (!AllowedClaimSupportFileExtensions.Contains(extension))
+        {
+            ModelState.AddModelError(
+                modelStateKey,
+                $"{file.FileName} must be a PDF, JPG, PNG, DOC, or DOCX file.");
+        }
+
+        if (file.Length > MaxClaimSupportFileBytes)
+        {
+            ModelState.AddModelError(
+                modelStateKey,
+                $"{file.FileName} must be 10MB or smaller.");
+        }
+    }
+
+    private async Task<List<ClaimSupportingDocument>> SaveClaimSupportingDocumentsAsync(
+        ReferralHospitalEncounterViewModel model,
+        AppClaim claim,
+        ApplicationUser? currentUser,
+        string actorName,
+        List<string> savedPhysicalPaths,
+        CancellationToken cancellationToken)
+    {
+        string webRootPath = string.IsNullOrWhiteSpace(_environment.WebRootPath)
+            ? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot")
+            : _environment.WebRootPath;
+        string claimNumber = SanitizePathSegment(claim.ClaimNumber);
+        string uploadFolder = Path.Combine(webRootPath, "uploads", "claim-support", claimNumber);
+
+        Directory.CreateDirectory(uploadFolder);
+
+        List<ClaimSupportingDocument> documents = new();
+
+        if (model.FindingsEvidenceFile != null)
+        {
+            documents.Add(await SaveClaimSupportFileAsync(
+                model.FindingsEvidenceFile,
+                claim.Id,
+                claimNumber,
+                "Evidence of Finding",
+                uploadFolder,
+                currentUser,
+                actorName,
+                savedPhysicalPaths,
+                cancellationToken));
+        }
+
+        foreach (IFormFile file in model.SupportingDocumentFiles)
+        {
+            documents.Add(await SaveClaimSupportFileAsync(
+                file,
+                claim.Id,
+                claimNumber,
+                "Supporting Document",
+                uploadFolder,
+                currentUser,
+                actorName,
+                savedPhysicalPaths,
+                cancellationToken));
+        }
+
+        return documents;
+    }
+
+    private static async Task<ClaimSupportingDocument> SaveClaimSupportFileAsync(
+        IFormFile file,
+        int claimId,
+        string claimNumber,
+        string documentType,
+        string uploadFolder,
+        ApplicationUser? currentUser,
+        string actorName,
+        List<string> savedPhysicalPaths,
+        CancellationToken cancellationToken)
+    {
+        string extension = Path.GetExtension(file.FileName).ToLowerInvariant();
+        string storedFileName = $"{documentType.Replace(' ', '-').ToLowerInvariant()}-{Guid.NewGuid():N}{extension}";
+        string physicalPath = Path.Combine(uploadFolder, storedFileName);
+
+        await using (FileStream stream = new(physicalPath, FileMode.CreateNew))
+        {
+            await file.CopyToAsync(stream, cancellationToken);
+        }
+
+        savedPhysicalPaths.Add(physicalPath);
+
+        return new ClaimSupportingDocument
+        {
+            ClaimId = claimId,
+            DocumentType = documentType,
+            OriginalFileName = TrimForStorage(Path.GetFileName(file.FileName), 255),
+            StoredFileName = storedFileName,
+            FilePath = $"/uploads/claim-support/{claimNumber}/{storedFileName}",
+            ContentType = TrimForStorage(file.ContentType, 100),
+            FileSize = file.Length,
+            UploadedAt = DateTime.UtcNow,
+            UploadedByUserId = currentUser?.Id,
+            UploadedByName = actorName
+        };
+    }
+
+    private static string SanitizePathSegment(string value)
+    {
+        char[] invalidChars = Path.GetInvalidFileNameChars();
+        string sanitized = new(value
+            .Where(character => !invalidChars.Contains(character))
+            .ToArray());
+
+        return string.IsNullOrWhiteSpace(sanitized)
+            ? Guid.NewGuid().ToString("N")
+            : sanitized;
+    }
+
+    private static string TrimForStorage(string? value, int maxLength)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return string.Empty;
+        }
+
+        string trimmed = value.Trim();
+        return trimmed.Length <= maxLength
+            ? trimmed
+            : trimmed[..maxLength];
+    }
+
+    private static void DeleteSavedClaimSupportFiles(IEnumerable<string> physicalPaths)
+    {
+        foreach (string physicalPath in physicalPaths)
+        {
+            try
+            {
+                if (System.IO.File.Exists(physicalPath))
+                {
+                    System.IO.File.Delete(physicalPath);
+                }
+            }
+            catch
+            {
+                // Best effort cleanup after a failed claim transaction.
+            }
         }
     }
 
@@ -815,28 +1146,6 @@ public class ReferralProController : Controller
         return $"REF-{hmoId}-{hospitalId:N}"[..18].ToUpperInvariant();
     }
 
-    private static bool IsValidBloodPressure(string? bloodPressure)
-    {
-        if (string.IsNullOrWhiteSpace(bloodPressure))
-        {
-            return false;
-        }
-
-        string[] parts = bloodPressure.Split('/', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
-        if (parts.Length != 2 ||
-            !int.TryParse(parts[0], out int systolic) ||
-            !int.TryParse(parts[1], out int diastolic))
-        {
-            return false;
-        }
-
-        return systolic >= 70 &&
-            systolic <= 250 &&
-            diastolic >= 40 &&
-            diastolic <= 150 &&
-            systolic > diastolic;
-    }
-
     private static DateTime TrimToSecond(DateTime value)
     {
         return new DateTime(
@@ -853,7 +1162,42 @@ public class ReferralProController : Controller
     {
         string notes = string.IsNullOrWhiteSpace(model.Notes) ? string.Empty : model.Notes.Trim();
         string prefix = $"Referral ID: {referral.Id}; From Provider: {referral.FromProviderName};";
-        return string.IsNullOrWhiteSpace(notes) ? prefix : $"{prefix} {notes}";
+        string claimSupport = BuildClaimSupportSummary(model);
+        return string.Join(
+            Environment.NewLine,
+            new[] { prefix, claimSupport, notes }.Where(x => !string.IsNullOrWhiteSpace(x)));
+    }
+
+    private static string BuildClaimTreatmentSummary(ReferralHospitalEncounterViewModel model, string? treatmentGiven)
+    {
+        string treatment = string.IsNullOrWhiteSpace(treatmentGiven)
+            ? "Referral care"
+            : treatmentGiven.Trim();
+        string claimSupport = BuildClaimSupportSummary(model);
+        return string.IsNullOrWhiteSpace(claimSupport)
+            ? treatment
+            : treatment + Environment.NewLine + claimSupport;
+    }
+
+    private static string BuildClaimSupportSummary(ReferralHospitalEncounterViewModel model)
+    {
+        List<string> lines = new()
+        {
+            ReferralEncounterClaimCatalog.DescribeSelected(
+                "Prescription",
+                model.SelectedPrescriptions,
+                model.PrescriptionCatalog),
+            ReferralEncounterClaimCatalog.DescribeSelected(
+                "Laboratory",
+                model.SelectedLaboratoryTests,
+                model.LaboratoryCatalog),
+            ReferralEncounterClaimCatalog.DescribeSelected(
+                "Surgery",
+                model.SelectedSurgeries,
+                model.SurgeryCatalog)
+        };
+
+        return string.Join(Environment.NewLine, lines.Where(x => !string.IsNullOrWhiteSpace(x)));
     }
 
     private void AddReferralAuditLog(

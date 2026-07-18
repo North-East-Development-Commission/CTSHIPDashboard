@@ -4,9 +4,14 @@
 }
 
 <div class="ct-page">
-    <div class="ct-page-header text-center">
-        <h1>HMO Referral Verification</h1>
-        <p class="lead mb-0">Verify and audit referrals submitted by providers.</p>
+    <div class="ct-page-header d-flex flex-wrap justify-content-between align-items-center gap-3">
+        <div>
+            <h1>HMO Referral Verification</h1>
+            <p class="lead mb-0">Verify and audit referrals submitted by providers.</p>
+        </div>
+        <a asp-controller="HmoReferrals" asp-action="Index" class="btn btn-warning fw-bold shadow-lg px-4">
+            <i class="bi bi-arrow-clockwise"></i> Refresh Referrals
+        </a>
     </div>
 
 
@@ -25,7 +30,7 @@
                 <input name="search" value="@ViewBag.Search" class="form-control" placeholder="Search by enrollee, hospital, provider, diagnosis or HMO" />
             </div>
             <div class="col-md-2 d-grid">
-                <button type="submit" class="btn btn-success">Search</button>
+                <button type="submit" class="btn btn-success fw-bold shadow">Search</button>
             </div>
         </div>
     </form>
@@ -60,7 +65,7 @@
                     <td>@item.Priority</td>
                     <td>@await Html.PartialAsync("_ReferralStatusBadge", item.Status)</td>
                     <td class="text-end">
-                        <a asp-controller="HmoReferrals" asp-action="Details" asp-route-id="@item.Id" class="btn btn-sm btn-outline-primary">View</a>
+                        <a asp-controller="HmoReferrals" asp-action="Details" asp-route-id="@item.Id" class="btn btn-sm btn-success fw-bold">View</a>
                     </td>
                 </tr>
             }

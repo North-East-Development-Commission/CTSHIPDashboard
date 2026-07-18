@@ -16,6 +16,7 @@ namespace CTSHIPDashboard.Data
         public DbSet<Encounter> Encounters { get; set; }
         public DbSet<Organization> Organizations { get; set; }
         public DbSet<Claim> Claims { get; set; }
+        public DbSet<ClaimSupportingDocument> ClaimSupportingDocuments { get; set; }
         public DbSet<Provider> Providers { get; set; }
         public DbSet<Doctor> Doctors { get; set; }
         public DbSet<Complaint> Complaints { get; set; }
@@ -30,6 +31,7 @@ namespace CTSHIPDashboard.Data
         public DbSet<ReferredHospital> ReferralHospitals { get; set; }
 
         public DbSet<ReferralAuditLog> ReferralAuditLogs { get; set; }
+        public DbSet<ReferralPriceCatalogItem> ReferralPriceCatalogItems { get; set; }
         public DbSet<DeathRegister> DeathRegisters { get; set; }
 
         public DbSet<DeathRegisterAuditLog> DeathRegisterAuditLogs { get; set; }
@@ -69,11 +71,6 @@ namespace CTSHIPDashboard.Data
                 entity.Property(x => x.VerifiedByUserId).HasMaxLength(450);
                 entity.Property(x => x.VerifiedByName).HasMaxLength(200);
                 entity.Property(x => x.HmoVerificationNote).HasMaxLength(1000);
-                entity.Property(x => x.ReferralVerificationCode).HasMaxLength(30);
-                entity.Property(x => x.ReferralVerificationCodeIssuedByUserId).HasMaxLength(450);
-                entity.Property(x => x.ReferralVerificationCodeIssuedByName).HasMaxLength(200);
-                entity.Property(x => x.ReferralVerificationCodeVerifiedByUserId).HasMaxLength(450);
-                entity.Property(x => x.ReferralVerificationCodeVerifiedByName).HasMaxLength(200);
                 entity.Property(x => x.AuditedByUserId).HasMaxLength(450);
                 entity.Property(x => x.AuditedByName).HasMaxLength(200);
                 entity.Property(x => x.AuditNote).HasMaxLength(1000);
@@ -146,6 +143,11 @@ namespace CTSHIPDashboard.Data
                 entity.Property(x => x.VerifiedByUserId).HasMaxLength(450);
                 entity.Property(x => x.VerifiedByName).HasMaxLength(200);
                 entity.Property(x => x.HmoVerificationNote).HasMaxLength(1000);
+                entity.Property(x => x.ReferralVerificationCode).HasMaxLength(30);
+                entity.Property(x => x.ReferralVerificationCodeIssuedByUserId).HasMaxLength(450);
+                entity.Property(x => x.ReferralVerificationCodeIssuedByName).HasMaxLength(200);
+                entity.Property(x => x.ReferralVerificationCodeVerifiedByUserId).HasMaxLength(450);
+                entity.Property(x => x.ReferralVerificationCodeVerifiedByName).HasMaxLength(200);
                 entity.Property(x => x.AuditedByUserId).HasMaxLength(450);
                 entity.Property(x => x.AuditedByName).HasMaxLength(200);
                 entity.Property(x => x.AuditNote).HasMaxLength(1000);
@@ -177,12 +179,29 @@ namespace CTSHIPDashboard.Data
                 entity.HasIndex(x => x.ReferralId);
                 entity.HasIndex(x => x.CreatedAt);
             });
+
+            builder.Entity<ReferralPriceCatalogItem>(entity =>
+            {
+                entity.ToTable("ReferralPriceCatalogItems");
+                entity.HasKey(x => x.Id);
+                entity.Property(x => x.State).IsRequired().HasMaxLength(100);
+                entity.Property(x => x.Category).IsRequired().HasMaxLength(40);
+                entity.Property(x => x.Title).IsRequired().HasMaxLength(200);
+                entity.Property(x => x.Price).HasColumnType("decimal(18,2)");
+                entity.Property(x => x.CreatedByUserId).HasMaxLength(450);
+                entity.Property(x => x.CreatedByName).HasMaxLength(200);
+                entity.HasIndex(x => x.State);
+                entity.HasIndex(x => x.Category);
+                entity.HasIndex(x => x.IsActive);
+                entity.HasIndex(x => new { x.State, x.Category, x.Title }).IsUnique();
+            });
         }
 
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             ConfigureDeathRegisterEntities(modelBuilder);
+            ConfigureReferralEntities(modelBuilder);
 
             modelBuilder.Entity<StateOfficeMonthlyReport>(entity =>
             {
@@ -260,6 +279,24 @@ namespace CTSHIPDashboard.Data
                     .WithMany()
                     .HasForeignKey(x => x.ProviderId)
                     .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            modelBuilder.Entity<ClaimSupportingDocument>(entity =>
+            {
+                entity.ToTable("ClaimSupportingDocuments");
+                entity.HasKey(x => x.Id);
+                entity.Property(x => x.DocumentType).IsRequired().HasMaxLength(60);
+                entity.Property(x => x.OriginalFileName).IsRequired().HasMaxLength(255);
+                entity.Property(x => x.StoredFileName).IsRequired().HasMaxLength(255);
+                entity.Property(x => x.FilePath).IsRequired().HasMaxLength(500);
+                entity.Property(x => x.ContentType).HasMaxLength(100);
+                entity.Property(x => x.UploadedByUserId).HasMaxLength(450);
+                entity.Property(x => x.UploadedByName).HasMaxLength(200);
+                entity.HasIndex(x => x.ClaimId);
+                entity.HasOne(x => x.Claim)
+                    .WithMany(x => x.SupportingDocuments)
+                    .HasForeignKey(x => x.ClaimId)
+                    .OnDelete(DeleteBehavior.Cascade);
             });
 
             modelBuilder.Entity<Encounter>()

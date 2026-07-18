@@ -1,5 +1,6 @@
 ﻿using CTSHIPDashboard.Data;
 using CTSHIPDashboard.Models;
+using CTSHIPDashboard.Enums;
 using CTSHIPDashboard.Models.Enums;
 using CTSHIPDashboard.Models.ViewModels;
 using CTSHIPDashboard.Services;
@@ -418,6 +419,30 @@ public class HmoController : Controller
         ViewBag.ApprovedClaims = hmo.Claims?.Count(c => c.Status == "Approved") ?? 0;
         ViewBag.ComplaintMetrics = await ComplaintMetricsService.BuildAsync(
             _context.Complaints.Where(complaint => complaint.HmoId == hmo.Id));
+
+        IQueryable<Referral> hmoReferrals = _context.Referrals
+            .AsNoTracking()
+            .Where(referral =>
+                !referral.IsDeleted &&
+                referral.HmoCode == hmo.RegistrationNumber);
+
+        int totalReferrals = await hmoReferrals.CountAsync();
+        int completedReferrals = await hmoReferrals.CountAsync(
+            referral => referral.Status == ReferralStatus.Closed);
+
+        ViewBag.TotalReferrals = totalReferrals;
+        ViewBag.PendingReferralVerification = await hmoReferrals.CountAsync(
+            referral => referral.Status == ReferralStatus.SubmittedToHmo);
+        ViewBag.ActiveReferrals = await hmoReferrals.CountAsync(referral =>
+            referral.Status == ReferralStatus.Verified ||
+            referral.Status == ReferralStatus.Audited ||
+            referral.Status == ReferralStatus.Received);
+        ViewBag.CompletedReferrals = completedReferrals;
+        ViewBag.RejectedReferrals = await hmoReferrals.CountAsync(
+            referral => referral.Status == ReferralStatus.Rejected);
+        ViewBag.ReferralCompletionRate = totalReferrals == 0
+            ? 0m
+            : Math.Round((decimal)completedReferrals / totalReferrals * 100m, 2);
 
         // Death registers for this HMO
         string hmoCode = hmo.RegistrationNumber ?? string.Empty;

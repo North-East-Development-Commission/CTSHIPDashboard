@@ -104,26 +104,6 @@
                                     <label asp-for="Notes">Additional Notes</label>
                                 </div>
                             </div>
-
-                            <!-- Fees (optional) -->
-                            <div class="col-md-4">
-                                <div class="form-floating">
-                                    <input asp-for="ConsultationFee" class="form-control text-end" type="number"/>
-                                    <label asp-for="ConsultationFee">Consultation Fee (₦)</label>
-                                </div>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="form-floating">
-                                    <input asp-for="LabFee" class="form-control text-end" type="number"/>
-                                    <label asp-for="LabFee">Lab Fee (₦)</label>
-                                </div>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="form-floating">
-                                    <input asp-for="DrugFee" class="form-control text-end" type="number" />
-                                    <label asp-for="DrugFee">Drug Fee (₦)</label>
-                                </div>
-                            </div>
                         </div>
 
                         <!-- Submit -->
@@ -203,22 +183,5 @@
         });
         refreshDoctorDropdown();
 
-        // Auto-calculate total amount
-        function updateTotal() {
-            const totalAmount = document.getElementById('totalAmount');
-            if (!totalAmount) return;
-
-            const consultation = parseFloat(document.getElementById('ConsultationFee')?.value) || 0;
-            const lab = parseFloat(document.getElementById('LabFee')?.value) || 0;
-            const drug = parseFloat(document.getElementById('DrugFee')?.value) || 0;
-            totalAmount.textContent = (consultation + lab + drug).toLocaleString();
-        }
-
-        document.querySelectorAll('input[type="number"]').forEach(input => {
-            input.addEventListener('input', updateTotal);
-        });
-
-        // Run on load
-        updateTotal();
     </script>
 }

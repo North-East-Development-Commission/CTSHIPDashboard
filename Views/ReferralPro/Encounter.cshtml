@@ -2,6 +2,12 @@
 @using CTSHIPDashboard.Models
 @{
     ViewData["Title"] = "Referral Encounter";
+    bool prescriptionAvailable = Model.PrescriptionCatalog.Count > 0
+        || Model.SelectedServices.Contains(ReferralEncounterClaimCatalog.PrescriptionService, StringComparer.OrdinalIgnoreCase);
+    bool laboratoryAvailable = Model.LaboratoryCatalog.Count > 0
+        || Model.SelectedServices.Contains(ReferralEncounterClaimCatalog.LaboratoryService, StringComparer.OrdinalIgnoreCase);
+    bool surgeryAvailable = Model.SurgeryCatalog.Count > 0
+        || Model.SelectedServices.Contains(ReferralEncounterClaimCatalog.SurgeryService, StringComparer.OrdinalIgnoreCase);
 }
 
 <div class="ct-page">
@@ -27,6 +33,9 @@
                     <dt>Referral Hospital</dt>
                     <dd>@Model.ReferredHospitalName</dd>
 
+                    <dt>Catalog State</dt>
+                    <dd>@(string.IsNullOrWhiteSpace(Model.CatalogState) ? "Not set" : Model.CatalogState)</dd>
+
                     <dt>HMO</dt>
                     <dd>@Model.HmoName</dd>
 
@@ -41,7 +50,7 @@
     </div>
 
     <div class="col-lg-8">
-        <form asp-controller="ReferralPro" asp-action="Encounter" asp-route-id="@Model.ReferralId" method="post" id="referralEncounterForm" class="card card-body" novalidate>
+        <form asp-controller="ReferralPro" asp-action="Encounter" asp-route-id="@Model.ReferralId" method="post" enctype="multipart/form-data" id="referralEncounterForm" class="card card-body" novalidate>
             @Html.AntiForgeryToken()
             <input asp-for="ReferralId" type="hidden" />
             <input asp-for="EnrolleeNumber" type="hidden" />
@@ -49,10 +58,18 @@
             <input asp-for="FromProviderName" type="hidden" />
             <input asp-for="ReferredHospitalName" type="hidden" />
             <input asp-for="HmoName" type="hidden" />
+            <input asp-for="CatalogState" type="hidden" />
             <input asp-for="DiagnosisFromReferral" type="hidden" />
             <input asp-for="ReasonForReferral" type="hidden" />
 
             <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+
+            @if (!Model.HasAnyPriceCatalog)
+            {
+                <div class="alert alert-warning">
+                    No active price catalog is configured for @(string.IsNullOrWhiteSpace(Model.CatalogState) ? "this provider state" : Model.CatalogState).
+                </div>
+            }
 
             <div class="row g-3">
                 <div class="col-md-4">
@@ -102,27 +119,121 @@
                                 }
                             }
                         </optgroup>
+                        <optgroup label="Claim Support" data-setting="All">
+                            @foreach (string service in ReferralEncounterClaimCatalog.ClaimSupportServices)
+                            {
+                                bool hasCatalog = string.Equals(service, ReferralEncounterClaimCatalog.PrescriptionService, StringComparison.OrdinalIgnoreCase)
+                                    ? Model.PrescriptionCatalog.Count > 0
+                                    : string.Equals(service, ReferralEncounterClaimCatalog.LaboratoryService, StringComparison.OrdinalIgnoreCase)
+                                        ? Model.LaboratoryCatalog.Count > 0
+                                        : Model.SurgeryCatalog.Count > 0;
+                                bool selected = Model.SelectedServices.Contains(service, StringComparer.OrdinalIgnoreCase);
+
+                                if (hasCatalog || selected)
+                                {
+                                    if (selected)
+                                    {
+                                        <option value="@service" selected>@service</option>
+                                    }
+                                    else
+                                    {
+                                        <option value="@service">@service</option>
+                                    }
+                                }
+                            }
+                        </optgroup>
                     </select>
                     <span asp-validation-for="SelectedServices" class="text-danger"></span>
                     <div class="form-text">Select every service delivered during this referral encounter.</div>
                 </div>
 
-                <div class="col-md-4">
-                    <label asp-for="Temperature" class="form-label"></label>
-                    <input asp-for="Temperature" class="form-control" type="number" step="0.1" min="35" max="42" />
-                    <span asp-validation-for="Temperature" class="text-danger"></span>
+                <div class="col-12">
+                    <div class="btn-group flex-wrap" role="group" aria-label="Claim support categories">
+                        <button type="button" class="btn btn-outline-success" data-claim-service="@ReferralEncounterClaimCatalog.PrescriptionService" disabled="@(!prescriptionAvailable)">
+                            <i class="bi bi-capsule"></i> Prescription
+                        </button>
+                        <button type="button" class="btn btn-outline-success" data-claim-service="@ReferralEncounterClaimCatalog.LaboratoryService" disabled="@(!laboratoryAvailable)">
+                            <i class="bi bi-eyedropper"></i> Laboratory
+                        </button>
+                        <button type="button" class="btn btn-outline-success" data-claim-service="@ReferralEncounterClaimCatalog.SurgeryService" disabled="@(!surgeryAvailable)">
+                            <i class="bi bi-bandaid"></i> Surgery
+                        </button>
+                    </div>
                 </div>
 
-                <div class="col-md-4">
-                    <label asp-for="PulseRate" class="form-label"></label>
-                    <input asp-for="PulseRate" class="form-control" type="number" step="1" min="40" max="180" />
-                    <span asp-validation-for="PulseRate" class="text-danger"></span>
+                <div class="col-12 claim-support-section" id="prescriptionSection" data-claim-section="@ReferralEncounterClaimCatalog.PrescriptionService" style="display:none;">
+                    <label asp-for="SelectedPrescriptions" class="form-label"></label>
+                    @if (Model.PrescriptionCatalog.Count == 0)
+                    {
+                        <div class="alert alert-warning mb-0">No active prescription price catalog is configured for @Model.CatalogState.</div>
+                    }
+                    else
+                    {
+                        <select asp-for="SelectedPrescriptions" class="form-select select2 claim-catalog-select" id="selectedPrescriptions" multiple data-placeholder="Select drugs">
+                            @foreach (var item in Model.PrescriptionCatalog)
+                            {
+                                if (Model.SelectedPrescriptions.Contains(item.Name, StringComparer.OrdinalIgnoreCase))
+                                {
+                                    <option value="@item.Name" data-price="@item.Price" selected>@item.Label</option>
+                                }
+                                else
+                                {
+                                    <option value="@item.Name" data-price="@item.Price">@item.Label</option>
+                                }
+                            }
+                        </select>
+                    }
+                    <span asp-validation-for="SelectedPrescriptions" class="text-danger"></span>
                 </div>
 
-                <div class="col-md-4">
-                    <label asp-for="BloodPressure" class="form-label"></label>
-                    <input asp-for="BloodPressure" class="form-control" placeholder="120/80" />
-                    <span asp-validation-for="BloodPressure" class="text-danger"></span>
+                <div class="col-12 claim-support-section" id="laboratorySection" data-claim-section="@ReferralEncounterClaimCatalog.LaboratoryService" style="display:none;">
+                    <label asp-for="SelectedLaboratoryTests" class="form-label"></label>
+                    @if (Model.LaboratoryCatalog.Count == 0)
+                    {
+                        <div class="alert alert-warning mb-0">No active laboratory price catalog is configured for @Model.CatalogState.</div>
+                    }
+                    else
+                    {
+                        <select asp-for="SelectedLaboratoryTests" class="form-select select2 claim-catalog-select" id="selectedLaboratoryTests" multiple data-placeholder="Select laboratory tests">
+                            @foreach (var item in Model.LaboratoryCatalog)
+                            {
+                                if (Model.SelectedLaboratoryTests.Contains(item.Name, StringComparer.OrdinalIgnoreCase))
+                                {
+                                    <option value="@item.Name" data-price="@item.Price" selected>@item.Label</option>
+                                }
+                                else
+                                {
+                                    <option value="@item.Name" data-price="@item.Price">@item.Label</option>
+                                }
+                            }
+                        </select>
+                    }
+                    <span asp-validation-for="SelectedLaboratoryTests" class="text-danger"></span>
+                </div>
+
+                <div class="col-12 claim-support-section" id="surgerySection" data-claim-section="@ReferralEncounterClaimCatalog.SurgeryService" style="display:none;">
+                    <label asp-for="SelectedSurgeries" class="form-label"></label>
+                    @if (Model.SurgeryCatalog.Count == 0)
+                    {
+                        <div class="alert alert-warning mb-0">No active surgery price catalog is configured for @Model.CatalogState.</div>
+                    }
+                    else
+                    {
+                        <select asp-for="SelectedSurgeries" class="form-select select2 claim-catalog-select" id="selectedSurgeries" multiple data-placeholder="Select surgeries">
+                            @foreach (var item in Model.SurgeryCatalog)
+                            {
+                                if (Model.SelectedSurgeries.Contains(item.Name, StringComparer.OrdinalIgnoreCase))
+                                {
+                                    <option value="@item.Name" data-price="@item.Price" selected>@item.Label</option>
+                                }
+                                else
+                                {
+                                    <option value="@item.Name" data-price="@item.Price">@item.Label</option>
+                                }
+                            }
+                        </select>
+                    }
+                    <span asp-validation-for="SelectedSurgeries" class="text-danger"></span>
                 </div>
 
                 <div class="col-12">
@@ -143,30 +254,26 @@
                     <span asp-validation-for="TreatmentGiven" class="text-danger"></span>
                 </div>
 
-                <div class="col-md-4">
-                    <label asp-for="ConsultationFee" class="form-label"></label>
-                    <input asp-for="ConsultationFee" class="form-control text-end" type="number" min="0" step="0.01" />
-                    <span asp-validation-for="ConsultationFee" class="text-danger"></span>
-                </div>
-
-                <div class="col-md-4">
-                    <label asp-for="LabFee" class="form-label"></label>
-                    <input asp-for="LabFee" class="form-control text-end" type="number" min="0" step="0.01" />
-                    <span asp-validation-for="LabFee" class="text-danger"></span>
-                </div>
-
-                <div class="col-md-4">
-                    <label asp-for="DrugFee" class="form-label"></label>
-                    <input asp-for="DrugFee" class="form-control text-end" type="number" min="0" step="0.01" />
-                    <span asp-validation-for="DrugFee" class="text-danger"></span>
-                </div>
-
-                <div class="col-md-12">
-                    <div class="form-check form-switch">
-                        <input asp-for="FeesWaived" class="form-check-input" type="checkbox" />
-                        <label asp-for="FeesWaived" class="form-check-label fw-semibold"></label>
-                        <div class="form-text">Tick only when no amount should be claimed for this encounter.</div>
-                        <span asp-validation-for="FeesWaived" class="text-danger"></span>
+                <div class="col-12">
+                    <div class="border rounded-3 p-3 bg-light">
+                        <div class="row g-3 text-center">
+                            <div class="col-md-3">
+                                <div class="text-muted small">Prescription</div>
+                                <div class="fw-bold">₦<span id="drugFeeDisplay">0</span></div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="text-muted small">Laboratory</div>
+                                <div class="fw-bold">₦<span id="labFeeDisplay">0</span></div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="text-muted small">Surgery</div>
+                                <div class="fw-bold">₦<span id="surgeryFeeDisplay">0</span></div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="text-muted small">Claim Total</div>
+                                <div class="fw-bold text-success">₦<span id="claimTotalDisplay">0</span></div>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -175,12 +282,40 @@
                     <textarea asp-for="Notes" class="form-control" rows="3"></textarea>
                     <span asp-validation-for="Notes" class="text-danger"></span>
                 </div>
+
+                <div class="col-12">
+                    <div class="border rounded-3 p-3">
+                        <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+                            <div>
+                                <h5 class="mb-1">Claim Evidence</h5>
+                                <p class="text-muted mb-0">Upload findings and supporting documents before the claim is sent to the HMO.</p>
+                            </div>
+                            <span class="badge bg-warning text-dark">Required</span>
+                        </div>
+
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label asp-for="FindingsEvidenceFile" class="form-label fw-semibold"></label>
+                                <input asp-for="FindingsEvidenceFile" class="form-control" type="file" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" />
+                                <span asp-validation-for="FindingsEvidenceFile" class="text-danger"></span>
+                                <div class="form-text">Upload the clinical findings, scan, result, or report evidence.</div>
+                            </div>
+
+                            <div class="col-md-6">
+                                <label asp-for="SupportingDocumentFiles" class="form-label fw-semibold"></label>
+                                <input asp-for="SupportingDocumentFiles" class="form-control" type="file" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" multiple />
+                                <span asp-validation-for="SupportingDocumentFiles" class="text-danger"></span>
+                                <div class="form-text">Upload invoices, lab results, prescriptions, theatre notes, or other claim support.</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <div class="d-flex flex-wrap justify-content-end gap-2 mt-4 pt-3 border-top">
                 <a asp-controller="ReferralPro" asp-action="Details" asp-route-id="@Model.ReferralId" class="btn btn-light">Cancel</a>
                 <button type="submit" class="btn btn-success">
-                    <i class="bi bi-send-check"></i> Submit Encounter And Claim
+                    <i class="bi bi-send-check"></i> Upload Evidence And Send Claim
                 </button>
             </div>
         </form>
@@ -214,7 +349,7 @@
 
             let hasSelectedService = false;
             Array.from(serviceSelect.querySelectorAll('optgroup')).forEach(group => {
-                const enabled = group.dataset.setting === setting;
+                const enabled = group.dataset.setting === setting || group.dataset.setting === 'All';
                 Array.from(group.children).forEach(option => {
                     option.disabled = !enabled;
                     if (!enabled) option.selected = false;
@@ -230,25 +365,107 @@
             if (window.jQuery) {
                 $(serviceSelect).trigger('change.select2');
             }
+
+            syncClaimSupportSections();
         }
 
-        function feeTotal() {
-            return Number(document.getElementById('ConsultationFee')?.value || 0) +
-                Number(document.getElementById('LabFee')?.value || 0) +
-                Number(document.getElementById('DrugFee')?.value || 0);
+        function getServiceSelect() {
+            return document.getElementById('selectedServices');
         }
 
-        function syncFeesWaived() {
-            const feesWaived = document.getElementById('FeesWaived');
-            if (feesWaived) feesWaived.checked = feeTotal() <= 0;
+        function hasService(serviceName) {
+            const serviceSelect = getServiceSelect();
+            if (!serviceSelect) return false;
+
+            return Array.from(serviceSelect.selectedOptions)
+                .some(option => option.value.toLowerCase() === serviceName.toLowerCase());
+        }
+
+        function setServiceSelected(serviceName, selected) {
+            const serviceSelect = getServiceSelect();
+            if (!serviceSelect) return;
+
+            const option = Array.from(serviceSelect.options)
+                .find(candidate => candidate.value.toLowerCase() === serviceName.toLowerCase());
+
+            if (!option || option.disabled) return;
+
+            option.selected = selected;
+            if (window.jQuery) {
+                $(serviceSelect).trigger('change.select2');
+            }
+        }
+
+        function clearSelect(select) {
+            Array.from(select.options).forEach(option => option.selected = false);
+            if (window.jQuery) {
+                $(select).trigger('change.select2');
+            }
+        }
+
+        function syncClaimSupportSections() {
+            document.querySelectorAll('.claim-support-section').forEach(section => {
+                const serviceName = section.dataset.claimSection || '';
+                const active = hasService(serviceName);
+                section.style.display = active ? 'block' : 'none';
+
+                const select = section.querySelector('select');
+                if (!active && select) {
+                    clearSelect(select);
+                }
+            });
+
+            document.querySelectorAll('[data-claim-service]').forEach(button => {
+                const active = hasService(button.dataset.claimService || '');
+                button.classList.toggle('active', active);
+                button.classList.toggle('btn-success', active);
+                button.classList.toggle('btn-outline-success', !active);
+            });
+
+            updateClaimTotals();
+        }
+
+        function selectedPriceTotal(selectId) {
+            const select = document.getElementById(selectId);
+            if (!select) return 0;
+
+            return Array.from(select.selectedOptions)
+                .reduce((total, option) => total + Number(option.dataset.price || 0), 0);
+        }
+
+        function formatMoney(value) {
+            return Number(value || 0).toLocaleString(undefined, {
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 0
+            });
+        }
+
+        function updateClaimTotals() {
+            const drugFee = selectedPriceTotal('selectedPrescriptions');
+            const labFee = selectedPriceTotal('selectedLaboratoryTests');
+            const surgeryFee = selectedPriceTotal('selectedSurgeries');
+            const claimTotal = drugFee + labFee + surgeryFee;
+
+            document.getElementById('drugFeeDisplay').textContent = formatMoney(drugFee);
+            document.getElementById('labFeeDisplay').textContent = formatMoney(labFee);
+            document.getElementById('surgeryFeeDisplay').textContent = formatMoney(surgeryFee);
+            document.getElementById('claimTotalDisplay').textContent = formatMoney(claimTotal);
         }
 
         document.getElementById('serviceSetting')?.addEventListener('change', () => syncServiceOptions(true));
-        document.querySelectorAll('#ConsultationFee, #LabFee, #DrugFee').forEach(input => {
-            input.addEventListener('input', syncFeesWaived);
+        document.getElementById('selectedServices')?.addEventListener('change', syncClaimSupportSections);
+        document.querySelectorAll('[data-claim-service]').forEach(button => {
+            button.addEventListener('click', () => {
+                const serviceName = button.dataset.claimService || '';
+                setServiceSelected(serviceName, !hasService(serviceName));
+                syncClaimSupportSections();
+            });
+        });
+        document.querySelectorAll('.claim-catalog-select').forEach(select => {
+            select.addEventListener('change', updateClaimTotals);
         });
 
         syncServiceOptions(true);
-        syncFeesWaived();
+        syncClaimSupportSections();
     </script>
 }

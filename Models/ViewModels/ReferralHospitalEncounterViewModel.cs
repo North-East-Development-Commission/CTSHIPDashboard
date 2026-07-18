@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using CTSHIPDashboard.Models;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc.Rendering;
 
 namespace CTSHIPDashboard.ViewModels;
@@ -18,6 +19,8 @@ public class ReferralHospitalEncounterViewModel
 
     public string? HmoName { get; set; }
 
+    public string CatalogState { get; set; } = string.Empty;
+
     public string DiagnosisFromReferral { get; set; } = string.Empty;
 
     public string ReasonForReferral { get; set; } = string.Empty;
@@ -35,6 +38,24 @@ public class ReferralHospitalEncounterViewModel
 
     [Display(Name = "Services Delivered")]
     public List<string> SelectedServices { get; set; } = new();
+
+    [Display(Name = "Prescription")]
+    public List<string> SelectedPrescriptions { get; set; } = new();
+
+    [Display(Name = "Laboratory Tests")]
+    public List<string> SelectedLaboratoryTests { get; set; } = new();
+
+    [Display(Name = "Surgery")]
+    public List<string> SelectedSurgeries { get; set; } = new();
+
+    public List<ReferralEncounterClaimCatalogItem> PrescriptionCatalog { get; set; } = new();
+
+    public List<ReferralEncounterClaimCatalogItem> LaboratoryCatalog { get; set; } = new();
+
+    public List<ReferralEncounterClaimCatalogItem> SurgeryCatalog { get; set; } = new();
+
+    public bool HasAnyPriceCatalog =>
+        PrescriptionCatalog.Count > 0 || LaboratoryCatalog.Count > 0 || SurgeryCatalog.Count > 0;
 
     [Required]
     [Display(Name = "Complaint")]
@@ -68,12 +89,22 @@ public class ReferralHospitalEncounterViewModel
     [Display(Name = "Drug Fee")]
     public decimal DrugFee { get; set; }
 
+    [Range(typeof(decimal), "0", "9999999999999999")]
+    [Display(Name = "Surgery Fee")]
+    public decimal SurgeryFee { get; set; }
+
     [Display(Name = "Fees Waived")]
     public bool FeesWaived { get; set; } = true;
 
     public string? Notes { get; set; }
 
-    public decimal TotalAmount => ConsultationFee + LabFee + DrugFee;
+    [Display(Name = "Evidence of Findings")]
+    public IFormFile? FindingsEvidenceFile { get; set; }
+
+    [Display(Name = "Other Claim Supporting Documents")]
+    public List<IFormFile> SupportingDocumentFiles { get; set; } = new();
+
+    public decimal TotalAmount => ConsultationFee + LabFee + DrugFee + SurgeryFee;
 
     public List<SelectListItem> ServiceSettings { get; set; } = new();
 

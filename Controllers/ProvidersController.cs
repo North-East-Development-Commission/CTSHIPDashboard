@@ -1,16 +1,16 @@
 ﻿using AspNetCoreGeneratedDocument;
 using CTSHIPDashboard.Data;
 using CTSHIPDashboard.Helpers;
-using CTSHIPDashboard.Hubs;
+using CTSHIPDashboard.Enums;
 using CTSHIPDashboard.Models;
 using CTSHIPDashboard.Models.ViewModels;
+using CTSHIPDashboard.Services;
 using CTSHIPDashboard.ViewModels;
 using Microsoft.AspNetCore.Authorization;
 using CTSHIPDashboard.Models.Enums;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
-using Microsoft.AspNetCore.SignalR;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Options;
 using Microsoft.EntityFrameworkCore;
@@ -20,13 +20,16 @@ public class ProvidersController : Controller
 {
     private readonly ApplicationDbContext _context;
     private readonly UserManager<ApplicationUser> _userManager;
-    private readonly IHubContext<AnalyticsHub> _hubContext;
+    private readonly IAppNotificationService _notificationService;
 
-    public ProvidersController(ApplicationDbContext context, UserManager<ApplicationUser> userManager, IHubContext<AnalyticsHub> hubContext)
+    public ProvidersController(
+        ApplicationDbContext context,
+        UserManager<ApplicationUser> userManager,
+        IAppNotificationService notificationService)
     {
         _context = context;
         _userManager = userManager;
-        _hubContext = hubContext;
+        _notificationService = notificationService;
     }
 
     // GET: Provider/Index
@@ -681,6 +684,32 @@ public class ProvidersController : Controller
             .Take(10)
             .ToListAsync();
 
+        string providerIdText = provider.Id.ToString();
+        string providerCode = provider.Code ?? string.Empty;
+        string providerName = provider.Name ?? string.Empty;
+        string providerEmail = provider.Email ?? string.Empty;
+
+        IQueryable<Referral> initiatedReferrals = _context.Referrals
+            .AsNoTracking()
+            .Where(x =>
+                !x.IsDeleted &&
+                (x.FromProviderId == providerIdText ||
+                 (!string.IsNullOrWhiteSpace(providerCode) && x.FromProviderId == providerCode) ||
+                 x.FromProviderName == providerName));
+
+        IQueryable<Referral> incomingReferrals = _context.Referrals
+            .AsNoTracking()
+            .Where(x =>
+                !x.IsDeleted &&
+                x.ReferredHospital != null &&
+                (x.ReferredHospital.Name == providerName ||
+                 (!string.IsNullOrWhiteSpace(providerEmail) &&
+                  x.ReferredHospital.Email == providerEmail)));
+
+        int totalReferrals = await initiatedReferrals.CountAsync();
+        int completedReferrals = await initiatedReferrals.CountAsync(
+            x => x.Status == ReferralStatus.Closed);
+
         // BUILD VIEWMODEL
         var viewModel = new ProviderDashboardViewModel
         {
@@ -698,6 +727,19 @@ public class ProvidersController : Controller
             TotalClaimAmount = provider.Claims?.Sum(c => c.Amount) ?? 0,
             PendingClaims = provider.Claims?.Count(c => c.Status == "Submitted" || c.Status == "Approved") ?? 0,
             PaidClaims = provider.Claims?.Count(c => c.Status == "Paid") ?? 0,
+            TotalReferrals = totalReferrals,
+            PendingReferralVerification = await initiatedReferrals.CountAsync(
+                x => x.Status == ReferralStatus.SubmittedToHmo),
+            IncomingReferrals = await incomingReferrals.CountAsync(x =>
+                x.Status == ReferralStatus.Verified ||
+                x.Status == ReferralStatus.Audited ||
+                x.Status == ReferralStatus.Received),
+            CompletedReferrals = completedReferrals,
+            RejectedReferrals = await initiatedReferrals.CountAsync(
+                x => x.Status == ReferralStatus.Rejected),
+            ReferralCompletionRate = totalReferrals == 0
+                ? 0m
+                : Math.Round((decimal)completedReferrals / totalReferrals * 100m, 2),
 
             RecentEncounters = provider.Encounters?
          .OrderByDescending(e => e.VisitDate)
@@ -1045,17 +1087,7 @@ public class ProvidersController : Controller
         encounter.Status = "Claimed";
         await _context.SaveChangesAsync();
 
-        // REAL-TIME NOTIFICATION
-        await _hubContext.Clients.All.SendAsync("ClaimSubmitted", new
-        {
-            claim.Id,
-            claim.ClaimNumber,
-            EnrolleeName = encounter.Enrollee.FullName,
-            HmoName = encounter.Enrollee.Hmo.Name,
-            ProviderName = encounter.Provider.Name,
-            Amount = claim.Amount,
-            Status = "Submitted"
-        });
+        await _notificationService.NotifyClaimSubmittedAsync(claim.Id);
 
         TempData["Success"] = $"Claim {claim.ClaimNumber} successfully created for {encounter.Enrollee.Hmo.Name}!";
         return RedirectToAction("MyEncounters", "Providers");

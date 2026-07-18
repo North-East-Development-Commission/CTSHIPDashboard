@@ -48,6 +48,32 @@
                                 </div>
                             </div>
                         </div>
+                        <div class="col-12">
+                            <div class="card shadow-sm">
+                                <div class="card-body">
+                                    <h5 class="text-success fw-bold">Claim Supporting Documents</h5>
+                                    @if (Model.SupportingDocuments.Count == 0)
+                                    {
+                                        <p class="text-muted mb-0">No supporting documents were uploaded for this claim.</p>
+                                    }
+                                    else
+                                    {
+                                        <div class="list-group">
+                                            @foreach (var document in Model.SupportingDocuments.OrderBy(x => x.DocumentType).ThenBy(x => x.OriginalFileName))
+                                            {
+                                                <a href="@document.FilePath" target="_blank" rel="noopener" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center gap-3">
+                                                    <span>
+                                                        <strong>@document.DocumentType</strong><br />
+                                                        <span class="text-muted">@document.OriginalFileName</span>
+                                                    </span>
+                                                    <i class="bi bi-box-arrow-up-right"></i>
+                                                </a>
+                                            }
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     <form asp-action="Review" method="post">

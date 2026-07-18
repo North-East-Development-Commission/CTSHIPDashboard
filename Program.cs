@@ -69,6 +69,7 @@ builder.Services.AddScoped<IClaimsTransformation, CtshipAdminClaimsTransformatio
 builder.Services.AddAuthorization(options =>
     options.AddPolicy("AdminOnly", policy => policy.RequireRole("CTSHIPAdmin", "Admin")));
 builder.Services.AddScoped<IReferralService, ReferralService>();
+builder.Services.AddScoped<IAppNotificationService, AppNotificationService>();
 builder.Services.AddScoped<IDeathRegisterService, DeathRegisterService>();
 builder.Services.AddScoped<IMonitoringIndicatorService, MonitoringIndicatorService>();
 builder.Services.AddScoped<IAuditService, AuditService>();

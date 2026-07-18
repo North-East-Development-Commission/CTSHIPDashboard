@@ -1,8 +1,13 @@
 ﻿@using Microsoft.AspNetCore.Identity
+@using CTSHIPDashboard.Data
+@using Microsoft.EntityFrameworkCore
 @inject SignInManager<ApplicationUser> SignInManager
+@inject UserManager<ApplicationUser> UserManager
+@inject ApplicationDbContext DbContext
 
 @{
     string homeUrl = Url.Content("~/");
+    bool providerCanUseClaimsNav = false;
 
     if (SignInManager.IsSignedIn(User))
     {
@@ -25,6 +30,21 @@
                                 : User.IsInRole("Monitoring")
                                     ? Url.Action("Index", "Monitoring", new { area = "" }) ?? Url.Content("~/Monitoring/Index")
                                     : Url.Action("Index", "Home", new { area = "" }) ?? Url.Content("~/Home/Index");
+
+        if (User.IsInRole("Provider"))
+        {
+            ApplicationUser? currentUser = await UserManager.GetUserAsync(User);
+            if (currentUser?.ProviderId.HasValue == true)
+            {
+                string? providerLevel = await DbContext.Providers
+                    .AsNoTracking()
+                    .Where(provider => provider.Id == currentUser.ProviderId.Value)
+                    .Select(provider => provider.Level)
+                    .FirstOrDefaultAsync();
+
+                providerCanUseClaimsNav = ProviderClaimAccessHelper.CanUseClaims(providerLevel);
+            }
+        }
     }
 }
 
@@ -245,9 +265,12 @@
                     <a asp-controller="Providers" asp-action="MyEnrollees" class="nav-link text-white">
                         <i class="bi bi-people-fill"></i> My Enrollees
                     </a>
-                    <a asp-controller="Providers" asp-action="MyClaims" class="nav-link">
-                        <i class="bi bi-file-medical-fill"></i> My Claims
-                    </a>
+                    @if (providerCanUseClaimsNav)
+                    {
+                        <a asp-controller="Providers" asp-action="MyClaims" class="nav-link">
+                            <i class="bi bi-file-medical-fill"></i> My Claims
+                        </a>
+                    }
                     <a asp-controller="ProviderReferrals" asp-action="Index" class="nav-link">
                         <i class="bi bi-hospital-fill"></i> Referrals
                     </a>
@@ -293,6 +316,9 @@
                 </a>
                 <a asp-controller="Providers" asp-action="Index" class="nav-link">
                     <i class="bi bi-hospital-fill"></i> Providers
+                </a>
+                <a asp-controller="PriceCatalog" asp-action="Index" class="nav-link">
+                    <i class="bi bi-tags-fill"></i> Price Catalog
                 </a>
                     <a asp-controller="Organizations" asp-action="Index" class="nav-link">
                         <i class="bi bi-hospital-fill"></i> Organizations
@@ -434,6 +460,51 @@
             }
         });
     </script>
+    @if (SignInManager.IsSignedIn(User))
+    {
+        <script>
+            (() => {
+                if (!window.signalR || !window.Swal) {
+                    return;
+                }
+
+                const notificationConnection = new signalR.HubConnectionBuilder()
+                    .withUrl('@Url.Content("~/analyticsHub")')
+                    .withAutomaticReconnect()
+                    .build();
+
+                notificationConnection.on('AppNotification', payload => {
+                    if (!payload) {
+                        return;
+                    }
+
+                    const title = payload.title || payload.Title || 'Notification';
+                    const message = payload.message || payload.Message || '';
+                    const icon = payload.icon || payload.Icon || 'info';
+                    const url = payload.url || payload.Url || '';
+
+                    Swal.fire({
+                        title,
+                        text: message,
+                        icon,
+                        showCancelButton: !!url,
+                        confirmButtonText: url ? 'Open' : 'OK',
+                        cancelButtonText: 'Dismiss'
+                    }).then(result => {
+                        if (result.isConfirmed && url) {
+                            window.location.href = url;
+                        }
+                    });
+                });
+
+                notificationConnection.start().catch(error => {
+                    if (window.console) {
+                        console.warn('Notification connection failed.', error);
+                    }
+                });
+            })();
+        </script>
+    }
     <script>
         $(function () {
             $('select[multiple], select.select2').each(function () {

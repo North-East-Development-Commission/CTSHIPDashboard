@@ -1,5 +1,5 @@
 ﻿// Models/Encounter.cs
-using CTSHIPDashboard.Models;
+using CTSHIPDashboard.ViewModels;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
@@ -56,6 +56,9 @@ namespace CTSHIPDashboard.Models
 
         [NotMapped]
         public bool FeesWaived { get; set; }
+
+        [NotMapped]
+        public EncounterReferralInputViewModel Referral { get; set; } = new();
 
         public int PulseRate { get; set; }
         public string? Notes { get; set; }
