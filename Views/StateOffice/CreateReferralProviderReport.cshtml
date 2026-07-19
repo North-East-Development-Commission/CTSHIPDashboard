@@ -1,0 +1,269 @@
+@model CTSHIPDashboard.Models.ViewModels.StateOfficeMonthlyReportViewModel
+
+@{
+    ViewData["Title"] = "Submit Referral Provider Report";
+}
+
+<div class="ct-page">
+<div class="ct-page-header d-flex flex-wrap justify-content-between align-items-center gap-3">
+    <div>
+        <h2 class="mb-0">Referral Provider Reporting Information</h2>
+        <p class="mb-0">Complete the reporting details for the selected referral provider.</p>
+    </div>
+    <a asp-action="ReferralProviderReports" class="btn btn-outline-secondary">Back to Reports</a>
+</div>
+
+<form asp-action="CreateReferralProviderReport" method="post" class="card">
+    @Html.AntiForgeryToken()
+    <input asp-for="Ward" type="hidden" id="reportWard" value="@(string.IsNullOrWhiteSpace(Model.Ward) ? "N/A" : Model.Ward)" />
+
+    <div class="card-body">
+        <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
+
+        <div class="row g-3">
+            <div class="col-md-6">
+                <label asp-for="ReportingPeriod" class="form-label"></label>
+                <input asp-for="ReportingPeriod" type="month" class="form-control" />
+                <span asp-validation-for="ReportingPeriod" class="text-danger"></span>
+            </div>
+
+            <div class="col-md-6">
+                <label asp-for="State" class="form-label"></label>
+                <select asp-for="State" asp-items="Model.States" class="form-select" id="reportState">
+                    <option value="">Select state</option>
+                </select>
+                <span asp-validation-for="State" class="text-danger"></span>
+            </div>
+
+            <div class="col-md-6">
+                <label asp-for="Lga" class="form-label"></label>
+                <select asp-for="Lga" asp-items="Model.Lgas" class="form-select" id="reportLga">
+                    <option value="">Select LGA</option>
+                </select>
+                <span asp-validation-for="Lga" class="text-danger"></span>
+            </div>
+
+            <div class="col-md-6">
+                <label asp-for="ProviderId" class="form-label">Referral Provider</label>
+                <select asp-for="ProviderId" asp-items="Model.Facilities" class="form-select" id="reportFacility">
+                    <option value="">Select referral provider</option>
+                </select>
+                <span asp-validation-for="ProviderId" class="text-danger"></span>
+            </div>
+
+            <div class="col-md-4">
+                <label asp-for="FacilityCode" class="form-label"></label>
+                <input asp-for="FacilityCode" class="form-control" id="facilityCode" readonly />
+            </div>
+
+            <div class="col-12">
+                <div class="border rounded p-3 bg-light" id="facilityDetailsPanel">
+                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+                        <div>
+                            <h5 class="mb-0">Referral Provider Details</h5>
+                            <small class="text-muted" id="facilityDetailsSubtitle">Select reporting month and referral provider</small>
+                        </div>
+                        <a class="btn btn-outline-success btn-sm disabled" id="exportSelectedDetails" aria-disabled="true">
+                            <i class="bi bi-file-earmark-excel"></i> Export Details
+                        </a>
+                    </div>
+
+                    <div class="row g-3" id="facilityMetrics">
+                        <div class="col-12 text-muted">No referral provider selected.</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-6">
+                <label asp-for="ReportingOfficerName" class="form-label"></label>
+                <input asp-for="ReportingOfficerName" class="form-control" />
+                <span asp-validation-for="ReportingOfficerName" class="text-danger"></span>
+            </div>
+
+            <div class="col-md-6">
+                <label asp-for="Designation" class="form-label"></label>
+                <input asp-for="Designation" class="form-control" />
+                <span asp-validation-for="Designation" class="text-danger"></span>
+            </div>
+
+            <div class="col-md-6">
+                <label asp-for="PhoneNumber" class="form-label"></label>
+                <input asp-for="PhoneNumber" type="tel" inputmode="numeric" pattern="[0-9+ ]*"
+                       class="form-control" />
+                <span asp-validation-for="PhoneNumber" class="text-danger"></span>
+            </div>
+
+            <div class="col-md-6">
+                <label class="form-label">Date Submitted</label>
+                <input class="form-control" value="Generated automatically when submitted" readonly />
+            </div>
+        </div>
+    </div>
+
+    <div class="card-footer d-flex gap-2">
+        <button type="submit" class="btn btn-success">Submit Report</button>
+        <a asp-action="ReferralProviderReports" class="btn btn-outline-secondary">Cancel</a>
+    </div>
+</form>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        (() => {
+            const reportingPeriod = document.getElementById('ReportingPeriod');
+            const state = document.getElementById('reportState');
+            const lga = document.getElementById('reportLga');
+            const ward = document.getElementById('reportWard');
+            const facility = document.getElementById('reportFacility');
+            const facilityCode = document.getElementById('facilityCode');
+            const facilityMetrics = document.getElementById('facilityMetrics');
+            const facilityDetailsSubtitle = document.getElementById('facilityDetailsSubtitle');
+            const exportSelectedDetails = document.getElementById('exportSelectedDetails');
+
+            const lgaUrl = '@Url.Action("ReferralProviderReportLgas", "StateOffice")';
+            const facilityUrl = '@Url.Action("ReferralProviderReportFacilities", "StateOffice")';
+            const detailsUrl = '@Url.Action("ReferralProviderReportFacilityDetails", "StateOffice")';
+            const exportUrl = '@Url.Action("ExportReferralProviderReportSelection", "StateOffice")';
+
+            const replaceOptions = (select, items, placeholder, valueSelector, textSelector) => {
+                select.innerHTML = `<option value="">${placeholder}</option>`;
+                items.forEach(item => {
+                    const option = document.createElement('option');
+                    option.value = valueSelector(item);
+                    option.textContent = textSelector(item);
+                    if (item.code) option.dataset.code = item.code;
+                    select.appendChild(option);
+                });
+                $(select).trigger('change.select2');
+            };
+
+            const formatter = new Intl.NumberFormat('en-NG');
+            const moneyFormatter = new Intl.NumberFormat('en-NG', {
+                style: 'currency',
+                currency: 'NGN'
+            });
+
+            const clearMetrics = (message) => {
+                facilityMetrics.innerHTML = `<div class="col-12 text-muted">${message}</div>`;
+                facilityDetailsSubtitle.textContent = 'Select reporting month and referral provider';
+                exportSelectedDetails.classList.add('disabled');
+                exportSelectedDetails.setAttribute('aria-disabled', 'true');
+                exportSelectedDetails.removeAttribute('href');
+            };
+
+            const metricCard = (label, value) => `
+                <div class="col-sm-6 col-lg-3">
+                    <div class="bg-white border rounded p-3 h-100">
+                        <div class="small text-muted">${label}</div>
+                        <div class="fs-5 fw-bold text-success">${value}</div>
+                    </div>
+                </div>`;
+
+            const updateExportLink = () => {
+                if (!state.value || !reportingPeriod.value || !facility.value) {
+                    exportSelectedDetails.classList.add('disabled');
+                    exportSelectedDetails.setAttribute('aria-disabled', 'true');
+                    exportSelectedDetails.removeAttribute('href');
+                    return;
+                }
+
+                const url = new URL(exportUrl, window.location.origin);
+                url.searchParams.set('state', state.value);
+                url.searchParams.set('reportingPeriod', reportingPeriod.value);
+                url.searchParams.set('providerId', facility.value);
+                url.searchParams.set('lga', lga.value || '');
+                url.searchParams.set('ward', ward.value || 'N/A');
+                exportSelectedDetails.href = url.toString();
+                exportSelectedDetails.classList.remove('disabled');
+                exportSelectedDetails.setAttribute('aria-disabled', 'false');
+            };
+
+            const loadFacilityDetails = async () => {
+                if (!state.value || !reportingPeriod.value || !facility.value) {
+                    clearMetrics('Select reporting month and referral provider.');
+                    return;
+                }
+
+                facilityMetrics.innerHTML = '<div class="col-12 text-muted">Loading referral provider details...</div>';
+
+                const url = new URL(detailsUrl, window.location.origin);
+                url.searchParams.set('state', state.value);
+                url.searchParams.set('reportingPeriod', reportingPeriod.value);
+                url.searchParams.set('providerId', facility.value);
+                url.searchParams.set('lga', lga.value || '');
+                url.searchParams.set('ward', ward.value || 'N/A');
+
+                const response = await fetch(url.toString());
+                if (!response.ok) {
+                    clearMetrics('Referral provider details could not be loaded.');
+                    return;
+                }
+
+                const data = await response.json();
+                facilityDetailsSubtitle.textContent = `${data.facilityName} - ${data.reportingMonthDisplay}`;
+                facilityMetrics.innerHTML = [
+                    metricCard('Unique Referred Enrollees', formatter.format(data.totalActiveEnrollees)),
+                    metricCard('Referral Visits', formatter.format(data.totalVisits)),
+                    metricCard('Referral Encounters', formatter.format(data.totalEncounters)),
+                    metricCard('Enrollees Accessing Care', formatter.format(data.enrolleesAccessingCare)),
+                    metricCard('Services Rendered', formatter.format(data.serviceUtilization)),
+                    metricCard('Referral Completion', `${formatter.format(data.completedReferrals)} of ${formatter.format(data.totalReferrals)} (${data.referralCompletionRate.toFixed(1)}%)`),
+                    metricCard('Claims', `${formatter.format(data.totalClaims)} (${moneyFormatter.format(data.totalClaimsAmount)})`),
+                    metricCard('Paid Claims', `${formatter.format(data.paidClaims)} (${moneyFormatter.format(data.paidClaimsAmount)})`)
+                ].join('');
+                updateExportLink();
+            };
+
+            const loadStateOptions = async () => {
+                if (!state.value) {
+                    replaceOptions(lga, [], 'Select LGA', x => x, x => x);
+                    replaceOptions(facility, [], 'Select referral provider', x => x.id, x => x.name);
+                    facilityCode.value = '';
+                    clearMetrics('Select reporting month and referral provider.');
+                    return;
+                }
+
+                const [lgas, facilities] = await Promise.all([
+                    fetch(`${lgaUrl}?state=${encodeURIComponent(state.value)}`).then(r => r.json()),
+                    fetch(`${facilityUrl}?state=${encodeURIComponent(state.value)}`).then(r => r.json())
+                ]);
+
+                replaceOptions(lga, lgas, 'Select LGA', x => x, x => x);
+                replaceOptions(facility, facilities, 'Select referral provider', x => x.id, x => x.name);
+                facilityCode.value = '';
+                clearMetrics('Select reporting month and referral provider.');
+            };
+
+            state.addEventListener('change', loadStateOptions);
+            lga.addEventListener('change', loadFacilityDetails);
+            reportingPeriod.addEventListener('change', loadFacilityDetails);
+
+            facility.addEventListener('change', async () => {
+                if (!state.value || !facility.value) {
+                    facilityCode.value = '';
+                    clearMetrics('Select reporting month and referral provider.');
+                    return;
+                }
+
+                let code = facility.selectedOptions[0]?.dataset.code ?? '';
+                if (!code) {
+                    const facilities = await fetch(
+                        `${facilityUrl}?state=${encodeURIComponent(state.value)}`
+                    ).then(r => r.json());
+                    const selected = facilities.find(x => String(x.id) === facility.value);
+                    code = selected?.code ?? '';
+                    if (code) facility.selectedOptions[0].dataset.code = code;
+                }
+
+                facilityCode.value = code;
+                await loadFacilityDetails();
+            });
+
+            if (facility.value && facilityCode.value) {
+                facility.selectedOptions[0].dataset.code = facilityCode.value;
+                loadFacilityDetails();
+            }
+        })();
+    </script>
+}

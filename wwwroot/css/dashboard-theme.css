@@ -5,6 +5,7 @@
     --ct-gold: #FE9031;
     --ct-gold-dark: #a9812d;
     --ct-gold-soft: rgba(254, 144, 49, .12);
+    --ct-button-on-gold: #17351d;
     --ct-border: rgba(59, 112, 59, .22);
     --ct-shadow: 0 10px 30px rgba(59, 112, 59, .12);
     --ct-topbar-height: 80px;
@@ -410,11 +411,25 @@ li {
     border-color: var(--ct-gold) !important;
 }
 
+.btn:not(.btn-link) {
+    font-weight: 700;
+    box-shadow: 0 4px 10px rgba(43, 87, 47, .12);
+}
+
+.btn:not(.btn-link):hover,
+.btn:not(.btn-link):focus {
+    box-shadow: 0 7px 16px rgba(43, 87, 47, .18);
+}
+
+.btn :where(i, span, strong, small) {
+    color: inherit !important;
+}
+
 .btn-primary,
 .btn-info,
 .btn-warning,
 .btn-danger {
-    color: #fff;
+    color: var(--ct-button-on-gold) !important;
     background-color: var(--ct-gold);
     border-color: var(--ct-gold);
 }
@@ -427,7 +442,7 @@ li {
 .btn-warning:focus,
 .btn-danger:hover,
 .btn-danger:focus {
-    color: #fff;
+    color: #fff !important;
     background-color: var(--ct-green);
     border-color: var(--ct-green);
 }
@@ -469,9 +484,17 @@ li {
     color: #fff !important;
 }
 
+.badge.bg-warning,
+.badge.bg-warning.text-dark,
+.badge.bg-white,
+.badge.bg-white.text-success,
+.badge.bg-white.text-danger {
+    color: var(--ct-button-on-gold) !important;
+}
+
 .btn-secondary,
 .btn-dark {
-    color: #fff;
+    color: #fff !important;
     background-color: var(--ct-green);
     border-color: var(--ct-green);
 }
@@ -480,7 +503,7 @@ li {
 .btn-secondary:focus,
 .btn-dark:hover,
 .btn-dark:focus {
-    color: var(--ct-green);
+    color: var(--ct-button-on-gold) !important;
     background-color: var(--ct-gold);
     border-color: var(--ct-gold);
 }
@@ -491,8 +514,9 @@ li {
 .btn-outline-danger,
 .btn-outline-dark,
 .btn-outline-secondary {
-    color: var(--ct-green);
+    color: var(--ct-green-dark) !important;
     border-color: var(--ct-gold);
+    background-color: #fff;
 }
 
 .btn-outline-primary:hover,
@@ -501,21 +525,89 @@ li {
 .btn-outline-danger:hover,
 .btn-outline-dark:hover,
 .btn-outline-secondary:hover {
-    color: #fff;
+    color: #fff !important;
     background-color: var(--ct-green);
     border-color: var(--ct-green);
 }
 
 .btn-outline-success {
-    color: var(--ct-green);
+    color: var(--ct-green-dark) !important;
     border-color: var(--ct-green);
+    background-color: #fff;
 }
 
 .btn-outline-success:hover,
 .btn-outline-success:focus {
-    color: #fff;
+    color: #fff !important;
     background-color: var(--ct-green);
     border-color: var(--ct-green);
+}
+
+.btn-light,
+.btn-light.text-success,
+.btn-light.text-primary,
+.btn-light.text-dark {
+    color: var(--ct-green-dark) !important;
+    background-color: #fff;
+    border-color: #fff;
+}
+
+.btn-light:hover,
+.btn-light:focus {
+    color: var(--ct-button-on-gold) !important;
+    background-color: var(--ct-gold);
+    border-color: var(--ct-gold);
+}
+
+.ct-page-header .btn:not(.btn-link) {
+    border-width: 2px;
+    box-shadow: 0 8px 18px rgba(0, 0, 0, .18);
+}
+
+.ct-page-header .btn-success,
+.ct-page-header .btn-primary,
+.ct-page-header .btn-info,
+.ct-page-header .btn-danger,
+.ct-page-header .btn-secondary,
+.ct-page-header .btn-dark,
+.ct-page-header .btn-outline-success,
+.ct-page-header .btn-outline-primary,
+.ct-page-header .btn-outline-info,
+.ct-page-header .btn-outline-danger,
+.ct-page-header .btn-outline-secondary,
+.ct-page-header .btn-outline-dark,
+.ct-page-header .btn-light {
+    color: var(--ct-green-dark) !important;
+    background-color: #fff !important;
+    border-color: #fff !important;
+}
+
+.ct-page-header .btn-warning,
+.ct-page-header .btn-outline-warning {
+    color: var(--ct-button-on-gold) !important;
+    background-color: var(--ct-gold) !important;
+    border-color: #fff !important;
+}
+
+.ct-page-header .btn:hover,
+.ct-page-header .btn:focus {
+    color: var(--ct-button-on-gold) !important;
+    background-color: var(--ct-gold) !important;
+    border-color: #fff !important;
+}
+
+.ct-page-header .btn-warning:hover,
+.ct-page-header .btn-warning:focus,
+.ct-page-header .btn-outline-warning:hover,
+.ct-page-header .btn-outline-warning:focus {
+    color: var(--ct-green-dark) !important;
+    background-color: #fff !important;
+    border-color: #fff !important;
+}
+
+.ct-page-header .badge.bg-white,
+.ct-page-header .badge.bg-white :where(i, span, strong, small) {
+    color: var(--ct-green-dark) !important;
 }
 
 .card-header.bg-dark {

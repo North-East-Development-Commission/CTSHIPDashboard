@@ -341,6 +341,7 @@ public class PriceCatalogController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> ToggleActive(
         int id,
         bool isActive,

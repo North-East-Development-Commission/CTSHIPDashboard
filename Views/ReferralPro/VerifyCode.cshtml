@@ -11,7 +11,7 @@
                 @(string.IsNullOrWhiteSpace(Model.ReferredHospitalName) ? "Referral facility" : Model.ReferredHospitalName)
             </p>
         </div>
-        <a asp-controller="ReferralPro" asp-action="Index" class="btn btn-light">
+        <a href="@Url.Content("~/ReferralPro/Referrals")" class="btn btn-light">
             <i class="bi bi-arrow-left"></i> Back To Referrals
         </a>
     </div>
@@ -52,7 +52,7 @@
                     </div>
                 </div>
                 <div class="card-footer bg-white d-flex flex-wrap justify-content-end gap-2">
-                    <a asp-controller="ReferralPro" asp-action="Index" class="btn btn-outline-secondary">Cancel</a>
+                    <a href="@Url.Content("~/ReferralPro/Referrals")" class="btn btn-outline-secondary">Cancel</a>
                     <button type="submit" class="btn btn-success">
                         <i class="bi bi-shield-check"></i> Verify Code
                     </button>

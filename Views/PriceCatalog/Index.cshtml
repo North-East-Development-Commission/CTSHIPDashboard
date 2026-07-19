@@ -101,14 +101,17 @@
                                 <th>Title</th>
                                 <th class="text-end">Price (NGN)</th>
                                 <th>Status</th>
-                                <th class="text-end">Action</th>
+                                @if (canManageCatalogItems)
+                                {
+                                    <th class="text-end">Action</th>
+                                }
                             </tr>
                         </thead>
                         <tbody>
                             @if (Model.Items.Count == 0)
                             {
                                 <tr>
-                                    <td colspan="6" class="text-center text-muted py-4">
+                                    <td colspan="@(canManageCatalogItems ? 6 : 5)" class="text-center text-muted py-4">
                                         No catalog items found for the selected filter.
                                     </td>
                                 </tr>
@@ -133,30 +136,29 @@
                                                 <span class="badge bg-secondary">Inactive</span>
                                             }
                                         </td>
-                                        <td class="text-end catalog-actions">
-                                            <div class="d-inline-flex flex-wrap justify-content-end gap-1">
-                                                <form asp-controller="PriceCatalog" asp-action="ToggleActive" method="post" class="d-inline">
-                                                    @Html.AntiForgeryToken()
-                                                    <input type="hidden" name="id" value="@item.Id" />
-                                                    <input type="hidden" name="isActive" value="@(!item.IsActive)" />
-                                                    <input type="hidden" name="state" value="@Model.State" />
-                                                    <input type="hidden" name="category" value="@Model.Category" />
-                                                    <button type="submit" class="btn btn-sm @(item.IsActive ? "btn-outline-secondary" : "btn-outline-success")">
-                                                        @if (item.IsActive)
-                                                        {
-                                                            <i class="bi bi-pause-circle"></i>
-                                                            <span>Deactivate</span>
-                                                        }
-                                                        else
-                                                        {
-                                                            <i class="bi bi-play-circle"></i>
-                                                            <span>Activate</span>
-                                                        }
-                                                    </button>
-                                                </form>
-
-                                                @if (canManageCatalogItems)
-                                                {
+                                        @if (canManageCatalogItems)
+                                        {
+                                            <td class="text-end catalog-actions">
+                                                <div class="d-inline-flex flex-wrap justify-content-end gap-1">
+                                                    <form asp-controller="PriceCatalog" asp-action="ToggleActive" method="post" class="d-inline">
+                                                        @Html.AntiForgeryToken()
+                                                        <input type="hidden" name="id" value="@item.Id" />
+                                                        <input type="hidden" name="isActive" value="@(!item.IsActive)" />
+                                                        <input type="hidden" name="state" value="@Model.State" />
+                                                        <input type="hidden" name="category" value="@Model.Category" />
+                                                        <button type="submit" class="btn btn-sm @(item.IsActive ? "btn-outline-secondary" : "btn-outline-success")">
+                                                            @if (item.IsActive)
+                                                            {
+                                                                <i class="bi bi-pause-circle"></i>
+                                                                <span>Deactivate</span>
+                                                            }
+                                                            else
+                                                            {
+                                                                <i class="bi bi-play-circle"></i>
+                                                                <span>Activate</span>
+                                                            }
+                                                        </button>
+                                                    </form>
                                                     <button type="button"
                                                             class="btn btn-sm btn-outline-primary"
                                                             data-bs-toggle="collapse"
@@ -178,9 +180,9 @@
                                                             <i class="bi bi-trash"></i> Delete
                                                         </button>
                                                     </form>
-                                                }
-                                            </div>
-                                        </td>
+                                                </div>
+                                            </td>
+                                        }
                                     </tr>
                                     @if (canManageCatalogItems)
                                     {

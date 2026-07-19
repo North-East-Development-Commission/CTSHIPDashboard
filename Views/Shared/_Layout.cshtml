@@ -8,6 +8,8 @@
 @{
     string homeUrl = Url.Content("~/");
     bool providerCanUseClaimsNav = false;
+    bool providerCanUseMonthlyReportsNav = false;
+    bool providerCanUseReferralReportsNav = false;
 
     if (SignInManager.IsSignedIn(User))
     {
@@ -43,6 +45,12 @@
                     .FirstOrDefaultAsync();
 
                 providerCanUseClaimsNav = ProviderClaimAccessHelper.CanUseClaims(providerLevel);
+                providerCanUseReferralReportsNav =
+                    string.Equals(providerLevel, "Referral Hospital", StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(providerLevel, "Referred Hospital", StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(providerLevel, "Referral Provider", StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(providerLevel, "Referred Provider", StringComparison.OrdinalIgnoreCase);
+                providerCanUseMonthlyReportsNav = providerCanUseClaimsNav && !providerCanUseReferralReportsNav;
             }
         }
     }
@@ -211,6 +219,9 @@
                     <a asp-controller="StateOffice" asp-action="MonthlyReports" class="nav-link">
                         <i class="bi bi-clipboard-data"></i> Provider Reports
                     </a>
+                    <a asp-controller="StateOffice" asp-action="ReferralProviderReports" class="nav-link">
+                        <i class="bi bi-clipboard-pulse"></i> Referral Provider Reports
+                    </a>
                     <a asp-controller="HmoReferrals" asp-action="Index" class="nav-link">
                         <i class="bi bi-hospital-fill"></i> Referrals
                     </a>
@@ -237,8 +248,11 @@
                     <a asp-controller="ReferralPro" asp-action="Dashboard" class="nav-link">
                         <i class="bi bi-speedometer2"></i> Referral Dashboard
                     </a>
-                    <a asp-controller="ReferralPro" asp-action="Index" class="nav-link">
+                    <a href="@Url.Content("~/ReferralPro/Referrals")" class="nav-link">
                         <i class="bi bi-hospital-fill"></i> Received Referrals
+                    </a>
+                    <a asp-controller="StateOffice" asp-action="ReferralProviderReports" class="nav-link">
+                        <i class="bi bi-clipboard-pulse"></i> Referral Provider Reports
                     </a>
             }
 
@@ -272,6 +286,18 @@
                     {
                         <a asp-controller="Providers" asp-action="MyClaims" class="nav-link">
                             <i class="bi bi-file-medical-fill"></i> My Claims
+                        </a>
+                    }
+                    @if (providerCanUseMonthlyReportsNav)
+                    {
+                        <a asp-controller="StateOffice" asp-action="MonthlyReports" class="nav-link">
+                            <i class="bi bi-clipboard-data"></i> Provider Reports
+                        </a>
+                    }
+                    @if (providerCanUseReferralReportsNav)
+                    {
+                        <a asp-controller="StateOffice" asp-action="ReferralProviderReports" class="nav-link">
+                            <i class="bi bi-clipboard-pulse"></i> Referral Provider Reports
                         </a>
                     }
                     <a asp-controller="ProviderReferrals" asp-action="Index" class="nav-link">
@@ -341,6 +367,9 @@
                 <a asp-controller="StateOffice" asp-action="MonthlyReports" class="nav-link">
                     <i class="bi bi-clipboard-data"></i> Reporting Management
                 </a>
+                <a asp-controller="StateOffice" asp-action="ReferralProviderReports" class="nav-link">
+                    <i class="bi bi-clipboard-pulse"></i> Referral Provider Reports
+                </a>
                 <a asp-controller="HmoDeathRegisters" asp-action="Index" class="nav-link">
                     <i class="bi bi-clipboard2-pulse-fill"></i> Death Registers
                 </a>
@@ -390,6 +419,9 @@
                     </a>
                     <a asp-controller="StateOffice" asp-action="MonthlyReports" class="nav-link">
                         <i class="bi bi-calendar2-check"></i> Monthly Reports
+                    </a>
+                    <a asp-controller="StateOffice" asp-action="ReferralProviderReports" class="nav-link">
+                        <i class="bi bi-clipboard-pulse"></i> Referral Provider Reports
                     </a>
                     <a asp-controller="Monitoring" asp-action="Index" class="nav-link">
                         <i class="bi bi-bar-chart-line-fill"></i> Monitoring & Evaluation

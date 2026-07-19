@@ -25,7 +25,7 @@
             <a asp-controller="ReferralPro" asp-action="VerifyCode" class="btn btn-warning fw-bold">
                 <i class="bi bi-shield-check"></i> Verify Code
             </a>
-            <a asp-controller="ReferralPro" asp-action="Index" class="btn btn-light text-success fw-bold">
+            <a href="@Url.Content("~/ReferralPro/Referrals")" class="btn btn-light text-success fw-bold">
                 <i class="bi bi-list-task"></i> Referral Worklist
             </a>
         </div>
@@ -91,6 +91,98 @@
     </div>
 
     <div class="row g-3 mb-4">
+        <div class="col-lg-6">
+            <div class="card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <strong>Claim Metrics</strong>
+                    <span class="badge bg-success">NGN @Model.SubmittedClaimValue.ToString("N0")</span>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-sm-6 col-xl-4">
+                            <div class="border rounded-2 p-3 h-100">
+                                <div class="small text-muted">Total Claims</div>
+                                <div class="h3 fw-bold mb-0">@Model.TotalClaims.ToString("N0")</div>
+                            </div>
+                        </div>
+                        <div class="col-sm-6 col-xl-4">
+                            <div class="border rounded-2 p-3 h-100">
+                                <div class="small text-muted">Pending Review</div>
+                                <div class="h3 fw-bold mb-0">@Model.PendingClaims.ToString("N0")</div>
+                            </div>
+                        </div>
+                        <div class="col-sm-6 col-xl-4">
+                            <div class="border rounded-2 p-3 h-100">
+                                <div class="small text-muted">Approved</div>
+                                <div class="h3 fw-bold mb-0">@Model.ApprovedClaims.ToString("N0")</div>
+                            </div>
+                        </div>
+                        <div class="col-sm-6 col-xl-4">
+                            <div class="border rounded-2 p-3 h-100">
+                                <div class="small text-muted">Paid</div>
+                                <div class="h3 fw-bold mb-0">@Model.PaidClaims.ToString("N0")</div>
+                                <small class="text-muted">NGN @Model.PaidClaimValue.ToString("N0")</small>
+                            </div>
+                        </div>
+                        <div class="col-sm-6 col-xl-4">
+                            <div class="border rounded-2 p-3 h-100">
+                                <div class="small text-muted">Rejected</div>
+                                <div class="h3 fw-bold mb-0">@Model.RejectedClaims.ToString("N0")</div>
+                            </div>
+                        </div>
+                        <div class="col-sm-6 col-xl-4">
+                            <div class="border rounded-2 p-3 h-100">
+                                <div class="small text-muted">Total Value</div>
+                                <div class="h4 fw-bold mb-0">NGN @Model.SubmittedClaimValue.ToString("N0")</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-6">
+            <div class="card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <strong>Complaint Metrics</strong>
+                    @if (Model.EscalatedComplaints > 0)
+                    {
+                        <span class="badge bg-warning text-dark">@Model.EscalatedComplaints escalated</span>
+                    }
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-sm-6">
+                            <div class="border rounded-2 p-3 h-100">
+                                <div class="small text-muted">Total Complaints</div>
+                                <div class="h3 fw-bold mb-0">@Model.TotalComplaints.ToString("N0")</div>
+                            </div>
+                        </div>
+                        <div class="col-sm-6">
+                            <div class="border rounded-2 p-3 h-100">
+                                <div class="small text-muted">Open / In Progress</div>
+                                <div class="h3 fw-bold mb-0">@Model.OpenComplaints.ToString("N0")</div>
+                            </div>
+                        </div>
+                        <div class="col-sm-6">
+                            <div class="border rounded-2 p-3 h-100">
+                                <div class="small text-muted">Escalated</div>
+                                <div class="h3 fw-bold mb-0">@Model.EscalatedComplaints.ToString("N0")</div>
+                            </div>
+                        </div>
+                        <div class="col-sm-6">
+                            <div class="border rounded-2 p-3 h-100">
+                                <div class="small text-muted">Resolved / Closed</div>
+                                <div class="h3 fw-bold mb-0">@Model.ResolvedComplaints.ToString("N0")</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
         <div class="col-lg-5">
             <div class="card h-100">
                 <div class="card-header d-flex justify-content-between align-items-center">
@@ -133,7 +225,7 @@
             <div class="card h-100">
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <strong>Recent Referrals</strong>
-                    <a asp-controller="ReferralPro" asp-action="Index" class="btn btn-sm btn-outline-success">
+                    <a href="@Url.Content("~/ReferralPro/Referrals")" class="btn btn-sm btn-outline-success">
                         View All
                     </a>
                 </div>

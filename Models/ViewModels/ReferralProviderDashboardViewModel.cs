@@ -26,6 +26,26 @@ public class ReferralProviderDashboardViewModel
 
     public decimal SubmittedClaimValue { get; set; }
 
+    public int TotalClaims { get; set; }
+
+    public int PendingClaims { get; set; }
+
+    public int ApprovedClaims { get; set; }
+
+    public int PaidClaims { get; set; }
+
+    public int RejectedClaims { get; set; }
+
+    public decimal PaidClaimValue { get; set; }
+
+    public int TotalComplaints { get; set; }
+
+    public int OpenComplaints { get; set; }
+
+    public int EscalatedComplaints { get; set; }
+
+    public int ResolvedComplaints { get; set; }
+
     public decimal CompletionRate =>
         TotalReferrals == 0
             ? 0m

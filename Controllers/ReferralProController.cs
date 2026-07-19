@@ -3,6 +3,7 @@ using CTSHIPDashboard.Data;
 using CTSHIPDashboard.Enums;
 using CTSHIPDashboard.Helpers;
 using CTSHIPDashboard.Models;
+using CTSHIPDashboard.Models.Enums;
 using CTSHIPDashboard.Services;
 using CTSHIPDashboard.ViewModels;
 using Microsoft.AspNetCore.Authorization;
@@ -32,6 +33,34 @@ public class ReferralProController : Controller
         ".doc",
         ".docx"
     };
+
+    private sealed class ReferralProviderClaimMetrics
+    {
+        public int TotalClaims { get; set; }
+
+        public int PendingClaims { get; set; }
+
+        public int ApprovedClaims { get; set; }
+
+        public int PaidClaims { get; set; }
+
+        public int RejectedClaims { get; set; }
+
+        public decimal TotalClaimValue { get; set; }
+
+        public decimal PaidClaimValue { get; set; }
+    }
+
+    private sealed class ReferralProviderComplaintMetrics
+    {
+        public int TotalComplaints { get; set; }
+
+        public int OpenComplaints { get; set; }
+
+        public int EscalatedComplaints { get; set; }
+
+        public int ResolvedComplaints { get; set; }
+    }
 
     private readonly ApplicationDbContext _context;
     private readonly IReferralService _referralService;
@@ -82,7 +111,8 @@ public class ReferralProController : Controller
             x.ReferralVerificationCodeExpiresAt.Value <= DateTime.UtcNow,
             cancellationToken);
         int thisMonth = await query.CountAsync(x => x.CreatedAt >= monthStart, cancellationToken);
-        decimal submittedClaimValue = await GetReferralSubmittedClaimValueAsync(currentHospital, cancellationToken);
+        ReferralProviderClaimMetrics claimMetrics = await GetReferralClaimMetricsAsync(currentHospital, cancellationToken);
+        ReferralProviderComplaintMetrics complaintMetrics = await GetReferralComplaintMetricsAsync(currentHospital, cancellationToken);
 
         List<ReferralProviderDashboardAlertViewModel> alerts = await query
             .Where(x => x.Status == ReferralStatus.Verified || x.Status == ReferralStatus.Audited)
@@ -142,7 +172,17 @@ public class ReferralProController : Controller
             Completed = completed,
             ExpiredCodes = expiredCodes,
             ThisMonth = thisMonth,
-            SubmittedClaimValue = submittedClaimValue,
+            SubmittedClaimValue = claimMetrics.TotalClaimValue,
+            TotalClaims = claimMetrics.TotalClaims,
+            PendingClaims = claimMetrics.PendingClaims,
+            ApprovedClaims = claimMetrics.ApprovedClaims,
+            PaidClaims = claimMetrics.PaidClaims,
+            RejectedClaims = claimMetrics.RejectedClaims,
+            PaidClaimValue = claimMetrics.PaidClaimValue,
+            TotalComplaints = complaintMetrics.TotalComplaints,
+            OpenComplaints = complaintMetrics.OpenComplaints,
+            EscalatedComplaints = complaintMetrics.EscalatedComplaints,
+            ResolvedComplaints = complaintMetrics.ResolvedComplaints,
             Alerts = alerts,
             RecentReferrals = recentReferrals
         });
@@ -633,7 +673,7 @@ public class ReferralProController : Controller
         return query;
     }
 
-    private async Task<decimal> GetReferralSubmittedClaimValueAsync(
+    private async Task<ReferralProviderClaimMetrics> GetReferralClaimMetricsAsync(
         ReferredHospital? currentHospital,
         CancellationToken cancellationToken)
     {
@@ -641,12 +681,74 @@ public class ReferralProController : Controller
 
         if (currentHospital == null)
         {
-            return await query
-                .Where(x => x.ClaimNumber.StartsWith("RCLM-"))
-                .SumAsync(x => (decimal?)x.Amount, cancellationToken)
-                ?? 0m;
+            query = query.Where(x => x.ClaimNumber.StartsWith("RCLM-"));
+        }
+        else
+        {
+            List<int> providerIds = await GetReferralProviderIdsAsync(currentHospital, cancellationToken);
+            if (providerIds.Count == 0)
+            {
+                return new ReferralProviderClaimMetrics();
+            }
+
+            query = query.Where(x => providerIds.Contains(x.ProviderId));
         }
 
+        string[] pendingStatuses = { "Submitted", "ReApproved", "Under Review" };
+        string[] approvedStatuses = { "Approved", "Review Approved" };
+
+        return new ReferralProviderClaimMetrics
+        {
+            TotalClaims = await query.CountAsync(cancellationToken),
+            PendingClaims = await query.CountAsync(x => pendingStatuses.Contains(x.Status), cancellationToken),
+            ApprovedClaims = await query.CountAsync(x => approvedStatuses.Contains(x.Status), cancellationToken),
+            PaidClaims = await query.CountAsync(x => x.Status == "Paid", cancellationToken),
+            RejectedClaims = await query.CountAsync(x => x.Status == "Rejected", cancellationToken),
+            TotalClaimValue = await query.SumAsync(x => (decimal?)x.Amount, cancellationToken) ?? 0m,
+            PaidClaimValue = await query
+                .Where(x => x.Status == "Paid")
+                .SumAsync(x => (decimal?)x.Amount, cancellationToken)
+                ?? 0m
+        };
+    }
+
+    private async Task<ReferralProviderComplaintMetrics> GetReferralComplaintMetricsAsync(
+        ReferredHospital? currentHospital,
+        CancellationToken cancellationToken)
+    {
+        IQueryable<Complaint> query = _context.Complaints.AsNoTracking();
+
+        if (currentHospital == null)
+        {
+            query = query.Where(x => x.Provider != null && x.Provider.Level == "Referral Hospital");
+        }
+        else
+        {
+            List<int> providerIds = await GetReferralProviderIdsAsync(currentHospital, cancellationToken);
+            if (providerIds.Count == 0)
+            {
+                return new ReferralProviderComplaintMetrics();
+            }
+
+            query = query.Where(x => x.ProviderId.HasValue && providerIds.Contains(x.ProviderId.Value));
+        }
+
+        ComplaintStatus[] openStatuses = { ComplaintStatus.Open, ComplaintStatus.InProgress };
+        ComplaintStatus[] resolvedStatuses = { ComplaintStatus.Resolved, ComplaintStatus.Closed };
+
+        return new ReferralProviderComplaintMetrics
+        {
+            TotalComplaints = await query.CountAsync(cancellationToken),
+            OpenComplaints = await query.CountAsync(x => openStatuses.Contains(x.Status), cancellationToken),
+            EscalatedComplaints = await query.CountAsync(x => x.Status == ComplaintStatus.Escalated, cancellationToken),
+            ResolvedComplaints = await query.CountAsync(x => resolvedStatuses.Contains(x.Status), cancellationToken)
+        };
+    }
+
+    private async Task<List<int>> GetReferralProviderIdsAsync(
+        ReferredHospital currentHospital,
+        CancellationToken cancellationToken)
+    {
         string hospitalName = currentHospital.Name;
         string? hospitalEmail = currentHospital.Email;
         bool hasHospitalEmail = !string.IsNullOrWhiteSpace(hospitalEmail);
@@ -657,6 +759,7 @@ public class ReferralProController : Controller
                 provider.Name == hospitalName ||
                 (hasHospitalEmail && provider.Email == hospitalEmail))
             .Select(provider => provider.Id)
+            .Distinct()
             .ToListAsync(cancellationToken);
 
         ApplicationUser? currentUser = await _userManager.GetUserAsync(User);
@@ -665,15 +768,7 @@ public class ReferralProController : Controller
             providerIds.Add(currentUser.ProviderId.Value);
         }
 
-        if (providerIds.Count == 0)
-        {
-            return 0m;
-        }
-
-        return await query
-            .Where(x => providerIds.Contains(x.ProviderId))
-            .SumAsync(x => (decimal?)x.Amount, cancellationToken)
-            ?? 0m;
+        return providerIds;
     }
 
     private async Task<Referral?> GetReferralWithDetailsAsync(Guid id, CancellationToken cancellationToken)

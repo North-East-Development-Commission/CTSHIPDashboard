@@ -15,9 +15,12 @@ using System.Drawing;
 using System.Globalization;
 
 
-[Authorize(Roles = "StateOffice,CTSHIPAdmin,Admin,HMO")]
+[Authorize(Roles = "StateOffice,CTSHIPAdmin,Admin,HMO,Provider,ReferralPro")]
 public class StateOfficeController : Controller
 {
+    private const string ReferralProviderLevel = "Referral Hospital";
+    private const string ReferralClaimPrefix = "RCLM-";
+
     private readonly ApplicationDbContext _context;
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly IMonitoringIndicatorService _monitoringIndicatorService;
@@ -499,6 +502,401 @@ public class StateOfficeController : Controller
     }
 
     [HttpGet]
+    public async Task<IActionResult> ReferralProviderReports(
+        string? reportingPeriod,
+        string? state,
+        CancellationToken cancellationToken)
+    {
+        var user = await _userManager.GetUserAsync(User);
+        if (user == null)
+        {
+            return Forbid();
+        }
+
+        IQueryable<StateOfficeMonthlyReport> query =
+            ApplyReferralProviderMonthlyReportScope(_context.StateOfficeMonthlyReports.AsNoTracking(), user);
+
+        if (!CanManageReports() && User.IsInRole("StateOffice"))
+        {
+            state = user.State;
+        }
+
+        if (!string.IsNullOrWhiteSpace(state))
+        {
+            state = state.Trim();
+            query = query.Where(x => x.State == state);
+        }
+
+        if (DateTime.TryParseExact(
+            $"{reportingPeriod}-01",
+            "yyyy-MM-dd",
+            CultureInfo.InvariantCulture,
+            DateTimeStyles.None,
+            out DateTime month))
+        {
+            query = query.Where(x => x.ReportingMonth == month.Date);
+        }
+
+        ViewBag.ReportingPeriod = reportingPeriod;
+        ViewBag.State = state;
+        ViewBag.AvailableStates = await GetReferralReportAvailableStatesAsync(user, cancellationToken);
+        ViewBag.CanFilterReportsByState = CanManageReports() || User.IsInRole("HMO");
+        ViewBag.CanManageReports = CanManageReports();
+
+        return View(await query
+            .OrderByDescending(x => x.ReportingMonth)
+            .ThenByDescending(x => x.DateSubmitted)
+            .ToListAsync(cancellationToken));
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> CreateReferralProviderReport(CancellationToken cancellationToken)
+    {
+        var user = await _userManager.GetUserAsync(User);
+        if (user == null)
+        {
+            return Forbid();
+        }
+
+        var model = new StateOfficeMonthlyReportViewModel
+        {
+            State = CanManageReports() ? string.Empty : await GetDefaultReferralProviderReportStateAsync(user, cancellationToken) ?? string.Empty,
+            Ward = "N/A",
+            ReportingOfficerName = user.FullName ?? user.UserName ?? string.Empty
+        };
+
+        await PopulateReferralProviderReportOptionsAsync(model, user, cancellationToken);
+        return View(model);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> CreateReferralProviderReport(
+        StateOfficeMonthlyReportViewModel model,
+        CancellationToken cancellationToken)
+    {
+        var user = await _userManager.GetUserAsync(User);
+        if (user == null)
+        {
+            return Forbid();
+        }
+
+        if (!DateTime.TryParseExact(
+            $"{model.ReportingPeriod}-01",
+            "yyyy-MM-dd",
+            CultureInfo.InvariantCulture,
+            DateTimeStyles.None,
+            out DateTime reportingMonth))
+        {
+            ModelState.AddModelError(nameof(model.ReportingPeriod), "Select a valid reporting month.");
+        }
+
+        model.State = model.State?.Trim() ?? string.Empty;
+        model.Lga = model.Lga?.Trim() ?? string.Empty;
+        model.Ward = string.IsNullOrWhiteSpace(model.Ward) ? "N/A" : model.Ward.Trim();
+
+        if (!await CanAccessReferralReportStateAsync(model.State, user, cancellationToken))
+        {
+            return Forbid();
+        }
+
+        if (!string.Equals(model.Lga, "N/A", StringComparison.OrdinalIgnoreCase)
+            && !NorthEastLocationData.IsValidLga(model.State, model.Lga))
+        {
+            ModelState.AddModelError(nameof(model.Lga), "Select a valid LGA for the chosen state.");
+        }
+
+        Provider? facility = null;
+        if (model.ProviderId.HasValue)
+        {
+            facility = await ApplyReferralProviderReportScope(_context.Providers.AsNoTracking(), user)
+                .FirstOrDefaultAsync(
+                    x => x.Id == model.ProviderId.Value && x.State == model.State,
+                    cancellationToken);
+        }
+
+        if (facility == null)
+        {
+            ModelState.AddModelError(nameof(model.ProviderId), "Select a valid referral provider for the chosen state.");
+        }
+
+        StateOfficeMonthlyReportMetricsViewModel? metrics = null;
+        if (facility != null
+            && ModelState.IsValid)
+        {
+            metrics = await BuildReferralProviderMonthlyReportMetricsAsync(
+                model.State,
+                reportingMonth,
+                facility.Id,
+                model.Lga,
+                model.Ward,
+                cancellationToken);
+        }
+
+        if (facility != null && metrics == null && ModelState.IsValid)
+        {
+            ModelState.AddModelError(nameof(model.ProviderId), "Referral provider report metrics could not be generated.");
+        }
+
+        if (!ModelState.IsValid)
+        {
+            await PopulateReferralProviderReportOptionsAsync(model, user, cancellationToken);
+            return View(model);
+        }
+
+        var report = new StateOfficeMonthlyReport
+        {
+            ReportingMonth = reportingMonth.Date,
+            State = model.State,
+            Lga = model.Lga,
+            Ward = model.Ward,
+            ProviderId = facility!.Id,
+            FacilityName = facility.Name,
+            FacilityCode = facility.Code,
+            ReportingOfficerName = model.ReportingOfficerName.Trim(),
+            Designation = model.Designation.Trim(),
+            PhoneNumber = model.PhoneNumber.Trim(),
+            DateSubmitted = DateTime.UtcNow,
+            SubmittedByUserId = user.Id,
+            SubmittedByName = user.FullName ?? user.UserName
+        };
+
+        ApplyMetrics(report, metrics!);
+
+        _context.StateOfficeMonthlyReports.Add(report);
+        await _context.SaveChangesAsync(cancellationToken);
+
+        await _auditService.LogAsync(
+            "ReferralProviderReportSubmitted",
+            user.Email ?? User.Identity?.Name ?? "Unknown",
+            report.FacilityCode,
+            $"{report.State}; {report.FacilityName}; {report.ReportingMonth:yyyy-MM}; Claims:{report.TotalClaims}; Referrals:{report.TotalReferrals}");
+
+        TempData["Success"] = "Referral provider report submitted successfully.";
+        return RedirectToAction(nameof(ReferralProviderReportDetails), new { id = report.Id });
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> ReferralProviderReportDetails(int id, CancellationToken cancellationToken)
+    {
+        var user = await _userManager.GetUserAsync(User);
+        if (user == null)
+        {
+            return Forbid();
+        }
+
+        StateOfficeMonthlyReport? report = await _context.StateOfficeMonthlyReports
+            .AsNoTracking()
+            .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+
+        if (report == null)
+        {
+            return NotFound();
+        }
+
+        if (!await CanAccessReferralProviderMonthlyReportAsync(report, user, cancellationToken))
+        {
+            return NotFound();
+        }
+
+        ViewBag.CanAuditReports = await CanAuditReferralProviderMonthlyReportAsync(report, user, cancellationToken);
+        return View(report);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [Authorize(Roles = "CTSHIPAdmin,Admin,StateOffice,HMO")]
+    public async Task<IActionResult> AuditReferralProviderReport(
+        int id,
+        string auditStatus,
+        string? auditNote,
+        CancellationToken cancellationToken)
+    {
+        var user = await _userManager.GetUserAsync(User);
+        if (user == null)
+        {
+            return Forbid();
+        }
+
+        StateOfficeMonthlyReport? report = await _context.StateOfficeMonthlyReports
+            .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+
+        if (report == null)
+        {
+            return NotFound();
+        }
+
+        if (!await CanAuditReferralProviderMonthlyReportAsync(report, user, cancellationToken))
+        {
+            return Forbid();
+        }
+
+        string[] allowedStatuses = { "Audited", "Needs Correction" };
+        if (!allowedStatuses.Contains(auditStatus))
+        {
+            TempData["Error"] = "Select a valid audit decision.";
+            return RedirectToAction(nameof(ReferralProviderReportDetails), new { id });
+        }
+
+        report.AuditStatus = auditStatus;
+        report.AuditNote = auditNote?.Trim();
+        report.AuditedAt = DateTime.UtcNow;
+        report.AuditedByUserId = user.Id;
+        report.AuditedByName = user.FullName ?? user.UserName;
+
+        await _context.SaveChangesAsync(cancellationToken);
+        await _auditService.LogAsync(
+            "ReferralProviderReportAudited",
+            user.Email ?? User.Identity?.Name ?? "Unknown",
+            report.FacilityCode,
+            $"{report.State}; {report.FacilityName}; {report.ReportingMonth:yyyy-MM}; Status:{report.AuditStatus}; Note:{report.AuditNote}");
+
+        TempData["Success"] = "Referral provider report audit updated.";
+        return RedirectToAction(nameof(ReferralProviderReportDetails), new { id });
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> ReferralProviderReportLgas(string state, CancellationToken cancellationToken)
+    {
+        var user = await _userManager.GetUserAsync(User);
+        if (user == null || !await CanAccessReferralReportStateAsync(state, user, cancellationToken))
+        {
+            return Forbid();
+        }
+
+        var lgas = await GetMonthlyReportLgasAsync(state, cancellationToken);
+        return Json(lgas);
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> ReferralProviderReportFacilities(string state, CancellationToken cancellationToken)
+    {
+        var user = await _userManager.GetUserAsync(User);
+        if (user == null || !await CanAccessReferralReportStateAsync(state, user, cancellationToken))
+        {
+            return Forbid();
+        }
+
+        var facilities = await ApplyReferralProviderReportScope(_context.Providers.AsNoTracking(), user)
+            .Where(x => x.State == state)
+            .OrderBy(x => x.Name)
+            .Select(x => new { id = x.Id, name = x.Name, code = x.Code })
+            .ToListAsync(cancellationToken);
+
+        return Json(facilities);
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> ReferralProviderReportFacilityDetails(
+        string state,
+        string reportingPeriod,
+        int providerId,
+        string? lga,
+        string? ward,
+        CancellationToken cancellationToken)
+    {
+        var user = await _userManager.GetUserAsync(User);
+        if (user == null
+            || !await CanAccessReferralReportStateAsync(state, user, cancellationToken)
+            || !await CanAccessReferralReportProviderAsync(providerId, state, user, cancellationToken))
+        {
+            return Forbid();
+        }
+
+        if (!TryParseReportingMonth(reportingPeriod, out DateTime reportingMonth))
+        {
+            return BadRequest("Select a valid reporting month.");
+        }
+
+        StateOfficeMonthlyReportMetricsViewModel? metrics =
+            await BuildReferralProviderMonthlyReportMetricsAsync(
+                state.Trim(),
+                reportingMonth,
+                providerId,
+                lga,
+                string.IsNullOrWhiteSpace(ward) ? "N/A" : ward,
+                cancellationToken);
+
+        return metrics == null
+            ? NotFound()
+            : Json(metrics);
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> ExportReferralProviderReportDetails(
+        int id,
+        CancellationToken cancellationToken)
+    {
+        var user = await _userManager.GetUserAsync(User);
+        if (user == null)
+        {
+            return Forbid();
+        }
+
+        StateOfficeMonthlyReport? report = await _context.StateOfficeMonthlyReports
+            .AsNoTracking()
+            .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+
+        if (report == null)
+        {
+            return NotFound();
+        }
+
+        if (!await CanAccessReferralProviderMonthlyReportAsync(report, user, cancellationToken))
+        {
+            return NotFound();
+        }
+
+        StateOfficeMonthlyReportMetricsViewModel metrics = BuildMetricsViewModel(report);
+        return BuildMonthlyReportExcel(
+            metrics,
+            $"Referral_Provider_Report_{report.State}_{report.FacilityCode}_{report.ReportingMonth:yyyyMM}.xlsx",
+            "Referral Provider Report Details");
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> ExportReferralProviderReportSelection(
+        string state,
+        string reportingPeriod,
+        int providerId,
+        string? lga,
+        string? ward,
+        CancellationToken cancellationToken)
+    {
+        var user = await _userManager.GetUserAsync(User);
+        if (user == null
+            || !await CanAccessReferralReportStateAsync(state, user, cancellationToken)
+            || !await CanAccessReferralReportProviderAsync(providerId, state, user, cancellationToken))
+        {
+            return Forbid();
+        }
+
+        if (!TryParseReportingMonth(reportingPeriod, out DateTime reportingMonth))
+        {
+            return BadRequest("Select a valid reporting month.");
+        }
+
+        StateOfficeMonthlyReportMetricsViewModel? metrics =
+            await BuildReferralProviderMonthlyReportMetricsAsync(
+                state.Trim(),
+                reportingMonth,
+                providerId,
+                lga,
+                string.IsNullOrWhiteSpace(ward) ? "N/A" : ward,
+                cancellationToken);
+
+        if (metrics == null)
+        {
+            return NotFound();
+        }
+
+        return BuildMonthlyReportExcel(
+            metrics,
+            $"Referral_Provider_Report_{metrics.State}_{metrics.FacilityCode}_{reportingMonth:yyyyMM}.xlsx",
+            "Referral Provider Report Details");
+    }
+
+    [HttpGet]
     public async Task<IActionResult> CreateMonthlyReport(CancellationToken cancellationToken)
     {
         var user = await _userManager.GetUserAsync(User);
@@ -908,10 +1306,69 @@ public class StateOfficeController : Controller
         }
     }
 
+    private async Task PopulateReferralProviderReportOptionsAsync(
+        StateOfficeMonthlyReportViewModel model,
+        ApplicationUser user,
+        CancellationToken cancellationToken)
+    {
+        List<string> states;
+        if (CanManageReports())
+        {
+            states = await GetReferralProviderStatesAsync(cancellationToken);
+        }
+        else
+        {
+            states = await GetReferralReportAvailableStatesAsync(user, cancellationToken);
+            if (User.IsInRole("StateOffice"))
+            {
+                model.State = user.State;
+            }
+            else if (string.IsNullOrWhiteSpace(model.State) && states.Count == 1)
+            {
+                model.State = states[0];
+            }
+        }
+
+        model.States = states
+            .Select(x => new SelectListItem(x, x, x == model.State))
+            .ToList();
+
+        if (!string.IsNullOrWhiteSpace(model.State))
+        {
+            model.Lgas = (await GetMonthlyReportLgasAsync(model.State, cancellationToken))
+                .Select(x => new SelectListItem(x, x, x == model.Lga))
+                .ToList();
+
+            model.Facilities = await ApplyReferralProviderReportScope(_context.Providers.AsNoTracking(), user)
+                .Where(x => x.State == model.State)
+                .OrderBy(x => x.Name)
+                .Select(x => new SelectListItem(x.Name, x.Id.ToString(), x.Id == model.ProviderId))
+                .ToListAsync(cancellationToken);
+        }
+
+        if (model.ProviderId.HasValue)
+        {
+            model.FacilityCode = await _context.Providers
+                .AsNoTracking()
+                .Where(x => x.Id == model.ProviderId.Value)
+                .Select(x => x.Code)
+                .FirstOrDefaultAsync(cancellationToken) ?? string.Empty;
+        }
+
+        if (string.IsNullOrWhiteSpace(model.Ward))
+        {
+            model.Ward = "N/A";
+        }
+    }
+
     private IQueryable<StateOfficeMonthlyReport> ApplyMonthlyReportScope(
         IQueryable<StateOfficeMonthlyReport> query,
         ApplicationUser user)
     {
+        query = query.Where(report => !_context.Providers.Any(provider =>
+            provider.Id == report.ProviderId
+            && (provider.Level == ReferralProviderLevel || provider.Code.StartsWith("REF-"))));
+
         if (CanManageReports())
         {
             return query;
@@ -930,6 +1387,12 @@ public class StateOfficeController : Controller
             return query.Where(report => report.State == userState);
         }
 
+        if (User.IsInRole("Provider") && user.ProviderId.HasValue)
+        {
+            int providerId = user.ProviderId.Value;
+            return query.Where(report => report.ProviderId == providerId);
+        }
+
         return query.Where(report => false);
     }
 
@@ -937,6 +1400,8 @@ public class StateOfficeController : Controller
         IQueryable<Provider> query,
         ApplicationUser user)
     {
+        query = ExcludeReferralProviderFacilities(query);
+
         if (CanManageReports())
         {
             return query;
@@ -954,7 +1419,94 @@ public class StateOfficeController : Controller
             return query.Where(provider => provider.State == userState);
         }
 
+        if (User.IsInRole("Provider") && user.ProviderId.HasValue)
+        {
+            int providerId = user.ProviderId.Value;
+            return query.Where(provider =>
+                provider.Id == providerId &&
+                ProviderClaimAccessHelper.ClaimEligibleProviderLevels.Contains(provider.Level));
+        }
+
         return query.Where(provider => false);
+    }
+
+    private IQueryable<StateOfficeMonthlyReport> ApplyReferralProviderMonthlyReportScope(
+        IQueryable<StateOfficeMonthlyReport> query,
+        ApplicationUser user)
+    {
+        query = query.Where(report => _context.Providers.Any(provider =>
+            provider.Id == report.ProviderId
+            && (provider.Level == ReferralProviderLevel || provider.Code.StartsWith("REF-"))));
+
+        if (CanManageReports())
+        {
+            return query;
+        }
+
+        if (User.IsInRole("HMO") && user.HmoId.HasValue)
+        {
+            int hmoId = user.HmoId.Value;
+            return query.Where(report => _context.Providers
+                .Any(provider => provider.Id == report.ProviderId && provider.HmoId == hmoId));
+        }
+
+        if (User.IsInRole("StateOffice") && !string.IsNullOrWhiteSpace(user.State))
+        {
+            string userState = user.State.Trim();
+            return query.Where(report => report.State == userState);
+        }
+
+        if ((User.IsInRole("Provider") || User.IsInRole("ReferralPro")) && user.ProviderId.HasValue)
+        {
+            int providerId = user.ProviderId.Value;
+            return query.Where(report => report.ProviderId == providerId);
+        }
+
+        return query.Where(report => false);
+    }
+
+    private IQueryable<Provider> ApplyReferralProviderReportScope(
+        IQueryable<Provider> query,
+        ApplicationUser user)
+    {
+        query = OnlyReferralProviderFacilities(query);
+
+        if (CanManageReports())
+        {
+            return query;
+        }
+
+        if (User.IsInRole("HMO") && user.HmoId.HasValue)
+        {
+            int hmoId = user.HmoId.Value;
+            return query.Where(provider => provider.HmoId == hmoId);
+        }
+
+        if (User.IsInRole("StateOffice") && !string.IsNullOrWhiteSpace(user.State))
+        {
+            string userState = user.State.Trim();
+            return query.Where(provider => provider.State == userState);
+        }
+
+        if ((User.IsInRole("Provider") || User.IsInRole("ReferralPro")) && user.ProviderId.HasValue)
+        {
+            int providerId = user.ProviderId.Value;
+            return query.Where(provider => provider.Id == providerId);
+        }
+
+        return query.Where(provider => false);
+    }
+
+    private static IQueryable<Provider> OnlyReferralProviderFacilities(IQueryable<Provider> query)
+    {
+        return query.Where(provider =>
+            provider.Level == ReferralProviderLevel || provider.Code.StartsWith("REF-"));
+    }
+
+    private static IQueryable<Provider> ExcludeReferralProviderFacilities(IQueryable<Provider> query)
+    {
+        return query.Where(provider =>
+            provider.Level != ReferralProviderLevel && !provider.Code.StartsWith("REF-"));
     }
 
     private async Task<bool> CanAccessReportStateAsync(
@@ -981,10 +1533,14 @@ public class StateOfficeController : Controller
 
         if (User.IsInRole("HMO") && user.HmoId.HasValue)
         {
-            int hmoId = user.HmoId.Value;
-            return await _context.Providers
-                .AsNoTracking()
-                .AnyAsync(provider => provider.HmoId == hmoId && provider.State == state, cancellationToken);
+            return await ApplyProviderReportScope(_context.Providers.AsNoTracking(), user)
+                .AnyAsync(provider => provider.State == state, cancellationToken);
+        }
+
+        if (User.IsInRole("Provider") && user.ProviderId.HasValue)
+        {
+            return await ApplyProviderReportScope(_context.Providers.AsNoTracking(), user)
+                .AnyAsync(provider => provider.State == state, cancellationToken);
         }
 
         return false;
@@ -1003,6 +1559,59 @@ public class StateOfficeController : Controller
         }
 
         return await ApplyProviderReportScope(_context.Providers.AsNoTracking(), user)
+            .AnyAsync(provider => provider.Id == providerId && provider.State == state, cancellationToken);
+    }
+
+    private async Task<bool> CanAccessReferralReportStateAsync(
+        string? state,
+        ApplicationUser user,
+        CancellationToken cancellationToken)
+    {
+        state = state?.Trim();
+        if (string.IsNullOrWhiteSpace(state))
+        {
+            return false;
+        }
+
+        if (CanManageReports())
+        {
+            return true;
+        }
+
+        if (User.IsInRole("StateOffice"))
+        {
+            return !string.IsNullOrWhiteSpace(user.State)
+                && string.Equals(user.State.Trim(), state, StringComparison.OrdinalIgnoreCase);
+        }
+
+        if (User.IsInRole("HMO") && user.HmoId.HasValue)
+        {
+            return await ApplyReferralProviderReportScope(_context.Providers.AsNoTracking(), user)
+                .AnyAsync(provider => provider.State == state, cancellationToken);
+        }
+
+        if ((User.IsInRole("Provider") || User.IsInRole("ReferralPro")) && user.ProviderId.HasValue)
+        {
+            return await ApplyReferralProviderReportScope(_context.Providers.AsNoTracking(), user)
+                .AnyAsync(provider => provider.State == state, cancellationToken);
+        }
+
+        return false;
+    }
+
+    private async Task<bool> CanAccessReferralReportProviderAsync(
+        int providerId,
+        string? state,
+        ApplicationUser user,
+        CancellationToken cancellationToken)
+    {
+        state = state?.Trim();
+        if (providerId <= 0 || string.IsNullOrWhiteSpace(state))
+        {
+            return false;
+        }
+
+        return await ApplyReferralProviderReportScope(_context.Providers.AsNoTracking(), user)
             .AnyAsync(provider => provider.Id == providerId && provider.State == state, cancellationToken);
     }
 
@@ -1030,7 +1639,25 @@ public class StateOfficeController : Controller
                 .AnyAsync(provider => provider.Id == report.ProviderId && provider.HmoId == hmoId, cancellationToken);
         }
 
+        if (User.IsInRole("Provider") && user.ProviderId.HasValue)
+        {
+            return report.ProviderId == user.ProviderId.Value
+                && await ApplyProviderReportScope(_context.Providers.AsNoTracking(), user)
+                    .AnyAsync(provider => provider.Id == report.ProviderId, cancellationToken);
+        }
+
         return false;
+    }
+
+    private async Task<bool> CanAccessReferralProviderMonthlyReportAsync(
+        StateOfficeMonthlyReport report,
+        ApplicationUser user,
+        CancellationToken cancellationToken)
+    {
+        return await ApplyReferralProviderMonthlyReportScope(
+                _context.StateOfficeMonthlyReports.AsNoTracking(),
+                user)
+            .AnyAsync(x => x.Id == report.Id, cancellationToken);
     }
 
     private async Task<bool> CanAuditMonthlyReportAsync(
@@ -1044,6 +1671,19 @@ public class StateOfficeController : Controller
         }
 
         return await CanAccessMonthlyReportAsync(report, user, cancellationToken);
+    }
+
+    private async Task<bool> CanAuditReferralProviderMonthlyReportAsync(
+        StateOfficeMonthlyReport report,
+        ApplicationUser user,
+        CancellationToken cancellationToken)
+    {
+        if (!CanManageReports() && !User.IsInRole("StateOffice") && !User.IsInRole("HMO"))
+        {
+            return false;
+        }
+
+        return await CanAccessReferralProviderMonthlyReportAsync(report, user, cancellationToken);
     }
 
     private bool CanManageReports()
@@ -1189,6 +1829,150 @@ public class StateOfficeController : Controller
         };
     }
 
+    private async Task<StateOfficeMonthlyReportMetricsViewModel?> BuildReferralProviderMonthlyReportMetricsAsync(
+        string state,
+        DateTime reportingMonth,
+        int providerId,
+        string? lga,
+        string? ward,
+        CancellationToken cancellationToken)
+    {
+        DateTime monthStart = new(reportingMonth.Year, reportingMonth.Month, 1);
+        DateTime nextMonth = monthStart.AddMonths(1);
+        state = state.Trim();
+
+        Provider? facility = await OnlyReferralProviderFacilities(_context.Providers.AsNoTracking())
+            .FirstOrDefaultAsync(
+                x => x.Id == providerId && x.State == state,
+                cancellationToken);
+
+        if (facility == null)
+        {
+            return null;
+        }
+
+        Hmo? hmo = await _context.Hmos
+            .AsNoTracking()
+            .FirstOrDefaultAsync(x => x.Id == facility.HmoId, cancellationToken);
+
+        Guid? referralHospitalId = await GetReferralHospitalIdForProviderAsync(facility, cancellationToken);
+
+        IQueryable<Referral> monthlyReferrals = _context.Referrals
+            .AsNoTracking()
+            .Where(x => !x.IsDeleted
+                && x.CreatedAt >= monthStart
+                && x.CreatedAt < nextMonth);
+
+        if (referralHospitalId.HasValue)
+        {
+            Guid hospitalId = referralHospitalId.Value;
+            monthlyReferrals = monthlyReferrals.Where(x => x.ReferredHospitalId == hospitalId);
+        }
+        else
+        {
+            string facilityName = facility.Name;
+            string? facilityEmail = facility.Email;
+            bool hasFacilityEmail = !string.IsNullOrWhiteSpace(facilityEmail);
+
+            monthlyReferrals = monthlyReferrals.Where(x =>
+                x.ReferredHospital != null
+                && (x.ReferredHospital.Name == facilityName
+                    || (hasFacilityEmail && x.ReferredHospital.Email == facilityEmail)));
+        }
+
+        if (hmo != null)
+        {
+            string hmoCode = hmo.RegistrationNumber;
+            string hmoName = hmo.Name;
+            monthlyReferrals = monthlyReferrals.Where(x =>
+                x.HmoCode == hmoCode || x.HmoName == hmoName);
+        }
+
+        IQueryable<Encounter> monthlyEncounters = _context.Encounters
+            .AsNoTracking()
+            .Where(x => x.ProviderId == providerId
+                && x.VisitDate >= monthStart
+                && x.VisitDate < nextMonth);
+
+        IQueryable<Claim> monthlyClaims = _context.Claims
+            .AsNoTracking()
+            .Where(x => x.ProviderId == providerId
+                && x.DateSubmitted >= monthStart
+                && x.DateSubmitted < nextMonth
+                && x.ClaimNumber.StartsWith(ReferralClaimPrefix));
+
+        if (hmo != null)
+        {
+            int hmoId = hmo.Id;
+            monthlyClaims = monthlyClaims.Where(x => x.HmoId == hmoId);
+        }
+
+        int totalReferrals = await monthlyReferrals.CountAsync(cancellationToken);
+        int completedReferrals = await monthlyReferrals.CountAsync(
+            x => x.Status == ReferralStatus.Closed || x.Status == ReferralStatus.Audited,
+            cancellationToken);
+        int totalClaims = await monthlyClaims.CountAsync(cancellationToken);
+        int paidClaims = await monthlyClaims.CountAsync(x => x.Status == "Paid", cancellationToken);
+
+        return new StateOfficeMonthlyReportMetricsViewModel
+        {
+            ReportingPeriod = monthStart.ToString("yyyy-MM", CultureInfo.InvariantCulture),
+            ReportingMonthDisplay = monthStart.ToString("MMMM yyyy", CultureInfo.InvariantCulture),
+            State = state,
+            Lga = lga?.Trim() ?? facility.LGA,
+            Ward = string.IsNullOrWhiteSpace(ward) ? "N/A" : ward.Trim(),
+            ProviderId = facility.Id,
+            FacilityName = facility.Name,
+            FacilityCode = facility.Code,
+            TotalActiveEnrollees = await monthlyReferrals
+                .Where(x => x.EnrolleeNumber != "")
+                .Select(x => x.EnrolleeNumber)
+                .Distinct()
+                .CountAsync(cancellationToken),
+            TotalVisits = await monthlyEncounters
+                .Select(x => new { x.EnrolleeId, VisitDay = x.VisitDate.Date })
+                .Distinct()
+                .CountAsync(cancellationToken),
+            TotalEncounters = await monthlyEncounters.CountAsync(cancellationToken),
+            EnrolleesAccessingCare = await monthlyEncounters
+                .Select(x => x.EnrolleeId)
+                .Distinct()
+                .CountAsync(cancellationToken),
+            ServiceUtilization = await _context.EncounterServices
+                .AsNoTracking()
+                .Where(x => x.Encounter != null
+                    && x.Encounter.ProviderId == providerId
+                    && x.Encounter.VisitDate >= monthStart
+                    && x.Encounter.VisitDate < nextMonth)
+                .CountAsync(cancellationToken),
+            TotalReferrals = totalReferrals,
+            CompletedReferrals = completedReferrals,
+            ReferralCompletionRate = Percentage(completedReferrals, totalReferrals),
+            AmountCapitationPaid = 0m,
+            CapitationToUtilizationRatio = 0m,
+            TotalClaims = totalClaims,
+            TotalClaimsAmount = await monthlyClaims
+                .SumAsync(x => (decimal?)x.Amount, cancellationToken) ?? 0m,
+            PaidClaims = paidClaims,
+            PaidClaimsAmount = await monthlyClaims
+                .Where(x => x.Status == "Paid")
+                .SumAsync(x => (decimal?)x.Amount, cancellationToken) ?? 0m
+        };
+    }
+
+    private async Task<Guid?> GetReferralHospitalIdForProviderAsync(
+        Provider provider,
+        CancellationToken cancellationToken)
+    {
+        return await _context.ReferralHospitals
+            .AsNoTracking()
+            .Where(hospital => hospital.IsActive &&
+                (hospital.Name == provider.Name ||
+                 (!string.IsNullOrWhiteSpace(hospital.Email) && hospital.Email == provider.Email)))
+            .Select(hospital => (Guid?)hospital.Id)
+            .FirstOrDefaultAsync(cancellationToken);
+    }
+
     private static void ApplyMetrics(
         StateOfficeMonthlyReport report,
         StateOfficeMonthlyReportMetricsViewModel metrics)
@@ -1241,12 +2025,13 @@ public class StateOfficeController : Controller
 
     private FileContentResult BuildMonthlyReportExcel(
         StateOfficeMonthlyReportMetricsViewModel metrics,
-        string fileName)
+        string fileName,
+        string title = "Monthly Report Facility Details")
     {
         using var package = new ExcelPackage();
         var ws = package.Workbook.Worksheets.Add("Facility Details");
 
-        ws.Cells[1, 1].Value = "Monthly Report Facility Details";
+        ws.Cells[1, 1].Value = title;
         ws.Cells[1, 1, 1, 2].Merge = true;
         ws.Cells[1, 1].Style.Font.Bold = true;
         ws.Cells[1, 1].Style.Font.Size = 16;
@@ -1335,10 +2120,18 @@ public class StateOfficeController : Controller
 
         if (User.IsInRole("HMO") && user.HmoId.HasValue)
         {
-            int hmoId = user.HmoId.Value;
-            return await _context.Providers
-                .AsNoTracking()
-                .Where(provider => provider.HmoId == hmoId && provider.State != "")
+            return await ApplyProviderReportScope(_context.Providers.AsNoTracking(), user)
+                .Where(provider => provider.State != "")
+                .Select(provider => provider.State)
+                .Distinct()
+                .OrderBy(state => state)
+                .ToListAsync(cancellationToken);
+        }
+
+        if (User.IsInRole("Provider") && user.ProviderId.HasValue)
+        {
+            return await ApplyProviderReportScope(_context.Providers.AsNoTracking(), user)
+                .Where(provider => provider.State != "")
                 .Select(provider => provider.State)
                 .Distinct()
                 .OrderBy(state => state)
@@ -1346,6 +2139,61 @@ public class StateOfficeController : Controller
         }
 
         return new List<string>();
+    }
+
+    private async Task<List<string>> GetReferralReportAvailableStatesAsync(
+        ApplicationUser user,
+        CancellationToken cancellationToken)
+    {
+        if (CanManageReports())
+        {
+            return await GetReferralProviderStatesAsync(cancellationToken);
+        }
+
+        if (User.IsInRole("StateOffice") && !string.IsNullOrWhiteSpace(user.State))
+        {
+            return new List<string> { user.State.Trim() };
+        }
+
+        if (User.IsInRole("HMO") && user.HmoId.HasValue)
+        {
+            return await ApplyReferralProviderReportScope(_context.Providers.AsNoTracking(), user)
+                .Where(provider => provider.State != "")
+                .Select(provider => provider.State)
+                .Distinct()
+                .OrderBy(state => state)
+                .ToListAsync(cancellationToken);
+        }
+
+        if ((User.IsInRole("Provider") || User.IsInRole("ReferralPro")) && user.ProviderId.HasValue)
+        {
+            return await ApplyReferralProviderReportScope(_context.Providers.AsNoTracking(), user)
+                .Where(provider => provider.State != "")
+                .Select(provider => provider.State)
+                .Distinct()
+                .OrderBy(state => state)
+                .ToListAsync(cancellationToken);
+        }
+
+        return new List<string>();
+    }
+
+    private async Task<List<string>> GetReferralProviderStatesAsync(CancellationToken cancellationToken)
+    {
+        return await OnlyReferralProviderFacilities(_context.Providers.AsNoTracking())
+            .Where(provider => provider.State != "")
+            .Select(provider => provider.State)
+            .Distinct()
+            .OrderBy(state => state)
+            .ToListAsync(cancellationToken);
+    }
+
+    private async Task<string?> GetDefaultReferralProviderReportStateAsync(
+        ApplicationUser user,
+        CancellationToken cancellationToken)
+    {
+        List<string> states = await GetReferralReportAvailableStatesAsync(user, cancellationToken);
+        return states.FirstOrDefault();
     }
 
     private async Task<string?> GetDefaultReportStateAsync(
