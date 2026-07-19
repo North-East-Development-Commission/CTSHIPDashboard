@@ -144,6 +144,9 @@ namespace CTSHIPDashboard.Areas.Identity.Pages.Account
                     else if (roleSet.Contains("HMO"))
                         return RedirectToAction("Dashboard", "HMO", new { area = "" });
 
+                    else if (roleSet.Contains("ReferralPro"))
+                        return RedirectToAction("Dashboard", "ReferralPro", new { area = "" });
+
                     else if (roleSet.Contains("Provider"))
                         return RedirectToAction("Dashboard", "Providers", new { area = "" });
 

@@ -1,9 +1,10 @@
 @model CTSHIPDashboard.ViewModels.ReferralPriceCatalogIndexViewModel
 @{
     ViewData["Title"] = "Referral Price Catalog";
+    bool canManageCatalogItems = User.IsInRole("Admin");
 }
 
-<div class="ct-page">
+<div class="ct-page catalog-page">
     <div class="ct-page-header d-flex flex-wrap justify-content-between align-items-center gap-3">
         <div>
             <h2>Referral Price Catalog</h2>
@@ -16,7 +17,7 @@
 
     <div class="row g-3">
         <div class="col-lg-4">
-            <form asp-controller="PriceCatalog" asp-action="BulkUpload" method="post" class="card card-body">
+            <form asp-controller="PriceCatalog" asp-action="BulkUpload" method="post" enctype="multipart/form-data" class="card card-body">
                 @Html.AntiForgeryToken()
                 <h5 class="mb-3">Bulk Add Prices</h5>
 
@@ -35,6 +36,13 @@
                 </div>
 
                 <div class="mb-3">
+                    <label asp-for="BulkUpload.ExcelFile" class="form-label fw-semibold"></label>
+                    <input asp-for="BulkUpload.ExcelFile" type="file" accept=".xlsx" class="form-control" />
+                    <span asp-validation-for="BulkUpload.ExcelFile" class="text-danger"></span>
+                    <div class="form-text">Use columns <code>Title</code> and <code>PriceInNaira</code>.</div>
+                </div>
+
+                <div class="mb-3">
                     <label asp-for="BulkUpload.ItemsText" class="form-label fw-semibold"></label>
                     <textarea asp-for="BulkUpload.ItemsText"
                               class="form-control"
@@ -49,9 +57,14 @@
                     <label asp-for="BulkUpload.ReplaceExisting" class="form-check-label"></label>
                 </div>
 
-                <button type="submit" class="btn btn-success fw-bold">
-                    <i class="bi bi-cloud-arrow-up-fill"></i> Save Catalog
-                </button>
+                <div class="d-grid gap-2">
+                    <button type="submit" class="btn btn-success fw-bold">
+                        <i class="bi bi-cloud-arrow-up-fill"></i> Save Catalog
+                    </button>
+                    <a asp-controller="PriceCatalog" asp-action="DownloadTemplate" class="btn btn-outline-success">
+                        <i class="bi bi-file-earmark-excel"></i> Download Excel Template
+                    </a>
+                </div>
             </form>
         </div>
 
@@ -74,19 +87,19 @@
                 </form>
             </div>
 
-            <div class="card">
+            <div class="card catalog-table-card">
                 <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
                     <strong>Catalog Items</strong>
                     <span class="badge bg-success">@Model.Items.Count item(s)</span>
                 </div>
-                <div class="table-responsive">
-                    <table class="table table-hover align-middle mb-0">
+                <div class="table-responsive catalog-table-wrapper">
+                    <table class="table table-hover align-middle mb-0 catalog-table">
                         <thead class="table-light">
                             <tr>
                                 <th>State</th>
                                 <th>Category</th>
                                 <th>Title</th>
-                                <th class="text-end">Price</th>
+                                <th class="text-end">Price (NGN)</th>
                                 <th>Status</th>
                                 <th class="text-end">Action</th>
                             </tr>
@@ -104,11 +117,12 @@
                             {
                                 foreach (var item in Model.Items)
                                 {
+                                    string editPriceValue = item.Price.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
                                     <tr>
                                         <td>@item.State</td>
                                         <td>@item.Category</td>
                                         <td>@item.Title</td>
-                                        <td class="text-end">NGN @item.Price.ToString("N0")</td>
+                                        <td class="text-end">NGN @item.Price.ToString("N2")</td>
                                         <td>
                                             @if (item.IsActive)
                                             {
@@ -119,28 +133,107 @@
                                                 <span class="badge bg-secondary">Inactive</span>
                                             }
                                         </td>
-                                        <td class="text-end">
-                                            <form asp-controller="PriceCatalog" asp-action="ToggleActive" method="post" class="d-inline">
-                                                @Html.AntiForgeryToken()
-                                                <input type="hidden" name="id" value="@item.Id" />
-                                                <input type="hidden" name="isActive" value="@(!item.IsActive)" />
-                                                <input type="hidden" name="state" value="@Model.State" />
-                                                <input type="hidden" name="category" value="@Model.Category" />
-                                                <button type="submit" class="btn btn-sm @(item.IsActive ? "btn-outline-secondary" : "btn-outline-success")">
-                                                    @if (item.IsActive)
-                                                    {
-                                                        <i class="bi bi-pause-circle"></i>
-                                                        <span>Deactivate</span>
-                                                    }
-                                                    else
-                                                    {
-                                                        <i class="bi bi-play-circle"></i>
-                                                        <span>Activate</span>
-                                                    }
-                                                </button>
-                                            </form>
+                                        <td class="text-end catalog-actions">
+                                            <div class="d-inline-flex flex-wrap justify-content-end gap-1">
+                                                <form asp-controller="PriceCatalog" asp-action="ToggleActive" method="post" class="d-inline">
+                                                    @Html.AntiForgeryToken()
+                                                    <input type="hidden" name="id" value="@item.Id" />
+                                                    <input type="hidden" name="isActive" value="@(!item.IsActive)" />
+                                                    <input type="hidden" name="state" value="@Model.State" />
+                                                    <input type="hidden" name="category" value="@Model.Category" />
+                                                    <button type="submit" class="btn btn-sm @(item.IsActive ? "btn-outline-secondary" : "btn-outline-success")">
+                                                        @if (item.IsActive)
+                                                        {
+                                                            <i class="bi bi-pause-circle"></i>
+                                                            <span>Deactivate</span>
+                                                        }
+                                                        else
+                                                        {
+                                                            <i class="bi bi-play-circle"></i>
+                                                            <span>Activate</span>
+                                                        }
+                                                    </button>
+                                                </form>
+
+                                                @if (canManageCatalogItems)
+                                                {
+                                                    <button type="button"
+                                                            class="btn btn-sm btn-outline-primary"
+                                                            data-bs-toggle="collapse"
+                                                            data-bs-target="#editCatalogItem-@item.Id"
+                                                            aria-expanded="false"
+                                                            aria-controls="editCatalogItem-@item.Id">
+                                                        <i class="bi bi-pencil-square"></i> Edit
+                                                    </button>
+                                                    <form asp-controller="PriceCatalog"
+                                                          asp-action="Delete"
+                                                          method="post"
+                                                          class="d-inline"
+                                                          onsubmit="return confirm('Delete this catalog item?');">
+                                                        @Html.AntiForgeryToken()
+                                                        <input type="hidden" name="id" value="@item.Id" />
+                                                        <input type="hidden" name="state" value="@Model.State" />
+                                                        <input type="hidden" name="category" value="@Model.Category" />
+                                                        <button type="submit" class="btn btn-sm btn-outline-danger">
+                                                            <i class="bi bi-trash"></i> Delete
+                                                        </button>
+                                                    </form>
+                                                }
+                                            </div>
                                         </td>
                                     </tr>
+                                    @if (canManageCatalogItems)
+                                    {
+                                        <tr class="catalog-edit-row">
+                                            <td colspan="6" class="p-0">
+                                                <div class="collapse" id="editCatalogItem-@item.Id">
+                                                    <div class="catalog-edit-panel">
+                                                        <form asp-controller="PriceCatalog"
+                                                              asp-action="Edit"
+                                                              method="post"
+                                                              class="row g-2 align-items-end">
+                                                            @Html.AntiForgeryToken()
+                                                            <input type="hidden" name="Id" value="@item.Id" />
+                                                            <input type="hidden" name="State" value="@Model.State" />
+                                                            <input type="hidden" name="Category" value="@Model.Category" />
+                                                            <div class="col-lg-7">
+                                                                <label class="form-label fw-semibold" for="catalog-title-@item.Id">Title</label>
+                                                                <input id="catalog-title-@item.Id"
+                                                                       name="Title"
+                                                                       value="@item.Title"
+                                                                       maxlength="200"
+                                                                       class="form-control"
+                                                                       required />
+                                                            </div>
+                                                            <div class="col-lg-3">
+                                                                <label class="form-label fw-semibold" for="catalog-price-@item.Id">Price in Naira</label>
+                                                                <input id="catalog-price-@item.Id"
+                                                                       name="Price"
+                                                                       value="@editPriceValue"
+                                                                       type="number"
+                                                                       min="0"
+                                                                       step="0.01"
+                                                                       class="form-control text-end"
+                                                                       required />
+                                                            </div>
+                                                            <div class="col-lg-2 d-flex gap-2">
+                                                                <button type="submit" class="btn btn-success flex-fill">
+                                                                    <i class="bi bi-check2-circle"></i> Save
+                                                                </button>
+                                                                <button type="button"
+                                                                        class="btn btn-outline-secondary"
+                                                                        data-bs-toggle="collapse"
+                                                                        data-bs-target="#editCatalogItem-@item.Id"
+                                                                        aria-controls="editCatalogItem-@item.Id">
+                                                                    Cancel
+                                                                </button>
+                                                            </div>
+                                                        </form>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    }
                                 }
                             }
                         </tbody>

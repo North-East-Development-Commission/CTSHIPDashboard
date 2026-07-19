@@ -16,7 +16,7 @@
             : User.IsInRole("Reviewer")
                 ? Url.Action("Dashboard", "Claims", new { area = "" }) ?? Url.Content("~/Claims/Dashboard")
             : User.IsInRole("ReferralPro")
-                ? Url.Action("Index", "ReferralPro", new { area = "" }) ?? Url.Content("~/ReferralPro/Referrals")
+                ? Url.Action("Dashboard", "ReferralPro", new { area = "" }) ?? Url.Content("~/ReferralPro/Dashboard")
             : User.IsInRole("HMO")
                 ? Url.Action("Dashboard", "Hmo", new { area = "" }) ?? Url.Content("~/Hmo/Dashboard")
                 : User.IsInRole("Provider")
@@ -234,6 +234,9 @@
 
             @if (User.IsInRole("ReferralPro"))
             {
+                    <a asp-controller="ReferralPro" asp-action="Dashboard" class="nav-link">
+                        <i class="bi bi-speedometer2"></i> Referral Dashboard
+                    </a>
                     <a asp-controller="ReferralPro" asp-action="Index" class="nav-link">
                         <i class="bi bi-hospital-fill"></i> Received Referrals
                     </a>

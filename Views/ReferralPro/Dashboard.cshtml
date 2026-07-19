@@ -1,0 +1,205 @@
+@model CTSHIPDashboard.ViewModels.ReferralProviderDashboardViewModel
+@using CTSHIPDashboard.Enums
+
+@{
+    ViewData["Title"] = "Referral Provider Dashboard";
+}
+
+<div class="ct-page referral-provider-dashboard">
+    <div class="ct-page-header d-flex flex-wrap justify-content-between align-items-center gap-3">
+        <div>
+            <h2>Referral Provider Dashboard</h2>
+            <p class="mb-0">
+                @Model.FacilityName
+                @if (!string.IsNullOrWhiteSpace(Model.FacilityState))
+                {
+                    <span> - @Model.FacilityState</span>
+                }
+                @if (!string.IsNullOrWhiteSpace(Model.FacilityLga))
+                {
+                    <span> / @Model.FacilityLga</span>
+                }
+            </p>
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+            <a asp-controller="ReferralPro" asp-action="VerifyCode" class="btn btn-warning fw-bold">
+                <i class="bi bi-shield-check"></i> Verify Code
+            </a>
+            <a asp-controller="ReferralPro" asp-action="Index" class="btn btn-light text-success fw-bold">
+                <i class="bi bi-list-task"></i> Referral Worklist
+            </a>
+        </div>
+    </div>
+
+    @if (!Model.IsLinkedToReferralHospital)
+    {
+        <div class="alert alert-warning shadow-sm">
+            Your referral provider account is not linked to an active referral hospital. Match the user email with the referral hospital email or link the user to the referral provider record.
+        </div>
+    }
+
+    <div class="row g-3 mb-4">
+        <div class="col-xl-2 col-md-4 col-sm-6">
+            <div class="card ct-kpi ct-kpi-green-gold h-100">
+                <div class="card-body">
+                    <div class="small text-muted">Total Referrals</div>
+                    <div class="display-6 fw-bold">@Model.TotalReferrals.ToString("N0")</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-2 col-md-4 col-sm-6">
+            <div class="card ct-kpi h-100">
+                <div class="card-body">
+                    <div class="small text-muted">Ready To Receive</div>
+                    <div class="display-6 fw-bold">@Model.ReadyToReceive.ToString("N0")</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-2 col-md-4 col-sm-6">
+            <div class="card ct-kpi ct-kpi-gold-green h-100">
+                <div class="card-body">
+                    <div class="small text-muted">Received</div>
+                    <div class="display-6 fw-bold">@Model.Received.ToString("N0")</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-2 col-md-4 col-sm-6">
+            <div class="card ct-kpi h-100">
+                <div class="card-body">
+                    <div class="small text-muted">Completed</div>
+                    <div class="display-6 fw-bold">@Model.Completed.ToString("N0")</div>
+                    <small>@Model.CompletionRate.ToString("N1")% completion</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-2 col-md-4 col-sm-6">
+            <div class="card ct-kpi ct-kpi-green-gold h-100">
+                <div class="card-body">
+                    <div class="small text-muted">This Month</div>
+                    <div class="display-6 fw-bold">@Model.ThisMonth.ToString("N0")</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-2 col-md-4 col-sm-6">
+            <div class="card ct-kpi ct-kpi-gold-green h-100">
+                <div class="card-body">
+                    <div class="small text-muted">Claim Value</div>
+                    <div class="h3 fw-bold mb-0">NGN @Model.SubmittedClaimValue.ToString("N0")</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-lg-5">
+            <div class="card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <strong>Referral Alerts</strong>
+                    @if (Model.ExpiredCodes > 0)
+                    {
+                        <span class="badge bg-warning text-dark">@Model.ExpiredCodes expired code(s)</span>
+                    }
+                </div>
+                <div class="card-body">
+                    @if (Model.Alerts.Count == 0)
+                    {
+                        <div class="alert alert-success mb-0">
+                            <i class="bi bi-check-circle-fill"></i> No pending referral alerts.
+                        </div>
+                    }
+                    else
+                    {
+                        foreach (var alert in Model.Alerts)
+                        {
+                            <div class="alert @alert.CssClass d-flex gap-3 align-items-start">
+                                <i class="bi bi-@alert.Icon fs-4"></i>
+                                <div class="flex-grow-1">
+                                    <div class="fw-bold">@alert.Title</div>
+                                    <div>@alert.Message</div>
+                                    <small>@alert.AlertAt.ToLocalTime().ToString("dd MMM yyyy HH:mm")</small>
+                                </div>
+                                <a asp-controller="ReferralPro"
+                                   asp-action="VerifyCode"
+                                   asp-route-id="@alert.ReferralId"
+                                   class="btn btn-sm btn-success">Open</a>
+                            </div>
+                        }
+                    }
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-7">
+            <div class="card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <strong>Recent Referrals</strong>
+                    <a asp-controller="ReferralPro" asp-action="Index" class="btn btn-sm btn-outline-success">
+                        View All
+                    </a>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th>Activity</th>
+                                <th>Enrollee</th>
+                                <th>From Provider</th>
+                                <th>Status</th>
+                                <th class="text-end">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (Model.RecentReferrals.Count == 0)
+                            {
+                                <tr>
+                                    <td colspan="5" class="text-center text-muted py-4">No referral activity yet.</td>
+                                </tr>
+                            }
+                            else
+                            {
+                                foreach (var item in Model.RecentReferrals)
+                                {
+                                    <tr>
+                                        <td>@item.ActivityAt.ToLocalTime().ToString("dd MMM HH:mm")</td>
+                                        <td>
+                                            <strong>@item.EnrolleeFullName</strong><br />
+                                            <small class="text-muted">@item.EnrolleeNumber</small>
+                                        </td>
+                                        <td>@item.FromProviderName</td>
+                                        <td>
+                                            @await Html.PartialAsync("_ReferralStatusBadge", item.Status)
+                                            @if (item.ReferralVerificationCodeExpired)
+                                            {
+                                                <div class="small text-danger mt-1">Code expired</div>
+                                            }
+                                        </td>
+                                        <td class="text-end">
+                                            @if (item.Status == ReferralStatus.Verified || item.Status == ReferralStatus.Audited)
+                                            {
+                                                <a asp-controller="ReferralPro" asp-action="VerifyCode" asp-route-id="@item.Id" class="btn btn-sm btn-success">
+                                                    Verify
+                                                </a>
+                                            }
+                                            else if (item.Status == ReferralStatus.Received)
+                                            {
+                                                <a asp-controller="ReferralPro" asp-action="Encounter" asp-route-id="@item.Id" class="btn btn-sm btn-success">
+                                                    Encounter
+                                                </a>
+                                            }
+                                            else
+                                            {
+                                                <a asp-controller="ReferralPro" asp-action="Details" asp-route-id="@item.Id" class="btn btn-sm btn-outline-primary">
+                                                    View
+                                                </a>
+                                            }
+                                        </td>
+                                    </tr>
+                                }
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

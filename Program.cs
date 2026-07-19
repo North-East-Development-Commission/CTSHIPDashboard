@@ -158,6 +158,8 @@ app.MapGet("/", context =>
                 ? "/Analytics/Index"
                 : context.User.IsInRole("HMO")
                     ? "/Hmo/Dashboard"
+                    : context.User.IsInRole("ReferralPro")
+                        ? "/ReferralPro/Dashboard"
                     : context.User.IsInRole("Provider")
                         ? "/Providers/Dashboard"
                         : context.User.IsInRole("Finance")

@@ -53,6 +53,101 @@ public class ReferralProController : Controller
         _environment = environment;
     }
 
+    [HttpGet("/ReferralPro/Dashboard")]
+    [HttpGet("Dashboard")]
+    public async Task<IActionResult> Dashboard(CancellationToken cancellationToken = default)
+    {
+        ReferredHospital? currentHospital = await GetCurrentReferralHospitalAsync(cancellationToken);
+        if (!User.IsInRole("CTSHIPAdmin") && currentHospital == null)
+        {
+            return View(new ReferralProviderDashboardViewModel
+            {
+                FacilityName = "Referral Provider",
+                IsLinkedToReferralHospital = false
+            });
+        }
+
+        IQueryable<Referral> query = BuildReferralProQuery(currentHospital);
+        DateTime monthStart = new(DateTime.UtcNow.Year, DateTime.UtcNow.Month, 1, 0, 0, 0, DateTimeKind.Utc);
+
+        int totalReferrals = await query.CountAsync(cancellationToken);
+        int readyToReceive = await query.CountAsync(x =>
+            x.Status == ReferralStatus.Verified || x.Status == ReferralStatus.Audited,
+            cancellationToken);
+        int received = await query.CountAsync(x => x.Status == ReferralStatus.Received, cancellationToken);
+        int completed = await query.CountAsync(x => x.Status == ReferralStatus.Closed, cancellationToken);
+        int expiredCodes = await query.CountAsync(x =>
+            (x.Status == ReferralStatus.Verified || x.Status == ReferralStatus.Audited) &&
+            x.ReferralVerificationCodeExpiresAt.HasValue &&
+            x.ReferralVerificationCodeExpiresAt.Value <= DateTime.UtcNow,
+            cancellationToken);
+        int thisMonth = await query.CountAsync(x => x.CreatedAt >= monthStart, cancellationToken);
+        decimal submittedClaimValue = await GetReferralSubmittedClaimValueAsync(currentHospital, cancellationToken);
+
+        List<ReferralProviderDashboardAlertViewModel> alerts = await query
+            .Where(x => x.Status == ReferralStatus.Verified || x.Status == ReferralStatus.Audited)
+            .OrderBy(x =>
+                x.ReferralVerificationCodeExpiresAt.HasValue &&
+                x.ReferralVerificationCodeExpiresAt.Value <= DateTime.UtcNow
+                    ? 0
+                    : 1)
+            .ThenByDescending(x => x.VerifiedAt ?? x.AuditedAt ?? x.SubmittedToHmoAt ?? x.CreatedAt)
+            .Take(5)
+            .Select(x => new ReferralProviderDashboardAlertViewModel
+            {
+                ReferralId = x.Id,
+                Title = x.ReferralVerificationCodeExpiresAt.HasValue &&
+                    x.ReferralVerificationCodeExpiresAt.Value <= DateTime.UtcNow
+                        ? "Referral code expired"
+                        : "Referral ready for code verification",
+                Message = x.EnrolleeFullName + " from " + x.FromProviderName,
+                Icon = x.ReferralVerificationCodeExpiresAt.HasValue &&
+                    x.ReferralVerificationCodeExpiresAt.Value <= DateTime.UtcNow
+                        ? "exclamation-triangle"
+                        : "shield-check",
+                CssClass = x.ReferralVerificationCodeExpiresAt.HasValue &&
+                    x.ReferralVerificationCodeExpiresAt.Value <= DateTime.UtcNow
+                        ? "alert-warning"
+                        : "alert-success",
+                AlertAt = x.VerifiedAt ?? x.AuditedAt ?? x.SubmittedToHmoAt ?? x.CreatedAt
+            })
+            .ToListAsync(cancellationToken);
+
+        List<ReferralProviderDashboardReferralViewModel> recentReferrals = await query
+            .OrderByDescending(x => x.VerifiedAt ?? x.AuditedAt ?? x.SubmittedToHmoAt ?? x.CreatedAt)
+            .Take(8)
+            .Select(x => new ReferralProviderDashboardReferralViewModel
+            {
+                Id = x.Id,
+                EnrolleeNumber = x.EnrolleeNumber,
+                EnrolleeFullName = x.EnrolleeFullName,
+                FromProviderName = x.FromProviderName,
+                HmoName = x.HmoName,
+                Diagnosis = x.Diagnosis,
+                Priority = x.Priority,
+                Status = x.Status,
+                ActivityAt = x.VerifiedAt ?? x.AuditedAt ?? x.SubmittedToHmoAt ?? x.CreatedAt,
+                ReferralVerificationCodeExpiresAt = x.ReferralVerificationCodeExpiresAt
+            })
+            .ToListAsync(cancellationToken);
+
+        return View(new ReferralProviderDashboardViewModel
+        {
+            FacilityName = currentHospital?.Name ?? "All Referral Providers",
+            FacilityState = currentHospital?.State,
+            FacilityLga = currentHospital?.Lga,
+            TotalReferrals = totalReferrals,
+            ReadyToReceive = readyToReceive,
+            Received = received,
+            Completed = completed,
+            ExpiredCodes = expiredCodes,
+            ThisMonth = thisMonth,
+            SubmittedClaimValue = submittedClaimValue,
+            Alerts = alerts,
+            RecentReferrals = recentReferrals
+        });
+    }
+
     [HttpGet("")]
     public async Task<IActionResult> Index(
         string? search,
@@ -536,6 +631,49 @@ public class ReferralProController : Controller
         }
 
         return query;
+    }
+
+    private async Task<decimal> GetReferralSubmittedClaimValueAsync(
+        ReferredHospital? currentHospital,
+        CancellationToken cancellationToken)
+    {
+        IQueryable<AppClaim> query = _context.Claims.AsNoTracking();
+
+        if (currentHospital == null)
+        {
+            return await query
+                .Where(x => x.ClaimNumber.StartsWith("RCLM-"))
+                .SumAsync(x => (decimal?)x.Amount, cancellationToken)
+                ?? 0m;
+        }
+
+        string hospitalName = currentHospital.Name;
+        string? hospitalEmail = currentHospital.Email;
+        bool hasHospitalEmail = !string.IsNullOrWhiteSpace(hospitalEmail);
+
+        List<int> providerIds = await _context.Providers
+            .AsNoTracking()
+            .Where(provider =>
+                provider.Name == hospitalName ||
+                (hasHospitalEmail && provider.Email == hospitalEmail))
+            .Select(provider => provider.Id)
+            .ToListAsync(cancellationToken);
+
+        ApplicationUser? currentUser = await _userManager.GetUserAsync(User);
+        if (currentUser?.ProviderId.HasValue == true && !providerIds.Contains(currentUser.ProviderId.Value))
+        {
+            providerIds.Add(currentUser.ProviderId.Value);
+        }
+
+        if (providerIds.Count == 0)
+        {
+            return 0m;
+        }
+
+        return await query
+            .Where(x => providerIds.Contains(x.ProviderId))
+            .SumAsync(x => (decimal?)x.Amount, cancellationToken)
+            ?? 0m;
     }
 
     private async Task<Referral?> GetReferralWithDetailsAsync(Guid id, CancellationToken cancellationToken)

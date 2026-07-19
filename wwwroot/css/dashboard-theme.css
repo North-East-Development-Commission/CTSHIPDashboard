@@ -676,6 +676,40 @@ li {
     color: var(--ct-green) !important;
 }
 
+.catalog-page {
+    padding-bottom: 5rem;
+}
+
+.catalog-table-card {
+    overflow: visible;
+}
+
+.catalog-table-wrapper {
+    padding-bottom: .75rem;
+}
+
+.catalog-table {
+    min-width: 980px;
+}
+
+.catalog-table .catalog-actions {
+    min-width: 280px;
+}
+
+.catalog-edit-row > td {
+    white-space: normal !important;
+}
+
+.catalog-edit-panel {
+    padding: 1rem;
+    background: var(--ct-green-soft);
+    border-top: 1px solid rgba(59, 112, 59, .18);
+}
+
+.catalog-edit-panel .form-label {
+    color: var(--ct-green);
+}
+
 .form-control,
 .form-select,
 .select2-container--default .select2-selection--single,

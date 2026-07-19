@@ -209,7 +209,7 @@ namespace CTSHIPDashboard.Controllers
                         "EncounterCreated",
                         actor,
                         encounter.EnrolleeId.ToString(),
-                        $"Encounter {encounter.EncounterNumber}; total {encounter.TotalAmount:C}.");
+                        $"Encounter {encounter.EncounterNumber}; total NGN {encounter.TotalAmount:N2}.");
 
                     if (referralId.HasValue)
                     {
@@ -509,7 +509,7 @@ namespace CTSHIPDashboard.Controllers
             try
             {
                 var actor = User.Identity?.Name ?? "Unknown";
-                await _auditService.LogAsync("ClaimCreated", actor, encounter.Enrollee?.EnrollmentNumber, $"Claim:{claim.ClaimNumber}; Amount:{claim.Amount:C}; Encounter:{encounter.EncounterNumber}");
+                await _auditService.LogAsync("ClaimCreated", actor, encounter.Enrollee?.EnrollmentNumber, $"Claim:{claim.ClaimNumber}; Amount:NGN {claim.Amount:N2}; Encounter:{encounter.EncounterNumber}");
             }
             catch { }
             return RedirectToAction("MyClaims", "Providers");

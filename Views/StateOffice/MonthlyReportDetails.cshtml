@@ -75,7 +75,7 @@
         <div class="card h-100">
             <div class="card-body">
                 <div class="small text-muted">Capitation Paid</div>
-                <div class="fs-5 fw-bold text-success">@Model.AmountCapitationPaid.ToString("C")</div>
+                <div class="fs-5 fw-bold text-success">NGN @Model.AmountCapitationPaid.ToString("N2")</div>
             </div>
         </div>
     </div>
@@ -92,7 +92,7 @@
             <div class="card-body">
                 <div class="small text-muted">Claims</div>
                 <div class="fs-5 fw-bold text-success">@Model.TotalClaims.ToString("N0")</div>
-                <div class="small text-muted">@Model.TotalClaimsAmount.ToString("C")</div>
+                <div class="small text-muted">NGN @Model.TotalClaimsAmount.ToString("N2")</div>
             </div>
         </div>
     </div>
@@ -101,7 +101,7 @@
             <div class="card-body">
                 <div class="small text-muted">Paid Claims</div>
                 <div class="fs-5 fw-bold text-success">@Model.PaidClaims.ToString("N0")</div>
-                <div class="small text-muted">@Model.PaidClaimsAmount.ToString("C")</div>
+                <div class="small text-muted">NGN @Model.PaidClaimsAmount.ToString("N2")</div>
             </div>
         </div>
     </div>
