@@ -18,7 +18,7 @@ namespace CTSHIPDashboard.Data
             context.Database.EnsureCreated();
 
             // ROLES
-            string[] roles = { "Admin", "CTSHIPAdmin", "HMO", "Provider", "SSHIA", "Monitoring" };
+            string[] roles = { "Admin", "CTSHIPAdmin", "HMO", "HmoEnrollmentOfficer", "Provider", "SSHIA", "Monitoring" };
             foreach (var role in roles)
             {
                 if (!await roleManager.RoleExistsAsync(role))
@@ -454,7 +454,7 @@ namespace CTSHIPDashboard.Data
             var userManager = serviceProvider.GetRequiredService<UserManager<ApplicationUser>>();
 
             // Ensure roles exist (including NHIA and StateOffice)
-            string[] roles = { "Admin", "CTSHIPAdmin", "HMO", "Provider", "Auditor", "Finance", "Reviewer", "StateOffice", "NHIA", "Monitoring" };
+            string[] roles = { "Admin", "CTSHIPAdmin", "HMO", "HmoEnrollmentOfficer", "Provider", "Auditor", "Finance", "Reviewer", "StateOffice", "NHIA", "Monitoring" };
 
             foreach (var role in roles)
             {

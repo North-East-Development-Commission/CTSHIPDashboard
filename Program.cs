@@ -83,9 +83,14 @@ try
     using var scope = app.Services.CreateScope();
     ApplicationDbContext context =
         scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    RoleManager<IdentityRole> roleManager =
+        scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
     IServiceProvider services = scope.ServiceProvider;
 
-
+    if (!await roleManager.RoleExistsAsync("HmoEnrollmentOfficer"))
+    {
+        await roleManager.CreateAsync(new IdentityRole("HmoEnrollmentOfficer"));
+    }
 
     var legacyTarget = context.ProgramMonitoringTargets
         .FirstOrDefault(target => target.Scope == "North East");
@@ -156,6 +161,8 @@ app.MapGet("/", context =>
         string dashboardPath =
             context.User.IsInRole("Admin")
                 ? "/Analytics/Index"
+                : context.User.IsInRole("HmoEnrollmentOfficer")
+                    ? "/Enrollees/Dashboard"
                 : context.User.IsInRole("HMO")
                     ? "/Hmo/Dashboard"
                     : context.User.IsInRole("ReferralPro")

@@ -31,9 +31,24 @@
                             <a asp-action="Details" asp-route-id="@Model.Id" class="btn btn-primary btn-lg px-5 shadow">
                                 View Details
                             </a>
-                            <a asp-action="Index" class="btn btn-secondary btn-lg px-5 shadow">
-                                Back to List
-                            </a>
+                            @if (User.IsInRole("HmoEnrollmentOfficer"))
+                            {
+                                <a asp-action="Dashboard" class="btn btn-secondary btn-lg px-5 shadow">
+                                    Back to Dashboard
+                                </a>
+                            }
+                            else if (User.IsInRole("HMO"))
+                            {
+                                <a asp-controller="Hmo" asp-action="EnrolleeDashboard" class="btn btn-secondary btn-lg px-5 shadow">
+                                    Back to Dashboard
+                                </a>
+                            }
+                            else
+                            {
+                                <a asp-action="Index" class="btn btn-secondary btn-lg px-5 shadow">
+                                    Back to List
+                                </a>
+                            }
                         </div>
                     </form>
                 </div>

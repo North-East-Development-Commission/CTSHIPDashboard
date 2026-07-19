@@ -728,7 +728,7 @@ namespace CTSHIPDashboard.Controllers
                 }
                 else if (!hmoId.HasValue)
                 {
-                    ModelState.AddModelError(nameof(CreateUserViewModel.HmoId), "Select an HMO for this reviewer.");
+                    ModelState.AddModelError(nameof(CreateUserViewModel.HmoId), "Select an HMO for this role.");
                 }
                 return;
             }
@@ -788,7 +788,7 @@ namespace CTSHIPDashboard.Controllers
                 setProviderId(null);
                 if (!hmoId.HasValue)
                 {
-                    ModelState.AddModelError(nameof(CreateUserViewModel.HmoId), "Select an HMO for this reviewer.");
+                    ModelState.AddModelError(nameof(CreateUserViewModel.HmoId), "Select an HMO for this role.");
                 }
                 return;
             }
@@ -930,7 +930,8 @@ namespace CTSHIPDashboard.Controllers
         {
             return roles?.Any(role =>
                 string.Equals(role, "Reviewer", StringComparison.OrdinalIgnoreCase)
-                || string.Equals(role, "HMO", StringComparison.OrdinalIgnoreCase)) == true;
+                || string.Equals(role, "HMO", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(role, "HmoEnrollmentOfficer", StringComparison.OrdinalIgnoreCase)) == true;
         }
 
         private static bool RequiresReferralScope(IEnumerable<string>? roles)
@@ -944,6 +945,7 @@ namespace CTSHIPDashboard.Controllers
         {
             "CTSHIPAdmin" => "System Administrator",
             "HMO" => "HMO Officer",
+            "HmoEnrollmentOfficer" => "HMO Enrollment Officer",
             "Provider" => "Hospital/Provider Staff",
             "ReferralPro" => "Referral Provider",
             "Reviewer" => "Claims Reviewer",

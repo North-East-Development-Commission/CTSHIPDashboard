@@ -55,7 +55,7 @@
                             <th>Patient</th>
                             <th>ID</th>
                             <th>HMO</th>
-                            <th>Doctor</th>
+                            <th>Hospital Staff</th>
                             <th>Complaint</th>
                             <th>Diagnosis</th>
                             <th>Amount</th>
@@ -115,7 +115,7 @@
                                         @if (e.ClaimId == null && canUseClaims)
                                         {
                                             <a asp-action="CreateClaim" asp-route-id="@e.Id"
-                                               class="btn btn-primary btn-sm rounded-pill">Create Claim</a>
+                                               class="btn btn-primary btn-sm rounded-pill">Submit Claim</a>
                                         }
                                     </td>
                                 </tr>

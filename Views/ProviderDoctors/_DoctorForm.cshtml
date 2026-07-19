@@ -5,13 +5,13 @@
 <div class="row g-4">
     <div class="col-md-7">
         <label asp-for="FullName" class="form-label fw-bold"></label>
-        <input asp-for="FullName" class="form-control form-control-lg" placeholder="e.g., Dr. Amina Musa" />
+        <input asp-for="FullName" class="form-control form-control-lg" placeholder="e.g., Amina Musa" />
         <span asp-validation-for="FullName" class="text-danger"></span>
     </div>
 
     <div class="col-md-5">
         <label asp-for="MedicalLicenseNumber" class="form-label fw-bold"></label>
-        <input asp-for="MedicalLicenseNumber" class="form-control form-control-lg" placeholder="MDCN number" />
+        <input asp-for="MedicalLicenseNumber" class="form-control form-control-lg" placeholder="Staff ID or licence number" />
         <span asp-validation-for="MedicalLicenseNumber" class="text-danger"></span>
     </div>
 
@@ -53,8 +53,7 @@
         <div class="form-check form-switch p-3 rounded-3" style="background:rgba(59,112,59,.08);">
             <input asp-for="IsActive" class="form-check-input ms-0 me-3" style="width:3rem;height:1.5rem;" />
             <label asp-for="IsActive" class="form-check-label fw-bold"></label>
-            <div class="form-text">Only active doctors appear in new encounter dropdowns.</div>
+            <div class="form-text">Only active hospital staff appear in new encounter dropdowns.</div>
         </div>
     </div>
 </div>
-

@@ -2,6 +2,8 @@
 
 @{
     ViewData["Title"] = "Submit Referral Provider Report";
+    bool useProviderProfileDefaults =
+        (User.IsInRole("Provider") || User.IsInRole("ReferralPro")) && Model.ProviderId.HasValue;
 }
 
 <div class="ct-page">
@@ -16,6 +18,12 @@
 <form asp-action="CreateReferralProviderReport" method="post" class="card">
     @Html.AntiForgeryToken()
     <input asp-for="Ward" type="hidden" id="reportWard" value="@(string.IsNullOrWhiteSpace(Model.Ward) ? "N/A" : Model.Ward)" />
+    @if (useProviderProfileDefaults)
+    {
+        <input type="hidden" name="State" id="reportStateValue" value="@Model.State" />
+        <input type="hidden" name="Lga" id="reportLgaValue" value="@Model.Lga" />
+        <input type="hidden" name="ProviderId" id="reportFacilityValue" value="@Model.ProviderId" />
+    }
 
     <div class="card-body">
         <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
@@ -29,7 +37,7 @@
 
             <div class="col-md-6">
                 <label asp-for="State" class="form-label"></label>
-                <select asp-for="State" asp-items="Model.States" class="form-select" id="reportState">
+                <select asp-for="State" asp-items="Model.States" class="form-select" id="reportState" disabled="@useProviderProfileDefaults">
                     <option value="">Select state</option>
                 </select>
                 <span asp-validation-for="State" class="text-danger"></span>
@@ -37,7 +45,7 @@
 
             <div class="col-md-6">
                 <label asp-for="Lga" class="form-label"></label>
-                <select asp-for="Lga" asp-items="Model.Lgas" class="form-select" id="reportLga">
+                <select asp-for="Lga" asp-items="Model.Lgas" class="form-select" id="reportLga" disabled="@useProviderProfileDefaults">
                     <option value="">Select LGA</option>
                 </select>
                 <span asp-validation-for="Lga" class="text-danger"></span>
@@ -45,7 +53,7 @@
 
             <div class="col-md-6">
                 <label asp-for="ProviderId" class="form-label">Referral Provider</label>
-                <select asp-for="ProviderId" asp-items="Model.Facilities" class="form-select" id="reportFacility">
+                <select asp-for="ProviderId" asp-items="Model.Facilities" class="form-select" id="reportFacility" disabled="@useProviderProfileDefaults">
                     <option value="">Select referral provider</option>
                 </select>
                 <span asp-validation-for="ProviderId" class="text-danger"></span>
@@ -120,6 +128,9 @@
             const facilityMetrics = document.getElementById('facilityMetrics');
             const facilityDetailsSubtitle = document.getElementById('facilityDetailsSubtitle');
             const exportSelectedDetails = document.getElementById('exportSelectedDetails');
+            const reportStateValue = document.getElementById('reportStateValue');
+            const reportLgaValue = document.getElementById('reportLgaValue');
+            const reportFacilityValue = document.getElementById('reportFacilityValue');
 
             const lgaUrl = '@Url.Action("ReferralProviderReportLgas", "StateOffice")';
             const facilityUrl = '@Url.Action("ReferralProviderReportFacilities", "StateOffice")';
@@ -133,9 +144,49 @@
                     option.value = valueSelector(item);
                     option.textContent = textSelector(item);
                     if (item.code) option.dataset.code = item.code;
+                    if (item.state) option.dataset.state = item.state;
+                    if (item.lga) option.dataset.lga = item.lga;
                     select.appendChild(option);
                 });
                 $(select).trigger('change.select2');
+            };
+
+            const ensureOption = (select, value) => {
+                if (!value || Array.from(select.options).some(option => option.value === value)) {
+                    return;
+                }
+
+                const option = document.createElement('option');
+                option.value = value;
+                option.textContent = value;
+                select.appendChild(option);
+            };
+
+            const syncProviderHiddenFields = () => {
+                if (reportStateValue) reportStateValue.value = state.value;
+                if (reportLgaValue) reportLgaValue.value = lga.value;
+                if (reportFacilityValue) reportFacilityValue.value = facility.value;
+            };
+
+            const applySelectedFacilityProfile = () => {
+                const selected = facility.selectedOptions[0];
+                if (!selected || !facility.value) {
+                    facilityCode.value = '';
+                    syncProviderHiddenFields();
+                    return;
+                }
+
+                const selectedState = selected.dataset.state || state.value;
+                const selectedLga = selected.dataset.lga || lga.value;
+                const selectedCode = selected.dataset.code || facilityCode.value;
+
+                ensureOption(state, selectedState);
+                ensureOption(lga, selectedLga);
+
+                if (selectedState) state.value = selectedState;
+                if (selectedLga) lga.value = selectedLga;
+                facilityCode.value = selectedCode || '';
+                syncProviderHiddenFields();
             };
 
             const formatter = new Intl.NumberFormat('en-NG');
@@ -220,6 +271,7 @@
                     replaceOptions(lga, [], 'Select LGA', x => x, x => x);
                     replaceOptions(facility, [], 'Select referral provider', x => x.id, x => x.name);
                     facilityCode.value = '';
+                    syncProviderHiddenFields();
                     clearMetrics('Select reporting month and referral provider.');
                     return;
                 }
@@ -232,36 +284,54 @@
                 replaceOptions(lga, lgas, 'Select LGA', x => x, x => x);
                 replaceOptions(facility, facilities, 'Select referral provider', x => x.id, x => x.name);
                 facilityCode.value = '';
+                syncProviderHiddenFields();
                 clearMetrics('Select reporting month and referral provider.');
             };
 
             state.addEventListener('change', loadStateOptions);
-            lga.addEventListener('change', loadFacilityDetails);
+            lga.addEventListener('change', () => {
+                syncProviderHiddenFields();
+                loadFacilityDetails();
+            });
             reportingPeriod.addEventListener('change', loadFacilityDetails);
 
             facility.addEventListener('change', async () => {
                 if (!state.value || !facility.value) {
                     facilityCode.value = '';
+                    syncProviderHiddenFields();
                     clearMetrics('Select reporting month and referral provider.');
                     return;
                 }
 
-                let code = facility.selectedOptions[0]?.dataset.code ?? '';
+                applySelectedFacilityProfile();
+
+                let code = facilityCode.value;
                 if (!code) {
                     const facilities = await fetch(
                         `${facilityUrl}?state=${encodeURIComponent(state.value)}`
                     ).then(r => r.json());
                     const selected = facilities.find(x => String(x.id) === facility.value);
                     code = selected?.code ?? '';
-                    if (code) facility.selectedOptions[0].dataset.code = code;
+                    if (facility.selectedOptions[0]) {
+                        if (code) facility.selectedOptions[0].dataset.code = code;
+                        if (selected?.state) facility.selectedOptions[0].dataset.state = selected.state;
+                        if (selected?.lga) facility.selectedOptions[0].dataset.lga = selected.lga;
+                    }
                 }
 
-                facilityCode.value = code;
+                applySelectedFacilityProfile();
                 await loadFacilityDetails();
             });
 
-            if (facility.value && facilityCode.value) {
-                facility.selectedOptions[0].dataset.code = facilityCode.value;
+            if (facility.value) {
+                const selected = facility.selectedOptions[0];
+                if (selected) {
+                    selected.dataset.code = selected.dataset.code || facilityCode.value;
+                    selected.dataset.state = selected.dataset.state || state.value;
+                    selected.dataset.lga = selected.dataset.lga || lga.value;
+                }
+
+                applySelectedFacilityProfile();
                 loadFacilityDetails();
             }
         })();

@@ -141,6 +141,9 @@ namespace CTSHIPDashboard.Areas.Identity.Pages.Account
                     else if (roleSet.Contains("NEDCAdmin") || roleSet.Contains("SSHIA"))
                         return RedirectToAction("Index", "Analytics", new { area = "" });
 
+                    else if (roleSet.Contains("HmoEnrollmentOfficer"))
+                        return RedirectToAction("Dashboard", "Enrollees", new { area = "" });
+
                     else if (roleSet.Contains("HMO"))
                         return RedirectToAction("Dashboard", "HMO", new { area = "" });
 

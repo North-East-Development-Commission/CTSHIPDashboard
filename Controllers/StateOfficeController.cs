@@ -591,28 +591,38 @@ public class StateOfficeController : Controller
             ModelState.AddModelError(nameof(model.ReportingPeriod), "Select a valid reporting month.");
         }
 
-        model.State = model.State?.Trim() ?? string.Empty;
-        model.Lga = model.Lga?.Trim() ?? string.Empty;
-        model.Ward = string.IsNullOrWhiteSpace(model.Ward) ? "N/A" : model.Ward.Trim();
-
-        if (!await CanAccessReferralReportStateAsync(model.State, user, cancellationToken))
-        {
-            return Forbid();
-        }
-
-        if (!string.Equals(model.Lga, "N/A", StringComparison.OrdinalIgnoreCase)
-            && !NorthEastLocationData.IsValidLga(model.State, model.Lga))
-        {
-            ModelState.AddModelError(nameof(model.Lga), "Select a valid LGA for the chosen state.");
-        }
-
         Provider? facility = null;
         if (model.ProviderId.HasValue)
         {
             facility = await ApplyReferralProviderReportScope(_context.Providers.AsNoTracking(), user)
                 .FirstOrDefaultAsync(
-                    x => x.Id == model.ProviderId.Value && x.State == model.State,
+                    x => x.Id == model.ProviderId.Value,
                     cancellationToken);
+
+            if (facility != null)
+            {
+                ApplyReferralProviderDetailsToModel(model, facility);
+            }
+        }
+
+        model.State = model.State?.Trim() ?? string.Empty;
+        model.Lga = model.Lga?.Trim() ?? string.Empty;
+        model.Ward = string.IsNullOrWhiteSpace(model.Ward) ? "N/A" : model.Ward.Trim();
+
+        if (string.IsNullOrWhiteSpace(model.State))
+        {
+            ModelState.AddModelError(nameof(model.State), "Select a valid state.");
+        }
+        else if (!await CanAccessReferralReportStateAsync(model.State, user, cancellationToken))
+        {
+            return Forbid();
+        }
+
+        if (!string.IsNullOrWhiteSpace(model.State)
+            && !string.Equals(model.Lga, "N/A", StringComparison.OrdinalIgnoreCase)
+            && !NorthEastLocationData.IsValidLga(model.State, model.Lga))
+        {
+            ModelState.AddModelError(nameof(model.Lga), "Select a valid LGA for the chosen state.");
         }
 
         if (facility == null)
@@ -780,7 +790,7 @@ public class StateOfficeController : Controller
         var facilities = await ApplyReferralProviderReportScope(_context.Providers.AsNoTracking(), user)
             .Where(x => x.State == state)
             .OrderBy(x => x.Name)
-            .Select(x => new { id = x.Id, name = x.Name, code = x.Code })
+            .Select(x => new { id = x.Id, name = x.Name, code = x.Code, state = x.State, lga = x.LGA })
             .ToListAsync(cancellationToken);
 
         return Json(facilities);
@@ -1311,6 +1321,17 @@ public class StateOfficeController : Controller
         ApplicationUser user,
         CancellationToken cancellationToken)
     {
+        if ((User.IsInRole("Provider") || User.IsInRole("ReferralPro")) && user.ProviderId.HasValue)
+        {
+            Provider? providerProfile = await ApplyReferralProviderReportScope(_context.Providers.AsNoTracking(), user)
+                .FirstOrDefaultAsync(x => x.Id == user.ProviderId.Value, cancellationToken);
+
+            if (providerProfile != null)
+            {
+                ApplyReferralProviderDetailsToModel(model, providerProfile);
+            }
+        }
+
         List<string> states;
         if (CanManageReports())
         {
@@ -1335,8 +1356,16 @@ public class StateOfficeController : Controller
 
         if (!string.IsNullOrWhiteSpace(model.State))
         {
-            model.Lgas = (await GetMonthlyReportLgasAsync(model.State, cancellationToken))
-                .Select(x => new SelectListItem(x, x, x == model.Lga))
+            List<string> lgas = await GetMonthlyReportLgasAsync(model.State, cancellationToken);
+            if (!string.IsNullOrWhiteSpace(model.Lga)
+                && !lgas.Contains(model.Lga, StringComparer.OrdinalIgnoreCase))
+            {
+                lgas.Add(model.Lga);
+            }
+
+            model.Lgas = lgas
+                .OrderBy(x => x)
+                .Select(x => new SelectListItem(x, x, string.Equals(x, model.Lga, StringComparison.OrdinalIgnoreCase)))
                 .ToList();
 
             model.Facilities = await ApplyReferralProviderReportScope(_context.Providers.AsNoTracking(), user)
@@ -1346,7 +1375,7 @@ public class StateOfficeController : Controller
                 .ToListAsync(cancellationToken);
         }
 
-        if (model.ProviderId.HasValue)
+        if (model.ProviderId.HasValue && string.IsNullOrWhiteSpace(model.FacilityCode))
         {
             model.FacilityCode = await _context.Providers
                 .AsNoTracking()
@@ -1359,6 +1388,16 @@ public class StateOfficeController : Controller
         {
             model.Ward = "N/A";
         }
+    }
+
+    private static void ApplyReferralProviderDetailsToModel(
+        StateOfficeMonthlyReportViewModel model,
+        Provider provider)
+    {
+        model.ProviderId = provider.Id;
+        model.State = provider.State?.Trim() ?? string.Empty;
+        model.Lga = string.IsNullOrWhiteSpace(provider.LGA) ? "N/A" : provider.LGA.Trim();
+        model.FacilityCode = provider.Code ?? string.Empty;
     }
 
     private IQueryable<StateOfficeMonthlyReport> ApplyMonthlyReportScope(

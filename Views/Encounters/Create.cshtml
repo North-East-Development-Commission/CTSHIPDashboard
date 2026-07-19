@@ -78,9 +78,9 @@
                             </div>
 
                             <div class="col-md-4">
-                                <label asp-for="DoctorId" class="form-label text-success fw-bold">Attending Doctor</label>
+                                <label asp-for="DoctorId" class="form-label text-success fw-bold">Attended By (Hospital Staff)</label>
                                 <select asp-for="DoctorId" class="form-select form-select-lg" asp-items="ViewBag.Doctors" data-selected-doctor="@Model.DoctorId">
-                                    <option value="">Select Doctor</option>
+                                    <option value="">Select hospital staff</option>
                                 </select>
                                 <span asp-validation-for="DoctorId" class="text-danger"></span>
                             </div>
@@ -237,7 +237,7 @@
             if (!providerSelect || !doctorSelect) return;
 
             const selectedDoctorId = doctorSelect.dataset.selectedDoctor || doctorSelect.value;
-            doctorSelect.innerHTML = '<option value="">Select Doctor</option>';
+            doctorSelect.innerHTML = '<option value="">Select hospital staff</option>';
 
             if (!providerSelect.value) {
                 return;
@@ -265,7 +265,7 @@
 
                 doctorSelect.dataset.selectedDoctor = doctorSelect.value;
             } catch {
-                doctorSelect.innerHTML = '<option value="">Select Doctor</option>';
+                doctorSelect.innerHTML = '<option value="">Select hospital staff</option>';
             }
         }
 

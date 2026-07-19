@@ -15,16 +15,17 @@ namespace CTSHIPDashboard.Models
 
         [Required]
         [StringLength(200)]
-        [Display(Name = "Doctor's Full Name")]
+        [Display(Name = "Hospital Staff Full Name")]
         public string FullName { get; set; } = string.Empty;
 
         [Required]
         [StringLength(100)]
-        [Display(Name = "MDCN / Licence Number")]
+        [Display(Name = "Staff ID / Licence Number")]
         public string MedicalLicenseNumber { get; set; } = string.Empty;
 
         [Required]
         [StringLength(150)]
+        [Display(Name = "Specialty / Unit")]
         public string Specialty { get; set; } = "General Practice";
 
         [StringLength(150)]

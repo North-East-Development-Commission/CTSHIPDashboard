@@ -74,7 +74,7 @@
                             {
                                 <tr>
                                     <td>
-                                        <img src="@(e.PhotoPath ?? "/img/icon-192.png")"
+                                        <img src="@EnrolleePhotoStorage.ResolvePhotoPath(e.PhotoPath, e.EnrollmentNumber)"
                                              class="rounded-circle shadow"
                                              style="width:60px;height:60px;object-fit:cover;" />
                                     </td>

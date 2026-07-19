@@ -10,7 +10,7 @@
 
                 <div class="card-body p-5 text-center">
                     <div class="text-center mb-4">
-                        <img src="@(Model.PhotoPath ?? "/img/icon-192.png")"
+                        <img src="@EnrolleePhotoStorage.ResolvePhotoPath(Model.PhotoPath, Model.EnrollmentNumber)"
                              class="rounded-circle shadow" style="width:150px;height:150px;object-fit:cover;" />
                     </div>
 

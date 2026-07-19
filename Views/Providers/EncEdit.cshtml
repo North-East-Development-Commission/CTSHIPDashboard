@@ -19,7 +19,7 @@
                         <div class="card-body">
                             <div class="row align-items-center">
                                 <div class="col-md-3 text-center">
-                                    <img src="@(Model.Enrollee?.PhotoPath ?? "/img/icon-192.png")" 
+                                    <img src="@EnrolleePhotoStorage.ResolvePhotoPath(Model.Enrollee?.PhotoPath, Model.Enrollee?.EnrollmentNumber)" 
                                          class="rounded-circle shadow" 
                                          style="width:140px; height:140px; object-fit:cover; border:5px solid #3B703B;" />
                                 </div>
@@ -69,9 +69,9 @@
                                 </div>
                             </div>
                             <div class="col-md-6">
-                                <label asp-for="DoctorId" class="form-label fw-bold">Attending Doctor</label>
+                                <label asp-for="DoctorId" class="form-label fw-bold">Attended By (Hospital Staff)</label>
                                 <select asp-for="DoctorId" class="form-select form-select-lg" asp-items="ViewBag.Doctors" data-selected-doctor="@Model.DoctorId">
-                                    <option value="">Select Doctor</option>
+                                    <option value="">Select hospital staff</option>
                                 </select>
                                 <span asp-validation-for="DoctorId" class="text-danger"></span>
                             </div>
@@ -148,7 +148,7 @@
             if (!providerSelect || !doctorSelect || !providerSelect.value) return;
 
             const selectedDoctorId = doctorSelect.dataset.selectedDoctor || doctorSelect.value;
-            doctorSelect.innerHTML = '<option value="">Select Doctor</option>';
+            doctorSelect.innerHTML = '<option value="">Select hospital staff</option>';
 
             try {
                 const response = await fetch(`/Encounters/GetDoctorsByProvider?providerId=${encodeURIComponent(providerSelect.value)}&selectedDoctorId=${encodeURIComponent(selectedDoctorId || '')}`);
@@ -172,7 +172,7 @@
 
                 doctorSelect.dataset.selectedDoctor = doctorSelect.value;
             } catch {
-                doctorSelect.innerHTML = '<option value="">Select Doctor</option>';
+                doctorSelect.innerHTML = '<option value="">Select hospital staff</option>';
             }
         }
 

@@ -25,7 +25,7 @@
                         <div class="col-lg-4 text-center">
                             <div class="card border-success shadow h-100">
                                 <div class="card-body p-4">
-                                    <img src="@(Model.Input.PhotoPath ?? "/img/icon-192.png")"
+                                    <img src="@(string.IsNullOrWhiteSpace(Model.Input.PhotoPath) ? "/img/icon-192.png" : Model.Input.PhotoPath)"
                                          class="rounded-circle shadow"
                                          style="width:200px;height:200px;object-fit:cover;border:6px solid #3B703B;"
                                          alt="Profile Photo" />
@@ -83,7 +83,7 @@
                                             <div class="col-12">
                                                 <label class="form-label text-success fw-bold">Profile Photo</label>
                                                 <input type="file" name="photo" accept="image/*" class="form-control form-control-lg rounded-3" />
-                                                <small class="text-muted">JPG, PNG • Max 2MB</small>
+                                                <small class="text-muted">JPG, PNG, WebP - Max 2MB</small>
                                             </div>
                                         </div>
 

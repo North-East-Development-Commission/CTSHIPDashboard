@@ -18,18 +18,37 @@ using System.Diagnostics.Metrics;
 
 public class ProvidersController : Controller
 {
+    private const long MaxClaimEvidenceFileBytes = 10 * 1024 * 1024;
+    private const int MaxClaimEvidenceFileCount = 10;
+
+    private static readonly HashSet<string> AllowedClaimEvidenceFileExtensions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ".pdf",
+        ".jpg",
+        ".jpeg",
+        ".png",
+        ".doc",
+        ".docx"
+    };
+
     private readonly ApplicationDbContext _context;
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly IAppNotificationService _notificationService;
+    private readonly IAuditService _auditService;
+    private readonly IWebHostEnvironment _environment;
 
     public ProvidersController(
         ApplicationDbContext context,
         UserManager<ApplicationUser> userManager,
-        IAppNotificationService notificationService)
+        IAppNotificationService notificationService,
+        IAuditService auditService,
+        IWebHostEnvironment environment)
     {
         _context = context;
         _userManager = userManager;
         _notificationService = notificationService;
+        _auditService = auditService;
+        _environment = environment;
     }
 
     // GET: Provider/Index
@@ -194,6 +213,18 @@ public class ProvidersController : Controller
                 _context.Providers.Add(provider);
                 await _context.SaveChangesAsync();
 
+                ApplicationUser? currentUser = await _userManager.GetUserAsync(User);
+                await _auditService.LogAsync(
+                    "Provider.Created",
+                    AuditActor.Format(currentUser, User.Identity?.Name),
+                    provider.Code,
+                    AuditActor.Details(
+                        $"Name:{provider.Name}",
+                        $"HMO:{provider.HmoId}",
+                        $"State:{provider.State}",
+                        $"Level:{provider.Level}"),
+                    HttpContext.RequestAborted);
+
                 TempData["Success"] = $"Provider '{provider.Name}' has been accredited successfully with code: <strong>{provider.Code}</strong>";
                 if (IsHmoOnlyUser())
                 {
@@ -282,6 +313,19 @@ public class ProvidersController : Controller
 
                 await _context.SaveChangesAsync();
 
+                ApplicationUser? currentUser = await _userManager.GetUserAsync(User);
+                await _auditService.LogAsync(
+                    "Provider.Updated",
+                    AuditActor.Format(currentUser, User.Identity?.Name),
+                    existing.Code,
+                    AuditActor.Details(
+                        $"Name:{existing.Name}",
+                        $"HMO:{existing.HmoId}",
+                        $"State:{existing.State}",
+                        $"Level:{existing.Level}",
+                        $"Active:{existing.IsActive}"),
+                    HttpContext.RequestAborted);
+
                 TempData["Success"] = $"Provider {existing.Name} updated successfully!";
                 return RedirectToAction(nameof(Index));
             }
@@ -332,6 +376,17 @@ public class ProvidersController : Controller
         {
             _context.Providers.Remove(provider);
             await _context.SaveChangesAsync();
+            ApplicationUser? currentUser = await _userManager.GetUserAsync(User);
+            await _auditService.LogAsync(
+                "Provider.Deleted",
+                AuditActor.Format(currentUser, User.Identity?.Name),
+                provider.Code,
+                AuditActor.Details(
+                    $"Name:{provider.Name}",
+                    $"HMO:{provider.HmoId}",
+                    $"State:{provider.State}",
+                    $"Level:{provider.Level}"),
+                HttpContext.RequestAborted);
             TempData["Success"] = $"Provider {provider.Name} deleted successfully.";
         }
         catch (DbUpdateException)
@@ -950,7 +1005,7 @@ public class ProvidersController : Controller
 
         if (doctor == null)
         {
-            ModelState.AddModelError(nameof(model.DoctorId), "Select an active doctor registered under this facility.");
+            ModelState.AddModelError(nameof(model.DoctorId), "Select an active hospital staff member registered under this facility.");
         }
 
         if (!ModelState.IsValid)
@@ -1034,21 +1089,21 @@ public class ProvidersController : Controller
             };
     }
 
-    // CREATE CLAIM FROM ENCOUNTER — 100% SAFE & ACCURATE
-    [Authorize(Roles = "Provider,CTSHIPAdmin,HMO")]
-    public async Task<IActionResult> CreateClaim(int id)
+    [HttpGet]
+    [Authorize(Roles = "Provider")]
+    public async Task<IActionResult> CreateClaim(int id, CancellationToken cancellationToken = default)
     {
-        var encounter = await _context.Encounters
-            .Include(e => e.Enrollee!)
-                .ThenInclude(e => e.Hmo!)
-            .Include(e => e.Provider!)
-            .FirstOrDefaultAsync(e => e.Id == id && e.ClaimId == null);
-
-        // ENCOUNTER NOT FOUND OR ALREADY CLAIMED
+        Encounter? encounter = await FindClaimableEncounterAsync(id, cancellationToken);
         if (encounter == null)
         {
             TempData["Error"] = "Encounter not found or already has a claim.";
             return RedirectToAction("Index", "Encounters");
+        }
+
+        ApplicationUser? currentUser = await _userManager.GetUserAsync(User);
+        if (currentUser?.ProviderId != encounter.ProviderId)
+        {
+            return Forbid();
         }
 
         if (!ProviderClaimAccessHelper.CanUseClaims(encounter.Provider))
@@ -1057,40 +1112,316 @@ public class ProvidersController : Controller
             return RedirectToAction(nameof(ENCDetails), new { id });
         }
 
-        // ENROLLEE HAS NO HMO — BLOCK CLAIM
+        if (encounter.Status == "Cancelled")
+        {
+            TempData["Error"] = "Cancelled encounters cannot be claimed.";
+            return RedirectToAction(nameof(ENCDetails), new { id });
+        }
+
         if (encounter.Enrollee?.Hmo == null)
         {
             TempData["Error"] = $"Cannot create claim: {encounter.Enrollee?.FullName} has no HMO assigned.";
-            return RedirectToAction("Details", "Encounters", new { id });
+            return RedirectToAction(nameof(ENCDetails), new { id });
         }
 
-        // CREATE CLAIM WITH CORRECT HMO
-        var claim = new Claim
+        return View(BuildClaimSubmissionModel(encounter));
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [Authorize(Roles = "Provider")]
+    public async Task<IActionResult> CreateClaim(
+        int id,
+        ProviderClaimSubmissionViewModel model,
+        CancellationToken cancellationToken = default)
+    {
+        if (id != model.EncounterId)
+        {
+            return NotFound();
+        }
+
+        Encounter? encounter = await FindClaimableEncounterAsync(model.EncounterId, cancellationToken);
+        if (encounter == null)
+        {
+            TempData["Error"] = "Encounter not found or already has a claim.";
+            return RedirectToAction("Index", "Encounters");
+        }
+
+        ApplicationUser? currentUser = await _userManager.GetUserAsync(User);
+        if (currentUser?.ProviderId != encounter.ProviderId)
+        {
+            return Forbid();
+        }
+
+        if (!ProviderClaimAccessHelper.CanUseClaims(encounter.Provider))
+        {
+            TempData["Error"] = ProviderClaimAccessHelper.ClaimsUnavailableMessage;
+            return RedirectToAction(nameof(ENCDetails), new { id = encounter.Id });
+        }
+
+        if (encounter.Status == "Cancelled")
+        {
+            TempData["Error"] = "Cancelled encounters cannot be claimed.";
+            return RedirectToAction(nameof(ENCDetails), new { id = encounter.Id });
+        }
+
+        if (encounter.Enrollee?.Hmo == null)
+        {
+            TempData["Error"] = $"Cannot create claim: {encounter.Enrollee?.FullName} has no HMO assigned.";
+            return RedirectToAction(nameof(ENCDetails), new { id = encounter.Id });
+        }
+
+        ValidateClaimEvidenceFiles(model);
+        if (!ModelState.IsValid)
+        {
+            ProviderClaimSubmissionViewModel viewModel = BuildClaimSubmissionModel(encounter);
+            return View(viewModel);
+        }
+
+        string actorName = currentUser?.FullName ?? currentUser?.Email ?? User.Identity?.Name ?? "Provider";
+        List<string> savedEvidencePaths = new();
+        Claim claim = new()
         {
             ClaimNumber = "CLM-" + DateTime.Now.ToString("yyyyMMddHHmmss"),
             EnrolleeId = encounter.EnrolleeId,
             ProviderId = encounter.ProviderId,
-            HmoId = encounter.Enrollee.HmoId,                    // CORRECT HMO!
+            HmoId = encounter.Enrollee.HmoId,
             Amount = encounter.TotalAmount,
             Diagnosis = encounter.Diagnosis ?? encounter.ChiefComplaint ?? "Clinical encounter",
             Treatment = encounter.TreatmentGiven ?? "Medical consultation and care",
             DateSubmitted = DateTime.Now,
             Status = "Submitted",
-            SubmittedBy = User.Identity?.Name ?? "Provider"
+            SubmittedBy = actorName
         };
 
-        _context.Claims.Add(claim);
-        await _context.SaveChangesAsync();
+        await using var transaction = await _context.Database.BeginTransactionAsync(cancellationToken);
+        try
+        {
+            _context.Claims.Add(claim);
+            await _context.SaveChangesAsync(cancellationToken);
 
-        // UPDATE ENCOUNTER
-        encounter.ClaimId = claim.Id;
-        encounter.Status = "Claimed";
-        await _context.SaveChangesAsync();
+            List<ClaimSupportingDocument> evidenceDocuments = await SaveClaimEvidenceFilesAsync(
+                model.EvidenceFiles,
+                claim,
+                currentUser,
+                actorName,
+                savedEvidencePaths,
+                cancellationToken);
+
+            _context.ClaimSupportingDocuments.AddRange(evidenceDocuments);
+            encounter.ClaimId = claim.Id;
+            encounter.Status = "Claimed";
+
+            await _context.SaveChangesAsync(cancellationToken);
+            await transaction.CommitAsync(cancellationToken);
+        }
+        catch
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            DeleteSavedClaimEvidenceFiles(savedEvidencePaths);
+            ModelState.AddModelError(string.Empty, "Claim submission failed. Please try again.");
+            return View(BuildClaimSubmissionModel(encounter));
+        }
 
         await _notificationService.NotifyClaimSubmittedAsync(claim.Id);
+        await _auditService.LogAsync(
+            "Claim.Submitted",
+            AuditActor.Format(currentUser, User.Identity?.Name),
+            claim.ClaimNumber,
+            AuditActor.Details(
+                $"Encounter:{encounter.EncounterNumber}",
+                $"Provider:{encounter.Provider?.Name}",
+                $"Enrollee:{encounter.Enrollee?.EnrollmentNumber}",
+                $"Amount:NGN {claim.Amount:N2}",
+                $"EvidenceFiles:{model.EvidenceFiles.Count}"),
+            HttpContext.RequestAborted);
 
-        TempData["Success"] = $"Claim {claim.ClaimNumber} successfully created for {encounter.Enrollee.Hmo.Name}!";
+        TempData["Success"] = $"Claim {claim.ClaimNumber} successfully submitted with {model.EvidenceFiles.Count} evidence file(s) for {encounter.Enrollee.Hmo.Name}.";
         return RedirectToAction("MyEncounters", "Providers");
+    }
+
+    private async Task<Encounter?> FindClaimableEncounterAsync(int id, CancellationToken cancellationToken)
+    {
+        return await _context.Encounters
+            .Include(e => e.Enrollee!)
+                .ThenInclude(e => e.Hmo!)
+            .Include(e => e.Provider!)
+            .FirstOrDefaultAsync(e => e.Id == id && e.ClaimId == null, cancellationToken);
+    }
+
+    private static ProviderClaimSubmissionViewModel BuildClaimSubmissionModel(Encounter encounter)
+    {
+        return new ProviderClaimSubmissionViewModel
+        {
+            EncounterId = encounter.Id,
+            EncounterNumber = encounter.EncounterNumber ?? string.Empty,
+            VisitDate = encounter.VisitDate,
+            EnrolleeName = encounter.Enrollee?.FullName ?? "N/A",
+            EnrollmentNumber = encounter.Enrollee?.EnrollmentNumber ?? "N/A",
+            HmoName = encounter.Enrollee?.Hmo?.Name ?? "N/A",
+            ProviderName = encounter.Provider?.Name ?? "N/A",
+            ProviderLevel = encounter.Provider?.Level ?? "N/A",
+            Amount = encounter.TotalAmount,
+            Diagnosis = encounter.Diagnosis ?? encounter.ChiefComplaint ?? "Clinical encounter",
+            Treatment = encounter.TreatmentGiven ?? "Medical consultation and care"
+        };
+    }
+
+    private void ValidateClaimEvidenceFiles(ProviderClaimSubmissionViewModel model)
+    {
+        model.EvidenceFiles = (model.EvidenceFiles ?? new List<IFormFile>())
+            .Where(file => file is { Length: > 0 })
+            .ToList();
+
+        if (model.EvidenceFiles.Count == 0)
+        {
+            ModelState.AddModelError(
+                nameof(model.EvidenceFiles),
+                "Upload at least one claim evidence file before submitting the claim.");
+            return;
+        }
+
+        if (model.EvidenceFiles.Count > MaxClaimEvidenceFileCount)
+        {
+            ModelState.AddModelError(
+                nameof(model.EvidenceFiles),
+                $"Upload {MaxClaimEvidenceFileCount} or fewer evidence files.");
+        }
+
+        foreach (IFormFile file in model.EvidenceFiles)
+        {
+            ValidateClaimEvidenceFile(file, nameof(model.EvidenceFiles));
+        }
+    }
+
+    private void ValidateClaimEvidenceFile(IFormFile file, string modelStateKey)
+    {
+        string extension = Path.GetExtension(file.FileName);
+        if (!AllowedClaimEvidenceFileExtensions.Contains(extension))
+        {
+            ModelState.AddModelError(
+                modelStateKey,
+                $"{file.FileName} must be a PDF, JPG, PNG, DOC, or DOCX file.");
+        }
+
+        if (file.Length > MaxClaimEvidenceFileBytes)
+        {
+            ModelState.AddModelError(
+                modelStateKey,
+                $"{file.FileName} must be 10MB or smaller.");
+        }
+    }
+
+    private async Task<List<ClaimSupportingDocument>> SaveClaimEvidenceFilesAsync(
+        IEnumerable<IFormFile> evidenceFiles,
+        Claim claim,
+        ApplicationUser? currentUser,
+        string actorName,
+        List<string> savedPhysicalPaths,
+        CancellationToken cancellationToken)
+    {
+        string webRootPath = string.IsNullOrWhiteSpace(_environment.WebRootPath)
+            ? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot")
+            : _environment.WebRootPath;
+        string claimNumber = SanitizeClaimPathSegment(claim.ClaimNumber);
+        string uploadFolder = Path.Combine(webRootPath, "uploads", "claim-support", claimNumber);
+
+        Directory.CreateDirectory(uploadFolder);
+
+        List<ClaimSupportingDocument> documents = new();
+        foreach (IFormFile file in evidenceFiles)
+        {
+            documents.Add(await SaveClaimEvidenceFileAsync(
+                file,
+                claim.Id,
+                claimNumber,
+                uploadFolder,
+                currentUser,
+                actorName,
+                savedPhysicalPaths,
+                cancellationToken));
+        }
+
+        return documents;
+    }
+
+    private static async Task<ClaimSupportingDocument> SaveClaimEvidenceFileAsync(
+        IFormFile file,
+        int claimId,
+        string claimNumber,
+        string uploadFolder,
+        ApplicationUser? currentUser,
+        string actorName,
+        List<string> savedPhysicalPaths,
+        CancellationToken cancellationToken)
+    {
+        string extension = Path.GetExtension(file.FileName).ToLowerInvariant();
+        string storedFileName = $"claim-evidence-{Guid.NewGuid():N}{extension}";
+        string physicalPath = Path.Combine(uploadFolder, storedFileName);
+
+        await using (FileStream stream = new(physicalPath, FileMode.CreateNew))
+        {
+            await file.CopyToAsync(stream, cancellationToken);
+        }
+
+        savedPhysicalPaths.Add(physicalPath);
+
+        return new ClaimSupportingDocument
+        {
+            ClaimId = claimId,
+            DocumentType = "Claim Evidence",
+            OriginalFileName = TrimForClaimStorage(Path.GetFileName(file.FileName), 255),
+            StoredFileName = storedFileName,
+            FilePath = $"/uploads/claim-support/{claimNumber}/{storedFileName}",
+            ContentType = TrimForClaimStorage(file.ContentType, 100),
+            FileSize = file.Length,
+            UploadedAt = DateTime.UtcNow,
+            UploadedByUserId = currentUser?.Id,
+            UploadedByName = actorName
+        };
+    }
+
+    private static string SanitizeClaimPathSegment(string value)
+    {
+        char[] invalidChars = Path.GetInvalidFileNameChars();
+        string sanitized = new(value
+            .Where(character => !invalidChars.Contains(character))
+            .ToArray());
+
+        return string.IsNullOrWhiteSpace(sanitized)
+            ? Guid.NewGuid().ToString("N")
+            : sanitized;
+    }
+
+    private static string TrimForClaimStorage(string? value, int maxLength)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return string.Empty;
+        }
+
+        string trimmed = value.Trim();
+        return trimmed.Length <= maxLength
+            ? trimmed
+            : trimmed[..maxLength];
+    }
+
+    private static void DeleteSavedClaimEvidenceFiles(IEnumerable<string> physicalPaths)
+    {
+        foreach (string physicalPath in physicalPaths)
+        {
+            try
+            {
+                if (System.IO.File.Exists(physicalPath))
+                {
+                    System.IO.File.Delete(physicalPath);
+                }
+            }
+            catch
+            {
+                // Best effort cleanup after a failed claim submission.
+            }
+        }
     }
 
     public async Task<IActionResult> ENCDetails(int id)
@@ -1125,6 +1456,7 @@ public class ProvidersController : Controller
         var claim = await _context.Claims
             .Include(c => c.Enrollee).ThenInclude(e => e!.Hmo)
             .Include(c => c.Provider)
+            .Include(c => c.SupportingDocuments)
             .FirstOrDefaultAsync(c => c.Id == id);
 
         if (claim == null) return NotFound();

@@ -3,6 +3,7 @@ using CTSHIPDashboard.Helpers;
 using CTSHIPDashboard.Models;
 using CTSHIPDashboard.Models.Enums;
 using CTSHIPDashboard.Models.ViewModels;
+using CTSHIPDashboard.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -16,13 +17,16 @@ namespace CTSHIPDashboard.Controllers
     {
         private readonly ApplicationDbContext _context;
         private readonly UserManager<ApplicationUser> _userManager;
+        private readonly IAuditService _auditService;
 
         public ComplaintsController(
             ApplicationDbContext context,
-            UserManager<ApplicationUser> userManager)
+            UserManager<ApplicationUser> userManager,
+            IAuditService auditService)
         {
             _context = context;
             _userManager = userManager;
+            _auditService = auditService;
         }
 
         public async Task<IActionResult> Index(
@@ -131,6 +135,17 @@ namespace CTSHIPDashboard.Controllers
 
             _context.Complaints.Add(complaint);
             await _context.SaveChangesAsync();
+            await _auditService.LogAsync(
+                "Complaint.Created",
+                AuditActor.Format(user, User.Identity?.Name),
+                complaint.ReferenceNumber,
+                AuditActor.Details(
+                    $"Category:{complaint.Category}",
+                    $"Priority:{complaint.Priority}",
+                    $"State:{complaint.State}",
+                    $"HMO:{complaint.HmoId}",
+                    $"Provider:{complaint.ProviderId}"),
+                HttpContext.RequestAborted);
 
             TempData["Success"] = $"Complaint {complaint.ReferenceNumber} was submitted successfully.";
             return RedirectToAction(nameof(Details), new { id = complaint.Id });
@@ -219,6 +234,16 @@ namespace CTSHIPDashboard.Controllers
                     : null;
 
             await _context.SaveChangesAsync();
+            await _auditService.LogAsync(
+                "Complaint.Updated",
+                AuditActor.Format(user, User.Identity?.Name),
+                complaint.ReferenceNumber,
+                AuditActor.Details(
+                    $"Status:{complaint.Status}",
+                    $"Priority:{complaint.Priority}",
+                    $"AssignedTo:{complaint.AssignedToName}",
+                    $"Resolution:{complaint.ResolutionNote}"),
+                HttpContext.RequestAborted);
             TempData["Success"] = $"Complaint {complaint.ReferenceNumber} was updated.";
             return RedirectToAction(nameof(Details), new { id });
         }

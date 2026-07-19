@@ -14,7 +14,7 @@
                         <div class="col-md-5">
                             <div class="card border-success shadow">
                                 <div class="card-body text-center p-4">
-                                    <img src="@(Model.Enrollee?.PhotoPath ?? "/img/icon-192.png")"
+                                    <img src="@EnrolleePhotoStorage.ResolvePhotoPath(Model.Enrollee?.PhotoPath, Model.Enrollee?.EnrollmentNumber)"
                                          class="rounded-circle shadow" style="width:180px;height:180px;object-fit:cover;border:6px solid #3B703B;" />
                                     <h4 class="mt-4 fw-bold">@Model.Enrollee?.FullName</h4>
                                     <p>ID: @Model.Enrollee?.EnrollmentNumber</p>
@@ -47,7 +47,9 @@
                                             <p><strong>Chief Complaint:</strong> @Model.ChiefComplaint</p>
                                             <p><strong>Diagnosis:</strong> @Model.Diagnosis</p>
                                             <p><strong>Treatment:</strong> @Model.TreatmentGiven</p>
-                                            <p><strong>AttendedBy:</strong> @Model.AttendedBy</p>
+                                            <p><strong>Attended By:</strong> @(Model.Doctor?.FullName ?? Model.SeenBy ?? "N/A")</p>
+                                            <p><strong>Specialty / Unit:</strong> @(Model.Doctor?.Specialty ?? Model.Rank ?? "N/A")</p>
+                                            <p><strong>Recorded By:</strong> @Model.AttendedBy</p>
                                         </div>
                                     </div>
                                 </div>

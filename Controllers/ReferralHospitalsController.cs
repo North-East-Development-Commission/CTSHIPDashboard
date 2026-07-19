@@ -1,6 +1,7 @@
 using CTSHIPDashboard.Data;
 using CTSHIPDashboard.Helpers;
 using CTSHIPDashboard.Models;
+using CTSHIPDashboard.Services;
 using CTSHIPDashboard.ViewModels;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -13,10 +14,14 @@ namespace CTSHIPDashboard.Controllers;
 public class ReferralHospitalsController : Controller
 {
     private readonly ApplicationDbContext _context;
+    private readonly IAuditService _auditService;
 
-    public ReferralHospitalsController(ApplicationDbContext context)
+    public ReferralHospitalsController(
+        ApplicationDbContext context,
+        IAuditService auditService)
     {
         _context = context;
+        _auditService = auditService;
     }
 
     public async Task<IActionResult> Index(
@@ -111,6 +116,15 @@ public class ReferralHospitalsController : Controller
 
         _context.ReferralHospitals.Add(hospital);
         await _context.SaveChangesAsync(cancellationToken);
+        await _auditService.LogAsync(
+            "ReferralHospital.Created",
+            AuditActor.Format(User.Identity?.Name),
+            hospital.Name,
+            AuditActor.Details(
+                $"State:{hospital.State}",
+                $"LGA:{hospital.Lga}",
+                $"Active:{hospital.IsActive}"),
+            cancellationToken);
         TempData["SuccessMessage"] = "Referral hospital created and added to the provider referral dropdown.";
         return RedirectToAction(nameof(Index));
     }
@@ -168,6 +182,15 @@ public class ReferralHospitalsController : Controller
         hospital.IsActive = model.IsActive;
 
         await _context.SaveChangesAsync(cancellationToken);
+        await _auditService.LogAsync(
+            "ReferralHospital.Updated",
+            AuditActor.Format(User.Identity?.Name),
+            hospital.Name,
+            AuditActor.Details(
+                $"State:{hospital.State}",
+                $"LGA:{hospital.Lga}",
+                $"Active:{hospital.IsActive}"),
+            cancellationToken);
         TempData["SuccessMessage"] = "Referral hospital updated.";
         return RedirectToAction(nameof(Index));
     }
@@ -218,6 +241,15 @@ public class ReferralHospitalsController : Controller
         }
 
         await _context.SaveChangesAsync(cancellationToken);
+        await _auditService.LogAsync(
+            referralCount > 0 ? "ReferralHospital.Deactivated" : "ReferralHospital.Deleted",
+            AuditActor.Format(User.Identity?.Name),
+            hospital.Name,
+            AuditActor.Details(
+                $"State:{hospital.State}",
+                $"LGA:{hospital.Lga}",
+                $"LinkedReferrals:{referralCount}"),
+            cancellationToken);
         return RedirectToAction(nameof(Index));
     }
 

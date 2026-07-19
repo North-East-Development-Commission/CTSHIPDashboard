@@ -55,7 +55,7 @@
                     <h5 class="mb-0"><i class="bi bi-person-vcard me-2"></i>Enrollee</h5>
                 </div>
                 <div class="card-body text-center">
-                    <img src="@(claim.Enrollee?.PhotoPath ?? "/img/icon-192.png")"
+                    <img src="@EnrolleePhotoStorage.ResolvePhotoPath(claim.Enrollee?.PhotoPath, claim.Enrollee?.EnrollmentNumber)"
                          alt="Enrollee photo"
                          class="rounded-circle shadow-sm mb-3"
                          style="width: 128px; height: 128px; object-fit: cover;" />

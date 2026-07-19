@@ -53,7 +53,7 @@
                     <th>Encounter #</th>
                     <th>Enrollee</th>
                     <th>Provider</th>
-                    <th>Doctor</th>
+                    <th>Hospital Staff</th>
                     <th>Date</th>
                     <th>Amount</th>
                     <th>Status</th>
@@ -103,7 +103,7 @@
                                 <a asp-action="Edit" asp-route-id="@e.Id" class="btn btn-warning btn-sm">Edit</a>
                                 @if (User.IsInRole("Provider") && canUseClaims && e.ClaimId == null && e.Status != "Cancelled")
                                 {
-                                    <a asp-action="CreateClaim" asp-route-id="@e.Id" class="btn btn-primary btn-sm">Create Claim</a>
+                                    <a asp-action="CreateClaim" asp-route-id="@e.Id" class="btn btn-primary btn-sm">Submit Claim</a>
                                 }
                                 @if (e.ClaimId == null)
                                 {

@@ -143,6 +143,17 @@ public class HmoController : Controller
             _context.Hmos.Add(hmo);
             await _context.SaveChangesAsync();
 
+            ApplicationUser? currentUser = await _userManager.GetUserAsync(User);
+            await _auditService.LogAsync(
+                "HMO.Created",
+                AuditActor.Format(currentUser, User.Identity?.Name),
+                hmo.RegistrationNumber,
+                AuditActor.Details(
+                    $"Name:{hmo.Name}",
+                    $"States:{hmo.State}",
+                    $"Status:{hmo.Status}"),
+                HttpContext.RequestAborted);
+
             TempData["Success"] = $"HMO '{hmo.Name}' registered successfully!";
             return RedirectToAction(nameof(Index));
         }
@@ -224,6 +235,17 @@ public class HmoController : Controller
 
                 await _context.SaveChangesAsync();
 
+                ApplicationUser? currentUser = await _userManager.GetUserAsync(User);
+                await _auditService.LogAsync(
+                    "HMO.Updated",
+                    AuditActor.Format(currentUser, User.Identity?.Name),
+                    existingHmo.RegistrationNumber,
+                    AuditActor.Details(
+                        $"Name:{existingHmo.Name}",
+                        $"States:{existingHmo.State}",
+                        $"Status:{existingHmo.Status}"),
+                    HttpContext.RequestAborted);
+
                 TempData["Success"] = $"HMO '{existingHmo.Name}' updated successfully!";
             }
             catch (DbUpdateException)
@@ -297,6 +319,16 @@ public class HmoController : Controller
 
         _context.Hmos.Remove(hmo);
         await _context.SaveChangesAsync();
+        ApplicationUser? currentUser = await _userManager.GetUserAsync(User);
+        await _auditService.LogAsync(
+            "HMO.Deleted",
+            AuditActor.Format(currentUser, User.Identity?.Name),
+            hmo.RegistrationNumber,
+            AuditActor.Details(
+                $"Name:{hmo.Name}",
+                $"States:{hmo.State}",
+                $"Status:{hmo.Status}"),
+            HttpContext.RequestAborted);
         TempData["Success"] = $"HMO {hmo.Name} deleted permanently.";
         return RedirectToAction(nameof(Index));
     }
@@ -413,7 +445,6 @@ public class HmoController : Controller
         ViewBag.ClaimCount = hmo.Claims?.Count ?? 0;
         ViewBag.ProviderCount = hmo.Providers?.Count ?? 0;
 
-        ViewBag.TotalClaimAmount = hmo.Claims?.Sum(c => c.Amount) ?? 0m;
         ViewBag.PendingClaims = hmo.Claims?.Count(c => c.Status == "Submitted") ?? 0;
         ViewBag.PaidClaims = hmo.Claims?.Count(c => c.Status == "Paid") ?? 0;
         ViewBag.ApprovedClaims = hmo.Claims?.Count(c => c.Status == "Approved") ?? 0;
@@ -443,12 +474,6 @@ public class HmoController : Controller
         ViewBag.ReferralCompletionRate = totalReferrals == 0
             ? 0m
             : Math.Round((decimal)completedReferrals / totalReferrals * 100m, 2);
-
-        // Death registers for this HMO
-        string hmoCode = hmo.RegistrationNumber ?? string.Empty;
-        var deaths = await _context.DeathRegisters.CountAsync(d => !d.IsDeleted && d.HmoCode == hmoCode && d.Status == DeathRegisterStatus.Audited);
-        ViewBag.DeathCount = deaths;
-        ViewBag.DeathRatePerThousand = (ViewBag.EnrolleeCount > 0) ? Math.Round((double)deaths / (double)ViewBag.EnrolleeCount * 1000.0, 2) : 0;
 
         ViewBag.Providers = hmo.Providers ?? new List<Provider>();
 
@@ -671,6 +696,20 @@ public class HmoController : Controller
         }
 
         await _context.SaveChangesAsync();
+        await _auditService.LogAsync(
+            "Capitation.Updated",
+            AuditActor.Format(currentUser, User.Identity?.Name),
+            provider.Code,
+            AuditActor.Details(
+                $"Provider:{provider.Name}",
+                $"Month:{month:yyyy-MM}",
+                $"Status:{payment.PaymentStatus}",
+                $"CapitationPerEnrollee:NGN {payment.CapitationPerEnrollee:N2}",
+                $"Enrollees:{payment.EnrolleeCount}",
+                $"Utilization:{payment.UtilizationRate:N2}%",
+                string.IsNullOrWhiteSpace(payment.PaymentReference) ? null : $"PaymentRef:{payment.PaymentReference}",
+                string.IsNullOrWhiteSpace(proofPath) ? null : "Proof:Uploaded"),
+            HttpContext.RequestAborted);
         TempData["Success"] = $"Capitation payment updated for {provider.Name}.";
 
         return RedirectToAction(nameof(Capitation), new

@@ -1,24 +1,36 @@
 ﻿@using Microsoft.AspNetCore.Identity
 @using CTSHIPDashboard.Data
 @using Microsoft.EntityFrameworkCore
+@using Microsoft.AspNetCore.Hosting
 @inject SignInManager<ApplicationUser> SignInManager
 @inject UserManager<ApplicationUser> UserManager
 @inject ApplicationDbContext DbContext
+@inject IWebHostEnvironment WebHostEnvironment
 
 @{
     string homeUrl = Url.Content("~/");
+    string userProfilePhotoPath = ProfilePhotoStorage.DefaultPhotoPath;
+    ApplicationUser? signedInUser = null;
     bool providerCanUseClaimsNav = false;
     bool providerCanUseMonthlyReportsNav = false;
     bool providerCanUseReferralReportsNav = false;
 
     if (SignInManager.IsSignedIn(User))
     {
+        signedInUser = await UserManager.GetUserAsync(User);
+        if (signedInUser != null)
+        {
+            userProfilePhotoPath = ProfilePhotoStorage.ResolvePhotoPath(signedInUser.Id, WebHostEnvironment);
+        }
+
         homeUrl = User.IsInRole("Admin")
             ? Url.Action("Index", "Analytics", new { area = "" }) ?? Url.Content("~/Analytics/Index")
             : User.IsInRole("Reviewer")
                 ? Url.Action("Dashboard", "Claims", new { area = "" }) ?? Url.Content("~/Claims/Dashboard")
             : User.IsInRole("ReferralPro")
                 ? Url.Action("Dashboard", "ReferralPro", new { area = "" }) ?? Url.Content("~/ReferralPro/Dashboard")
+            : User.IsInRole("HmoEnrollmentOfficer")
+                ? Url.Action("Dashboard", "Enrollees", new { area = "" }) ?? Url.Content("~/Enrollees/Dashboard")
             : User.IsInRole("HMO")
                 ? Url.Action("Dashboard", "Hmo", new { area = "" }) ?? Url.Content("~/Hmo/Dashboard")
                 : User.IsInRole("Provider")
@@ -35,12 +47,11 @@
 
         if (User.IsInRole("Provider"))
         {
-            ApplicationUser? currentUser = await UserManager.GetUserAsync(User);
-            if (currentUser?.ProviderId.HasValue == true)
+            if (signedInUser?.ProviderId.HasValue == true)
             {
                 string? providerLevel = await DbContext.Providers
                     .AsNoTracking()
-                    .Where(provider => provider.Id == currentUser.ProviderId.Value)
+                    .Where(provider => provider.Id == signedInUser.ProviderId.Value)
                     .Select(provider => provider.Level)
                     .FirstOrDefaultAsync();
 
@@ -130,6 +141,15 @@
             font-size: 1.3rem;
         }
 
+        .ct-user-avatar {
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid rgba(255, 255, 255, .85);
+            flex: 0 0 34px;
+        }
+
         .ct-logout-divider {
             border-color: rgba(255, 255, 255, .35);
             opacity: 1;
@@ -163,7 +183,7 @@
             {
                 <div class="d-flex align-items-center">
                     <a asp-area="Identity" asp-page="/Account/Manage/Index" class="ct-user-link d-flex" title="Open profile">
-                        <i class="bi bi-person-circle"></i>
+                        <img class="ct-user-avatar" src="@userProfilePhotoPath" alt="Profile photo" />
                         <span class="d-none d-sm-flex">
                             <small>Welcome</small>
                             <strong>@User.Identity?.Name</strong>
@@ -197,6 +217,22 @@
                 <a asp-controller="HmoDeathRegisters" asp-action="Index" class="nav-link">
                     <i class="bi bi-clipboard2-pulse-fill"></i> Audit Death Records
                 </a>
+            }
+
+            @if (User.IsInRole("HmoEnrollmentOfficer"))
+            {
+                    <a asp-controller="Enrollees" asp-action="Dashboard" class="nav-link text-white">
+                        <i class="bi bi-speedometer2"></i> Enrollment Dashboard
+                    </a>
+                    <a asp-controller="Enrollees" asp-action="Create" class="nav-link text-white">
+                        <i class="bi bi-person-plus-fill"></i> Create Enrollee
+                    </a>
+                    <a asp-controller="Enrollees" asp-action="BulkUpload" class="nav-link text-white">
+                        <i class="bi bi-file-earmark-excel"></i> Bulk Enrolment with Excel
+                    </a>
+                    <a asp-controller="Enrollees" asp-action="Index" class="nav-link text-white">
+                        <i class="bi bi-people-fill"></i> Enrollee Directory
+                    </a>
             }
 
             @if (User.IsInRole("HMO"))
@@ -251,6 +287,9 @@
                     <a href="@Url.Content("~/ReferralPro/Referrals")" class="nav-link">
                         <i class="bi bi-hospital-fill"></i> Received Referrals
                     </a>
+                    <a asp-controller="ProviderDoctors" asp-action="Index" class="nav-link">
+                        <i class="bi bi-person-badge-fill"></i> Staff Directory
+                    </a>
                     <a asp-controller="StateOffice" asp-action="ReferralProviderReports" class="nav-link">
                         <i class="bi bi-clipboard-pulse"></i> Referral Provider Reports
                     </a>
@@ -282,6 +321,9 @@
                     <a asp-controller="Providers" asp-action="MyEnrollees" class="nav-link text-white">
                         <i class="bi bi-people-fill"></i> My Enrollees
                     </a>
+                    <a asp-controller="ProviderDoctors" asp-action="Index" class="nav-link">
+                        <i class="bi bi-person-badge-fill"></i> Staff Directory
+                    </a>
                     @if (providerCanUseClaimsNav)
                     {
                         <a asp-controller="Providers" asp-action="MyClaims" class="nav-link">
@@ -306,15 +348,8 @@
                     <a asp-controller="ProviderDeathRegisters" asp-action="Index" class="nav-link">
                         <i class="bi bi-clipboard2-pulse-fill"></i> Death Registers
                     </a>
-           }
-            @if (User.IsInRole("CTSHIPAdmin") || User.IsInRole("HMO") || User.IsInRole("Provider") ||
-                 User.IsInRole("StateOffice") || User.IsInRole("Monitoring") || User.IsInRole("NHIA") ||
-                 User.IsInRole("NEDCAdmin") || User.IsInRole("SSHIA"))
-            {
-                <a asp-controller="Complaints" asp-action="Index" class="nav-link">
-                    <i class="bi bi-chat-square-text-fill"></i> Complaint Management
-                </a>
             }
+          
               
 
             @if (User.IsInRole("CTSHIPAdmin") || User.IsInRole("Admin"))
@@ -427,6 +462,14 @@
                         <i class="bi bi-bar-chart-line-fill"></i> Monitoring & Evaluation
                     </a>
             }
+                    @if (User.IsInRole("CTSHIPAdmin") || User.IsInRole("HMO") || User.IsInRole("Provider") ||
+                                    User.IsInRole("StateOffice") || User.IsInRole("Monitoring") || User.IsInRole("NHIA") ||
+                                    User.IsInRole("NEDCAdmin") || User.IsInRole("SSHIA"))
+                    {
+                        <a asp-controller="Complaints" asp-action="Index" class="nav-link">
+                            <i class="bi bi-chat-square-text-fill"></i> Complaint Management
+                        </a>
+                    }
 
             <hr class="ct-logout-divider mx-3 my-2">
             <a asp-area="Identity" asp-page="/Account/Manage/Index" class="nav-link">

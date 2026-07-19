@@ -75,7 +75,12 @@
                             <button type="submit" class="btn btn-success btn-lg px-5 shadow fw-bold">
                                 <i class="bi bi-cloud-arrow-up-fill me-2"></i>Upload Enrollees
                             </button>
-                            @if (User.IsInRole("HMO"))
+                            @if (User.IsInRole("HmoEnrollmentOfficer"))
+                            {
+                                <a asp-action="Dashboard"
+                                   class="btn btn-outline-success btn-lg px-5">Cancel</a>
+                            }
+                            else if (User.IsInRole("HMO"))
                             {
                                 <a asp-controller="Hmo" asp-action="EnrolleeDashboard"
                                    class="btn btn-outline-success btn-lg px-5">Cancel</a>
@@ -91,7 +96,7 @@
 
                     <div class="card border-success shadow-sm">
                         <div class="card-header bg-success text-white">
-                            <h4 class="mb-0">Upload Guide — Required Excel Columns</h4>
+                            <h4 class="mb-0">Upload Guide - Required Excel Columns</h4>
                         </div>
                         <div class="table-responsive">
                             <table class="table table-striped align-middle mb-0">

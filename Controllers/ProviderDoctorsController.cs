@@ -1,5 +1,7 @@
 using CTSHIPDashboard.Data;
+using CTSHIPDashboard.Helpers;
 using CTSHIPDashboard.Models;
+using CTSHIPDashboard.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -7,18 +9,21 @@ using Microsoft.EntityFrameworkCore;
 
 namespace CTSHIPDashboard.Controllers
 {
-    [Authorize(Roles = "Provider")]
+    [Authorize(Roles = "Provider,ReferralPro")]
     public class ProviderDoctorsController : Controller
     {
         private readonly ApplicationDbContext _context;
         private readonly UserManager<ApplicationUser> _userManager;
+        private readonly IAuditService _auditService;
 
         public ProviderDoctorsController(
             ApplicationDbContext context,
-            UserManager<ApplicationUser> userManager)
+            UserManager<ApplicationUser> userManager,
+            IAuditService auditService)
         {
             _context = context;
             _userManager = userManager;
+            _auditService = auditService;
         }
 
         public async Task<IActionResult> Index(string search = "", string status = "all")
@@ -98,8 +103,19 @@ namespace CTSHIPDashboard.Controllers
             doctor.DateAdded = DateTime.UtcNow;
             _context.Doctors.Add(doctor);
             await _context.SaveChangesAsync();
+            ApplicationUser? currentUser = await _userManager.GetUserAsync(User);
+            await _auditService.LogAsync(
+                "Staff.Created",
+                AuditActor.Format(currentUser, User.Identity?.Name),
+                doctor.MedicalLicenseNumber,
+                AuditActor.Details(
+                    $"Name:{doctor.FullName}",
+                    $"Provider:{doctor.ProviderId}",
+                    $"Designation:{doctor.Designation ?? doctor.Specialty}",
+                    $"Active:{doctor.IsActive}"),
+                HttpContext.RequestAborted);
 
-            TempData["Success"] = $"{doctor.FullName} was added to the doctor directory.";
+            TempData["Success"] = $"{doctor.FullName} was added to the staff directory.";
             return RedirectToAction(nameof(Index));
         }
 
@@ -145,6 +161,17 @@ namespace CTSHIPDashboard.Controllers
             doctor.IsActive = model.IsActive;
 
             await _context.SaveChangesAsync();
+            ApplicationUser? currentUser = await _userManager.GetUserAsync(User);
+            await _auditService.LogAsync(
+                "Staff.Updated",
+                AuditActor.Format(currentUser, User.Identity?.Name),
+                doctor.MedicalLicenseNumber,
+                AuditActor.Details(
+                    $"Name:{doctor.FullName}",
+                    $"Provider:{doctor.ProviderId}",
+                    $"Designation:{doctor.Designation ?? doctor.Specialty}",
+                    $"Active:{doctor.IsActive}"),
+                HttpContext.RequestAborted);
             TempData["Success"] = $"{doctor.FullName}'s profile was updated.";
             return RedirectToAction(nameof(Index));
         }
@@ -173,13 +200,23 @@ namespace CTSHIPDashboard.Controllers
 
             if (await _context.Encounters.AnyAsync(encounter => encounter.DoctorId == id))
             {
-                TempData["Error"] = "This doctor has encounter history and cannot be deleted. Deactivate the profile instead.";
+                TempData["Error"] = "This staff profile has encounter history and cannot be deleted. Deactivate the profile instead.";
                 return RedirectToAction(nameof(Edit), new { id });
             }
 
             _context.Doctors.Remove(doctor);
             await _context.SaveChangesAsync();
-            TempData["Success"] = $"{doctor.FullName} was removed from the doctor directory.";
+            ApplicationUser? currentUser = await _userManager.GetUserAsync(User);
+            await _auditService.LogAsync(
+                "Staff.Deleted",
+                AuditActor.Format(currentUser, User.Identity?.Name),
+                doctor.MedicalLicenseNumber,
+                AuditActor.Details(
+                    $"Name:{doctor.FullName}",
+                    $"Provider:{doctor.ProviderId}",
+                    $"Designation:{doctor.Designation ?? doctor.Specialty}"),
+                HttpContext.RequestAborted);
+            TempData["Success"] = $"{doctor.FullName} was removed from the staff directory.";
             return RedirectToAction(nameof(Index));
         }
 
@@ -219,7 +256,7 @@ namespace CTSHIPDashboard.Controllers
             {
                 ModelState.AddModelError(
                     nameof(Doctor.MedicalLicenseNumber),
-                    "A doctor with this licence number already exists at your facility.");
+                    "A staff member with this licence number already exists at your facility.");
             }
         }
 

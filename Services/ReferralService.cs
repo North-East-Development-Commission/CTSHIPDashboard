@@ -2,6 +2,7 @@
 using CTSHIPDashboard.Enums;
 using CTSHIPDashboard.ViewModels;
 using CTSHIPDashboard.Data;
+using CTSHIPDashboard.Helpers;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Cryptography;
@@ -14,13 +15,16 @@ public class ReferralService : IReferralService
 
     private readonly ApplicationDbContext _context;
     private readonly IAppNotificationService _notificationService;
+    private readonly IAuditService _auditService;
 
     public ReferralService(
         ApplicationDbContext context,
-        IAppNotificationService notificationService)
+        IAppNotificationService notificationService,
+        IAuditService auditService)
     {
         _context = context;
         _notificationService = notificationService;
+        _auditService = auditService;
     }
 
     public async Task<List<ReferralIndexViewModel>> GetProviderReferralsAsync(string? providerId, string? search, CancellationToken cancellationToken = default)
@@ -249,6 +253,17 @@ public class ReferralService : IReferralService
         }
 
         await _context.SaveChangesAsync(cancellationToken);
+        await _auditService.LogAsync(
+            submitToHmo ? "Referral.CreatedAndSubmitted" : "Referral.Created",
+            AuditActor.Format(userName),
+            referral.Id.ToString(),
+            AuditActor.Details(
+                $"Enrollee:{referral.EnrolleeNumber}",
+                $"FromProvider:{referral.FromProviderName}",
+                $"HMO:{referral.HmoName}",
+                $"Status:{referral.Status}",
+                $"ReferredHospital:{referral.ReferredHospitalId}"),
+            cancellationToken);
         if (submitToHmo)
         {
             await _notificationService.NotifyReferralInitiatedAsync(referral.Id, cancellationToken);
@@ -280,6 +295,16 @@ public class ReferralService : IReferralService
         });
 
         await _context.SaveChangesAsync(cancellationToken);
+        await _auditService.LogAsync(
+            "Referral.Submitted",
+            AuditActor.Format(userName),
+            referral.Id.ToString(),
+            AuditActor.Details(
+                $"Enrollee:{referral.EnrolleeNumber}",
+                $"FromProvider:{referral.FromProviderName}",
+                $"HMO:{referral.HmoName}",
+                $"Status:{referral.Status}"),
+            cancellationToken);
         return true;
     }
 
@@ -317,6 +342,17 @@ public class ReferralService : IReferralService
         });
 
         await _context.SaveChangesAsync(cancellationToken);
+        await _auditService.LogAsync(
+            model.IsApproved ? "Referral.Verified" : "Referral.Rejected",
+            AuditActor.Format(userName),
+            referral.Id.ToString(),
+            AuditActor.Details(
+                $"Enrollee:{referral.EnrolleeNumber}",
+                $"FromProvider:{referral.FromProviderName}",
+                $"HMO:{referral.HmoName}",
+                $"Status:{referral.Status}",
+                $"Note:{model.VerificationNote}"),
+            cancellationToken);
         await _notificationService.NotifyReferralInitiatedAsync(referral.Id, cancellationToken);
         return true;
     }
@@ -339,6 +375,17 @@ public class ReferralService : IReferralService
 
         await IssueReferralVerificationCodeAsync(referral, userId, userName, cancellationToken);
         await _context.SaveChangesAsync(cancellationToken);
+        await _auditService.LogAsync(
+            "Referral.CodeReissued",
+            AuditActor.Format(userName),
+            referral.Id.ToString(),
+            AuditActor.Details(
+                $"Enrollee:{referral.EnrolleeNumber}",
+                $"Status:{referral.Status}",
+                referral.ReferralVerificationCodeExpiresAt.HasValue
+                    ? $"Expires:{referral.ReferralVerificationCodeExpiresAt.Value:yyyy-MM-dd HH:mm} UTC"
+                    : null),
+            cancellationToken);
         return true;
     }
 
@@ -418,6 +465,15 @@ public class ReferralService : IReferralService
         });
 
         await _context.SaveChangesAsync(cancellationToken);
+        await _auditService.LogAsync(
+            "Referral.CodeVerified",
+            AuditActor.Format(userName),
+            referral.Id.ToString(),
+            AuditActor.Details(
+                $"Enrollee:{referral.EnrolleeNumber}",
+                $"ReferredHospital:{referral.ReferredHospitalId}",
+                $"Status:{referral.Status}"),
+            cancellationToken);
         return ReferralCodeVerificationResult.Success(referral.Id, "Referral code verified. Referral details are now available.");
     }
 
@@ -446,6 +502,17 @@ public class ReferralService : IReferralService
         });
 
         await _context.SaveChangesAsync(cancellationToken);
+        await _auditService.LogAsync(
+            "Referral.Audited",
+            AuditActor.Format(userName),
+            referral.Id.ToString(),
+            AuditActor.Details(
+                $"Enrollee:{referral.EnrolleeNumber}",
+                $"FromProvider:{referral.FromProviderName}",
+                $"HMO:{referral.HmoName}",
+                $"Status:{referral.Status}",
+                $"Note:{model.AuditNote}"),
+            cancellationToken);
         return true;
     }
 

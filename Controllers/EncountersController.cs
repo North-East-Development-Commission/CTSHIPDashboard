@@ -206,10 +206,13 @@ namespace CTSHIPDashboard.Controllers
 
                     var actor = currentUser?.Email ?? User.Identity?.Name ?? "System";
                     await _auditService.LogAsync(
-                        "EncounterCreated",
-                        actor,
-                        encounter.EnrolleeId.ToString(),
-                        $"Encounter {encounter.EncounterNumber}; total NGN {encounter.TotalAmount:N2}.");
+                        "Encounter.Created",
+                        AuditActor.Format(currentUser, actor),
+                        encounter.EncounterNumber,
+                        AuditActor.Details(
+                            $"Enrollee:{encounter.EnrolleeId}",
+                            $"Provider:{encounter.ProviderId}",
+                            $"Total:NGN {encounter.TotalAmount:N2}"));
 
                     if (referralId.HasValue)
                     {
@@ -317,6 +320,17 @@ namespace CTSHIPDashboard.Controllers
                     existing.Services.Clear();
                     SetEncounterServices(existing, encounter.SelectedServices);
                     await _context.SaveChangesAsync();
+                    ApplicationUser? currentUser = await _userManager.GetUserAsync(User);
+                    await _auditService.LogAsync(
+                        "Encounter.Updated",
+                        AuditActor.Format(currentUser, User.Identity?.Name),
+                        existing.EncounterNumber,
+                        AuditActor.Details(
+                            $"Enrollee:{existing.EnrolleeId}",
+                            $"Provider:{existing.ProviderId}",
+                            $"Status:{existing.Status}",
+                            $"Total:NGN {existing.TotalAmount:N2}"),
+                        HttpContext.RequestAborted);
                     TempData["Success"] = $"Encounter {encounter.EncounterNumber} updated successfully!";
                   
                    return RedirectToAction("Index", "Encounters");
@@ -372,6 +386,16 @@ namespace CTSHIPDashboard.Controllers
                 _context.EncounterServices.RemoveRange(encounter.Services);
                 _context.Encounters.Remove(encounter);
                 await _context.SaveChangesAsync();
+                ApplicationUser? currentUser = await _userManager.GetUserAsync(User);
+                await _auditService.LogAsync(
+                    "Encounter.Deleted",
+                    AuditActor.Format(currentUser, User.Identity?.Name),
+                    encounter.EncounterNumber,
+                    AuditActor.Details(
+                        $"Enrollee:{encounter.EnrolleeId}",
+                        $"Provider:{encounter.ProviderId}",
+                        $"Total:NGN {encounter.TotalAmount:N2}"),
+                    HttpContext.RequestAborted);
                 TempData["Success"] = $"Encounter {encounter.EncounterNumber} deleted.";
             }
             return RedirectToAction(nameof(Index));
@@ -407,7 +431,7 @@ namespace CTSHIPDashboard.Controllers
                     id = enrollee.Id,
                     fullName = enrollee.FullName,
                     enrollmentNumber = enrollee.EnrollmentNumber,
-                    photoPath = enrollee.PhotoPath ?? "/img/icon-192.png",
+                    photoPath = EnrolleePhotoStorage.ResolvePhotoPath(enrollee.PhotoPath, enrollee.EnrollmentNumber),
                     hmoName = enrollee.Hmo?.Name ?? "Not Assigned",
                     state = enrollee.State
                 }
@@ -438,81 +462,10 @@ namespace CTSHIPDashboard.Controllers
             return Json(new { success = true, doctors });
         }
 
-        // CREATE CLAIM FROM ENCOUNTER — 100% SAFE & ACCURATE
         [Authorize(Roles = "Provider")]
-        public async Task<IActionResult> CreateClaim(int id)
+        public IActionResult CreateClaim(int id)
         {
-            var encounter = await _context.Encounters
-                .Include(e => e.Enrollee!)
-                    .ThenInclude(e => e.Hmo!)
-                .Include(e => e.Provider!)
-                .FirstOrDefaultAsync(e => e.Id == id && e.ClaimId == null);
-
-            // ENCOUNTER NOT FOUND OR ALREADY CLAIMED
-            if (encounter == null)
-            {
-                TempData["Error"] = "Encounter not found or already has a claim.";
-                return RedirectToAction("Index", "Encounters");
-            }
-
-            if (!await CanAccessProviderAsync(encounter.ProviderId))
-            {
-                return Forbid();
-            }
-
-            if (!ProviderClaimAccessHelper.CanUseClaims(encounter.Provider))
-            {
-                TempData["Error"] = ProviderClaimAccessHelper.ClaimsUnavailableMessage;
-                return RedirectToAction(nameof(Details), new { id });
-            }
-
-            if (encounter.Status == "Cancelled")
-            {
-                TempData["Error"] = "Cancelled encounters cannot be claimed.";
-                return RedirectToAction(nameof(Details), new { id });
-            }
-
-            // ENROLLEE HAS NO HMO — BLOCK CLAIM
-            if (encounter.Enrollee?.Hmo == null)
-            {
-                TempData["Error"] = $"Cannot create claim: {encounter.Enrollee?.FullName} has no HMO assigned.";
-                return RedirectToAction("Details", "Encounters", new { id });
-            }
-
-            // CREATE CLAIM WITH CORRECT HMO
-            var claim = new Claim
-            {
-                ClaimNumber = "CLM-" + DateTime.Now.ToString("yyyyMMddHHmmss"),
-                EnrolleeId = encounter.EnrolleeId,
-                ProviderId = encounter.ProviderId,
-                HmoId = encounter.Enrollee.HmoId,                    // CORRECT HMO!
-                Amount = encounter.TotalAmount,
-                Diagnosis = encounter.Diagnosis ?? encounter.ChiefComplaint ?? "Clinical encounter",
-                Treatment = encounter.TreatmentGiven ?? "Medical consultation and care",
-                DateSubmitted = DateTime.Now,
-                Status = "Submitted",
-                SubmittedBy = User.Identity?.Name ?? "Provider"
-            };
-
-            _context.Claims.Add(claim);
-            await _context.SaveChangesAsync();
-
-            // UPDATE ENCOUNTER
-            encounter.ClaimId = claim.Id;
-            encounter.Status = "Claimed";
-            await _context.SaveChangesAsync();
-
-            await _notificationService.NotifyClaimSubmittedAsync(claim.Id);
-
-            TempData["Success"] = $"Claim {claim.ClaimNumber} successfully created for {encounter.Enrollee.Hmo!.Name}!";
-            // Audit claim creation
-            try
-            {
-                var actor = User.Identity?.Name ?? "Unknown";
-                await _auditService.LogAsync("ClaimCreated", actor, encounter.Enrollee?.EnrollmentNumber, $"Claim:{claim.ClaimNumber}; Amount:NGN {claim.Amount:N2}; Encounter:{encounter.EncounterNumber}");
-            }
-            catch { }
-            return RedirectToAction("MyClaims", "Providers");
+            return RedirectToAction("CreateClaim", "Providers", new { id });
         }
 
         private async Task PrepareEncounterFormAsync(Encounter encounter)
@@ -627,7 +580,7 @@ namespace CTSHIPDashboard.Controllers
                     return providerDoctors[0];
                 }
 
-                ModelState.AddModelError(nameof(Encounter.DoctorId), "Select the attending doctor.");
+                ModelState.AddModelError(nameof(Encounter.DoctorId), "Select the hospital staff who attended this encounter.");
                 return null;
             }
 
@@ -640,7 +593,7 @@ namespace CTSHIPDashboard.Controllers
             {
                 ModelState.AddModelError(
                     nameof(Encounter.DoctorId),
-                    "Select an active doctor registered under this facility.");
+                    "Select an active hospital staff member registered under this facility.");
             }
 
             return doctor;

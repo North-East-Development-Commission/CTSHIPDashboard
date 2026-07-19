@@ -2,7 +2,7 @@
 
 <div class="row g-5">
     <div class="col-lg-4 text-center">
-        <img src="@(Model.PhotoPath ?? "/img/icon-192.png")"
+        <img src="@EnrolleePhotoStorage.ResolvePhotoPath(Model.PhotoPath, Model.EnrollmentNumber)"
              id="photoPreview"
              class="ct-enrollee-editor__photo mb-4"
              alt="@Model.FullName" />

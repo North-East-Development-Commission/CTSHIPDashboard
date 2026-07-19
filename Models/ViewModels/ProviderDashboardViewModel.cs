@@ -37,7 +37,7 @@ namespace CTSHIPDashboard.ViewModels
         // Unique Enrollees Treated at this Provider
         public List<Enrollee> Enrollees { get; set; } = new();
 
-        // Top Doctors Performance (using AttendedBy string)
+        // Top hospital staff performance (using the encounter staff snapshot)
         public List<TopDoctorStats> TopDoctors { get; set; } = new();
         public List<CTSHIPDashboard.Models.ViewModels.ServiceFrequencyViewModel> MostUsedServices { get; set; } = new();
     }

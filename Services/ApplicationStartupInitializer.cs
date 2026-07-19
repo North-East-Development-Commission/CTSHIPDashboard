@@ -12,6 +12,7 @@ namespace CTSHIPDashboard.Services
             "Admin",
             "CTSHIPAdmin",
             "HMO",
+            "HmoEnrollmentOfficer",
             "Provider",
             "SSHIA",
             "Monitoring",

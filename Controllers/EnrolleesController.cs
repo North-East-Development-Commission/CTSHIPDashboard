@@ -19,6 +19,11 @@ using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
 
 public class EnrolleesController : Controller
 {
+    private const string HmoEnrollmentOfficerRole = "HmoEnrollmentOfficer";
+    private const string EnrolleeManageRoles = "CTSHIPAdmin,HMO,HmoEnrollmentOfficer";
+    private const string EnrolleeViewRoles = "CTSHIPAdmin,HMO,HmoEnrollmentOfficer,Provider,Monitoring";
+    private const string EnrolleeDashboardRoles = "HMO,HmoEnrollmentOfficer";
+
     private readonly ApplicationDbContext _context;
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly IWebHostEnvironment _hostEnvironment;
@@ -32,6 +37,26 @@ public class EnrolleesController : Controller
         _hostEnvironment = hostEnvironment;
         _deathRegisterService = deathRegisterService;
         _auditService = auditService;
+    }
+
+    private bool IsHmoEnrollmentScopedUser()
+    {
+        return User.IsInRole("HMO") || User.IsInRole(HmoEnrollmentOfficerRole);
+    }
+
+    private IActionResult RedirectAfterEnrollmentChange()
+    {
+        if (User.IsInRole(HmoEnrollmentOfficerRole))
+        {
+            return RedirectToAction(nameof(Dashboard));
+        }
+
+        if (User.IsInRole("HMO"))
+        {
+            return RedirectToAction("EnrolleeDashboard", "Hmo");
+        }
+
+        return RedirectToAction(nameof(Index));
     }
 
     //death register service injection
@@ -67,7 +92,7 @@ public class EnrolleesController : Controller
 
     // INDEX — ALL ENROLLEES
     // GET: /Enrollee or /Enrollee/Index
-    [Authorize(Roles = "CTSHIPAdmin,HMO,Monitoring")]
+    [Authorize(Roles = "CTSHIPAdmin,HMO,HmoEnrollmentOfficer,Monitoring")]
     public async Task<IActionResult> Index(
         string search = "",      // Search by name, phone, NIN, or enrollment number
         string status = "",      // "Active", "Inactive", "Suspended", etc.
@@ -80,6 +105,20 @@ public class EnrolleesController : Controller
         var enrollees = _context.Enrollees
             .Include(e => e.Hmo)
             .AsQueryable();
+
+        ApplicationUser? currentUser = await _userManager.GetUserAsync(User);
+        int? restrictedHmoId = IsHmoEnrollmentScopedUser() ? currentUser?.HmoId : null;
+        if (IsHmoEnrollmentScopedUser() && !restrictedHmoId.HasValue)
+        {
+            TempData["Error"] = "Your account is not linked to an HMO.";
+            return RedirectToAction("Index", "Home");
+        }
+
+        if (restrictedHmoId.HasValue)
+        {
+            enrollees = enrollees.Where(e => e.HmoId == restrictedHmoId.Value);
+            hmo = restrictedHmoId.Value.ToString();
+        }
 
         // SEARCH — Smart multi-field search
         if (!string.IsNullOrWhiteSpace(search))
@@ -163,10 +202,22 @@ public class EnrolleesController : Controller
         new { Value = "Suspended", Text = "Suspended" }
     }, "Value", "Text", status);
 
-        ViewBag.StateList = new SelectList(await _context.Enrollees
+        IQueryable<Enrollee> stateQuery = _context.Enrollees.AsNoTracking();
+        if (restrictedHmoId.HasValue)
+        {
+            stateQuery = stateQuery.Where(e => e.HmoId == restrictedHmoId.Value);
+        }
+
+        ViewBag.StateList = new SelectList(await stateQuery
             .Select(e => e.State).Distinct().OrderBy(s => s).ToListAsync(), state);
 
-        ViewBag.HmoList = new SelectList(await _context.Hmos
+        IQueryable<Hmo> hmoQuery = _context.Hmos.AsNoTracking();
+        if (restrictedHmoId.HasValue)
+        {
+            hmoQuery = hmoQuery.Where(h => h.Id == restrictedHmoId.Value);
+        }
+
+        ViewBag.HmoList = new SelectList(await hmoQuery
             .Select(h => new { h.Id, h.Name })
             .OrderBy(h => h.Name)
             .ToListAsync(), "Id", "Name", hmo);
@@ -176,7 +227,7 @@ public class EnrolleesController : Controller
 
     // CREATE
     // GET: Enrollee/Create
-    [Authorize(Roles = "CTSHIPAdmin,HMO")]
+    [Authorize(Roles = EnrolleeManageRoles)]
     public async Task<IActionResult> Create()
     {
         var enrollee = new Enrollee();
@@ -187,13 +238,14 @@ public class EnrolleesController : Controller
     // POST: Enrollee/Create
     [HttpPost]
     [ValidateAntiForgeryToken]
+    [Authorize(Roles = EnrolleeManageRoles)]
     public async Task<IActionResult> Create(Enrollee enrollee)
     {
         // Remove EnrollmentNumber from validation (we generate it)
         ModelState.Remove(nameof(Enrollee.EnrollmentNumber));
 
         ApplicationUser? currentUser = await _userManager.GetUserAsync(User);
-        if (User.IsInRole("HMO"))
+        if (IsHmoEnrollmentScopedUser())
         {
             if (currentUser?.HmoId == null)
             {
@@ -261,17 +313,19 @@ public class EnrolleesController : Controller
             _context.Enrollees.Add(enrollee);
             await _context.SaveChangesAsync();
 
+            await _auditService.LogAsync(
+                "Enrollee.Created",
+                AuditActor.Format(currentUser, User.Identity?.Name),
+                enrollee.EnrollmentNumber,
+                AuditActor.Details(
+                    $"Name:{enrollee.FullName}",
+                    $"HMO:{enrollee.HmoId}",
+                    $"Provider:{enrollee.ProviderId}",
+                    $"State:{enrollee.State}"),
+                HttpContext.RequestAborted);
+
             TempData["Success"] = $"Enrollee registered successfully! Enrollment ID: {enrollee.EnrollmentNumber}";
-            // Redirect based on Role
-            if (User.IsInRole("HMO"))
-            {
-                return RedirectToAction("EnrolleeDashboard", "Hmo");
-            }
-            else if (User.IsInRole("CTSHIPAdmin")) 
-            {
-                return RedirectToAction("Index", "Enrollees");
-            }
-            return RedirectToAction(nameof(Index));
+            return RedirectAfterEnrollmentChange();
         }
 
         // If failed, repopulate dropdowns
@@ -282,7 +336,7 @@ public class EnrolleesController : Controller
     private async Task PopulateCreateDropdownsAsync(Enrollee enrollee)
     {
         ApplicationUser? currentUser = await _userManager.GetUserAsync(User);
-        int? restrictedHmoId = User.IsInRole("HMO") ? currentUser?.HmoId : null;
+        int? restrictedHmoId = IsHmoEnrollmentScopedUser() ? currentUser?.HmoId : null;
 
         if (restrictedHmoId.HasValue)
         {
@@ -355,26 +409,26 @@ public class EnrolleesController : Controller
     }
 
     // EDIT
-    [Authorize(Roles = "CTSHIPAdmin,HMO")]
+    [Authorize(Roles = EnrolleeManageRoles)]
     public async Task<IActionResult> Edit(int id)
     {
         var enrollee = await _context.Enrollees.AsNoTracking().FirstOrDefaultAsync(e => e.Id == id);
         if (enrollee == null) return NotFound();
 
         ApplicationUser? currentUser = await _userManager.GetUserAsync(User);
-        if (User.IsInRole("HMO")
+        if (IsHmoEnrollmentScopedUser()
             && (!(currentUser?.HmoId.HasValue ?? false) || enrollee.HmoId != currentUser!.HmoId))
         {
             return Forbid();
         }
 
-        await PopulateEditDropdownsAsync(enrollee, User.IsInRole("HMO") ? currentUser?.HmoId : null);
+        await PopulateEditDropdownsAsync(enrollee, IsHmoEnrollmentScopedUser() ? currentUser?.HmoId : null);
         return View(enrollee);
     }
 
     [HttpPost]
     [ValidateAntiForgeryToken]
-    [Authorize(Roles = "CTSHIPAdmin,HMO")]
+    [Authorize(Roles = EnrolleeManageRoles)]
     public async Task<IActionResult> Edit(int id, Enrollee enrollee)
     {
         if (id != enrollee.Id) return NotFound();
@@ -384,8 +438,8 @@ public class EnrolleesController : Controller
         if (existing == null) return NotFound();
 
         ApplicationUser? currentUser = await _userManager.GetUserAsync(User);
-        int? restrictedHmoId = User.IsInRole("HMO") ? currentUser?.HmoId : null;
-        if (User.IsInRole("HMO")
+        int? restrictedHmoId = IsHmoEnrollmentScopedUser() ? currentUser?.HmoId : null;
+        if (IsHmoEnrollmentScopedUser()
             && (!restrictedHmoId.HasValue || existing.HmoId != restrictedHmoId))
         {
             return Forbid();
@@ -444,13 +498,20 @@ public class EnrolleesController : Controller
 
                 await _context.SaveChangesAsync();
 
-                TempData["Success"] = "Enrollee updated successfully!";
-                if (User.IsInRole("HMO"))
-                {
-                    return RedirectToAction("EnrolleeDashboard", "Hmo");
-                }
+                await _auditService.LogAsync(
+                    "Enrollee.Updated",
+                    AuditActor.Format(currentUser, User.Identity?.Name),
+                    existing.EnrollmentNumber,
+                    AuditActor.Details(
+                        $"Name:{existing.FullName}",
+                        $"Status:{existing.Status}",
+                        $"HMO:{existing.HmoId}",
+                        $"Provider:{existing.ProviderId}",
+                        enrollee.PhotoFile != null ? "Photo:Updated" : null),
+                    HttpContext.RequestAborted);
 
-                return RedirectToAction("Index", "Enrollees");
+                TempData["Success"] = "Enrollee updated successfully!";
+                return RedirectAfterEnrollmentChange();
             }
         }
 
@@ -520,7 +581,7 @@ public class EnrolleesController : Controller
     }
 
     // DETAILS
-    [Authorize(Roles = "CTSHIPAdmin,HMO,Provider,Monitoring")]
+    [Authorize(Roles = EnrolleeViewRoles)]
     public async Task<IActionResult> Details(int id)
     {
         var enrollee = await _context.Enrollees
@@ -528,6 +589,14 @@ public class EnrolleesController : Controller
             .Include(e => e.MedicalHistories)
             .FirstOrDefaultAsync(e => e.Id == id);
         if (enrollee == null) return NotFound();
+
+        ApplicationUser? currentUser = await _userManager.GetUserAsync(User);
+        if (IsHmoEnrollmentScopedUser()
+            && (!(currentUser?.HmoId.HasValue ?? false) || enrollee.HmoId != currentUser!.HmoId))
+        {
+            return Forbid();
+        }
+
         return View(enrollee);
     }
 
@@ -600,7 +669,7 @@ public class EnrolleesController : Controller
     }
 
     [HttpGet]
-    [Authorize(Roles = "CTSHIPAdmin,HMO")]
+    [Authorize(Roles = EnrolleeManageRoles)]
     public IActionResult GetLgasByState(string state)
     {
         if (!NorthEastLocationData.IsValidState(state))
@@ -612,7 +681,7 @@ public class EnrolleesController : Controller
     }
 
     [HttpGet]
-    [Authorize(Roles = "CTSHIPAdmin,HMO")]
+    [Authorize(Roles = EnrolleeManageRoles)]
     public async Task<IActionResult> GetWardsByLga(string state, string lga)
     {
         if (!NorthEastLocationData.IsValidLga(state, lga))
@@ -636,14 +705,14 @@ public class EnrolleesController : Controller
     }
 
     // GET: Enrollee/BulkUpload
-    [Authorize(Roles = "CTSHIPAdmin,HMO")]
+    [Authorize(Roles = EnrolleeManageRoles)]
     public async Task<IActionResult> BulkUpload()
     {
         ApplicationUser? currentUser = await _userManager.GetUserAsync(User);
         IQueryable<Hmo> hmos = _context.Hmos.AsNoTracking();
         IQueryable<Provider> providers = _context.Providers.AsNoTracking();
 
-        if (User.IsInRole("HMO"))
+        if (IsHmoEnrollmentScopedUser())
         {
             if (currentUser?.HmoId == null)
             {
@@ -676,7 +745,7 @@ public class EnrolleesController : Controller
     }
 
     [HttpGet]
-    [Authorize(Roles = "CTSHIPAdmin,HMO")]
+    [Authorize(Roles = EnrolleeManageRoles)]
     public IActionResult DownloadBulkUploadTemplate()
     {
         using var package = new ExcelPackage();
@@ -758,7 +827,7 @@ public class EnrolleesController : Controller
     // POST: Enrollee/BulkUpload
     [HttpPost]
     [ValidateAntiForgeryToken]
-    [Authorize(Roles = "CTSHIPAdmin,HMO")]
+    [Authorize(Roles = EnrolleeManageRoles)]
     public async Task<IActionResult> BulkUpload(IFormFile excelFile, int hmoId, int providerId)
     {
         if (excelFile == null || excelFile.Length == 0)
@@ -774,7 +843,7 @@ public class EnrolleesController : Controller
         }
 
         ApplicationUser? currentUser = await _userManager.GetUserAsync(User);
-        if (User.IsInRole("HMO"))
+        if (IsHmoEnrollmentScopedUser())
         {
             if (currentUser?.HmoId == null)
             {
@@ -1011,16 +1080,18 @@ public class EnrolleesController : Controller
             {
                 _context.Enrollees.AddRange(enrollees);
                 await _context.SaveChangesAsync();
+                await _auditService.LogAsync(
+                    "Enrollee.BulkUploaded",
+                    AuditActor.Format(currentUser, User.Identity?.Name),
+                    selectedProvider.Name,
+                    AuditActor.Details(
+                        $"Imported:{enrollees.Count}",
+                        $"HMO:{selectedHmo.Name}",
+                        $"Provider:{selectedProvider.Name}",
+                        $"File:{excelFile.FileName}"),
+                    HttpContext.RequestAborted);
                 TempData["Success"] = $"{enrollees.Count} enrollees uploaded successfully!";
-                if (User.IsInRole("HMO"))
-                {
-                    return RedirectToAction("EnrolleeDashboard", "Hmo");
-                }
-                else if (User.IsInRole("Admin"))
-                {
-                    return RedirectToAction("Index", "Enrollees");
-                }
-                return RedirectToAction(nameof(BulkUpload));
+                return RedirectAfterEnrollmentChange();
 
             }
         }
@@ -1062,6 +1133,7 @@ public class EnrolleesController : Controller
     [Authorize(Roles = "CTSHIPAdmin, HMO")]
     public async Task<IActionResult> DeleteConfirmed(int id)
     {
+        ApplicationUser? currentUser = await _userManager.GetUserAsync(User);
         var enrollee = await _context.Enrollees
             .Include(e => e.Encounters)
             .Include(e => e.Claims)
@@ -1093,6 +1165,16 @@ public class EnrolleesController : Controller
             _context.Enrollees.Remove(enrollee);
             await _context.SaveChangesAsync();
 
+            await _auditService.LogAsync(
+                "Enrollee.Deleted",
+                AuditActor.Format(currentUser, User.Identity?.Name),
+                enrollee.EnrollmentNumber,
+                AuditActor.Details(
+                    $"Name:{enrollee.FullName}",
+                    $"HMO:{enrollee.HmoId}",
+                    $"Provider:{enrollee.ProviderId}"),
+                HttpContext.RequestAborted);
+
             TempData["Success"] = $"Enrollee {enrollee.FullName} ({enrollee.EnrollmentNumber}) deleted permanently.";
         }
         catch (Exception)
@@ -1103,7 +1185,7 @@ public class EnrolleesController : Controller
         return RedirectToAction(nameof(Index));
     }
 
-    [Authorize(Roles = "HMO")]
+    [Authorize(Roles = EnrolleeDashboardRoles)]
     public async Task<IActionResult> Dashboard(
     string search = "",
     string status = "All",
@@ -1118,9 +1200,11 @@ public class EnrolleesController : Controller
             return RedirectToAction("Index", "Home");
         }
 
+        int currentHmoId = currentUser.HmoId.Value;
+
         var query = _context.Enrollees
             .Include(e => e.Hmo)
-            .Where(e => e.HmoId == currentUser.HmoId.Value);
+            .Where(e => e.HmoId == currentHmoId);
 
         // SEARCH — USE EF.Functions.Like() FOR CASE-INSENSITIVE SEARCH
         if (!string.IsNullOrWhiteSpace(search))
@@ -1136,7 +1220,7 @@ public class EnrolleesController : Controller
         if (status == "Active")
             query = query.Where(e => e.Status == "Active");
         else if (status == "Inactive")
-            query = query.Where(e => e.Status == "Active");
+            query = query.Where(e => e.Status != "Active");
 
         // FILTER BY STATE
         if (state != "All" && !string.IsNullOrEmpty(state))
@@ -1153,16 +1237,17 @@ public class EnrolleesController : Controller
             .ToListAsync();
 
         // VIEW DATA
-        ViewBag.HmoName = enrollees.FirstOrDefault()?.Hmo?.Name ?? "Your HMO";
+        ViewBag.HmoName = await _context.Hmos
+            .Where(h => h.Id == currentHmoId)
+            .Select(h => h.Name)
+            .FirstOrDefaultAsync() ?? "Your HMO";
         ViewBag.TotalEnrollees = totalItems;
         ViewBag.ActiveEnrollees = await _context.Enrollees
-            .CountAsync(e => e.HmoId == currentUser.HmoId && e.Status == "Active");
-        ViewBag.TotalEncounters = await _context.Enrollees
-            .Where(e => e.HmoId == currentUser.HmoId)
-            .SumAsync(e => e.Encounters.Count);
-        ViewBag.TotalClaims = await _context.Enrollees
-            .Where(e => e.HmoId == currentUser.HmoId)
-            .SumAsync(e => e.Claims.Count);
+            .CountAsync(e => e.HmoId == currentHmoId && e.Status == "Active");
+        ViewBag.TotalEncounters = await _context.Encounters
+            .CountAsync(e => e.Enrollee != null && e.Enrollee.HmoId == currentHmoId);
+        ViewBag.TotalClaims = await _context.Claims
+            .CountAsync(e => e.HmoId == currentHmoId);
 
         ViewBag.Search = search;
         ViewBag.Status = status;

@@ -17,7 +17,7 @@
             <div class="ct-id-card__body">
                 <div class="ct-id-card__media">
                     <img class="ct-id-card__photo"
-                         src="@(Model.PhotoPath ?? "/img/icon-192.png")"
+                         src="@EnrolleePhotoStorage.ResolvePhotoPath(Model.PhotoPath, Model.EnrollmentNumber)"
                          alt="@Model.FullName" />
                     <img class="ct-id-card__qr"
                          src="@ViewBag.QrCodeImage"

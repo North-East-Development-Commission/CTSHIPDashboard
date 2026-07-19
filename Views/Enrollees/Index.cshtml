@@ -2,17 +2,23 @@
 
 
 @{
-    bool canManageEnrollees = User.IsInRole("CTSHIPAdmin") || User.IsInRole("HMO");
+    bool canEditEnrollees = User.IsInRole("CTSHIPAdmin") || User.IsInRole("HMO") || User.IsInRole("HmoEnrollmentOfficer");
+    bool canDeleteEnrollees = User.IsInRole("CTSHIPAdmin") || User.IsInRole("HMO");
 }
 
 <div class="container-fluid py-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h2 class="text-success fw-bold display-6">Enrollee Directory</h2>
-        @if (canManageEnrollees)
+        @if (canEditEnrollees)
         {
-            <a asp-action="Create" class="btn btn-success btn-lg shadow">
-                Register New Enrollee
-            </a>
+            <div class="d-flex flex-wrap gap-2 justify-content-end">
+                <a asp-action="Create" class="btn btn-success btn-lg shadow">
+                    <i class="bi bi-person-plus-fill me-1"></i> Register New Enrollee
+                </a>
+                <a asp-action="BulkUpload" class="btn btn-outline-success btn-lg shadow-sm">
+                    <i class="bi bi-file-earmark-excel me-1"></i> Bulk Upload
+                </a>
+            </div>
         }
     </div>
 
@@ -75,17 +81,8 @@
                     {
                         <tr>
                             <td>
-                                @if (!string.IsNullOrEmpty(e.PhotoPath))
-                                {
-                                    <img src="@e.PhotoPath" class="rounded-circle" style="width:50px;height:50px;object-fit:cover;" />
-                                }
-                                else
-                                {
-                                    <div class="bg-secondary rounded-circle d-flex align-items-center justify-content-center text-white fw-bold"
-                                         style="width:50px;height:50px;">
-                                        @(e.FullName.Length > 0 ? e.FullName[0].ToString().ToUpper() : "?")
-                                    </div>
-                                }
+                                <img src="@EnrolleePhotoStorage.ResolvePhotoPath(e.PhotoPath, e.EnrollmentNumber)"
+                                     class="rounded-circle" style="width:50px;height:50px;object-fit:cover;" />
                             </td>
                             <td><strong>@e.FullName</strong></td>
                             <td><span class="badge bg-primary fs-6">@e.EnrollmentNumber</span></td>
@@ -106,9 +103,12 @@
 
                             <td>
                                 <a asp-action="Details" asp-route-id="@e.Id" class="btn btn-info btn-sm">View</a>
-                                @if (canManageEnrollees)
+                                @if (canEditEnrollees)
                                 {
                                     <a asp-action="Edit" asp-route-id="@e.Id" class="btn btn-warning btn-sm">Edit</a>
+                                }
+                                @if (canDeleteEnrollees)
+                                {
                                     <a asp-action="Delete" asp-route-id="@e.Id" class="btn btn-danger btn-sm">Delete</a>
                                 }
                             </td>

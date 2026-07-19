@@ -2,6 +2,7 @@
 using CTSHIPDashboard.Helpers;
 using CTSHIPDashboard.Hubs;
 using CTSHIPDashboard.Models;
+using CTSHIPDashboard.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -18,15 +19,18 @@ namespace CTSHIPDashboard.Controllers
         private readonly ApplicationDbContext _context;
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly IHubContext<AnalyticsHub> _hubContext;
+        private readonly IAuditService _auditService;
 
         public ClaimsController(
             ApplicationDbContext context,
             UserManager<ApplicationUser> userManager,
-            IHubContext<AnalyticsHub> hubContext)
+            IHubContext<AnalyticsHub> hubContext,
+            IAuditService auditService)
         {
             _context = context;
             _userManager = userManager;
             _hubContext = hubContext;
+            _auditService = auditService;
         }
 
         // INDEX — ALL CLAIMS WITH FILTERS & SEARCH
@@ -139,7 +143,7 @@ namespace CTSHIPDashboard.Controllers
                     id = enrollee.Id,
                     fullName = enrollee.FullName,
                     enrollmentNumber = enrollee.EnrollmentNumber,
-                    photoPath = enrollee.PhotoPath ?? "/img/icon-192.png",
+                    photoPath = EnrolleePhotoStorage.ResolvePhotoPath(enrollee.PhotoPath, enrollee.EnrollmentNumber),
                     hmoName = enrollee.Hmo?.Name ?? "Not Assigned",
                     state = enrollee.State
                 }
@@ -168,7 +172,7 @@ namespace CTSHIPDashboard.Controllers
                     id = enrollee.Id,
                     fullName = enrollee.FullName,
                     enrollmentNumber = enrollee.EnrollmentNumber,
-                    photoPath = enrollee.PhotoPath ?? "/img/icon-192.png",
+                    photoPath = EnrolleePhotoStorage.ResolvePhotoPath(enrollee.PhotoPath, enrollee.EnrollmentNumber),
                     hmoName = enrollee.Hmo?.Name ?? "Not Assigned",
                     state = enrollee.State
                 }
@@ -224,6 +228,16 @@ namespace CTSHIPDashboard.Controllers
                 existing.ProviderId = claim.ProviderId;
 
                 await _context.SaveChangesAsync();
+                ApplicationUser? currentUser = await _userManager.GetUserAsync(User);
+                await _auditService.LogAsync(
+                    "Claim.Updated",
+                    AuditActor.Format(currentUser, User.Identity?.Name),
+                    existing.ClaimNumber,
+                    AuditActor.Details(
+                        $"Amount:NGN {existing.Amount:N2}",
+                        $"Provider:{existing.ProviderId}",
+                        $"Status:{existing.Status}"),
+                    HttpContext.RequestAborted);
                 TempData["Success"] = "Claim updated successfully!";
                 return RedirectToAction(nameof(Index));
             }
@@ -267,6 +281,17 @@ namespace CTSHIPDashboard.Controllers
                 _context.ClaimSupportingDocuments.RemoveRange(claim.SupportingDocuments);
                 _context.Claims.Remove(claim);
                 await _context.SaveChangesAsync();
+
+                ApplicationUser? currentUser = await _userManager.GetUserAsync(User);
+                await _auditService.LogAsync(
+                    "Claim.Deleted",
+                    AuditActor.Format(currentUser, User.Identity?.Name),
+                    claim.ClaimNumber,
+                    AuditActor.Details(
+                        $"Amount:NGN {claim.Amount:N2}",
+                        $"Provider:{claim.ProviderId}",
+                        $"Enrollee:{claim.EnrolleeId}"),
+                    HttpContext.RequestAborted);
 
                 await _hubContext.Clients.All.SendAsync("ClaimDeleted", id);
                 TempData["Success"] = $"Claim {claim.ClaimNumber} deleted permanently.";
@@ -318,6 +343,15 @@ namespace CTSHIPDashboard.Controllers
             }
 
             await _context.SaveChangesAsync();
+            await _auditService.LogAsync(
+                action == "reject" ? "Claim.ReviewRejected" : "Claim.ReviewApproved",
+                AuditActor.Format(user, User.Identity?.Name),
+                claim.ClaimNumber,
+                AuditActor.Details(
+                    $"Status:{claim.Status}",
+                    $"Amount:NGN {claim.Amount:N2}",
+                    $"Notes:{notes}"),
+                HttpContext.RequestAborted);
             TempData["Success"] = $"Claim {claim.ClaimNumber} has been {claim.Status}!";
             return RedirectToClaimsLanding();
         }
@@ -372,6 +406,16 @@ namespace CTSHIPDashboard.Controllers
             }
 
             await _context.SaveChangesAsync();
+            await _auditService.LogAsync(
+                action == "reject" ? "Claim.PaymentRejected" : "Claim.Paid",
+                AuditActor.Format(user, User.Identity?.Name),
+                claim.ClaimNumber,
+                AuditActor.Details(
+                    $"Status:{claim.Status}",
+                    $"Amount:NGN {claim.Amount:N2}",
+                    string.IsNullOrWhiteSpace(claim.PaymentReference) ? null : $"PaymentRef:{claim.PaymentReference}",
+                    $"Notes:{notes}"),
+                HttpContext.RequestAborted);
             TempData["Success"] = $"Claim {claim.ClaimNumber} is now {claim.Status}!";
             return RedirectToClaimsLanding();
         }

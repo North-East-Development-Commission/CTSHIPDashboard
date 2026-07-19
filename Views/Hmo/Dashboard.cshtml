@@ -17,7 +17,7 @@
 
     <!-- KPI CARDS -->
     <div class="row g-4 mb-5 text-center">
-        <div class="col-xl-3 col-md-6">
+        <div class="col-xl-4 col-md-6">
             <div class="card bg-success text-white shadow-lg h-100">
                 <div class="card-body py-3">
                     <i class="bi bi-people fs-1 mb-3"></i>
@@ -26,7 +26,7 @@
                 </div>
             </div>
         </div>
-        <div class="col-xl-3 col-md-6">
+        <div class="col-xl-4 col-md-6">
             <div class="card bg-info text-white shadow-lg h-100">
                 <div class="card-body py-3">
                     <i class="bi bi-file-medical fs-1 mb-3"></i>
@@ -35,35 +35,12 @@
                 </div>
             </div>
         </div>
-        <div class="col-xl-3 col-md-6">
+        <div class="col-xl-4 col-md-6">
             <div class="card bg-success text-white shadow-lg h-100">
                 <div class="card-body py-3">
                     <i class="bi bi-hospital fs-1 mb-3"></i>
                     <h5>Providers</h5>
                     <h2 class="display-5 fw-bold">@ViewBag.ProviderCount</h2>
-                </div>
-            </div>
-        </div>
-        <div class="col-xl-3 col-md-6">
-            <div class="card bg-warning text-dark shadow-lg h-100">
-                <div class="card-body py-3">
-                    <i class="bi bi-file-medical fs-1 mb-3"></i>
-                    <h5>Claims Value</h5>
-                    <h2 class="display-5 fw-bold">₦@((int)ViewBag.TotalClaimAmount)</h2>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Additional KPIs -->
-    <div class="row g-4 mb-5 text-center">
-        <div class="col-md-12">
-            <div class="card border-0 shadow-lg h-100">
-                <div class="card-body py-4">
-                    <i class="bi bi-heartbreak fs-1 mb-3 text-danger"></i>
-                    <h5 class="fw-bold">Recorded Deaths (Audited)</h5>
-                    <h2 class="display-5 fw-bold">@ViewBag.DeathCount</h2>
-                    <p class="mb-0 opacity-75">Rate: @ViewBag.DeathRatePerThousand per 1,000 enrollees</p>
                 </div>
             </div>
         </div>
@@ -143,7 +120,7 @@
                 <div class="card-body text-center py-3">
                     <i class="bi bi-check-circle-fill fs-1 mb-3"></i>
                     <h5>Approved Claims</h5>
-                    <h2 class="display-5 fw-bold">@(ViewBag.PaidClaims.ToString("N2"))</h2>
+                    <h2 class="display-5 fw-bold">@ViewBag.PaidClaims</h2>
                 </div>
             </div>
         </div>

@@ -78,7 +78,18 @@
                     <button type="submit" class="btn btn-success btn-lg px-5 shadow-lg">
                         REGISTER ENROLLEE
                     </button>
-                    <a asp-action="Index" class="btn btn-secondary btn-lg px-5 ms-3">Cancel</a>
+                    @if (User.IsInRole("HmoEnrollmentOfficer"))
+                    {
+                        <a asp-action="Dashboard" class="btn btn-secondary btn-lg px-5 ms-3">Cancel</a>
+                    }
+                    else if (User.IsInRole("HMO"))
+                    {
+                        <a asp-controller="Hmo" asp-action="EnrolleeDashboard" class="btn btn-secondary btn-lg px-5 ms-3">Cancel</a>
+                    }
+                    else
+                    {
+                        <a asp-action="Index" class="btn btn-secondary btn-lg px-5 ms-3">Cancel</a>
+                    }
                 </div>
             </form>
         </div>

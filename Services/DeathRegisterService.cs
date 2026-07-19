@@ -1,4 +1,5 @@
 ﻿using CTSHIPDashboard.Data;
+using CTSHIPDashboard.Helpers;
 using CTSHIPDashboard.Models;
 using CTSHIPDashboard.Models.Enums;
 using CTSHIPDashboard.Models.ViewModels;
@@ -9,10 +10,14 @@ namespace CTSHIPDashboard.Services
     public class DeathRegisterService : IDeathRegisterService
     {
         private readonly ApplicationDbContext _context;
+        private readonly IAuditService _auditService;
 
-        public DeathRegisterService(ApplicationDbContext context)
+        public DeathRegisterService(
+            ApplicationDbContext context,
+            IAuditService auditService)
         {
             _context = context;
+            _auditService = auditService;
         }
 
         public async Task<List<DeathRegisterIndexViewModel>> GetProviderDeathRegistersAsync(
@@ -156,6 +161,16 @@ namespace CTSHIPDashboard.Services
             }
 
             await _context.SaveChangesAsync(cancellationToken);
+            await _auditService.LogAsync(
+                submitToHmo ? "DeathRegister.CreatedAndSubmitted" : "DeathRegister.Created",
+                AuditActor.Format(userName),
+                deathRegister.EnrolleeNumber,
+                AuditActor.Details(
+                    $"Name:{deathRegister.EnrolleeFullName}",
+                    $"Provider:{deathRegister.ProviderName}",
+                    $"HMO:{deathRegister.HmoName}",
+                    $"Status:{deathRegister.Status}"),
+                cancellationToken);
             return deathRegister.Id;
         }
 
@@ -192,6 +207,16 @@ namespace CTSHIPDashboard.Services
             deathRegister.SubmittedByName = userName;
             AddAuditLog(deathRegister, DeathRegisterAuditAction.SubmittedToHmo, userId, userName, "Death register submitted to HMO for verification.");
             await _context.SaveChangesAsync(cancellationToken);
+            await _auditService.LogAsync(
+                "DeathRegister.Submitted",
+                AuditActor.Format(userName),
+                deathRegister.EnrolleeNumber,
+                AuditActor.Details(
+                    $"Name:{deathRegister.EnrolleeFullName}",
+                    $"Provider:{deathRegister.ProviderName}",
+                    $"HMO:{deathRegister.HmoName}",
+                    $"Status:{deathRegister.Status}"),
+                cancellationToken);
             return true;
         }
 
@@ -250,6 +275,17 @@ namespace CTSHIPDashboard.Services
                 model.HmoVerificationNote);
 
             await _context.SaveChangesAsync(cancellationToken);
+            await _auditService.LogAsync(
+                isVerified ? "DeathRegister.HmoVerified" : "DeathRegister.HmoRejected",
+                AuditActor.Format(userName),
+                deathRegister.EnrolleeNumber,
+                AuditActor.Details(
+                    $"Name:{deathRegister.EnrolleeFullName}",
+                    $"Provider:{deathRegister.ProviderName}",
+                    $"HMO:{deathRegister.HmoName}",
+                    $"Status:{deathRegister.Status}",
+                    $"Note:{model.HmoVerificationNote}"),
+                cancellationToken);
             return true;
         }
 
@@ -309,6 +345,17 @@ namespace CTSHIPDashboard.Services
                 model.AuditNote);
 
             await _context.SaveChangesAsync(cancellationToken);
+            await _auditService.LogAsync(
+                isApproved ? "DeathRegister.Audited" : "DeathRegister.AuditRejected",
+                AuditActor.Format(userName),
+                deathRegister.EnrolleeNumber,
+                AuditActor.Details(
+                    $"Name:{deathRegister.EnrolleeFullName}",
+                    $"Provider:{deathRegister.ProviderName}",
+                    $"HMO:{deathRegister.HmoName}",
+                    $"Status:{deathRegister.Status}",
+                    $"Note:{model.AuditNote}"),
+                cancellationToken);
             return true;
         }
 

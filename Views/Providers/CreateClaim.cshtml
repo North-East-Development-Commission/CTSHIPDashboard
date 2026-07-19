@@ -1,0 +1,109 @@
+@model CTSHIPDashboard.ViewModels.ProviderClaimSubmissionViewModel
+
+@{
+    ViewData["Title"] = "Submit Claim Evidence";
+}
+
+<div class="container-fluid py-4 py-md-5">
+    <div class="row justify-content-center">
+        <div class="col-12 col-xl-10">
+            <div class="card border-0 shadow-lg rounded-4 overflow-hidden">
+                <div class="bg-success text-white text-center py-5">
+                    <h1 class="display-5 fw-bold mb-2">SUBMIT CLAIM</h1>
+                    <p class="lead mb-0">@Model.EncounterNumber</p>
+                </div>
+
+                <div class="card-body p-4 p-md-5">
+                    <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+
+                    <div class="row g-4 mb-4">
+                        <div class="col-lg-5">
+                            <div class="card border-success shadow-sm h-100">
+                                <div class="card-body p-4">
+                                    <h5 class="text-success fw-bold mb-3">Enrollee</h5>
+                                    <p class="mb-2"><strong>Name:</strong> @Model.EnrolleeName</p>
+                                    <p class="mb-2"><strong>Enrollment:</strong> @Model.EnrollmentNumber</p>
+                                    <p class="mb-2"><strong>HMO:</strong> @Model.HmoName</p>
+                                    <p class="mb-0"><strong>Visit Date:</strong> @Model.VisitDate.ToString("dd MMM yyyy")</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-lg-7">
+                            <div class="card border-info shadow-sm h-100">
+                                <div class="card-body p-4">
+                                    <h5 class="text-info fw-bold mb-3">Claim Summary</h5>
+                                    <p class="mb-2"><strong>Provider:</strong> @Model.ProviderName</p>
+                                    <p class="mb-2"><strong>Provider Level:</strong> @Model.ProviderLevel</p>
+                                    <p class="mb-2"><strong>Diagnosis:</strong> @Model.Diagnosis</p>
+                                    <p class="mb-2"><strong>Treatment:</strong> @Model.Treatment</p>
+                                    <div class="bg-success text-white rounded-3 p-3 mt-3">
+                                        <div class="small text-uppercase fw-semibold opacity-75">Claim Amount</div>
+                                        <div class="display-6 fw-bold">&#8358;@Model.Amount.ToString("N0")</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <form asp-action="CreateClaim" asp-route-id="@Model.EncounterId" method="post" enctype="multipart/form-data">
+                        @Html.AntiForgeryToken()
+                        <input asp-for="EncounterId" type="hidden" />
+
+                        <div class="card border-warning shadow-sm mb-4">
+                            <div class="card-body p-4">
+                                <label asp-for="EvidenceFiles" class="form-label text-success fw-bold fs-5"></label>
+                                <input asp-for="EvidenceFiles"
+                                       type="file"
+                                       multiple
+                                       accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                                       class="form-control form-control-lg" />
+                                <span asp-validation-for="EvidenceFiles" class="text-danger"></span>
+                                <div class="form-text">
+                                    Upload PDF, JPG, PNG, DOC, or DOCX files. Maximum 10 files, 10MB each.
+                                </div>
+                                <ul id="selectedEvidenceFiles" class="list-group list-group-flush mt-3"></ul>
+                            </div>
+                        </div>
+
+                        <div class="d-flex flex-wrap justify-content-center gap-3">
+                            <button type="submit" class="btn btn-success btn-lg px-5 shadow fw-bold">
+                                <i class="bi bi-send-fill me-2"></i> Submit Claim
+                            </button>
+                            <a asp-action="ENCDetails" asp-route-id="@Model.EncounterId" class="btn btn-outline-secondary btn-lg px-5">
+                                Cancel
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+
+    <script>
+        (() => {
+            const input = document.getElementById('EvidenceFiles');
+            const list = document.getElementById('selectedEvidenceFiles');
+
+            if (!input || !list) {
+                return;
+            }
+
+            input.addEventListener('change', () => {
+                list.innerHTML = '';
+                Array.from(input.files || []).forEach(file => {
+                    const item = document.createElement('li');
+                    item.className = 'list-group-item d-flex justify-content-between align-items-center px-0';
+                    item.innerHTML = `<span>${file.name}</span><span class="badge bg-success">${Math.ceil(file.size / 1024)} KB</span>`;
+                    list.appendChild(item);
+                });
+            });
+        })();
+    </script>
+}

@@ -3,6 +3,7 @@
 #nullable disable
 
 using CTSHIPDashboard.Data;
+using CTSHIPDashboard.Helpers;
 using CTSHIPDashboard.Models;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -73,6 +74,7 @@ namespace CTSHIPDashboard.Areas.Identity.Pages.Account.Manage
 
             Input.FullName = user.FullName;
             Input.PhoneNumber = user.PhoneNumber;
+            Input.PhotoPath = ProfilePhotoStorage.ResolvePhotoPath(user.Id, _env);
 
             // Optional: Load HMO/Provider name
             if (user.HmoId.HasValue)
@@ -109,9 +111,26 @@ namespace CTSHIPDashboard.Areas.Identity.Pages.Account.Manage
             if (user.PhoneNumber != Input.PhoneNumber)
                 user.PhoneNumber = Input.PhoneNumber;
 
-            
+            if (photo != null)
+            {
+                try
+                {
+                    await ProfilePhotoStorage.SaveAsync(photo, user.Id, _env);
+                }
+                catch (InvalidOperationException exception)
+                {
+                    StatusMessageTemp = $"Error: {exception.Message}";
+                    return RedirectToPage();
+                }
+            }
 
-            await _userManager.UpdateAsync(user);
+            var updateResult = await _userManager.UpdateAsync(user);
+            if (!updateResult.Succeeded)
+            {
+                StatusMessageTemp = "Error: Your profile could not be updated.";
+                return RedirectToPage();
+            }
+
             await _signInManager.RefreshSignInAsync(user);
 
             StatusMessageTemp = "Your profile has been updated successfully!";

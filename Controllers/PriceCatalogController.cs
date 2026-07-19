@@ -2,6 +2,7 @@ using System.Globalization;
 using CTSHIPDashboard.Data;
 using CTSHIPDashboard.Helpers;
 using CTSHIPDashboard.Models;
+using CTSHIPDashboard.Services;
 using CTSHIPDashboard.ViewModels;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -19,13 +20,16 @@ public class PriceCatalogController : Controller
 {
     private readonly ApplicationDbContext _context;
     private readonly UserManager<ApplicationUser> _userManager;
+    private readonly IAuditService _auditService;
 
     public PriceCatalogController(
         ApplicationDbContext context,
-        UserManager<ApplicationUser> userManager)
+        UserManager<ApplicationUser> userManager,
+        IAuditService auditService)
     {
         _context = context;
         _userManager = userManager;
+        _auditService = auditService;
     }
 
     [HttpGet]
@@ -259,6 +263,16 @@ public class PriceCatalogController : Controller
         }
 
         await _context.SaveChangesAsync(cancellationToken);
+        await _auditService.LogAsync(
+            "Catalog.BulkUploaded",
+            AuditActor.Format(currentUser, User.Identity?.Name),
+            $"{normalizedState} {normalizedCategory}",
+            AuditActor.Details(
+                $"Created:{created}",
+                $"Updated:{updated}",
+                $"ReplaceExisting:{input.ReplaceExisting}",
+                hasExcelFile ? $"File:{input.ExcelFile?.FileName}" : "Source:ManualText"),
+            cancellationToken);
 
         TempData["Success"] =
             $"{created} catalog item(s) added and {updated} updated for {normalizedState} {normalizedCategory}.";
@@ -310,6 +324,16 @@ public class PriceCatalogController : Controller
         item.UpdatedAt = DateTime.UtcNow;
 
         await _context.SaveChangesAsync(cancellationToken);
+        ApplicationUser? currentUser = await _userManager.GetUserAsync(User);
+        await _auditService.LogAsync(
+            "Catalog.Updated",
+            AuditActor.Format(currentUser, User.Identity?.Name),
+            item.Title,
+            AuditActor.Details(
+                $"State:{item.State}",
+                $"Category:{item.Category}",
+                $"Price:NGN {item.Price:N2}"),
+            cancellationToken);
 
         TempData["Success"] = "Catalog item updated.";
         return RedirectToAction(nameof(Index), new { state = input.State, category = input.Category });
@@ -334,6 +358,16 @@ public class PriceCatalogController : Controller
 
         _context.ReferralPriceCatalogItems.Remove(item);
         await _context.SaveChangesAsync(cancellationToken);
+        ApplicationUser? currentUser = await _userManager.GetUserAsync(User);
+        await _auditService.LogAsync(
+            "Catalog.Deleted",
+            AuditActor.Format(currentUser, User.Identity?.Name),
+            item.Title,
+            AuditActor.Details(
+                $"State:{item.State}",
+                $"Category:{item.Category}",
+                $"Price:NGN {item.Price:N2}"),
+            cancellationToken);
 
         TempData["Success"] = "Catalog item deleted.";
         return RedirectToAction(nameof(Index), new { state, category });
@@ -360,6 +394,16 @@ public class PriceCatalogController : Controller
         item.IsActive = isActive;
         item.UpdatedAt = DateTime.UtcNow;
         await _context.SaveChangesAsync(cancellationToken);
+        ApplicationUser? currentUser = await _userManager.GetUserAsync(User);
+        await _auditService.LogAsync(
+            "Catalog.StatusChanged",
+            AuditActor.Format(currentUser, User.Identity?.Name),
+            item.Title,
+            AuditActor.Details(
+                $"State:{item.State}",
+                $"Category:{item.Category}",
+                $"Active:{item.IsActive}"),
+            cancellationToken);
 
         return RedirectToAction(nameof(Index), new { state, category });
     }

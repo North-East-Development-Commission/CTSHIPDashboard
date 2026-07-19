@@ -67,19 +67,22 @@ public class ReferralProController : Controller
     private readonly IAppNotificationService _notificationService;
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly IWebHostEnvironment _environment;
+    private readonly IAuditService _auditService;
 
     public ReferralProController(
         ApplicationDbContext context,
         IReferralService referralService,
         IAppNotificationService notificationService,
         UserManager<ApplicationUser> userManager,
-        IWebHostEnvironment environment)
+        IWebHostEnvironment environment,
+        IAuditService auditService)
     {
         _context = context;
         _referralService = referralService;
         _notificationService = notificationService;
         _userManager = userManager;
         _environment = environment;
+        _auditService = auditService;
     }
 
     [HttpGet("/ReferralPro/Dashboard")]
@@ -630,6 +633,20 @@ public class ReferralProController : Controller
             await _notificationService.NotifyClaimSubmittedAsync(
                 claim.Id,
                 referral.Id,
+                cancellationToken);
+
+            await _auditService.LogAsync(
+                "ReferralClaim.Submitted",
+                AuditActor.Format(currentUser, User.Identity?.Name),
+                claim.ClaimNumber,
+                AuditActor.Details(
+                    $"Referral:{referral.Id}",
+                    $"Encounter:{encounter.EncounterNumber}",
+                    $"Enrollee:{referral.EnrolleeNumber}",
+                    $"ReferralProvider:{provider.Name}",
+                    $"HMO:{hmo.Name}",
+                    $"Amount:NGN {claim.Amount:N2}",
+                    $"Documents:{supportingDocuments.Count}"),
                 cancellationToken);
 
             TempData["Success"] = $"Referral encounter {encounter.EncounterNumber} saved and claim {claim.ClaimNumber} submitted to {hmo.Name}.";

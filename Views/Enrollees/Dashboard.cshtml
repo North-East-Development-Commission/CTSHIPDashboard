@@ -89,10 +89,13 @@
         </div>
     </div>
 
-    <!-- ADD NEW ENROLLEE BUTTON -->
-    <div class="text-end mb-4">
+    <!-- ENROLLEE ACTIONS -->
+    <div class="d-flex flex-wrap justify-content-end gap-2 mb-4">
         <a asp-action="Create" class="btn btn-success btn-lg shadow-lg px-5">
-            Add New Enrollee
+            <i class="bi bi-person-plus-fill me-1"></i> Add New Enrollee
+        </a>
+        <a asp-action="BulkUpload" class="btn btn-outline-success btn-lg shadow px-5">
+            <i class="bi bi-file-earmark-excel me-1"></i> Bulk Upload
         </a>
     </div>
 
@@ -131,7 +134,7 @@
                             {
                                 <tr>
                                     <td>
-                                        <img src="@(e.PhotoPath ?? "/img/icon-192.png")"
+                                        <img src="@EnrolleePhotoStorage.ResolvePhotoPath(e.PhotoPath, e.EnrollmentNumber)"
                                              class="rounded-circle shadow" style="width:50px;height:50px;object-fit:cover;" />
                                     </td>
                                     <td class="fw-bold">@e.FullName</td>
@@ -148,8 +151,12 @@
                                     </td>
                                     <td>@e.DateRegistered</td>
                                     <td>
-                                        <a asp-action="Details" asp-route-id="@e.Id" class="btn btn-info btn-sm">View</a>
-                                        <a asp-action="Edit" asp-route-id="@e.Id" class="btn btn-warning btn-sm">Edit</a>
+                                        <a asp-action="Details" asp-route-id="@e.Id" class="btn btn-info btn-sm">
+                                            <i class="bi bi-eye me-1"></i> View
+                                        </a>
+                                        <a asp-action="Edit" asp-route-id="@e.Id" class="btn btn-warning btn-sm text-dark">
+                                            <i class="bi bi-pencil-square me-1"></i> Edit
+                                        </a>
                                     </td>
                                 </tr>
                             }

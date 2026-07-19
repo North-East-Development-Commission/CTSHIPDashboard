@@ -17,7 +17,7 @@ namespace CTSHIPDashboard.Models
         public int ProviderId { get; set; }
         public Provider? Provider { get; set; }
 
-        [Display(Name = "Attending Doctor")]
+        [Display(Name = "Attended By (Hospital Staff)")]
         public int? DoctorId { get; set; }
         public Doctor? Doctor { get; set; }
 
