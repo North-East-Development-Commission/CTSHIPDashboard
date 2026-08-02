@@ -17,19 +17,7 @@ namespace CTSHIPDashboard.Controllers
     [Authorize(Roles = "Provider,CTSHIPAdmin")]
     public class EncountersController : Controller
     {
-        private static readonly string[] EncounterReasons =
-        {
-            "Preventive services",
-            "Acute illness",
-            "Chronic disease management",
-            "Maternal health",
-            "Child health",
-            "Reproductive health",
-            "Injury/Emergency",
-            "Follow-up care",
-            "Administrative services",
-            "Referral"
-        };
+
         private readonly ApplicationDbContext _context;
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly CTSHIPDashboard.Services.IAuditService _auditService;
@@ -613,22 +601,11 @@ namespace CTSHIPDashboard.Controllers
                 new("Emergency", "Emergency"),
                 new("Referral", "Referral")
             };
-            ViewBag.EncounterReasons = BuildEncounterReasonOptions(selectedReason);
+            ViewBag.EncounterReasons = EncounterReasonCatalog.BuildSelectList(selectedReason);
+            ViewBag.EncounterReasonExamples = EncounterReasonCatalog.Examples;
             ViewBag.DrugInventoryItems = await BuildDrugInventoryOptionsAsync(selectedProviderId);
             ViewBag.OutpatientServices = EncounterServiceCatalog.OutpatientServices;
             ViewBag.InpatientServices = EncounterServiceCatalog.InpatientServices;
-        }
-
-        private static List<SelectListItem> BuildEncounterReasonOptions(string? selectedReason)
-        {
-            return EncounterReasons
-                .Select(reason => new SelectListItem
-                {
-                    Value = reason,
-                    Text = reason,
-                    Selected = string.Equals(reason, selectedReason, StringComparison.OrdinalIgnoreCase)
-                })
-                .ToList();
         }
 
         private async Task<List<SelectListItem>> BuildDrugInventoryOptionsAsync(int? providerId)
@@ -728,7 +705,7 @@ namespace CTSHIPDashboard.Controllers
                 VisitDate = TrimToSecond(DateTime.Now),
                 VisitType = "New Visit",
                 ServiceSetting = EncounterServiceCatalog.Outpatient,
-                ReasonForEncounter = "Acute illness",
+                ReasonForEncounter = EncounterReasonCatalog.DefaultReason,
                 Status = "Completed"
             };
             encounter.SelectedServices.Add("Management of common infectious diseases");
@@ -757,7 +734,7 @@ namespace CTSHIPDashboard.Controllers
 
             if (string.IsNullOrWhiteSpace(encounter.ReasonForEncounter))
             {
-                encounter.ReasonForEncounter = "Acute illness";
+                encounter.ReasonForEncounter = EncounterReasonCatalog.DefaultReason;
                 ModelState.Remove(nameof(Encounter.ReasonForEncounter));
             }
 
@@ -1054,8 +1031,7 @@ namespace CTSHIPDashboard.Controllers
                 ModelState.AddModelError(nameof(Encounter.ChiefComplaint), "Complaint is required.");
             }
 
-            if (string.IsNullOrWhiteSpace(encounter.ReasonForEncounter)
-                || !EncounterReasons.Contains(encounter.ReasonForEncounter.Trim(), StringComparer.OrdinalIgnoreCase))
+            if (!EncounterReasonCatalog.IsValid(encounter.ReasonForEncounter))
             {
                 ModelState.AddModelError(nameof(Encounter.ReasonForEncounter), "Select a valid reason for encounter.");
             }

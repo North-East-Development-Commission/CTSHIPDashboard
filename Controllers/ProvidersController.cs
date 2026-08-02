@@ -1,4 +1,4 @@
-﻿using AspNetCoreGeneratedDocument;
+using AspNetCoreGeneratedDocument;
 using CTSHIPDashboard.Data;
 using CTSHIPDashboard.Helpers;
 using CTSHIPDashboard.Enums;
@@ -18,19 +18,6 @@ using System.Diagnostics.Metrics;
 
 public class ProvidersController : Controller
 {
-    private static readonly string[] EncounterReasons =
-    {
-        "Preventive services",
-        "Acute illness",
-        "Chronic disease management",
-        "Maternal health",
-        "Child health",
-        "Reproductive health",
-        "Injury/Emergency",
-        "Follow-up care",
-        "Administrative services",
-        "Referral"
-    };
     private const long MaxClaimEvidenceFileBytes = 10 * 1024 * 1024;
     private const int MaxClaimEvidenceFileCount = 10;
 
@@ -65,7 +52,7 @@ public class ProvidersController : Controller
     }
 
     // GET: Provider/Index
-    [Authorize(Roles = "CTSHIPAdmin,Admin,HMO,Monitoring,SSHIA,NHIA,IHSA")]
+    [Authorize(Roles = "CTSHIPAdmin,Admin,HMO,Monitoring,SSHIA,NHIA,IHSA,NEDCAdmin")]
     public async Task<IActionResult> Index(
         string search = "",
         string state = "",
@@ -450,8 +437,8 @@ public class ProvidersController : Controller
         return words.Length > 0 ? new string(words[0].Take(3).ToArray()) : "HOS";
     }
 
-    // DETAILS — GET
-    [Authorize(Roles = "CTSHIPAdmin,Admin,HMO,Monitoring,SSHIA,NHIA,IHSA")]
+    // DETAILS � GET
+    [Authorize(Roles = "CTSHIPAdmin,Admin,HMO,Monitoring,SSHIA,NHIA,IHSA,NEDCAdmin")]
     public async Task<IActionResult> Details(int id)
     {
         var provider = await _context.Providers
@@ -781,6 +768,13 @@ public class ProvidersController : Controller
             .Take(10)
             .ToListAsync();
 
+        EncounterDemographicMatrixViewModel encounterDemographicMatrix =
+            await EncounterDemographicMatrixService.BuildAsync(
+                _context.Enrollees.AsNoTracking().Where(enrollee => enrollee.ProviderId == provider.Id),
+                _context.Encounters.AsNoTracking().Where(encounter => encounter.ProviderId == provider.Id),
+                provider.Name,
+                HttpContext.RequestAborted);
+
         string providerIdText = provider.Id.ToString();
         string providerCode = provider.Code ?? string.Empty;
         string providerName = provider.Name ?? string.Empty;
@@ -847,7 +841,8 @@ public class ProvidersController : Controller
             //ctrl a, alt hoi, alt hoa
             Enrollees = enrollees,
             TopDoctors = topDoctors,
-            MostUsedServices = providerServices
+            MostUsedServices = providerServices,
+            EncounterDemographicMatrix = encounterDemographicMatrix
         };
 
         return View(viewModel);
@@ -1021,7 +1016,8 @@ public class ProvidersController : Controller
         {
             "Pending", "Completed", "Cancelled", "Referred", "Claimed"
         }, encounter.Status);
-        ViewBag.EncounterReasons = BuildEncounterReasonOptions(encounter.ReasonForEncounter);
+        ViewBag.EncounterReasons = EncounterReasonCatalog.BuildSelectList(encounter.ReasonForEncounter);
+        ViewBag.EncounterReasonExamples = EncounterReasonCatalog.Examples;
 
         return View(encounter);
     }
@@ -1054,8 +1050,7 @@ public class ProvidersController : Controller
             ModelState.AddModelError(nameof(model.DoctorId), "Select an active hospital staff member registered under this facility.");
         }
 
-        if (string.IsNullOrWhiteSpace(model.ReasonForEncounter)
-            || !EncounterReasons.Contains(model.ReasonForEncounter.Trim(), StringComparer.OrdinalIgnoreCase))
+        if (!EncounterReasonCatalog.IsValid(model.ReasonForEncounter))
         {
             ModelState.AddModelError(nameof(model.ReasonForEncounter), "Select a valid reason for encounter.");
         }
@@ -1087,7 +1082,8 @@ public class ProvidersController : Controller
                 })
                 .ToListAsync();
             ViewBag.Statuses = new SelectList(new[] { "Pending", "Completed", "Cancelled", "Referred", "Claimed" }, model.Status);
-            ViewBag.EncounterReasons = BuildEncounterReasonOptions(model.ReasonForEncounter);
+            ViewBag.EncounterReasons = EncounterReasonCatalog.BuildSelectList(model.ReasonForEncounter);
+            ViewBag.EncounterReasonExamples = EncounterReasonCatalog.Examples;
             return View(model);
         }
 
@@ -1133,7 +1129,8 @@ public class ProvidersController : Controller
                 })
                 .ToListAsync();
             ViewBag.Statuses = new SelectList(new[] { "Pending", "Completed", "Cancelled", "Referred", "Claimed" }, model.Status);
-            ViewBag.EncounterReasons = BuildEncounterReasonOptions(model.ReasonForEncounter);
+            ViewBag.EncounterReasons = EncounterReasonCatalog.BuildSelectList(model.ReasonForEncounter);
+            ViewBag.EncounterReasonExamples = EncounterReasonCatalog.Examples;
             return View(model);
         }
 
@@ -1148,18 +1145,6 @@ public class ProvidersController : Controller
 
         TempData["Success"] = $"Encounter {encounter.EncounterNumber} updated successfully!";
         return RedirectToAction("ENCDetails", "Providers", new { id });
-    }
-
-    private static List<SelectListItem> BuildEncounterReasonOptions(string? selectedReason)
-    {
-        return EncounterReasons
-            .Select(reason => new SelectListItem
-            {
-                Value = reason,
-                Text = reason,
-                Selected = string.Equals(reason, selectedReason, StringComparison.OrdinalIgnoreCase)
-            })
-            .ToList();
     }
 
     private async Task<bool> DeductPendingEncounterPrescriptionsAsync(Encounter encounter)

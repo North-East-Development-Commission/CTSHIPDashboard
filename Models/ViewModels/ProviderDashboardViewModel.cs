@@ -1,4 +1,4 @@
-﻿using CTSHIPDashboard.Models;
+using CTSHIPDashboard.Models;
 using System.Collections.Generic;
 
 namespace CTSHIPDashboard.ViewModels
@@ -40,6 +40,7 @@ namespace CTSHIPDashboard.ViewModels
         // Top hospital staff performance (using the encounter staff snapshot)
         public List<TopDoctorStats> TopDoctors { get; set; } = new();
         public List<CTSHIPDashboard.Models.ViewModels.ServiceFrequencyViewModel> MostUsedServices { get; set; } = new();
+        public CTSHIPDashboard.Models.ViewModels.EncounterDemographicMatrixViewModel EncounterDemographicMatrix { get; set; } = new();
     }
 
     public class TopDoctorStats

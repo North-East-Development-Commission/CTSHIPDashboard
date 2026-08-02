@@ -18,6 +18,8 @@
 
     <partial name="_MonitoringIndicatorCards" model="Model" />
 
+    <partial name="_EncounterDemographicMatrix" model="Model.EncounterDemographicMatrix" />
+
     @if (User.IsInRole("CTSHIPAdmin") || User.IsInRole("Admin"))
     {
         <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">

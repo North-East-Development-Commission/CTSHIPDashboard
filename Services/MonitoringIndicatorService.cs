@@ -349,6 +349,13 @@ namespace CTSHIPDashboard.Services
             List<StateMonitoringViewModel> stateIndicators =
                 await BuildStateIndicatorsAsync(scope, selectedLga, selectedHmoId, cancellationToken);
 
+            EncounterDemographicMatrixViewModel encounterDemographicMatrix =
+                await EncounterDemographicMatrixService.BuildAsync(
+                    query,
+                    encounterQuery,
+                    BuildScopeDisplay(scope, selectedLga, selectedHmoName),
+                    cancellationToken);
+
             List<string> availableStates = await _context.Enrollees
                 .AsNoTracking()
                 .Where(x => x.State != "")
@@ -437,6 +444,7 @@ namespace CTSHIPDashboard.Services
                 ProviderLevelMetrics = providerLevelMetrics,
                 DiseaseTrends = diseaseTrends,
                 StateIndicators = stateIndicators,
+                EncounterDemographicMatrix = encounterDemographicMatrix,
                 MostUsedServices = recordedServices
                     .GroupBy(x => new { x.ServiceName, x.ServiceSetting })
                     .Select(x => new ServiceFrequencyViewModel

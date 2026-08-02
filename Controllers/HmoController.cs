@@ -1,4 +1,4 @@
-ï»¿using CTSHIPDashboard.Data;
+using CTSHIPDashboard.Data;
 using CTSHIPDashboard.Models;
 using CTSHIPDashboard.Enums;
 using CTSHIPDashboard.Models.Enums;
@@ -20,7 +20,7 @@ using System.Globalization;
 public class HmoController : Controller
 {
     private const string HmoCrudRoles = "CTSHIPAdmin,Admin";
-    private const string HmoViewRoles = "CTSHIPAdmin,Admin,IHSA,NHIA,Monitoring";
+    private const string HmoViewRoles = "CTSHIPAdmin,Admin,IHSA,NEDCAdmin,NHIA,Monitoring";
     private static readonly string[] CapitationProofFileExtensions = { ".pdf", ".jpg", ".jpeg", ".png" };
 
     private readonly ApplicationDbContext _context;
@@ -295,7 +295,7 @@ public class HmoController : Controller
         return View(hmo);
     }
 
-    // DELETE POST â€” SAFE DELETE
+    // DELETE POST — SAFE DELETE
     [HttpPost, ActionName("Delete")]
     [ValidateAntiForgeryToken]
     [Authorize(Roles = HmoCrudRoles)]
@@ -403,7 +403,7 @@ public class HmoController : Controller
                 .FirstOrDefaultAsync(h => h.Id == currentUser.HmoId.Value);
         }
 
-        // METHOD 2: Fallback â€” match by email domain or HMO code in username
+        // METHOD 2: Fallback — match by email domain or HMO code in username
         if (hmo == null && !string.IsNullOrEmpty(currentUser.Email))
         {
             var emailDomain = currentUser.Email.Split('@').LastOrDefault()?.ToLower();
@@ -451,6 +451,11 @@ public class HmoController : Controller
         ViewBag.ApprovedClaims = hmo.Claims?.Count(c => c.Status == "Approved") ?? 0;
         ViewBag.ComplaintMetrics = await ComplaintMetricsService.BuildAsync(
             _context.Complaints.Where(complaint => complaint.HmoId == hmo.Id));
+        ViewBag.EncounterDemographicMatrix = await EncounterDemographicMatrixService.BuildAsync(
+            _context.Enrollees.AsNoTracking().Where(enrollee => enrollee.HmoId == hmo.Id),
+            _context.Encounters.AsNoTracking().Where(encounter => encounter.Enrollee != null && encounter.Enrollee.HmoId == hmo.Id),
+            hmo.Name,
+            HttpContext.RequestAborted);
 
         IQueryable<Referral> hmoReferrals = _context.Referrals
             .AsNoTracking()
@@ -1099,7 +1104,7 @@ public class HmoController : Controller
         return View(providers);
     }
 
-    [Authorize(Roles = "CTSHIPAdmin,Admin,HMO,IHSA,NHIA,Monitoring")]
+    [Authorize(Roles = "CTSHIPAdmin,Admin,HMO,IHSA,NEDCAdmin,NHIA,Monitoring")]
     public async Task<IActionResult> EncountersPerProvider(
     int id,
     string search = "",
@@ -1171,7 +1176,7 @@ public class HmoController : Controller
     }
 
     // DETAILS
-    [Authorize(Roles = "CTSHIPAdmin,Admin,HMO,IHSA,NHIA,Monitoring")]
+    [Authorize(Roles = "CTSHIPAdmin,Admin,HMO,IHSA,NEDCAdmin,NHIA,Monitoring")]
     public async Task<IActionResult> EncDetails(int id)
     {
         var encounter = await _context.Encounters
@@ -1744,7 +1749,7 @@ public class HmoController : Controller
         return RedirectToAction(nameof(BulkUpload));
     }
 
-    // DELETE GET â€” SHOW CONFIRMATION
+    // DELETE GET — SHOW CONFIRMATION
     [Authorize(Roles = "CTSHIPAdmin,HMO")]
     public async Task<IActionResult> DeleteEnrollee(int id)
     {
@@ -1767,7 +1772,7 @@ public class HmoController : Controller
         return View(enrollee);
     }
 
-    // DELETE POST â€” SAFE & CONFIRMED
+    // DELETE POST — SAFE & CONFIRMED
     [HttpPost, ActionName("DeleteEnrollee")]
     [ValidateAntiForgeryToken]
     [Authorize(Roles = "CTSHIPAdmin,HMO")]
@@ -1784,7 +1789,7 @@ public class HmoController : Controller
             return RedirectToAction(nameof(EnrolleeDashboard));
         }
 
-        // FINAL SAFETY CHECK â€” PREVENT ORPHAN RECORDS
+        // FINAL SAFETY CHECK — PREVENT ORPHAN RECORDS
         if (enrollee.Encounters?.Any() == true || enrollee.Claims?.Any() == true)
         {
             TempData["Error"] = "Cannot delete enrollee with existing encounters or claims. Delete those first.";

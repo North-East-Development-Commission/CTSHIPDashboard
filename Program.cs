@@ -180,7 +180,7 @@ app.MapGet("/", context =>
                                     ? "/NHIA/Dashboard"
                                     : context.User.IsInRole("SSHIA")
                                         ? "/SSHIA/Dashboard"
-                                        : context.User.IsInRole("IHSA")
+                                        : context.User.IsInRole("IHSA") || context.User.IsInRole("NEDCAdmin")
                                             ? "/IHSA/Dashboard"
                                             : context.User.IsInRole("Monitoring")
                                                 ? "/Monitoring/Index"

@@ -1,4 +1,4 @@
-﻿using CTSHIPDashboard.ViewModels;
+using CTSHIPDashboard.ViewModels;
 
 namespace CTSHIPDashboard.Models.ViewModels
 {
@@ -40,6 +40,7 @@ namespace CTSHIPDashboard.Models.ViewModels
         public List<RecentClaimSummary> RecentClaims { get; set; } = new();
         public List<ServiceFrequencyViewModel> TopServices { get; set; } = new();
         public List<ProgramOversightSignal> OversightSignals { get; set; } = new();
+        public EncounterDemographicMatrixViewModel EncounterDemographicMatrix { get; set; } = new();
     }
 
     public class StateSummary

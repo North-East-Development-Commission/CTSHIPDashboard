@@ -1,11 +1,11 @@
-﻿@model CTSHIPDashboard.Models.ViewModels.StateOfficeDashboardViewModel
+@model CTSHIPDashboard.Models.ViewModels.StateOfficeDashboardViewModel
 
 <div class="container-fluid py-5">
     <div class="text-center mb-5">
         <h1 class="display-4 fw-bold text-success mb-2">
             @Model.StateName State Dashboard
         </h1>
-        <p class="lead text-muted">Community Targeted Social Health Insurance Program (CTSHIP) • Real-time Overview</p>
+        <p class="lead text-muted">Community Targeted Social Health Insurance Program (CTSHIP) � Real-time Overview</p>
         <div class="d-flex flex-wrap justify-content-center gap-2 mt-3">
             <a asp-controller="StateOffice" asp-action="Claims" class="btn btn-success btn-lg">
                 <i class="bi bi-file-medical-fill me-1"></i> Manage State Claims
@@ -15,6 +15,8 @@
 
     <h3 class="fw-bold mb-3">Monitoring Indicators</h3>
     <partial name="_MonitoringIndicatorCards" model="Model.Monitoring" />
+
+    <partial name="_EncounterDemographicMatrix" model="Model.Monitoring.EncounterDemographicMatrix" />
 
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
         <h3 class="fw-bold mb-0">Complaint Management Metrics</h3>

@@ -1,6 +1,8 @@
-﻿@model CTSHIPDashboard.Models.Hmo
+@using CTSHIPDashboard.Models.ViewModels
+@model CTSHIPDashboard.Models.Hmo
 @{
     ViewData["Title"] = $"{ViewBag.HmoName} - HMO Dashboard";
+    var encounterDemographicMatrix = ViewBag.EncounterDemographicMatrix as EncounterDemographicMatrixViewModel ?? new EncounterDemographicMatrixViewModel();
 }
 
 <div class="container-fluid py-5">
@@ -45,6 +47,8 @@
             </div>
         </div>
     </div>
+
+    <partial name="_EncounterDemographicMatrix" model="encounterDemographicMatrix" />
 
     <!-- REFERRAL STATUS -->
     <div class="card border-0 shadow-lg mb-5">
@@ -194,6 +198,6 @@
     <!-- Footer -->
     <div class="text-center mt-5 py-5 bg-dark text-white rounded-4">
         <p class="display-6 fw-bold mb-3">One HMO. One Mission.</p>
-        <p class="lead mb-0">NEDC CTSHIP — Universal Health Coverage for Vulerable Population In The North East</p>
+        <p class="lead mb-0">NEDC CTSHIP � Universal Health Coverage for Vulerable Population In The North East</p>
     </div>
 </div>

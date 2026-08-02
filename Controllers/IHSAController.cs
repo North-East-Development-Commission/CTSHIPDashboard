@@ -13,7 +13,7 @@ using System.Globalization;
 
 namespace CTSHIPDashboard.Controllers;
 
-[Authorize(Roles = "IHSA,CTSHIPAdmin,Admin")]
+[Authorize(Roles = "IHSA,NEDCAdmin,CTSHIPAdmin,Admin")]
 public class IHSAController : Controller
 {
     private const string ReferralProviderLevel = "Referral Hospital";

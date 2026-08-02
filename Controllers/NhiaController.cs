@@ -1,4 +1,4 @@
-﻿using CTSHIPDashboard.Data;
+using CTSHIPDashboard.Data;
 using CTSHIPDashboard.Models.ViewModels;
 using CTSHIPDashboard.Services;
 using CTSHIPDashboard.ViewModels;
@@ -73,6 +73,11 @@ namespace CTSHIPDashboard.Controllers
             vm.EncounterRatePerThousand = CalculateRatePerThousand(vm.TotalEncounters, utilizationBase);
 
             vm.ComplaintMetrics = await ComplaintMetricsService.BuildAsync(_context.Complaints);
+            vm.EncounterDemographicMatrix = await EncounterDemographicMatrixService.BuildAsync(
+                _context.Enrollees.AsNoTracking(),
+                _context.Encounters.AsNoTracking(),
+                "All states",
+                HttpContext.RequestAborted);
             vm.TopServices = await BuildTopServicesAsync(vm);
             vm.StateSummaries = await BuildStateSummariesAsync();
             vm.OversightSignals = BuildOversightSignals(vm);

@@ -111,7 +111,7 @@
                                     <td>
                                         <a asp-controller="Hmo" asp-action="EncDetails" asp-route-id="@e.Id"
                                            class="btn btn-info btn-sm rounded-pill">Encounter Details</a>
-                                        @if (User.IsInRole("IHSA") || User.IsInRole("NHIA") || User.IsInRole("Monitoring"))
+                                        @if (User.IsInRole("IHSA") || User.IsInRole("NEDCAdmin") || User.IsInRole("NHIA") || User.IsInRole("Monitoring"))
                                         {
                                             <a asp-controller="Enrollees" asp-action="Details" asp-route-id="@e.EnrolleeId"
                                                class="btn btn-primary btn-sm rounded-pill">Enrollee Details</a>

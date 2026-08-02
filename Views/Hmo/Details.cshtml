@@ -80,12 +80,15 @@
                     </div>
 
                     <div class="text-center mt-5">
-                        <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-warning btn-lg px-6 shadow">
-                            Edit HMO
-                        </a>
-                        <a asp-action="Delete" asp-route-id="@Model.Id" class="btn btn-danger btn-lg px-6 shadow ms-3">
-                            Delete HMO
-                        </a>
+                        @if (canManageHmos)
+                        {
+                            <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-warning btn-lg px-6 shadow">
+                                Edit HMO
+                            </a>
+                            <a asp-action="Delete" asp-route-id="@Model.Id" class="btn btn-danger btn-lg px-6 shadow ms-3">
+                                Delete HMO
+                            </a>
+                        }
                         <a asp-action="Index" class="btn btn-secondary btn-lg px-6 ms-3">
                             Back to List
                         </a>

@@ -1,6 +1,9 @@
+@using System.Text.Json
 @model CTSHIPDashboard.Models.Encounter
 @{
     ViewData["Title"] = "Edit Encounter - " + Model.EncounterNumber;
+    IReadOnlyDictionary<string, string> encounterReasonExamples =
+        ViewBag.EncounterReasonExamples as IReadOnlyDictionary<string, string> ?? new Dictionary<string, string>();
 }
 
 <div class="container-fluid py-4">
@@ -64,9 +67,10 @@
 
                             <div class="col-md-4">
                                 <label asp-for="ReasonForEncounter" class="form-label text-success fw-bold">Reason For Encounter</label>
-                                <select asp-for="ReasonForEncounter" class="form-select form-select-lg" asp-items="ViewBag.EncounterReasons">
+                                <select asp-for="ReasonForEncounter" class="form-select form-select-lg" asp-items="ViewBag.EncounterReasons" aria-describedby="reasonForEncounterHelp">
                                     <option value="">Select reason</option>
                                 </select>
+                                <small id="reasonForEncounterHelp" class="form-text text-muted">Select the patient's stated reason or requested service before diagnosis.</small>
                                 <span asp-validation-for="ReasonForEncounter" class="text-danger"></span>
                             </div>
                             <partial name="_ServiceSelection" model="Model" />
@@ -165,6 +169,19 @@
             });
         })();
 
+        const encounterReasonExamples = @Html.Raw(JsonSerializer.Serialize(encounterReasonExamples));
+        const defaultEncounterReasonHelp = "Select the patient's stated reason or requested service before diagnosis.";
+
+        function syncEncounterReasonHelp() {
+            const reasonSelect = document.getElementById('ReasonForEncounter');
+            const helpText = document.getElementById('reasonForEncounterHelp');
+            if (!reasonSelect || !helpText) return;
+
+            helpText.textContent = encounterReasonExamples[reasonSelect.value] || defaultEncounterReasonHelp;
+        }
+
+        document.getElementById('ReasonForEncounter')?.addEventListener('change', syncEncounterReasonHelp);
+        syncEncounterReasonHelp();
         function syncServiceDropdown(selectFirstIfEmpty) {
             const setting = document.getElementById('serviceSetting').value;
             const select = document.getElementById('selectedServices');

@@ -1,4 +1,4 @@
-﻿@model CTSHIPDashboard.Models.ViewModels.NHIADashboardViewModel
+@model CTSHIPDashboard.Models.ViewModels.NHIADashboardViewModel
 
 @{
     ViewData["Title"] = "NHIA Program Oversight";
@@ -215,6 +215,8 @@
         }
     </div>
 
+    <partial name="_EncounterDemographicMatrix" model="Model.EncounterDemographicMatrix" />
+
     <div class="row g-4 mb-4">
         <div class="col-12">
             <div class="section-panel">
@@ -223,9 +225,7 @@
                         <div class="section-label">State oversight</div>
                         <h2 class="h5 fw-bold mb-0">Program Performance By State</h2>
                     </div>
-                    <a asp-controller="Monitoring" asp-action="Index" class="btn btn-sm btn-outline-success align-self-start align-self-md-center">
-                        <i class="bi bi-bar-chart-line-fill me-1"></i> Monitoring View
-                    </a>
+                 
                 </div>
                 <div class="table-responsive">
                     <table class="table table-hover mb-0 align-middle">
@@ -261,7 +261,7 @@
                                         <td>@summary.UtilizationRate.ToString("N1")%</td>
                                         <td>@summary.Encounters.ToString("N0")</td>
                                         <td>@summary.Claims.ToString("N0")</td>
-                                        <td class="fw-bold text-success">₦@summary.ClaimAmount.ToString("N0")</td>
+                                        <td class="fw-bold text-success">?@summary.ClaimAmount.ToString("N0")</td>
                                         <td>@summary.Providers.ToString("N0")</td>
                                         <td>@summary.Hmos.ToString("N0")</td>
                                         <td>@summary.Complaints.ToString("N0")</td>
@@ -348,7 +348,7 @@
                                         <td class="fw-bold text-primary">@claim.ClaimNumber</td>
                                         <td>@claim.EnrolleeName</td>
                                         <td>@claim.ProviderName</td>
-                                        <td class="fw-bold">₦@claim.Amount.ToString("N0")</td>
+                                        <td class="fw-bold">?@claim.Amount.ToString("N0")</td>
                                         <td><span class="badge @ClaimStatusBadge(claim.Status)">@claim.Status</span></td>
                                         <td>@claim.DateSubmitted.ToString("dd MMM yyyy")</td>
                                     </tr>

@@ -87,6 +87,7 @@ namespace CTSHIPDashboard.Models.ViewModels
         public List<ProviderLevelMetricViewModel> ProviderLevelMetrics { get; set; } = new();
         public List<DiseaseTrendViewModel> DiseaseTrends { get; set; } = new();
         public List<StateMonitoringViewModel> StateIndicators { get; set; } = new();
+        public EncounterDemographicMatrixViewModel EncounterDemographicMatrix { get; set; } = new();
     }
 
     public class MonitoringCategoryViewModel

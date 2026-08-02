@@ -21,7 +21,7 @@ public class EnrolleesController : Controller
 {
     private const string HmoEnrollmentOfficerRole = "HmoEnrollmentOfficer";
     private const string EnrolleeManageRoles = "CTSHIPAdmin,HMO,HmoEnrollmentOfficer";
-    private const string EnrolleeViewRoles = "CTSHIPAdmin,HMO,HmoEnrollmentOfficer,Provider,Monitoring,NHIA,SSHIA,IHSA";
+    private const string EnrolleeViewRoles = "CTSHIPAdmin,HMO,HmoEnrollmentOfficer,Provider,Monitoring,NHIA,SSHIA,IHSA,NEDCAdmin";
     private const string EnrolleeDashboardRoles = "HMO,HmoEnrollmentOfficer";
 
     private readonly ApplicationDbContext _context;
@@ -92,7 +92,7 @@ public class EnrolleesController : Controller
 
     // INDEX — ALL ENROLLEES
     // GET: /Enrollee or /Enrollee/Index
-    [Authorize(Roles = "CTSHIPAdmin,HMO,HmoEnrollmentOfficer,Monitoring,NHIA,SSHIA,IHSA")]
+    [Authorize(Roles = "CTSHIPAdmin,HMO,HmoEnrollmentOfficer,Monitoring,NHIA,SSHIA,IHSA,NEDCAdmin")]
     public async Task<IActionResult> Index(
         string search = "",      // Search by name, phone, NIN, or enrollment number
         string status = "",      // "Active", "Inactive", "Suspended", etc.

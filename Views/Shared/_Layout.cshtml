@@ -44,7 +44,7 @@
                                 ? Url.Action("Dashboard", "NHIA", new { area = "" }) ?? Url.Content("~/NHIA/Dashboard")
                                 : User.IsInRole("SSHIA")
                                     ? Url.Action("Dashboard", "SSHIA", new { area = "" }) ?? Url.Content("~/SSHIA/Dashboard")
-                                : User.IsInRole("IHSA")
+                                : User.IsInRole("IHSA") || User.IsInRole("NEDCAdmin")
                                     ? Url.Action("Dashboard", "IHSA", new { area = "" }) ?? Url.Content("~/IHSA/Dashboard")
                                 : User.IsInRole("Monitoring")
                                     ? Url.Action("Index", "Monitoring", new { area = "" }) ?? Url.Content("~/Monitoring/Index")
@@ -595,15 +595,6 @@
                     <i class="bi bi-person-gear"></i> User Activity Reports
                 </a>
             }
-            @if (User.IsInRole("NEDCAdmin"))
-            {
-                <a asp-controller="Analytics" asp-action="Index" class="nav-link">
-                    <i class="bi bi-graph-up-arrow"></i> Analytics
-                </a>
-                <a asp-controller="Monitoring" asp-action="Index" class="nav-link">
-                    <i class="bi bi-bar-chart-line-fill"></i> Monitoring & Evaluation
-                </a>
-            }
             @if (User.IsInRole("Monitoring"))
             {
                 <a asp-controller="Monitoring" asp-action="Index" class="nav-link">
@@ -635,7 +626,7 @@
                         <i class="bi bi-bar-chart-line-fill"></i> Monitoring & Evaluation
                     </a>
             }
-            @if (User.IsInRole("IHSA"))
+            @if (User.IsInRole("IHSA") || User.IsInRole("NEDCAdmin"))
             {
                 <a asp-controller="IHSA" asp-action="Dashboard" class="nav-link">
                     <i class="bi bi-speedometer2"></i> IHSA Dashboard
@@ -695,7 +686,7 @@
     <!-- Footer -->
     <div class="footer-brand">
         <p class="mb-0 small fw-bold">
-            ©@DateTime.Today.Year CTSHIP - Community Targeted Social Health Insurance Project | Powered by North East Development Commission (NEDC)
+            Â©@DateTime.Today.Year CTSHIP - Community Targeted Social Health Insurance Project | Powered by North East Development Commission (NEDC)
         </p>
     </div>
     <!-- Offline-ready UI libraries -->

@@ -82,6 +82,8 @@
 
     <partial name="_MonitoringIndicatorCards" model="Model" />
 
+    <partial name="_EncounterDemographicMatrix" model="Model.EncounterDemographicMatrix" />
+
     <div class="row g-3 mb-4">
         <div class="col-xl-3 col-md-6"><div class="card bg-success text-white h-100"><div class="card-body"><div>Service Utilization</div><div class="display-6 fw-bold">@Model.ServiceUtilizationRate%</div><small>@Model.UniqueServiceUsers.ToString("N0") unique users</small></div></div></div>
         <div class="col-xl-3 col-md-6"><div class="card bg-primary text-white h-100"><div class="card-body"><div>Reports Pending Audit</div><div class="display-6 fw-bold">@Model.PendingReports.ToString("N0")</div><small>@Model.AuditedReports.ToString("N0") audited</small></div></div></div>
