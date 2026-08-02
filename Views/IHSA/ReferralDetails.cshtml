@@ -1,0 +1,107 @@
+@model CTSHIPDashboard.ViewModels.ReferralDetailsViewModel
+
+@{
+    ViewData["Title"] = "IHSA Referral Details";
+}
+
+<div class="ct-page">
+    <div class="ct-page-header d-flex flex-wrap justify-content-between align-items-center gap-3">
+        <div>
+            <h2 class="mb-0">Referral Details</h2>
+            <p class="mb-0">@Model.EnrolleeFullName - @Model.EnrolleeNumber</p>
+        </div>
+        <a asp-action="Referrals" class="btn btn-light">
+            <i class="bi bi-arrow-left"></i> Back to Referrals
+        </a>
+    </div>
+
+    <div class="row g-3 mb-3">
+        <div class="col-md-4"><div class="card h-100"><div class="card-body"><div class="small text-muted">Status</div><div>@await Html.PartialAsync("_ReferralStatusBadge", Model.Status)</div></div></div></div>
+        <div class="col-md-4"><div class="card h-100"><div class="card-body"><div class="small text-muted">Priority</div><div class="fs-4 fw-bold text-success">@Model.Priority</div></div></div></div>
+        <div class="col-md-4"><div class="card h-100"><div class="card-body"><div class="small text-muted">Created</div><div class="fw-bold">@Model.CreatedAt.ToLocalTime().ToString("dd MMM yyyy HH:mm")</div></div></div></div>
+    </div>
+
+    <div class="row g-3">
+        <div class="col-lg-8">
+            <div class="card h-100">
+                <div class="card-header bg-success text-white fw-bold">Clinical and Referral Information</div>
+                <div class="card-body">
+                    <dl class="row mb-0">
+                        <dt class="col-md-4">Encounter Reference</dt><dd class="col-md-8">@Model.EncounterReference</dd>
+                        <dt class="col-md-4">Enrollee</dt>
+                        <dd class="col-md-8">
+                            @Model.EnrolleeFullName (@Model.EnrolleeNumber)
+                            @if (ViewBag.EnrolleeId is int enrolleeId)
+                            {
+                                <a asp-controller="Enrollees" asp-action="Details" asp-route-id="@enrolleeId" class="btn btn-sm btn-outline-success ms-2">View enrollee</a>
+                            }
+                        </dd>
+                        <dt class="col-md-4">HMO</dt><dd class="col-md-8">@Model.HmoName (@Model.HmoCode)</dd>
+                        <dt class="col-md-4">From Provider</dt><dd class="col-md-8">@Model.FromProviderName</dd>
+                        <dt class="col-md-4">Referred Facility</dt><dd class="col-md-8">@Model.ReferredHospitalName</dd>
+                        <dt class="col-md-4">Facility Address</dt><dd class="col-md-8">@Model.ReferredHospitalAddress</dd>
+                        <dt class="col-md-4">Diagnosis</dt><dd class="col-md-8">@Model.Diagnosis</dd>
+                        <dt class="col-md-4">Reason for Referral</dt><dd class="col-md-8">@Model.ReasonForReferral</dd>
+                        <dt class="col-md-4">Clinical Summary</dt><dd class="col-md-8">@Model.ClinicalSummary</dd>
+                        <dt class="col-md-4">Treatment Given</dt><dd class="col-md-8">@Model.TreatmentGiven</dd>
+                        <dt class="col-md-4">Investigation Summary</dt><dd class="col-md-8">@Model.InvestigationSummary</dd>
+                    </dl>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card h-100">
+                <div class="card-header fw-bold">Workflow Summary</div>
+                <div class="card-body">
+                    <dl class="mb-0">
+                        <dt>Submitted to HMO</dt><dd>@(Model.SubmittedToHmoAt.HasValue ? Model.SubmittedToHmoAt.Value.ToLocalTime().ToString("dd MMM yyyy HH:mm") : "Not submitted")</dd>
+                        <dt>Verified By</dt><dd>@Model.VerifiedByName</dd>
+                        <dt>Verified At</dt><dd>@(Model.VerifiedAt.HasValue ? Model.VerifiedAt.Value.ToLocalTime().ToString("dd MMM yyyy HH:mm") : "Not verified")</dd>
+                        <dt>Verification Note</dt><dd>@Model.HmoVerificationNote</dd>
+                        <dt>Referral Code Status</dt>
+                        <dd>
+                            @if (Model.ReferralVerificationCodeVerifiedAt.HasValue)
+                            {
+                                <span class="badge bg-success">Verified by facility</span>
+                            }
+                            else if (Model.ReferralVerificationCodeExpired)
+                            {
+                                <span class="badge bg-warning text-dark">Expired</span>
+                            }
+                            else if (Model.HasActiveReferralVerificationCode)
+                            {
+                                <span class="badge bg-info">Active</span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-secondary">Not issued</span>
+                            }
+                        </dd>
+                        <dt>Audited By</dt><dd>@Model.AuditedByName</dd>
+                        <dt>Audit Note</dt><dd>@Model.AuditNote</dd>
+                    </dl>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card mt-3">
+        <div class="card-header fw-bold">Referral Audit Trail</div>
+        <div class="table-responsive">
+            <table class="table table-striped mb-0">
+                <thead class="table-light"><tr><th>Date</th><th>Action</th><th>By</th><th>Note</th></tr></thead>
+                <tbody>
+                    @foreach (var log in Model.AuditLogs)
+                    {
+                        <tr><td>@log.CreatedAt.ToLocalTime().ToString("dd MMM yyyy HH:mm")</td><td>@log.Action</td><td>@log.PerformedByName</td><td>@log.Note</td></tr>
+                    }
+                    @if (!Model.AuditLogs.Any())
+                    {
+                        <tr><td colspan="4" class="text-center text-muted py-4">No audit trail entries yet.</td></tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>

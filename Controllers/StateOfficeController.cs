@@ -25,17 +25,20 @@ public class StateOfficeController : Controller
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly IMonitoringIndicatorService _monitoringIndicatorService;
     private readonly IAuditService _auditService;
+    private readonly IAppNotificationService _notificationService;
 
     public StateOfficeController(
         ApplicationDbContext context,
         UserManager<ApplicationUser> userManager,
         IMonitoringIndicatorService monitoringIndicatorService,
-        IAuditService auditService)
+        IAuditService auditService,
+        IAppNotificationService notificationService)
     {
         _context = context;
         _userManager = userManager;
         _monitoringIndicatorService = monitoringIndicatorService;
         _auditService = auditService;
+        _notificationService = notificationService;
     }
 
     [Authorize(Roles = "StateOffice,CTSHIPAdmin,Admin")]
@@ -675,6 +678,7 @@ public class StateOfficeController : Controller
 
         _context.StateOfficeMonthlyReports.Add(report);
         await _context.SaveChangesAsync(cancellationToken);
+        await _notificationService.NotifyMonthlyReportSubmittedAsync(report.Id, true, cancellationToken);
 
         await _auditService.LogAsync(
             "ReferralProviderReportSubmitted",
@@ -1017,6 +1021,7 @@ public class StateOfficeController : Controller
 
         _context.StateOfficeMonthlyReports.Add(report);
         await _context.SaveChangesAsync(cancellationToken);
+        await _notificationService.NotifyMonthlyReportSubmittedAsync(report.Id, false, cancellationToken);
 
         await _auditService.LogAsync(
             "MonthlyReportSubmitted",
@@ -2258,3 +2263,8 @@ public class StateOfficeController : Controller
             .FirstOrDefaultAsync(cancellationToken);
     }
 }
+
+
+
+
+

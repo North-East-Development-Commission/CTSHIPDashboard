@@ -21,7 +21,7 @@ public class EnrolleesController : Controller
 {
     private const string HmoEnrollmentOfficerRole = "HmoEnrollmentOfficer";
     private const string EnrolleeManageRoles = "CTSHIPAdmin,HMO,HmoEnrollmentOfficer";
-    private const string EnrolleeViewRoles = "CTSHIPAdmin,HMO,HmoEnrollmentOfficer,Provider,Monitoring";
+    private const string EnrolleeViewRoles = "CTSHIPAdmin,HMO,HmoEnrollmentOfficer,Provider,Monitoring,NHIA,SSHIA,IHSA";
     private const string EnrolleeDashboardRoles = "HMO,HmoEnrollmentOfficer";
 
     private readonly ApplicationDbContext _context;
@@ -92,7 +92,7 @@ public class EnrolleesController : Controller
 
     // INDEX — ALL ENROLLEES
     // GET: /Enrollee or /Enrollee/Index
-    [Authorize(Roles = "CTSHIPAdmin,HMO,HmoEnrollmentOfficer,Monitoring")]
+    [Authorize(Roles = "CTSHIPAdmin,HMO,HmoEnrollmentOfficer,Monitoring,NHIA,SSHIA,IHSA")]
     public async Task<IActionResult> Index(
         string search = "",      // Search by name, phone, NIN, or enrollment number
         string status = "",      // "Active", "Inactive", "Suspended", etc.
@@ -118,6 +118,20 @@ public class EnrolleesController : Controller
         {
             enrollees = enrollees.Where(e => e.HmoId == restrictedHmoId.Value);
             hmo = restrictedHmoId.Value.ToString();
+        }
+
+        string? restrictedState = null;
+        if (User.IsInRole("SSHIA"))
+        {
+            restrictedState = currentUser?.State?.Trim();
+            if (string.IsNullOrWhiteSpace(restrictedState))
+            {
+                TempData["Error"] = "Your account is not linked to a state.";
+                return RedirectToAction("Index", "Home");
+            }
+
+            enrollees = enrollees.Where(e => e.State == restrictedState);
+            state = restrictedState;
         }
 
         // SEARCH — Smart multi-field search
@@ -208,6 +222,11 @@ public class EnrolleesController : Controller
             stateQuery = stateQuery.Where(e => e.HmoId == restrictedHmoId.Value);
         }
 
+        if (!string.IsNullOrWhiteSpace(restrictedState))
+        {
+            stateQuery = stateQuery.Where(e => e.State == restrictedState);
+        }
+
         ViewBag.StateList = new SelectList(await stateQuery
             .Select(e => e.State).Distinct().OrderBy(s => s).ToListAsync(), state);
 
@@ -215,6 +234,11 @@ public class EnrolleesController : Controller
         if (restrictedHmoId.HasValue)
         {
             hmoQuery = hmoQuery.Where(h => h.Id == restrictedHmoId.Value);
+        }
+
+        if (!string.IsNullOrWhiteSpace(restrictedState))
+        {
+            hmoQuery = hmoQuery.Where(h => h.Enrollees.Any(e => e.State == restrictedState));
         }
 
         ViewBag.HmoList = new SelectList(await hmoQuery
@@ -422,6 +446,13 @@ public class EnrolleesController : Controller
             return Forbid();
         }
 
+        if (User.IsInRole("SSHIA")
+            && (string.IsNullOrWhiteSpace(currentUser?.State)
+                || !string.Equals(enrollee.State, currentUser.State.Trim(), StringComparison.OrdinalIgnoreCase)))
+        {
+            return Forbid();
+        }
+
         await PopulateEditDropdownsAsync(enrollee, IsHmoEnrollmentScopedUser() ? currentUser?.HmoId : null);
         return View(enrollee);
     }
@@ -593,6 +624,13 @@ public class EnrolleesController : Controller
         ApplicationUser? currentUser = await _userManager.GetUserAsync(User);
         if (IsHmoEnrollmentScopedUser()
             && (!(currentUser?.HmoId.HasValue ?? false) || enrollee.HmoId != currentUser!.HmoId))
+        {
+            return Forbid();
+        }
+
+        if (User.IsInRole("SSHIA")
+            && (string.IsNullOrWhiteSpace(currentUser?.State)
+                || !string.Equals(enrollee.State, currentUser.State.Trim(), StringComparison.OrdinalIgnoreCase)))
         {
             return Forbid();
         }
@@ -1258,3 +1296,5 @@ public class EnrolleesController : Controller
         return View(enrollees);
     }
 }
+
+

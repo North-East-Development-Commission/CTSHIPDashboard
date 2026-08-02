@@ -1,4 +1,4 @@
-ï»¿@model CTSHIPDashboard.Models.Encounter
+@model CTSHIPDashboard.Models.Encounter
 @{
     ViewData["Title"] = "Edit Encounter - " + Model.EncounterNumber;
 }
@@ -60,6 +60,14 @@
                                 <select asp-for="VisitType" class="form-select form-select-lg" asp-items="ViewBag.VisitTypes">
                                     <option value="">Select visit type</option>
                                 </select>
+                            </div>
+
+                            <div class="col-md-4">
+                                <label asp-for="ReasonForEncounter" class="form-label text-success fw-bold">Reason For Encounter</label>
+                                <select asp-for="ReasonForEncounter" class="form-select form-select-lg" asp-items="ViewBag.EncounterReasons">
+                                    <option value="">Select reason</option>
+                                </select>
+                                <span asp-validation-for="ReasonForEncounter" class="text-danger"></span>
                             </div>
                             <partial name="_ServiceSelection" model="Model" />
 
@@ -131,7 +139,7 @@
                 </div>
 
                 <div class="bg-dark text-white text-center py-3">
-                    <small>CTSHIP â€¢ Universal Health Coverage â€¢ Powered by North East Development Commission (NEDC)</small>
+                    <small>CTSHIP • Universal Health Coverage • Powered by North East Development Commission (NEDC)</small>
                 </div>
             </div>
         </div>
@@ -260,6 +268,10 @@
 
             if (!document.getElementById('TreatmentGiven')?.value.trim()) {
                 addValidationError(errors, '#TreatmentGiven', 'Treatment given is required.');
+            }
+
+            if (!document.getElementById('ReasonForEncounter')?.value) {
+                addValidationError(errors, '#ReasonForEncounter', 'Select a reason for encounter.');
             }
 
             if (!visitDateValue || new Date(visitDateValue) > new Date()) {

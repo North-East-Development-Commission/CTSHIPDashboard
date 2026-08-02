@@ -1,0 +1,100 @@
+@model List<CTSHIPDashboard.ViewModels.ReferralIndexViewModel>
+@using CTSHIPDashboard.Enums
+
+@{
+    ViewData["Title"] = "IHSA Referral Monitoring";
+    string selectedStatus = ViewBag.Status as string ?? "All";
+}
+
+<div class="ct-page">
+    <div class="ct-page-header d-flex flex-wrap justify-content-between align-items-center gap-3">
+        <div>
+            <h2 class="mb-0">Referral Monitoring</h2>
+            <p class="mb-0">All referral submissions across states for IHSA oversight.</p>
+        </div>
+        <a asp-action="Dashboard" class="btn btn-light">
+            <i class="bi bi-speedometer2"></i> Dashboard
+        </a>
+    </div>
+
+    <div class="row g-3 mb-3">
+        <div class="col-md-4"><div class="card h-100"><div class="card-body"><div class="small text-muted">Total Referrals</div><div class="fs-3 fw-bold text-success">@ViewBag.TotalReferrals</div></div></div></div>
+        <div class="col-md-4"><div class="card h-100"><div class="card-body"><div class="small text-muted">Pending Workflow</div><div class="fs-3 fw-bold text-warning">@ViewBag.PendingReferrals</div></div></div></div>
+        <div class="col-md-4"><div class="card h-100"><div class="card-body"><div class="small text-muted">Completed or Audited</div><div class="fs-3 fw-bold text-primary">@ViewBag.CompletedReferrals</div></div></div></div>
+    </div>
+
+    <form method="get" class="card card-body mb-3">
+        <div class="row g-2 align-items-end">
+            <div class="col-md-5">
+                <label class="form-label">Search</label>
+                <input type="text" name="search" value="@ViewBag.Search" class="form-control" placeholder="Enrollee, provider, HMO, or diagnosis" />
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Status</label>
+                <select name="status" class="form-select">
+                    @if (selectedStatus == "All")
+                    {
+                        <option value="All" selected>All status</option>
+                    }
+                    else
+                    {
+                        <option value="All">All status</option>
+                    }
+                    @foreach (ReferralStatus status in Enum.GetValues(typeof(ReferralStatus)))
+                    {
+                        if (selectedStatus == status.ToString())
+                        {
+                            <option value="@status" selected>@status</option>
+                        }
+                        else
+                        {
+                            <option value="@status">@status</option>
+                        }
+                    }
+                </select>
+            </div>
+            <div class="col-md-2 d-grid"><button type="submit" class="btn btn-success">Filter</button></div>
+            <div class="col-md-2 d-grid"><a asp-action="Referrals" class="btn btn-outline-secondary">Clear</a></div>
+        </div>
+    </form>
+
+    <div class="card">
+        <div class="table-responsive">
+            <table class="table table-striped table-hover align-middle mb-0 ct-wide-table">
+                <thead class="table-light">
+                    <tr>
+                        <th>Enrollee</th>
+                        <th>From Provider</th>
+                        <th>Referred Facility</th>
+                        <th>HMO</th>
+                        <th>Diagnosis</th>
+                        <th>Priority</th>
+                        <th>Status</th>
+                        <th>Submitted</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var referral in Model)
+                    {
+                        <tr>
+                            <td><strong>@referral.EnrolleeFullName</strong><div class="small text-muted">@referral.EnrolleeNumber</div></td>
+                            <td>@referral.FromProviderName</td>
+                            <td>@referral.ReferredHospitalName</td>
+                            <td>@referral.HmoName</td>
+                            <td>@referral.Diagnosis</td>
+                            <td><span class="badge bg-secondary">@referral.Priority</span></td>
+                            <td>@await Html.PartialAsync("_ReferralStatusBadge", referral.Status)</td>
+                            <td>@(referral.SubmittedToHmoAt.HasValue ? referral.SubmittedToHmoAt.Value.ToLocalTime().ToString("dd MMM yyyy HH:mm") : referral.CreatedAt.ToLocalTime().ToString("dd MMM yyyy HH:mm"))</td>
+                            <td class="text-end"><a asp-action="ReferralDetails" asp-route-id="@referral.Id" class="btn btn-sm btn-outline-primary">View</a></td>
+                        </tr>
+                    }
+                    @if (!Model.Any())
+                    {
+                        <tr><td colspan="9" class="text-center text-muted py-4">No referrals found.</td></tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>

@@ -13,7 +13,7 @@ using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
 
 namespace CTSHIPDashboard.Controllers
 {
-    [Authorize(Roles = "CTSHIPAdmin,Admin,HMO,Monitoring,Reviewer")]
+    [Authorize(Roles = "CTSHIPAdmin,Admin,HMO,Monitoring,Reviewer,NHIA,IHSA")]
     public class ClaimsController : Controller
     {
         private readonly ApplicationDbContext _context;
@@ -492,7 +492,9 @@ namespace CTSHIPDashboard.Controllers
         {
             if (User.IsInRole("CTSHIPAdmin")
                 || User.IsInRole("Admin")
-                || User.IsInRole("Monitoring"))
+                || User.IsInRole("Monitoring")
+                || User.IsInRole("NHIA")
+                || User.IsInRole("IHSA"))
             {
                 return query;
             }
@@ -516,7 +518,9 @@ namespace CTSHIPDashboard.Controllers
         {
             if (User.IsInRole("CTSHIPAdmin")
                 || User.IsInRole("Admin")
-                || User.IsInRole("Monitoring"))
+                || User.IsInRole("Monitoring")
+                || User.IsInRole("NHIA")
+                || User.IsInRole("IHSA"))
             {
                 return true;
             }
@@ -542,7 +546,9 @@ namespace CTSHIPDashboard.Controllers
         {
             if (User.IsInRole("CTSHIPAdmin")
                 || User.IsInRole("Admin")
-                || User.IsInRole("Monitoring"))
+                || User.IsInRole("Monitoring")
+                || User.IsInRole("NHIA")
+                || User.IsInRole("IHSA"))
             {
                 return RedirectToAction(nameof(Index));
             }
@@ -561,3 +567,5 @@ namespace CTSHIPDashboard.Controllers
         }
     }
 }
+
+

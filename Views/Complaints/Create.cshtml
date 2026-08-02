@@ -1,4 +1,4 @@
-@model CTSHIPDashboard.Models.ViewModels.ComplaintCreateViewModel
+﻿@model CTSHIPDashboard.Models.ViewModels.ComplaintCreateViewModel
 @using CTSHIPDashboard.Models.Enums
 @{
     ViewData["Title"] = "Submit Complaint";
@@ -42,7 +42,7 @@
                     <div class="col-md-4">
                         <label asp-for="HmoId" class="form-label fw-bold"></label>
                         <select asp-for="HmoId" asp-items="Model.Hmos" class="form-select form-select-lg" disabled="@Model.HmoLocked">
-                            <option value="">Programme / No HMO</option>
+                            <option value="">Programme / Admin</option>
                         </select>
                         @if (Model.HmoLocked)
                         {
@@ -52,7 +52,7 @@
                     <div class="col-md-6">
                         <label asp-for="ProviderId" class="form-label fw-bold"></label>
                         <select asp-for="ProviderId" asp-items="Model.Providers" class="form-select form-select-lg" disabled="@Model.ProviderLocked">
-                            <option value="">No specific provider</option>
+                            <option value="">No specific provider / Admin</option>
                         </select>
                         @if (Model.ProviderLocked)
                         {
@@ -87,3 +87,4 @@
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
 }
+

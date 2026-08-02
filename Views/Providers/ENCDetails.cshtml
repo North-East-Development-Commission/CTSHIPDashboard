@@ -31,6 +31,7 @@
                                             <h5 class="text-success fw-bold">Visit Information</h5>
                                             <p><strong>Date:</strong> @Model.VisitDate</p>
                                             <p><strong>Type:</strong> @Model.VisitType</p>
+                                            <p><strong>Reason:</strong> @Model.ReasonForEncounter</p>
                                             <p><strong>Provider:</strong> @Model.Provider?.Name</p>
                                             <p>
                                                 <strong>Status:</strong>
@@ -55,12 +56,43 @@
                                         </div>
                                     </div>
                                 </div>
+                                <div class="col-12">
+                                    <div class="card shadow-sm">
+                                        <div class="card-body">
+                                            <h5 class="text-success fw-bold">Prescriptions</h5>
+                                            @if (Model.Prescriptions.Count == 0)
+                                            {
+                                                <p class="text-muted mb-0">No inventory prescriptions recorded.</p>
+                                            }
+                                            else
+                                            {
+                                                <div class="table-responsive">
+                                                    <table class="table table-sm align-middle mb-0">
+                                                        <thead>
+                                                            <tr><th>Drug</th><th>Quantity</th><th>Deducted</th></tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            @foreach (var prescription in Model.Prescriptions)
+                                                            {
+                                                                <tr>
+                                                                    <td>@prescription.DrugName @prescription.Strength @prescription.DosageForm</td>
+                                                                    <td>@prescription.QuantityDispensed.ToString("N0") @prescription.UnitOfMeasure</td>
+                                                                    <td><span class="badge @(prescription.InventoryDeducted ? "bg-success" : "bg-warning text-dark")">@(prescription.InventoryDeducted ? "Yes" : "Pending")</span></td>
+                                                                </tr>
+                                                            }
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            }
+                                        </div>
+                                    </div>
+                                </div>
 
                                 <div class="col-12">
                                     <div class="card @(Model.ClaimId == null ? "border-warning" : "border-success") shadow-sm">
                                         <div class="card-body text-center py-4">
                                             <h5>Total Amount</h5>
-                                            <h2 class="display-5 fw-bold text-success">₦@((int)Model.TotalAmount)</h2>
+                                            <h2 class="display-5 fw-bold text-success">&#8358;@((int)Model.TotalAmount)</h2>
                                             @if (Model.ClaimId == null)
                                             {
                                                 <p class="text-warning fw-bold">Not yet claimed</p>

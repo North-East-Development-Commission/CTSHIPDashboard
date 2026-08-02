@@ -1,4 +1,4 @@
-using CTSHIPDashboard.Data;
+﻿using CTSHIPDashboard.Data;
 using CTSHIPDashboard.Helpers;
 using CTSHIPDashboard.Models;
 using CTSHIPDashboard.Models.Enums;
@@ -12,21 +12,24 @@ using Microsoft.EntityFrameworkCore;
 
 namespace CTSHIPDashboard.Controllers
 {
-    [Authorize(Roles = "CTSHIPAdmin,HMO,Provider,StateOffice,Monitoring,NHIA,NEDCAdmin,SSHIA")]
+    [Authorize(Roles = "CTSHIPAdmin,HMO,Provider,StateOffice,Monitoring,NHIA,NEDCAdmin,SSHIA,IHSA")]
     public class ComplaintsController : Controller
     {
         private readonly ApplicationDbContext _context;
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly IAuditService _auditService;
+        private readonly IAppNotificationService _notificationService;
 
         public ComplaintsController(
             ApplicationDbContext context,
             UserManager<ApplicationUser> userManager,
-            IAuditService auditService)
+            IAuditService auditService,
+            IAppNotificationService notificationService)
         {
             _context = context;
             _userManager = userManager;
             _auditService = auditService;
+            _notificationService = notificationService;
         }
 
         public async Task<IActionResult> Index(
@@ -88,6 +91,7 @@ namespace CTSHIPDashboard.Controllers
                 .ToListAsync());
         }
 
+        [Authorize(Roles = "CTSHIPAdmin,HMO,Provider,StateOffice,Monitoring,NHIA,NEDCAdmin,SSHIA,IHSA")]
         public async Task<IActionResult> Create()
         {
             ApplicationUser? user = await _userManager.GetUserAsync(User);
@@ -100,6 +104,7 @@ namespace CTSHIPDashboard.Controllers
 
         [HttpPost]
         [ValidateAntiForgeryToken]
+        [Authorize(Roles = "CTSHIPAdmin,HMO,Provider,StateOffice,Monitoring,NHIA,NEDCAdmin,SSHIA,IHSA")]
         public async Task<IActionResult> Create(ComplaintCreateViewModel model)
         {
             ApplicationUser? user = await _userManager.GetUserAsync(User);
@@ -135,6 +140,7 @@ namespace CTSHIPDashboard.Controllers
 
             _context.Complaints.Add(complaint);
             await _context.SaveChangesAsync();
+            await _notificationService.NotifyComplaintSubmittedAsync(complaint.Id, HttpContext.RequestAborted);
             await _auditService.LogAsync(
                 "Complaint.Created",
                 AuditActor.Format(user, User.Identity?.Name),
@@ -255,7 +261,8 @@ namespace CTSHIPDashboard.Controllers
             if (User.IsInRole("CTSHIPAdmin")
                 || User.IsInRole("Monitoring")
                 || User.IsInRole("NHIA")
-                || User.IsInRole("NEDCAdmin"))
+                || User.IsInRole("NEDCAdmin")
+                || User.IsInRole("IHSA"))
             {
                 return query;
             }
@@ -385,7 +392,8 @@ namespace CTSHIPDashboard.Controllers
             if (User.IsInRole("CTSHIPAdmin")
                 || User.IsInRole("Monitoring")
                 || User.IsInRole("NHIA")
-                || User.IsInRole("NEDCAdmin"))
+                || User.IsInRole("NEDCAdmin")
+                || User.IsInRole("IHSA"))
             {
                 return true;
             }
@@ -484,3 +492,8 @@ namespace CTSHIPDashboard.Controllers
             string.IsNullOrWhiteSpace(value) ? null : value.Trim();
     }
 }
+
+
+
+
+

@@ -1,4 +1,5 @@
 ﻿// Models/Encounter.cs
+using CTSHIPDashboard.Models.ViewModels;
 using CTSHIPDashboard.ViewModels;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
@@ -30,6 +31,11 @@ namespace CTSHIPDashboard.Models
         public string? LabTests { get; set; }
         public string? TreatmentGiven { get; set; }
 
+        [Required]
+        [StringLength(100)]
+        [Display(Name = "Reason For Encounter")]
+        public string ReasonForEncounter { get; set; } = "Acute illness";
+
         [Range(typeof(decimal), "0", "9999999999999999")]
         public decimal ConsultationFee { get; set; }
 
@@ -39,20 +45,25 @@ namespace CTSHIPDashboard.Models
         [Range(typeof(decimal), "0", "9999999999999999")]
         public decimal DrugFee { get; set; }
         public decimal TotalAmount => ConsultationFee + LabFee + DrugFee;
-        public int? ClaimId { get; set; }  // Links to Claim (nullable until claimed)
+        public int? ClaimId { get; set; }
         public Claim? Claim { get; set; }
 
-        public string Status { get; set; } = "Completed"; // Completed, Billed, Claimed
+        public string Status { get; set; } = "Completed";
         public decimal Temperature { get; set; }
         public string? BloodPressure { get; set; }
         public string? VisitType { get; set; }
+
         [Required]
         public string ServiceSetting { get; set; } = EncounterServiceCatalog.Outpatient;
 
         public ICollection<EncounterService> Services { get; set; } = new List<EncounterService>();
+        public ICollection<EncounterPrescription> Prescriptions { get; set; } = new List<EncounterPrescription>();
 
         [NotMapped]
         public List<string> SelectedServices { get; set; } = new();
+
+        [NotMapped]
+        public List<EncounterPrescriptionInputViewModel> SelectedPrescriptions { get; set; } = new();
 
         [NotMapped]
         public bool FeesWaived { get; set; }

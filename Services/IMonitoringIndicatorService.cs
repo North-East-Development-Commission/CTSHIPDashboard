@@ -12,5 +12,12 @@ namespace CTSHIPDashboard.Services
             string? state,
             string? lga,
             CancellationToken cancellationToken = default);
+
+        Task<MonitoringDashboardViewModel> BuildDashboardAsync(
+            string? state,
+            string? lga,
+            int? hmoId,
+            CancellationToken cancellationToken = default);
     }
 }
+

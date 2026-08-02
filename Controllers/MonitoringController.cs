@@ -1,4 +1,4 @@
-using CTSHIPDashboard.Data;
+﻿using CTSHIPDashboard.Data;
 using CTSHIPDashboard.Helpers;
 using CTSHIPDashboard.Models;
 using CTSHIPDashboard.Models.ViewModels;
@@ -10,7 +10,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace CTSHIPDashboard.Controllers
 {
-    [Authorize(Roles = "CTSHIPAdmin,NHIA,StateOffice,NEDCAdmin,SSHIA,Monitoring")]
+    [Authorize(Roles = "CTSHIPAdmin,NHIA,StateOffice,NEDCAdmin,SSHIA,IHSA,Monitoring")]
     public class MonitoringController : Controller
     {
         private readonly ApplicationDbContext _context;
@@ -34,7 +34,7 @@ namespace CTSHIPDashboard.Controllers
             CancellationToken cancellationToken)
         {
             ApplicationUser? user = await _userManager.GetUserAsync(User);
-            if (User.IsInRole("StateOffice"))
+            if (User.IsInRole("StateOffice") || User.IsInRole("SSHIA"))
             {
                 if (user == null || string.IsNullOrWhiteSpace(user.State))
                 {
@@ -66,7 +66,7 @@ namespace CTSHIPDashboard.Controllers
         public async Task<IActionResult> Lgas(string state, CancellationToken cancellationToken)
         {
             ApplicationUser? user = await _userManager.GetUserAsync(User);
-            if (User.IsInRole("StateOffice"))
+            if (User.IsInRole("StateOffice") || User.IsInRole("SSHIA"))
             {
                 if (user == null
                     || string.IsNullOrWhiteSpace(user.State)
@@ -102,7 +102,7 @@ namespace CTSHIPDashboard.Controllers
                 scope = ctsTargetScope;
             }
 
-            if (User.IsInRole("StateOffice"))
+            if (User.IsInRole("StateOffice") || User.IsInRole("SSHIA"))
             {
                 if (string.IsNullOrWhiteSpace(user.State)
                     || !string.Equals(scope, user.State, StringComparison.OrdinalIgnoreCase))
@@ -185,3 +185,4 @@ namespace CTSHIPDashboard.Controllers
         }
     }
 }
+

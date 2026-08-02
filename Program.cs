@@ -1,4 +1,4 @@
-using CTSHIPDashboard.Data;
+﻿using CTSHIPDashboard.Data;
 using CTSHIPDashboard.Hubs;
 using CTSHIPDashboard.Models;
 using CTSHIPDashboard.Services;
@@ -87,9 +87,12 @@ try
         scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
     IServiceProvider services = scope.ServiceProvider;
 
-    if (!await roleManager.RoleExistsAsync("HmoEnrollmentOfficer"))
+    foreach (string requiredRole in new[] { "HmoEnrollmentOfficer", "IHSA" })
     {
-        await roleManager.CreateAsync(new IdentityRole("HmoEnrollmentOfficer"));
+        if (!await roleManager.RoleExistsAsync(requiredRole))
+        {
+            await roleManager.CreateAsync(new IdentityRole(requiredRole));
+        }
     }
 
     var legacyTarget = context.ProgramMonitoringTargets
@@ -175,9 +178,13 @@ app.MapGet("/", context =>
                                 ? "/StateOffice/Index"
                                 : context.User.IsInRole("NHIA")
                                     ? "/NHIA/Dashboard"
-                                    : context.User.IsInRole("Monitoring")
-                                        ? "/Monitoring/Index"
-                                        : "/Home/Index";
+                                    : context.User.IsInRole("SSHIA")
+                                        ? "/SSHIA/Dashboard"
+                                        : context.User.IsInRole("IHSA")
+                                            ? "/IHSA/Dashboard"
+                                            : context.User.IsInRole("Monitoring")
+                                                ? "/Monitoring/Index"
+                                                : "/Home/Index";
 
         context.Response.Redirect(dashboardPath);
         return Task.CompletedTask;
@@ -198,3 +205,6 @@ app.MapRazorPages()
 app.Run();
 //#FE9031 
 //#FE9031
+
+
+

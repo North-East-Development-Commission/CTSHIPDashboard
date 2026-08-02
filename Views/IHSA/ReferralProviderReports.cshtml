@@ -1,0 +1,83 @@
+@model IEnumerable<CTSHIPDashboard.Models.StateOfficeMonthlyReport>
+
+@{
+    ViewData["Title"] = "IHSA Referral Provider Reports";
+    var availableStates = ViewBag.AvailableStates as List<string> ?? new List<string>();
+    string selectedState = ViewBag.State as string ?? string.Empty;
+}
+
+<div class="ct-page">
+    <div class="ct-page-header d-flex flex-wrap justify-content-between align-items-center gap-3">
+        <div>
+            <h2 class="mb-0">Referral Provider Reports</h2>
+            <p class="mb-0">IHSA audit queue for referral provider activity submissions.</p>
+        </div>
+        <a asp-action="Dashboard" class="btn btn-light"><i class="bi bi-speedometer2"></i> Dashboard</a>
+    </div>
+
+    <div class="row g-3 mb-3">
+        <div class="col-md-4"><div class="card h-100"><div class="card-body"><div class="small text-muted">Reports</div><div class="fs-3 fw-bold text-success">@Model.Count()</div></div></div></div>
+        <div class="col-md-4"><div class="card h-100"><div class="card-body"><div class="small text-muted">Pending Audit</div><div class="fs-3 fw-bold text-warning">@Model.Count(x => x.AuditStatus == "Pending")</div></div></div></div>
+        <div class="col-md-4"><div class="card h-100"><div class="card-body"><div class="small text-muted">Audited</div><div class="fs-3 fw-bold text-primary">@Model.Count(x => x.AuditStatus == "Audited")</div></div></div></div>
+    </div>
+
+    <form method="get" class="card card-body mb-3">
+        <div class="row g-2 align-items-end">
+            <div class="col-md-3"><label class="form-label">Reporting Month</label><input type="month" name="reportingPeriod" value="@ViewBag.ReportingPeriod" class="form-control" /></div>
+            <div class="col-md-3">
+                <label class="form-label">State</label>
+                <select name="state" class="form-select">
+                    @if (string.IsNullOrWhiteSpace(selectedState))
+                    {
+                        <option value="" selected>All states</option>
+                    }
+                    else
+                    {
+                        <option value="">All states</option>
+                    }
+                    @foreach (string state in availableStates)
+                    {
+                        if (state == selectedState)
+                        {
+                            <option value="@state" selected>@state</option>
+                        }
+                        else
+                        {
+                            <option value="@state">@state</option>
+                        }
+                    }
+                </select>
+            </div>
+            <div class="col-md-2 d-grid"><button type="submit" class="btn btn-success">Filter</button></div>
+            <div class="col-md-2 d-grid"><a asp-action="ReferralProviderReports" class="btn btn-outline-secondary">Clear</a></div>
+        </div>
+    </form>
+
+    <div class="card">
+        <div class="table-responsive">
+            <table class="table table-striped align-middle mb-0 ct-wide-table">
+                <thead class="table-light"><tr><th>Month</th><th>State</th><th>LGA</th><th>Referral Provider</th><th>Referral Encounters</th><th>Claims</th><th>Audit</th><th>Submitted</th><th></th></tr></thead>
+                <tbody>
+                    @foreach (var report in Model)
+                    {
+                        <tr>
+                            <td>@report.ReportingMonth.ToString("MMMM yyyy")</td>
+                            <td>@report.State</td>
+                            <td>@report.Lga</td>
+                            <td><strong>@report.FacilityName</strong><div class="small text-muted">@report.FacilityCode</div></td>
+                            <td>@report.TotalEncounters.ToString("N0")</td>
+                            <td>@report.TotalClaims.ToString("N0")<div class="small text-muted">NGN @report.TotalClaimsAmount.ToString("N2")</div></td>
+                            <td><span class="badge @(report.AuditStatus == "Audited" ? "bg-success" : report.AuditStatus == "Needs Correction" ? "bg-warning text-dark" : "bg-secondary")">@report.AuditStatus</span></td>
+                            <td>@report.DateSubmitted.ToLocalTime().ToString("dd MMM yyyy HH:mm")</td>
+                            <td class="text-end"><a asp-action="ReferralProviderReportDetails" asp-route-id="@report.Id" class="btn btn-sm btn-outline-primary">Audit</a></td>
+                        </tr>
+                    }
+                    @if (!Model.Any())
+                    {
+                        <tr><td colspan="9" class="text-center text-muted py-4">No referral provider reports found.</td></tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>

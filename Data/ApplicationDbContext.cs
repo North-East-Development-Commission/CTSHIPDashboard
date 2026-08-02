@@ -1,4 +1,4 @@
-ï»¿using CTSHIPDashboard.Models;
+using CTSHIPDashboard.Models;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
@@ -38,7 +38,11 @@ namespace CTSHIPDashboard.Data
         public DbSet<StateOfficeMonthlyReport> StateOfficeMonthlyReports { get; set; }
         public DbSet<ProgramMonitoringTarget> ProgramMonitoringTargets { get; set; }
         public DbSet<EncounterService> EncounterServices { get; set; }
+        public DbSet<DrugInventoryItem> DrugInventoryItems { get; set; }
+        public DbSet<EncounterPrescription> EncounterPrescriptions { get; set; }
         public DbSet<CapitationPayment> CapitationPayments { get; set; }
+        public DbSet<AppNotification> AppNotifications { get; set; }
+        public DbSet<AppNotificationRead> AppNotificationReads { get; set; }
 
         private static void ConfigureDeathRegisterEntities(ModelBuilder builder)
         {
@@ -203,6 +207,33 @@ namespace CTSHIPDashboard.Data
             ConfigureDeathRegisterEntities(modelBuilder);
             ConfigureReferralEntities(modelBuilder);
 
+
+            modelBuilder.Entity<AppNotification>(entity =>
+            {
+                entity.ToTable("AppNotifications");
+                entity.HasKey(x => x.Id);
+                entity.Property(x => x.TargetGroup).IsRequired().HasMaxLength(200);
+                entity.Property(x => x.EventName).IsRequired().HasMaxLength(100);
+                entity.Property(x => x.Title).IsRequired().HasMaxLength(200);
+                entity.Property(x => x.Message).IsRequired().HasMaxLength(1000);
+                entity.Property(x => x.Url).HasMaxLength(500);
+                entity.Property(x => x.Icon).HasMaxLength(40);
+                entity.HasIndex(x => x.TargetGroup);
+                entity.HasIndex(x => x.CreatedAt);
+            });
+
+            modelBuilder.Entity<AppNotificationRead>(entity =>
+            {
+                entity.ToTable("AppNotificationReads");
+                entity.HasKey(x => x.Id);
+                entity.Property(x => x.UserId).IsRequired().HasMaxLength(450);
+                entity.HasIndex(x => x.UserId);
+                entity.HasIndex(x => new { x.AppNotificationId, x.UserId }).IsUnique();
+                entity.HasOne(x => x.AppNotification)
+                    .WithMany(x => x.Reads)
+                    .HasForeignKey(x => x.AppNotificationId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
             modelBuilder.Entity<StateOfficeMonthlyReport>(entity =>
             {
                 entity.ToTable("StateOfficeMonthlyReports");
@@ -258,6 +289,46 @@ namespace CTSHIPDashboard.Data
                     .OnDelete(DeleteBehavior.Cascade);
             });
 
+            modelBuilder.Entity<DrugInventoryItem>(entity =>
+            {
+                entity.ToTable("DrugInventoryItems");
+                entity.HasKey(x => x.Id);
+                entity.Property(x => x.DrugName).IsRequired().HasMaxLength(200);
+                entity.Property(x => x.Strength).HasMaxLength(100);
+                entity.Property(x => x.DosageForm).HasMaxLength(100);
+                entity.Property(x => x.UnitOfMeasure).IsRequired().HasMaxLength(50);
+                entity.Property(x => x.UnitCost).HasColumnType("decimal(18,2)");
+                entity.Property(x => x.CreatedByUserId).HasMaxLength(450);
+                entity.Property(x => x.CreatedByName).HasMaxLength(200);
+                entity.HasIndex(x => x.ProviderId);
+                entity.HasIndex(x => x.IsActive);
+                entity.HasIndex(x => new { x.ProviderId, x.DrugName, x.Strength, x.DosageForm }).IsUnique();
+                entity.HasOne(x => x.Provider)
+                    .WithMany(x => x.DrugInventoryItems)
+                    .HasForeignKey(x => x.ProviderId)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            modelBuilder.Entity<EncounterPrescription>(entity =>
+            {
+                entity.ToTable("EncounterPrescriptions");
+                entity.HasKey(x => x.Id);
+                entity.Property(x => x.DrugName).IsRequired().HasMaxLength(200);
+                entity.Property(x => x.Strength).HasMaxLength(100);
+                entity.Property(x => x.DosageForm).HasMaxLength(100);
+                entity.Property(x => x.UnitOfMeasure).IsRequired().HasMaxLength(50);
+                entity.Property(x => x.UnitCost).HasColumnType("decimal(18,2)");
+                entity.HasIndex(x => x.EncounterId);
+                entity.HasIndex(x => x.DrugInventoryItemId);
+                entity.HasOne(x => x.Encounter)
+                    .WithMany(x => x.Prescriptions)
+                    .HasForeignKey(x => x.EncounterId)
+                    .OnDelete(DeleteBehavior.Cascade);
+                entity.HasOne(x => x.DrugInventoryItem)
+                    .WithMany(x => x.EncounterPrescriptions)
+                    .HasForeignKey(x => x.DrugInventoryItemId)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
             modelBuilder.Entity<CapitationPayment>(entity =>
             {
                 entity.ToTable("CapitationPayments");
@@ -299,11 +370,18 @@ namespace CTSHIPDashboard.Data
                     .OnDelete(DeleteBehavior.Cascade);
             });
 
-            modelBuilder.Entity<Encounter>()
-                .Property(x => x.ServiceSetting)
-                .IsRequired()
-                .HasMaxLength(50)
-                .HasDefaultValue(EncounterServiceCatalog.Outpatient);
+            modelBuilder.Entity<Encounter>(entity =>
+            {
+                entity.Property(x => x.ServiceSetting)
+                    .IsRequired()
+                    .HasMaxLength(50)
+                    .HasDefaultValue(EncounterServiceCatalog.Outpatient);
+
+                entity.Property(x => x.ReasonForEncounter)
+                    .IsRequired()
+                    .HasMaxLength(100)
+                    .HasDefaultValue("Acute illness");
+            });
 
             modelBuilder.Entity<Doctor>(entity =>
             {
@@ -357,7 +435,7 @@ namespace CTSHIPDashboard.Data
                     .OnDelete(DeleteBehavior.Restrict);
             });
 
-            // GLOBAL FIX â€” ALL decimal â†’ decimal(18,2)
+            // GLOBAL FIX — ALL decimal ? decimal(18,2)
             foreach (var property in modelBuilder.Model.GetEntityTypes()
                 .SelectMany(t => t.GetProperties())
                 .Where(p => p.ClrType == typeof(decimal)))
@@ -368,14 +446,14 @@ namespace CTSHIPDashboard.Data
        
             base.OnModelCreating(modelBuilder);
 
-            // FIX CASCADE DELETE ISSUE â€” THIS IS THE SOLUTION
+            // FIX CASCADE DELETE ISSUE — THIS IS THE SOLUTION
             foreach (var relationship in modelBuilder.Model.GetEntityTypes()
                 .SelectMany(e => e.GetForeignKeys()))
             {
                 relationship.DeleteBehavior = DeleteBehavior.Restrict;
             }
 
-            // OR â€” ONLY FIX SPECIFIC ONES (RECOMMENDED FOR PRODUCTION)
+            // OR — ONLY FIX SPECIFIC ONES (RECOMMENDED FOR PRODUCTION)
             modelBuilder.Entity<Claim>()
                 .HasOne(c => c.Provider)
                 .WithMany(p => p.Claims)
@@ -429,3 +507,5 @@ namespace CTSHIPDashboard.Data
         }
     }
 }
+
+

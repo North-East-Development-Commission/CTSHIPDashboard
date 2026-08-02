@@ -115,7 +115,7 @@
                                         <div class="card-body py-5 text-center">
                                             <i class="bi bi-envelope-paper-fill fs-1 mb-3"></i>
                                             <h5>Total Claims Value</h5>
-                                            <h2 class="display-4 fw-bold">₦@ViewBag.TotalClaimAmount.ToString("N2")</h2>
+                                            <h2 class="display-4 fw-bold">&#8358;@ViewBag.TotalClaimAmount.ToString("N2")</h2>
                                         </div>
                                     </div>
                                 </div>
@@ -125,6 +125,9 @@
 
                     <!-- Action Buttons -->
                     <div class="text-center mt-5 pt-4 border-top">
+                        <a asp-controller="Hmo" asp-action="EncountersPerProvider" asp-route-id="@Model.Id" class="btn btn-success btn-lg px-6 shadow">
+                            View Encounters
+                        </a>
                         @if (canManageProviders)
                         {
                             <a asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-warning btn-lg px-6 shadow">
@@ -145,3 +148,4 @@
         </div>
     </div>
 </div>
+

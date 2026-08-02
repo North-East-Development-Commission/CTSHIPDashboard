@@ -1,4 +1,4 @@
-﻿@model CTSHIPDashboard.Models.Encounter
+@model CTSHIPDashboard.Models.Encounter
 @{
     ViewData["Title"] = "Edit Encounter " ;
 }
@@ -67,6 +67,15 @@
                                         <option value="">Select Facility</option>
                                     </select>
                                 </div>
+                            </div>
+                            <div class="col-md-6">
+                                <label asp-for="ReasonForEncounter">Reason For Encounter</label>
+                                <div class="form-floating">
+                                    <select asp-for="ReasonForEncounter" class="form-select" asp-items="ViewBag.EncounterReasons">
+                                        <option value="">Select reason</option>
+                                    </select>
+                                </div>
+                                <span asp-validation-for="ReasonForEncounter" class="text-danger"></span>
                             </div>
                             <div class="col-md-6">
                                 <label asp-for="DoctorId" class="form-label fw-bold">Attended By (Hospital Staff)</label>

@@ -1,6 +1,9 @@
-﻿@using CTSHIPDashboard.Data
+@using CTSHIPDashboard.Data
 @model IEnumerable<Hmo>
 @inject ApplicationDbContext _context
+@{
+    bool canManageHmos = User.IsInRole("CTSHIPAdmin") || User.IsInRole("Admin");
+}
 
 
 <div class="container-fluid py-4">
@@ -66,3 +69,4 @@
         </div>
     </div>
 </div>
+

@@ -1,4 +1,4 @@
-using CTSHIPDashboard.Data;
+﻿using CTSHIPDashboard.Data;
 using CTSHIPDashboard.Models;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -15,6 +15,7 @@ namespace CTSHIPDashboard.Services
             "HmoEnrollmentOfficer",
             "Provider",
             "SSHIA",
+            "IHSA",
             "Monitoring",
             "Auditor",
             "Finance",
@@ -88,3 +89,4 @@ namespace CTSHIPDashboard.Services
         }
     }
 }
+

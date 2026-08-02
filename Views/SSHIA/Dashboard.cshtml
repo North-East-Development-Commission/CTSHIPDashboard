@@ -1,0 +1,258 @@
+@model CTSHIPDashboard.Models.ViewModels.SSHIADashboardViewModel
+
+@{
+    ViewData["Title"] = "SSHIA State Oversight";
+}
+
+<style>
+    .sshia-dashboard .metric-card,
+    .sshia-dashboard .section-panel {
+        border: 1px solid rgba(59, 112, 59, .18);
+        border-radius: 8px;
+        background: #fff;
+        box-shadow: 0 10px 26px rgba(31, 41, 51, .08);
+    }
+
+    .sshia-dashboard .metric-card {
+        min-height: 150px;
+        padding: 1.25rem;
+    }
+
+    .sshia-dashboard .metric-label,
+    .sshia-dashboard .section-label {
+        color: #5f6b76;
+        font-size: .84rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0;
+    }
+
+    .sshia-dashboard .metric-value {
+        font-size: 2rem;
+        line-height: 1.05;
+        font-weight: 800;
+    }
+
+    .sshia-dashboard .metric-icon {
+        width: 42px;
+        height: 42px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 8px;
+        background: rgba(59, 112, 59, .1);
+        color: #2B572F;
+        font-size: 1.35rem;
+    }
+
+    .sshia-dashboard .section-header {
+        padding: 1rem 1.25rem;
+        border-bottom: 1px solid rgba(59, 112, 59, .16);
+        background: #f7faf7;
+    }
+
+    .sshia-dashboard .table th {
+        color: #43505c;
+        font-size: .78rem;
+        text-transform: uppercase;
+        letter-spacing: 0;
+        white-space: nowrap;
+    }
+</style>
+
+<div class="sshia-dashboard py-4">
+    <div class="d-flex flex-column flex-xl-row justify-content-between gap-3 mb-4">
+        <div>
+            <div class="section-label text-success mb-1">SSHIA state oversight</div>
+            <h1 class="display-6 fw-bold text-success mb-2">@Model.StateName CTSHIP Program Dashboard</h1>
+            <p class="text-muted mb-0">Program activity matrix, enrollment, providers, HMOs, complaints, monitoring, and service utilization for your assigned state.</p>
+        </div>
+        <div class="d-flex flex-wrap gap-2 align-items-start">
+            <a asp-controller="Enrollees" asp-action="Index" class="btn btn-success">
+                <i class="bi bi-people-fill me-1"></i> Enrollment List
+            </a>
+            <a asp-controller="Providers" asp-action="Index" class="btn btn-outline-success">
+                <i class="bi bi-hospital-fill me-1"></i> Providers
+            </a>
+            <a asp-controller="Complaints" asp-action="Index" class="btn btn-outline-success">
+                <i class="bi bi-chat-square-text-fill me-1"></i> Complaints
+            </a>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-xl-4 col-md-6">
+            <div class="metric-card h-100">
+                <div class="d-flex justify-content-between gap-3 mb-3">
+                    <div class="metric-label">Enrollment</div>
+                    <div class="metric-icon"><i class="bi bi-people-fill"></i></div>
+                </div>
+                <div class="metric-value text-success">@Model.TotalEnrollees.ToString("N0")</div>
+                <div class="text-muted mt-2">@Model.ActiveEnrollees.ToString("N0") active (@Model.ActiveEnrolleeRate.ToString("N1")%) | @Model.NewEnrollmentsThisMonth.ToString("N0") this month</div>
+            </div>
+        </div>
+        <div class="col-xl-4 col-md-6">
+            <div class="metric-card h-100">
+                <div class="d-flex justify-content-between gap-3 mb-3">
+                    <div class="metric-label">Providers</div>
+                    <div class="metric-icon"><i class="bi bi-hospital-fill"></i></div>
+                </div>
+                <div class="metric-value text-success">@Model.TotalProviders.ToString("N0")</div>
+                <div class="text-muted mt-2">@Model.ActiveProviders.ToString("N0") active | @Model.PrimaryProviders.ToString("N0") PHC providers</div>
+            </div>
+        </div>
+        <div class="col-xl-4 col-md-6">
+            <div class="metric-card h-100">
+                <div class="d-flex justify-content-between gap-3 mb-3">
+                    <div class="metric-label">HMOs</div>
+                    <div class="metric-icon"><i class="bi bi-building-fill-check"></i></div>
+                </div>
+                <div class="metric-value" style="color:#7a4d14;">@Model.TotalHMOs.ToString("N0")</div>
+                <div class="text-muted mt-2">HMOs with enrollees in @Model.StateName</div>
+            </div>
+        </div>
+        <div class="col-xl-4 col-md-6">
+            <div class="metric-card h-100">
+                <div class="d-flex justify-content-between gap-3 mb-3">
+                    <div class="metric-label">Complaints</div>
+                    <div class="metric-icon"><i class="bi bi-chat-square-text-fill"></i></div>
+                </div>
+                <div class="metric-value text-danger">@Model.ComplaintMetrics.TotalComplaints.ToString("N0")</div>
+                <div class="text-muted mt-2">@Model.ComplaintMetrics.OpenComplaints.ToString("N0") open | @Model.ComplaintMetrics.ResolutionRate.ToString("N1")% resolved</div>
+            </div>
+        </div>
+        <div class="col-xl-4 col-md-6">
+            <div class="metric-card h-100">
+                <div class="d-flex justify-content-between gap-3 mb-3">
+                    <div class="metric-label">Service Utilization</div>
+                    <div class="metric-icon"><i class="bi bi-activity"></i></div>
+                </div>
+                <div class="metric-value text-info">@Model.ServiceUtilizationRate.ToString("N1")%</div>
+                <div class="text-muted mt-2">@Model.TotalEncounters.ToString("N0") encounters | @Model.EncounterRatePerThousand.ToString("N1") per 1,000</div>
+            </div>
+        </div>
+        <div class="col-xl-4 col-md-6">
+            <div class="metric-card h-100">
+                <div class="d-flex justify-content-between gap-3 mb-3">
+                    <div class="metric-label">Monitoring Coverage</div>
+                    <div class="metric-icon"><i class="bi bi-clipboard-data-fill"></i></div>
+                </div>
+                <div class="metric-value text-primary">@Model.Monitoring.CoveragePercentage.ToString("N1")%</div>
+                <div class="text-muted mt-2">@Model.Monitoring.TotalEnrolled.ToString("N0") enrolled of @Model.Monitoring.TargetEnrollees.ToString("N0") target</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="section-panel mb-4">
+        <div class="section-header">
+            <div class="section-label">Program activity matrix</div>
+            <h2 class="h5 fw-bold mb-0">@Model.StateName Program Activities</h2>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover mb-0 align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>Activity</th>
+                        <th>Count</th>
+                        <th>Rate</th>
+                        <th>Note</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var activity in Model.ProgramActivities)
+                    {
+                        <tr>
+                            <td class="fw-bold">@activity.Activity</td>
+                            <td>@activity.Count.ToString("N0")</td>
+                            <td>@(activity.Rate > 0 ? activity.Rate.ToString("N1") + "%" : "-")</td>
+                            <td class="text-muted">@activity.Note</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="row g-4 mb-4">
+        <div class="col-xl-5">
+            <div class="section-panel h-100">
+                <div class="section-header">
+                    <div class="section-label">Encounter utilization</div>
+                    <h2 class="h5 fw-bold mb-0">Most Used Services</h2>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0 align-middle">
+                        <thead class="table-light">
+                            <tr><th>Service</th><th>Setting</th><th>Frequency</th><th>Share</th></tr>
+                        </thead>
+                        <tbody>
+                            @if (Model.TopServices.Count == 0)
+                            {
+                                <tr><td colspan="4" class="text-center text-muted py-4">No service data recorded yet.</td></tr>
+                            }
+                            else
+                            {
+                                @foreach (var service in Model.TopServices)
+                                {
+                                    <tr>
+                                        <td class="fw-bold">@service.ServiceName</td>
+                                        <td>@service.ServiceSetting</td>
+                                        <td>@service.Frequency.ToString("N0")</td>
+                                        <td>@service.PercentageOfRecordedServices.ToString("N1")%</td>
+                                    </tr>
+                                }
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-7">
+            <div class="section-panel h-100">
+                <div class="section-header d-flex justify-content-between gap-2">
+                    <div>
+                        <div class="section-label">Enrollment activity</div>
+                        <h2 class="h5 fw-bold mb-0">Recent Enrollees</h2>
+                    </div>
+                    <a asp-controller="Enrollees" asp-action="Index" class="btn btn-sm btn-outline-success align-self-center">View All</a>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0 align-middle">
+                        <thead class="table-light">
+                            <tr><th>Enrollment #</th><th>Name</th><th>HMO</th><th>Registered</th><th>Status</th></tr>
+                        </thead>
+                        <tbody>
+                            @if (Model.RecentEnrollees.Count == 0)
+                            {
+                                <tr><td colspan="5" class="text-center text-muted py-4">No enrollment records are available yet.</td></tr>
+                            }
+                            else
+                            {
+                                @foreach (var enrollee in Model.RecentEnrollees)
+                                {
+                                    <tr>
+                                        <td class="fw-bold text-primary">@enrollee.EnrollmentNumber</td>
+                                        <td>@enrollee.FullName</td>
+                                        <td>@enrollee.HmoName</td>
+                                        <td>@enrollee.DateRegistered.ToString("dd MMM yyyy")</td>
+                                        <td><span class="badge bg-success">@enrollee.Status</span></td>
+                                    </tr>
+                                }
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="section-panel">
+        <div class="section-header">
+            <div class="section-label">Monitoring indicators</div>
+            <h2 class="h5 fw-bold mb-0">@Model.StateName Monitoring Snapshot</h2>
+        </div>
+        <div class="p-3">
+            <partial name="_MonitoringIndicatorCards" model="Model.Monitoring" />
+        </div>
+    </div>
+</div>

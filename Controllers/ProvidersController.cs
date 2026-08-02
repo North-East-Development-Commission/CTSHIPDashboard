@@ -18,6 +18,19 @@ using System.Diagnostics.Metrics;
 
 public class ProvidersController : Controller
 {
+    private static readonly string[] EncounterReasons =
+    {
+        "Preventive services",
+        "Acute illness",
+        "Chronic disease management",
+        "Maternal health",
+        "Child health",
+        "Reproductive health",
+        "Injury/Emergency",
+        "Follow-up care",
+        "Administrative services",
+        "Referral"
+    };
     private const long MaxClaimEvidenceFileBytes = 10 * 1024 * 1024;
     private const int MaxClaimEvidenceFileCount = 10;
 
@@ -52,7 +65,7 @@ public class ProvidersController : Controller
     }
 
     // GET: Provider/Index
-    [Authorize(Roles = "CTSHIPAdmin,Admin,HMO,Monitoring,SSHIA")]
+    [Authorize(Roles = "CTSHIPAdmin,Admin,HMO,Monitoring,SSHIA,NHIA,IHSA")]
     public async Task<IActionResult> Index(
         string search = "",
         string state = "",
@@ -67,6 +80,7 @@ public class ProvidersController : Controller
             .Include(p => p.Claims)
             .AsQueryable();
 
+        ApplicationUser? currentUser = await _userManager.GetUserAsync(User);
         int? restrictedHmoId = null;
         if (IsHmoOnlyUser())
         {
@@ -78,6 +92,20 @@ public class ProvidersController : Controller
             }
 
             providers = providers.Where(p => p.HmoId == restrictedHmoId.Value);
+        }
+
+        string? restrictedState = null;
+        if (User.IsInRole("SSHIA"))
+        {
+            restrictedState = currentUser?.State?.Trim();
+            if (string.IsNullOrWhiteSpace(restrictedState))
+            {
+                TempData["Error"] = "Your account is not linked to a state.";
+                return RedirectToAction("Index", "Home");
+            }
+
+            providers = providers.Where(p => p.State == restrictedState);
+            state = restrictedState;
         }
 
         var scopedProviders = providers;
@@ -109,8 +137,12 @@ public class ProvidersController : Controller
         // STATISTICS FOR HEADER
         ViewBag.TotalProviders = await scopedProviders.CountAsync();
         ViewBag.ActiveProviders = await scopedProviders.CountAsync(p => p.IsActive);
-        ViewBag.TotalEnrollees = await _context.Enrollees.CountAsync();
-        ViewBag.TotalEncounters = await _context.Encounters.CountAsync();
+        ViewBag.TotalEnrollees = !string.IsNullOrWhiteSpace(restrictedState)
+            ? await _context.Enrollees.CountAsync(e => e.State == restrictedState)
+            : await _context.Enrollees.CountAsync();
+        ViewBag.TotalEncounters = !string.IsNullOrWhiteSpace(restrictedState)
+            ? await _context.Encounters.CountAsync(e => e.Enrollee != null && e.Enrollee.State == restrictedState)
+            : await _context.Encounters.CountAsync();
 
         // Death stats
         var totalDeaths = await _context.DeathRegisters.CountAsync(d => !d.IsDeleted && d.Status == DeathRegisterStatus.Audited);
@@ -151,7 +183,9 @@ public class ProvidersController : Controller
         ViewBag.TotalPages = totalPages;
         ViewBag.PageSize = pageSize;
 
-        ViewBag.States = GetNigerianStatesWithAll(state);
+        ViewBag.States = !string.IsNullOrWhiteSpace(restrictedState)
+            ? new List<SelectListItem> { new() { Value = restrictedState, Text = restrictedState, Selected = true } }
+            : GetNigerianStatesWithAll(state);
         ViewBag.Levels = new List<SelectListItem>
         {
             new() { Value = "all", Text = "All Levels" },
@@ -417,7 +451,7 @@ public class ProvidersController : Controller
     }
 
     // DETAILS — GET
-    [Authorize(Roles = "CTSHIPAdmin,HMO,Monitoring,SSHIA")]
+    [Authorize(Roles = "CTSHIPAdmin,Admin,HMO,Monitoring,SSHIA,NHIA,IHSA")]
     public async Task<IActionResult> Details(int id)
     {
         var provider = await _context.Providers
@@ -429,6 +463,14 @@ public class ProvidersController : Controller
         {
             TempData["Error"] = "Provider not found.";
             return RedirectToAction(nameof(Index));
+        }
+
+        ApplicationUser? currentUser = await _userManager.GetUserAsync(User);
+        if (User.IsInRole("SSHIA")
+            && (string.IsNullOrWhiteSpace(currentUser?.State)
+                || !string.Equals(provider.State, currentUser.State.Trim(), StringComparison.OrdinalIgnoreCase)))
+        {
+            return Forbid();
         }
 
         // Stats for the view
@@ -938,6 +980,7 @@ public class ProvidersController : Controller
                 .ThenInclude(en => en.Hmo)
             .Include(e => e.Provider)
             .Include(e => e.Doctor)
+            .Include(e => e.Prescriptions)
             .FirstOrDefaultAsync(e => e.Id == id);
         var currentUser = await _userManager.GetUserAsync(User);
 
@@ -978,6 +1021,7 @@ public class ProvidersController : Controller
         {
             "Pending", "Completed", "Cancelled", "Referred", "Claimed"
         }, encounter.Status);
+        ViewBag.EncounterReasons = BuildEncounterReasonOptions(encounter.ReasonForEncounter);
 
         return View(encounter);
     }
@@ -989,7 +1033,9 @@ public class ProvidersController : Controller
     {
         if (id != model.Id) return NotFound();
 
-        var encounter = await _context.Encounters.FindAsync(id);
+        var encounter = await _context.Encounters
+            .Include(item => item.Prescriptions)
+            .FirstOrDefaultAsync(item => item.Id == id);
         if (encounter == null) return NotFound();
 
         var currentUser = await _userManager.GetUserAsync(User);
@@ -1006,6 +1052,12 @@ public class ProvidersController : Controller
         if (doctor == null)
         {
             ModelState.AddModelError(nameof(model.DoctorId), "Select an active hospital staff member registered under this facility.");
+        }
+
+        if (string.IsNullOrWhiteSpace(model.ReasonForEncounter)
+            || !EncounterReasons.Contains(model.ReasonForEncounter.Trim(), StringComparer.OrdinalIgnoreCase))
+        {
+            ModelState.AddModelError(nameof(model.ReasonForEncounter), "Select a valid reason for encounter.");
         }
 
         if (!ModelState.IsValid)
@@ -1035,12 +1087,14 @@ public class ProvidersController : Controller
                 })
                 .ToListAsync();
             ViewBag.Statuses = new SelectList(new[] { "Pending", "Completed", "Cancelled", "Referred", "Claimed" }, model.Status);
+            ViewBag.EncounterReasons = BuildEncounterReasonOptions(model.ReasonForEncounter);
             return View(model);
         }
 
         // Update allowed fields
         encounter.VisitDate = model.VisitDate;
         encounter.ChiefComplaint = model.ChiefComplaint;
+        encounter.ReasonForEncounter = model.ReasonForEncounter;
         encounter.Diagnosis = model.Diagnosis;
         encounter.TreatmentGiven = model.TreatmentGiven;
         encounter.Notes = model.Notes;
@@ -1051,6 +1105,37 @@ public class ProvidersController : Controller
             ? doctor.Specialty
             : doctor.Designation;
         encounter.AttendedBy = currentUser?.Email ?? "Unknown User";
+
+        if (!await DeductPendingEncounterPrescriptionsAsync(encounter))
+        {
+            model.Enrollee = await _context.Enrollees
+                .Include(enrollee => enrollee.Hmo)
+                .FirstOrDefaultAsync(enrollee => enrollee.Id == encounter.EnrolleeId);
+            model.ProviderId = encounter.ProviderId;
+            ViewBag.Providers = await _context.Providers
+                .Where(provider => provider.Id == encounter.ProviderId)
+                .Select(provider => new SelectListItem
+                {
+                    Value = provider.Id.ToString(),
+                    Text = provider.Name + " - " + provider.State,
+                    Selected = provider.Id == encounter.ProviderId
+                })
+                .ToListAsync();
+            ViewBag.Doctors = await _context.Doctors
+                .Where(candidate => candidate.ProviderId == encounter.ProviderId
+                    && (candidate.IsActive || candidate.Id == encounter.DoctorId))
+                .OrderBy(candidate => candidate.FullName)
+                .Select(candidate => new SelectListItem
+                {
+                    Value = candidate.Id.ToString(),
+                    Text = candidate.FullName + " - " + candidate.Specialty,
+                    Selected = candidate.Id == model.DoctorId
+                })
+                .ToListAsync();
+            ViewBag.Statuses = new SelectList(new[] { "Pending", "Completed", "Cancelled", "Referred", "Claimed" }, model.Status);
+            ViewBag.EncounterReasons = BuildEncounterReasonOptions(model.ReasonForEncounter);
+            return View(model);
+        }
 
         // Recalculate total amount if fees were changed (optional)
         //   encounter.TotalAmount =
@@ -1064,6 +1149,79 @@ public class ProvidersController : Controller
         TempData["Success"] = $"Encounter {encounter.EncounterNumber} updated successfully!";
         return RedirectToAction("ENCDetails", "Providers", new { id });
     }
+
+    private static List<SelectListItem> BuildEncounterReasonOptions(string? selectedReason)
+    {
+        return EncounterReasons
+            .Select(reason => new SelectListItem
+            {
+                Value = reason,
+                Text = reason,
+                Selected = string.Equals(reason, selectedReason, StringComparison.OrdinalIgnoreCase)
+            })
+            .ToList();
+    }
+
+    private async Task<bool> DeductPendingEncounterPrescriptionsAsync(Encounter encounter)
+    {
+        if (!string.Equals(encounter.Status, "Completed", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        List<EncounterPrescription> pendingPrescriptions = encounter.Prescriptions
+            .Where(prescription => !prescription.InventoryDeducted)
+            .ToList();
+
+        if (pendingPrescriptions.Count == 0)
+        {
+            return true;
+        }
+
+        List<int> inventoryIds = pendingPrescriptions
+            .Select(prescription => prescription.DrugInventoryItemId)
+            .Distinct()
+            .ToList();
+
+        List<DrugInventoryItem> inventoryItems = await _context.DrugInventoryItems
+            .Where(item => inventoryIds.Contains(item.Id) && item.ProviderId == encounter.ProviderId && item.IsActive)
+            .ToListAsync();
+
+        foreach (EncounterPrescription prescription in pendingPrescriptions)
+        {
+            DrugInventoryItem? item = inventoryItems.FirstOrDefault(candidate => candidate.Id == prescription.DrugInventoryItemId);
+            if (item == null)
+            {
+                ModelState.AddModelError(string.Empty, $"{prescription.DrugName} is no longer active in inventory.");
+                return false;
+            }
+
+            if (item.QuantityOnHand < prescription.QuantityDispensed)
+            {
+                ModelState.AddModelError(
+                    string.Empty,
+                    $"{item.DisplayName} has only {item.QuantityOnHand:N0} {item.UnitOfMeasure} in stock.");
+                return false;
+            }
+        }
+
+        foreach (EncounterPrescription prescription in pendingPrescriptions)
+        {
+            DrugInventoryItem? item = inventoryItems.FirstOrDefault(candidate => candidate.Id == prescription.DrugInventoryItemId);
+            if (item == null)
+            {
+                continue;
+            }
+
+            item.QuantityOnHand -= prescription.QuantityDispensed;
+            item.UpdatedAt = DateTime.UtcNow;
+            prescription.InventoryDeducted = true;
+            prescription.DispensedAt = DateTime.UtcNow;
+        }
+
+        return true;
+    }
+
     private async Task PopulateDropdowns()
     {
         var providers = await _context.Providers
@@ -1431,6 +1589,7 @@ public class ProvidersController : Controller
             .Include(e => e.Provider)
             .Include(e => e.Doctor)
             .Include(e => e.Claim)
+            .Include(e => e.Prescriptions)
             .FirstOrDefaultAsync(e => e.Id == id);
         var currentUser = await _userManager.GetUserAsync(User);
         if (encounter == null) return NotFound();
@@ -1625,3 +1784,5 @@ public class ProvidersController : Controller
     }
 
 }
+
+

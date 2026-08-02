@@ -90,7 +90,7 @@
                                     </td>
                                     <td>@(string.IsNullOrEmpty(e.ChiefComplaint) ? "—" : e.ChiefComplaint)</td>
                                     <td>@(string.IsNullOrEmpty(e.Diagnosis) ? "—" : e.Diagnosis)</td>
-                                    <td class="fw-bold text-success">₦@((int)e.TotalAmount)</td>
+                                    <td class="fw-bold text-success">&#8358;@((int)e.TotalAmount)</td>
                                     <td>
                                         <span class="badge @(e.Status == "Claimed" ? "bg-primary" :
                                                                                                           e.Status == "Completed" ? "bg-success" :
@@ -111,8 +111,16 @@
                                     <td>
                                         <a asp-controller="Hmo" asp-action="EncDetails" asp-route-id="@e.Id"
                                            class="btn btn-info btn-sm rounded-pill">Encounter Details</a>
-                                        <a asp-controller="Hmo" asp-action="EnrolleeDetails" asp-route-id="@e.EnrolleeId"
-                                           class="btn btn-primary btn-sm rounded-pill">Enrollee Details</a>
+                                        @if (User.IsInRole("IHSA") || User.IsInRole("NHIA") || User.IsInRole("Monitoring"))
+                                        {
+                                            <a asp-controller="Enrollees" asp-action="Details" asp-route-id="@e.EnrolleeId"
+                                               class="btn btn-primary btn-sm rounded-pill">Enrollee Details</a>
+                                        }
+                                        else
+                                        {
+                                            <a asp-controller="Hmo" asp-action="EnrolleeDetails" asp-route-id="@e.EnrolleeId"
+                                               class="btn btn-primary btn-sm rounded-pill">Enrollee Details</a>
+                                        }
                                     </td>
                                 </tr>
                             }
@@ -174,3 +182,4 @@
         <p class="lead mb-0">CTSHIP — Monitoring Healthcare Delivery Nationwide</p>
     </div>
 </div>
+

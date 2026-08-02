@@ -22,6 +22,87 @@ namespace CTSHIPDashboard.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
+            modelBuilder.Entity("CTSHIPDashboard.Models.AppNotification", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("EventName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Icon")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)");
+
+                    b.Property<string>("Message")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<string>("PayloadJson")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("TargetGroup")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("Url")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedAt");
+
+                    b.HasIndex("TargetGroup");
+
+                    b.ToTable("AppNotifications", (string)null);
+                });
+
+            modelBuilder.Entity("CTSHIPDashboard.Models.AppNotificationRead", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("AppNotificationId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("ReadAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("AppNotificationId", "UserId")
+                        .IsUnique();
+
+                    b.ToTable("AppNotificationReads", (string)null);
+                });
+
             modelBuilder.Entity("CTSHIPDashboard.Models.ApplicationUser", b =>
                 {
                     b.Property<string>("Id")
@@ -713,6 +794,74 @@ namespace CTSHIPDashboard.Migrations
                     b.ToTable("Doctors", (string)null);
                 });
 
+            modelBuilder.Entity("CTSHIPDashboard.Models.DrugInventoryItem", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedByName")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("CreatedByUserId")
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("DosageForm")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("DrugName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("ProviderId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("QuantityOnHand")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ReorderLevel")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Strength")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<decimal>("UnitCost")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("UnitOfMeasure")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("IsActive");
+
+                    b.HasIndex("ProviderId");
+
+                    b.HasIndex("ProviderId", "DrugName", "Strength", "DosageForm")
+                        .IsUnique()
+                        .HasFilter("[Strength] IS NOT NULL AND [DosageForm] IS NOT NULL");
+
+                    b.ToTable("DrugInventoryItems", (string)null);
+                });
+
             modelBuilder.Entity("CTSHIPDashboard.Models.Encounter", b =>
                 {
                     b.Property<int>("Id")
@@ -774,6 +923,13 @@ namespace CTSHIPDashboard.Migrations
                     b.Property<string>("Rank")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("ReasonForEncounter")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)")
+                        .HasDefaultValue("Acute illness");
+
                     b.Property<string>("SeenBy")
                         .HasColumnType("nvarchar(max)");
 
@@ -811,6 +967,59 @@ namespace CTSHIPDashboard.Migrations
                     b.HasIndex("ProviderId");
 
                     b.ToTable("Encounters");
+                });
+
+            modelBuilder.Entity("CTSHIPDashboard.Models.EncounterPrescription", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("DispensedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("DosageForm")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<int>("DrugInventoryItemId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("DrugName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<int>("EncounterId")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("InventoryDeducted")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("QuantityDispensed")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Strength")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<decimal>("UnitCost")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("UnitOfMeasure")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DrugInventoryItemId");
+
+                    b.HasIndex("EncounterId");
+
+                    b.ToTable("EncounterPrescriptions", (string)null);
                 });
 
             modelBuilder.Entity("CTSHIPDashboard.Models.EncounterService", b =>
@@ -1855,6 +2064,17 @@ namespace CTSHIPDashboard.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
+            modelBuilder.Entity("CTSHIPDashboard.Models.AppNotificationRead", b =>
+                {
+                    b.HasOne("CTSHIPDashboard.Models.AppNotification", "AppNotification")
+                        .WithMany("Reads")
+                        .HasForeignKey("AppNotificationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("AppNotification");
+                });
+
             modelBuilder.Entity("CTSHIPDashboard.Models.ApplicationUser", b =>
                 {
                     b.HasOne("CTSHIPDashboard.Models.Hmo", "hmo")
@@ -1981,6 +2201,17 @@ namespace CTSHIPDashboard.Migrations
                     b.Navigation("Provider");
                 });
 
+            modelBuilder.Entity("CTSHIPDashboard.Models.DrugInventoryItem", b =>
+                {
+                    b.HasOne("CTSHIPDashboard.Models.Provider", "Provider")
+                        .WithMany("DrugInventoryItems")
+                        .HasForeignKey("ProviderId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Provider");
+                });
+
             modelBuilder.Entity("CTSHIPDashboard.Models.Encounter", b =>
                 {
                     b.HasOne("CTSHIPDashboard.Models.Claim", "Claim")
@@ -2012,6 +2243,25 @@ namespace CTSHIPDashboard.Migrations
                     b.Navigation("Enrollee");
 
                     b.Navigation("Provider");
+                });
+
+            modelBuilder.Entity("CTSHIPDashboard.Models.EncounterPrescription", b =>
+                {
+                    b.HasOne("CTSHIPDashboard.Models.DrugInventoryItem", "DrugInventoryItem")
+                        .WithMany("EncounterPrescriptions")
+                        .HasForeignKey("DrugInventoryItemId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("CTSHIPDashboard.Models.Encounter", "Encounter")
+                        .WithMany("Prescriptions")
+                        .HasForeignKey("EncounterId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("DrugInventoryItem");
+
+                    b.Navigation("Encounter");
                 });
 
             modelBuilder.Entity("CTSHIPDashboard.Models.EncounterService", b =>
@@ -2165,6 +2415,11 @@ namespace CTSHIPDashboard.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("CTSHIPDashboard.Models.AppNotification", b =>
+                {
+                    b.Navigation("Reads");
+                });
+
             modelBuilder.Entity("CTSHIPDashboard.Models.Claim", b =>
                 {
                     b.Navigation("SupportingDocuments");
@@ -2180,8 +2435,15 @@ namespace CTSHIPDashboard.Migrations
                     b.Navigation("Encounters");
                 });
 
+            modelBuilder.Entity("CTSHIPDashboard.Models.DrugInventoryItem", b =>
+                {
+                    b.Navigation("EncounterPrescriptions");
+                });
+
             modelBuilder.Entity("CTSHIPDashboard.Models.Encounter", b =>
                 {
+                    b.Navigation("Prescriptions");
+
                     b.Navigation("Services");
                 });
 
@@ -2208,6 +2470,8 @@ namespace CTSHIPDashboard.Migrations
                     b.Navigation("Claims");
 
                     b.Navigation("Doctors");
+
+                    b.Navigation("DrugInventoryItems");
 
                     b.Navigation("Encounters");
 

@@ -1,4 +1,4 @@
-﻿@using Microsoft.AspNetCore.Identity
+@using Microsoft.AspNetCore.Identity
 @using CTSHIPDashboard.Data
 @using Microsoft.EntityFrameworkCore
 @using Microsoft.AspNetCore.Hosting
@@ -14,6 +14,7 @@
     bool providerCanUseClaimsNav = false;
     bool providerCanUseMonthlyReportsNav = false;
     bool providerCanUseReferralReportsNav = false;
+    bool providerCanUseDrugInventoryNav = false;
 
     if (SignInManager.IsSignedIn(User))
     {
@@ -41,6 +42,10 @@
                             ? Url.Action("Index", "StateOffice", new { area = "" }) ?? Url.Content("~/StateOffice/Index")
                             : User.IsInRole("NHIA")
                                 ? Url.Action("Dashboard", "NHIA", new { area = "" }) ?? Url.Content("~/NHIA/Dashboard")
+                                : User.IsInRole("SSHIA")
+                                    ? Url.Action("Dashboard", "SSHIA", new { area = "" }) ?? Url.Content("~/SSHIA/Dashboard")
+                                : User.IsInRole("IHSA")
+                                    ? Url.Action("Dashboard", "IHSA", new { area = "" }) ?? Url.Content("~/IHSA/Dashboard")
                                 : User.IsInRole("Monitoring")
                                     ? Url.Action("Index", "Monitoring", new { area = "" }) ?? Url.Content("~/Monitoring/Index")
                                     : Url.Action("Index", "Home", new { area = "" }) ?? Url.Content("~/Home/Index");
@@ -56,6 +61,7 @@
                     .FirstOrDefaultAsync();
 
                 providerCanUseClaimsNav = ProviderClaimAccessHelper.CanUseClaims(providerLevel);
+                providerCanUseDrugInventoryNav = string.Equals(providerLevel, "Primary", StringComparison.OrdinalIgnoreCase);
                 providerCanUseReferralReportsNav =
                     string.Equals(providerLevel, "Referral Hospital", StringComparison.OrdinalIgnoreCase) ||
                     string.Equals(providerLevel, "Referred Hospital", StringComparison.OrdinalIgnoreCase) ||
@@ -75,6 +81,7 @@
     <title>@ViewData["Title"] - NEDC CTSHIP Dashboard</title>
 
     <!-- Offline-ready UI libraries -->
+
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="~/lib/bootstrap-icons/font/bootstrap-icons.min.css" />
     <link rel="stylesheet" href="~/lib/select2/css/select2.min.css" />
@@ -155,6 +162,125 @@
             opacity: 1;
         }
 
+
+        .ct-notification-button {
+            position: relative;
+            display: inline-flex;
+            width: 42px;
+            height: 42px;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            border: 1px solid rgba(254, 144, 49, .65);
+            border-radius: .7rem;
+            background: rgba(0, 0, 0, .12);
+        }
+
+        .ct-notification-button:hover,
+        .ct-notification-button:focus {
+            color: #fff;
+            background: rgba(254, 144, 49, .2);
+            border-color: var(--ct-gold);
+        }
+
+        .ct-notification-badge {
+            position: absolute;
+            top: -6px;
+            right: -6px;
+            min-width: 20px;
+            height: 20px;
+            padding: 0 5px;
+            color: var(--ct-button-on-gold);
+            background: var(--ct-gold);
+            border: 2px solid var(--ct-green-dark);
+            border-radius: 999px;
+            font-size: .7rem;
+            font-weight: 800;
+            line-height: 16px;
+            text-align: center;
+        }
+
+        .ct-notification-dropdown {
+            width: min(380px, calc(100vw - 24px));
+            max-height: min(540px, calc(100vh - 110px));
+            overflow: hidden;
+            border: 1px solid var(--ct-border);
+            border-radius: .9rem;
+        }
+
+        .ct-notification-list {
+            max-height: 360px;
+            overflow-y: auto;
+        }
+
+        .ct-notification-item {
+            white-space: normal;
+        }
+
+        .ct-page-loader {
+            position: fixed;
+            inset: 0;
+            z-index: 3000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: transparent;
+            transition: opacity .25s ease, visibility .25s ease;
+        }
+
+        .ct-page-loader.is-hidden {
+            visibility: hidden;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .ct-loader-card {
+            display: flex;
+            width: min(280px, calc(100vw - 48px));
+            min-height: 220px;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 1rem;
+            padding: 0;
+            color: var(--ct-green);
+            text-align: center;
+            background: transparent;
+            border: 0;
+            border-radius: 0;
+            box-shadow: none;
+        }
+
+        .ct-loader-logo {
+            width: 112px;
+            height: 112px;
+            object-fit: contain;
+            animation: ct-loader-pulse 1.15s ease-in-out infinite;
+        }
+
+        .ct-loader-text {
+            color: var(--ct-green);
+            font-weight: 800;
+            line-height: 1.2;
+        }
+
+        .ct-loader-spinner {
+            width: 2rem;
+            height: 2rem;
+            border: .25rem solid rgba(59, 112, 59, .18);
+            border-top-color: var(--ct-gold);
+            border-radius: 50%;
+            animation: ct-loader-spin .8s linear infinite;
+        }
+
+        @@keyframes ct-loader-pulse {
+            0%, 100% { transform: scale(1); opacity: .92; }
+            50% { transform: scale(1.05); opacity: 1; }
+        }
+
+        @@keyframes ct-loader-spin {
+            to { transform: rotate(360deg); }
+        }
         @@media (max-width: 420px) {
             .sidebar.offcanvas {
                 width: 260px;
@@ -163,6 +289,13 @@
     </style>
 </head>
 <body>
+    <div id="ctPageLoader" class="ct-page-loader" role="status" aria-live="polite" aria-label="Loading page">
+        <div class="ct-loader-card">
+            <img class="ct-loader-logo" src="~/images/nedc-logo-transparent.png" alt="NEDC logo" />
+            <div class="ct-loader-text">NEDC CTSHIP</div>
+            <div class="ct-loader-spinner" aria-hidden="true"></div>
+        </div>
+    </div>
     <nav class="navbar navbar-dark fixed-top shadow-lg ct-topbar">
         <div class="container-fluid flex-nowrap gap-2">
             @if (SignInManager.IsSignedIn(User))
@@ -181,7 +314,28 @@
             </a>
             @if (SignInManager.IsSignedIn(User))
             {
-                <div class="d-flex align-items-center">
+                <div class="d-flex align-items-center gap-2">
+                    <div class="dropdown">
+                        <button class="btn ct-notification-button" type="button" id="ctNotificationDropdown" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false" aria-label="Open notifications">
+                            <i class="bi bi-bell-fill fs-5"></i>
+                            <span id="ctNotificationBadge" class="ct-notification-badge d-none">0</span>
+                        </button>
+                        <div class="dropdown-menu dropdown-menu-end shadow ct-notification-dropdown" aria-labelledby="ctNotificationDropdown">
+                            <div class="d-flex justify-content-between align-items-center gap-2 px-3 py-2 border-bottom">
+                                <strong>Notifications</strong>
+                                <button id="ctNotificationMarkAll" type="button" class="btn btn-sm btn-outline-success">Mark read</button>
+                            </div>
+                            <div id="ctNotificationList" class="ct-notification-list">
+                                <div class="text-center text-muted py-4">Loading notifications...</div>
+                            </div>
+                            <div class="border-top p-2 text-center">
+                                <a asp-controller="Notifications" asp-action="Index" class="btn btn-sm btn-success w-100">View all notifications</a>
+                            </div>
+                        </div>
+                    </div>
+                    <form id="ctNotificationTokenForm" class="d-none">
+                        @Html.AntiForgeryToken()
+                    </form>
                     <a asp-area="Identity" asp-page="/Account/Manage/Index" class="ct-user-link d-flex" title="Open profile">
                         <img class="ct-user-avatar" src="@userProfilePhotoPath" alt="Profile photo" />
                         <span class="d-none d-sm-flex">
@@ -205,11 +359,20 @@
         <nav class="nav flex-column" aria-label="Main navigation">
             @if (User.IsInRole("NHIA"))
             {
-                <a asp-page="/Nhia/Index" class="nav-link">
+                <a asp-controller="NHIA" asp-action="Dashboard" class="nav-link">
                     <i class="bi bi-speedometer2"></i> NHIA Dashboard
                 </a>
-                <a asp-controller="Enrollees" asp-action="BulkUpload" class="nav-link">
-                    <i class="bi bi-person-plus-fill"></i> Bulk Enrolment with Excel
+                <a asp-controller="Enrollees" asp-action="Index" class="nav-link">
+                    <i class="bi bi-people-fill"></i> Enrollment List
+                </a>
+                <a asp-controller="Claims" asp-action="Index" class="nav-link">
+                    <i class="bi bi-file-medical-fill"></i> Claims With Details
+                </a>
+                <a asp-controller="Providers" asp-action="Index" class="nav-link">
+                    <i class="bi bi-hospital-fill"></i> Providers With Details
+                </a>
+                <a asp-controller="Complaints" asp-action="Index" class="nav-link">
+                    <i class="bi bi-chat-square-text-fill"></i> Complaint Oversight
                 </a>
                 <a asp-controller="Monitoring" asp-action="Index" class="nav-link">
                     <i class="bi bi-bar-chart-line-fill"></i> Monitoring & Evaluation
@@ -294,21 +457,25 @@
                         <i class="bi bi-clipboard-pulse"></i> Referral Provider Reports
                     </a>
             }
-
             @if (User.IsInRole("SSHIA"))
             {
-                <a asp-controller="Providers" asp-action="Index" class="nav-link">
-                    <i class="bi bi-hospital-fill"></i> Providers
+                <a asp-controller="SSHIA" asp-action="Dashboard" class="nav-link">
+                    <i class="bi bi-speedometer2"></i> SSHIA Dashboard
                 </a>
-                   
+                <a asp-controller="Enrollees" asp-action="Index" class="nav-link">
+                    <i class="bi bi-people-fill"></i> State Enrollment List
+                </a>
+                <a asp-controller="Providers" asp-action="Index" class="nav-link">
+                    <i class="bi bi-hospital-fill"></i> State Providers
+                </a>
+                <a asp-controller="Complaints" asp-action="Index" class="nav-link">
+                    <i class="bi bi-chat-square-text-fill"></i> Complaint Oversight
+                </a>
+                <a asp-controller="Monitoring" asp-action="Index" class="nav-link">
+                    <i class="bi bi-bar-chart-line-fill"></i> Monitoring & Evaluation
+                </a>
             }
 
-            @if (User.IsInRole("NHIA"))
-            {
-                    <a asp-controller="ReferralHospitals" asp-action="Index" class="nav-link">
-                        <i class="bi bi-building-add"></i> Referral Hospitals
-                    </a>
-            }
 
            @if (User.IsInRole("Provider"))
            {
@@ -324,6 +491,12 @@
                     <a asp-controller="ProviderDoctors" asp-action="Index" class="nav-link">
                         <i class="bi bi-person-badge-fill"></i> Staff Directory
                     </a>
+                    @if (providerCanUseDrugInventoryNav)
+                    {
+                        <a asp-controller="DrugInventory" asp-action="Index" class="nav-link">
+                            <i class="bi bi-capsule-pill"></i> Drug Inventory
+                        </a>
+                    }
                     @if (providerCanUseClaimsNav)
                     {
                         <a asp-controller="Providers" asp-action="MyClaims" class="nav-link">
@@ -462,9 +635,39 @@
                         <i class="bi bi-bar-chart-line-fill"></i> Monitoring & Evaluation
                     </a>
             }
+            @if (User.IsInRole("IHSA"))
+            {
+                <a asp-controller="IHSA" asp-action="Dashboard" class="nav-link">
+                    <i class="bi bi-speedometer2"></i> IHSA Dashboard
+                </a>
+                <a asp-controller="Enrollees" asp-action="Index" class="nav-link">
+                    <i class="bi bi-person-vcard-fill"></i> Enrollment List
+                </a>
+                <a asp-controller="Hmo" asp-action="Index" class="nav-link">
+                    <i class="bi bi-buildings-fill"></i> HMOs & Enrollees
+                </a>
+                <a asp-controller="Providers" asp-action="Index" class="nav-link">
+                    <i class="bi bi-hospital-fill"></i> Providers & Encounters
+                </a>
+                <a asp-controller="Claims" asp-action="Index" class="nav-link">
+                    <i class="bi bi-file-medical-fill"></i> Claims Oversight
+                </a>
+                <a asp-controller="IHSA" asp-action="Referrals" class="nav-link">
+                    <i class="bi bi-arrow-left-right"></i> Referral Monitoring
+                </a>
+                <a asp-controller="IHSA" asp-action="MonthlyReports" class="nav-link">
+                    <i class="bi bi-clipboard-data"></i> Provider Reports
+                </a>
+                <a asp-controller="IHSA" asp-action="ReferralProviderReports" class="nav-link">
+                    <i class="bi bi-clipboard-pulse"></i> Referral Reports
+                </a>
+                <a asp-controller="Monitoring" asp-action="Index" class="nav-link">
+                    <i class="bi bi-bar-chart-line-fill"></i> Monitoring & Evaluation
+                </a>
+            }
                     @if (User.IsInRole("CTSHIPAdmin") || User.IsInRole("HMO") || User.IsInRole("Provider") ||
-                                    User.IsInRole("StateOffice") || User.IsInRole("Monitoring") || User.IsInRole("NHIA") ||
-                                    User.IsInRole("NEDCAdmin") || User.IsInRole("SSHIA"))
+                                    User.IsInRole("StateOffice") || User.IsInRole("Monitoring") ||
+                                    User.IsInRole("NEDCAdmin") || User.IsInRole("SSHIA") || User.IsInRole("IHSA"))
                     {
                         <a asp-controller="Complaints" asp-action="Index" class="nav-link">
                             <i class="bi bi-chat-square-text-fill"></i> Complaint Management
@@ -492,10 +695,11 @@
     <!-- Footer -->
     <div class="footer-brand">
         <p class="mb-0 small fw-bold">
-            ©@DateTime.Today.Year CTSHIP - Community Targeted Social Health Insurance Project | Powered by North East Development Commission (NEDC)
+            �@DateTime.Today.Year CTSHIP - Community Targeted Social Health Insurance Project | Powered by North East Development Commission (NEDC)
         </p>
     </div>
     <!-- Offline-ready UI libraries -->
+
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
     <script src="~/lib/jquery-validation/dist/jquery.validate.min.js"></script>
     <script src="~/lib/jquery-validation-unobtrusive/dist/jquery.validate.unobtrusive.min.js"></script>
@@ -507,6 +711,23 @@
     <script src="~/lib/chartjs-plugin-datalabels/chartjs-plugin-datalabels.min.js"></script>
     <script src="~/lib/leaflet/leaflet.js"></script>
     <script src="~/lib/leaflet-markercluster/leaflet.markercluster.js"></script>
+    <script>
+        (() => {
+            const removePageLoader = () => {
+                const loader = document.getElementById('ctPageLoader');
+                if (!loader) return;
+                loader.classList.add('is-hidden');
+                window.setTimeout(() => loader.remove(), 280);
+            };
+
+            if (document.readyState === 'complete') {
+                removePageLoader();
+            } else {
+                window.addEventListener('load', removePageLoader, { once: true });
+            }
+        })();
+    </script>
+
    
     <script>
         const sidebarElement = document.getElementById('sidebar');
@@ -542,6 +763,113 @@
     {
         <script>
             (() => {
+                const badge = document.getElementById('ctNotificationBadge');
+                const list = document.getElementById('ctNotificationList');
+                const dropdown = document.getElementById('ctNotificationDropdown');
+                const markAll = document.getElementById('ctNotificationMarkAll');
+                const token = document.querySelector('#ctNotificationTokenForm input[name="__RequestVerificationToken"]')?.value || '';
+                const unreadUrl = '@Url.Action("UnreadCount", "Notifications")';
+                const recentUrl = '@Url.Action("Recent", "Notifications")';
+                const markReadUrl = '@Url.Action("MarkRead", "Notifications")';
+                const markAllUrl = '@Url.Action("MarkAllRead", "Notifications")';
+
+                const setBadge = count => {
+                    if (!badge) return;
+                    const value = Number(count || 0);
+                    badge.textContent = value > 99 ? '99+' : value.toString();
+                    badge.classList.toggle('d-none', value <= 0);
+                };
+
+                window.ctRefreshNotificationCount = async () => {
+                    try {
+                        const response = await fetch(unreadUrl, { headers: { 'Accept': 'application/json' } });
+                        if (!response.ok) return;
+                        const data = await response.json();
+                        setBadge(data.count);
+                    } catch { }
+                };
+
+                const markRead = async id => {
+                    if (!id || !token) return;
+                    try {
+                        await fetch(markReadUrl, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/x-www-form-urlencoded',
+                                'RequestVerificationToken': token
+                            },
+                            body: new URLSearchParams({ id })
+                        });
+                        window.ctRefreshNotificationCount?.();
+                    } catch { }
+                };
+
+                const escapeHtml = value => String(value).replace(/[&<>'"]/g, char => ({
+                    '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
+                }[char]));
+
+                const renderNotifications = items => {
+                    if (!list) return;
+                    if (!items || items.length === 0) {
+                        list.innerHTML = '<div class="text-center text-muted py-4">No notifications yet.</div>';
+                        return;
+                    }
+
+                    list.innerHTML = items.map(item => {
+                        const icon = item.icon === 'warning' ? 'exclamation-triangle' : item.icon === 'success' ? 'check-circle' : 'bell';
+                        const unreadClass = item.isUnread ? 'bg-light' : '';
+                        const title = escapeHtml(item.title || 'Notification');
+                        const message = escapeHtml(item.message || '');
+                        const time = escapeHtml(item.createdAtText || '');
+                        const url = escapeHtml(item.url || '#');
+                        return `<a href="${url}" class="dropdown-item ct-notification-item ${unreadClass}" data-notification-id="${item.id}">
+                            <div class="d-flex gap-2 align-items-start py-2">
+                                <span class="badge ${item.isUnread ? 'bg-warning text-dark' : 'bg-success'} rounded-pill"><i class="bi bi-${icon}"></i></span>
+                                <span class="flex-grow-1">
+                                    <span class="d-flex justify-content-between gap-2"><strong>${title}</strong><small class="text-muted">${time}</small></span>
+                                    <span class="d-block text-muted small">${message}</span>
+                                </span>
+                            </div>
+                        </a>`;
+                    }).join('');
+
+                    list.querySelectorAll('[data-notification-id]').forEach(item => {
+                        item.addEventListener('click', () => markRead(item.getAttribute('data-notification-id')));
+                    });
+                };
+
+                const loadRecent = async () => {
+                    if (!list) return;
+                    try {
+                        const response = await fetch(recentUrl, { headers: { 'Accept': 'application/json' } });
+                        if (!response.ok) return;
+                        renderNotifications(await response.json());
+                    } catch {
+                        list.innerHTML = '<div class="text-center text-muted py-4">Notifications could not be loaded.</div>';
+                    }
+                };
+
+                dropdown?.addEventListener('shown.bs.dropdown', loadRecent);
+                markAll?.addEventListener('click', async () => {
+                    if (!token) return;
+                    try {
+                        await fetch(markAllUrl, {
+                            method: 'POST',
+                            headers: { 'RequestVerificationToken': token }
+                        });
+                        await window.ctRefreshNotificationCount?.();
+                        await loadRecent();
+                    } catch { }
+                });
+
+                window.ctRefreshNotificationCount?.();
+            })();
+        </script>
+    }
+    @if (SignInManager.IsSignedIn(User))
+    {
+        <script>
+            (() => {
                 if (!window.signalR || !window.Swal) {
                     return;
                 }
@@ -550,6 +878,10 @@
                     .withUrl('@Url.Content("~/analyticsHub")')
                     .withAutomaticReconnect()
                     .build();
+
+                notificationConnection.on('NotificationCountChanged', () => {
+                    window.ctRefreshNotificationCount?.();
+                });
 
                 notificationConnection.on('AppNotification', payload => {
                     if (!payload) {
@@ -560,6 +892,8 @@
                     const message = payload.message || payload.Message || '';
                     const icon = payload.icon || payload.Icon || 'info';
                     const url = payload.url || payload.Url || '';
+
+                    window.ctRefreshNotificationCount?.();
 
                     Swal.fire({
                         title,
@@ -606,3 +940,9 @@
     @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>
+
+
+
+
+
+

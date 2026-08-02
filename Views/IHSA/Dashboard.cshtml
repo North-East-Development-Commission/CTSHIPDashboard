@@ -1,0 +1,174 @@
+@model CTSHIPDashboard.Models.ViewModels.MonitoringDashboardViewModel
+
+@{
+    ViewData["Title"] = "IHSA Dashboard";
+    var availableHmos = ViewBag.AvailableHmos as List<Hmo> ?? new List<Hmo>();
+}
+
+<div class="ct-page">
+    <div class="ct-page-header d-flex flex-wrap justify-content-between align-items-center gap-3">
+        <div>
+            <h1 class="mb-1">IHSA Programme Oversight</h1>
+            <p class="mb-0">All-state CTSHIP monitoring, report audit, and decision intelligence.</p>
+        </div>
+        <div class="text-end">
+            <div class="fw-bold">Consultant monitoring view</div>
+            <small>@DateTime.Now.ToString("dd MMM yyyy, h:mm tt")</small>
+        </div>
+    </div>
+
+    <form asp-action="Dashboard" method="get" class="card card-body mb-4">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-3">
+            <div>
+                <div class="fw-bold text-success">Matrix Filters</div>
+                <div class="small text-muted">Current scope: @Model.ScopeDisplay</div>
+            </div>
+            <a asp-action="Dashboard" class="btn btn-outline-secondary">Clear Filters</a>
+        </div>
+        <div class="row g-3 align-items-end">
+            <div class="col-md-5">
+                <label class="form-label">State</label>
+                <select name="state" class="form-select">
+                    @if (string.IsNullOrWhiteSpace(Model.SelectedState))
+                    {
+                        <option value="" selected>All states</option>
+                    }
+                    else
+                    {
+                        <option value="">All states</option>
+                    }
+                    @foreach (string state in Model.AvailableStates)
+                    {
+                        if (state == Model.SelectedState)
+                        {
+                            <option value="@state" selected>@state</option>
+                        }
+                        else
+                        {
+                            <option value="@state">@state</option>
+                        }
+                    }
+                </select>
+            </div>
+            <div class="col-md-5">
+                <label class="form-label">HMO</label>
+                <select name="hmoId" class="form-select">
+                    @if (!Model.SelectedHmoId.HasValue)
+                    {
+                        <option value="" selected>All HMOs</option>
+                    }
+                    else
+                    {
+                        <option value="">All HMOs</option>
+                    }
+                    @foreach (Hmo hmo in availableHmos)
+                    {
+                        if (Model.SelectedHmoId == hmo.Id)
+                        {
+                            <option value="@hmo.Id" selected>@hmo.Name (@hmo.RegistrationNumber)</option>
+                        }
+                        else
+                        {
+                            <option value="@hmo.Id">@hmo.Name (@hmo.RegistrationNumber)</option>
+                        }
+                    }
+                </select>
+            </div>
+            <div class="col-md-2 d-grid">
+                <button type="submit" class="btn btn-success">Apply Filter</button>
+            </div>
+        </div>
+    </form>
+
+    <partial name="_MonitoringIndicatorCards" model="Model" />
+
+    <div class="row g-3 mb-4">
+        <div class="col-xl-3 col-md-6"><div class="card bg-success text-white h-100"><div class="card-body"><div>Service Utilization</div><div class="display-6 fw-bold">@Model.ServiceUtilizationRate%</div><small>@Model.UniqueServiceUsers.ToString("N0") unique users</small></div></div></div>
+        <div class="col-xl-3 col-md-6"><div class="card bg-primary text-white h-100"><div class="card-body"><div>Reports Pending Audit</div><div class="display-6 fw-bold">@Model.PendingReports.ToString("N0")</div><small>@Model.AuditedReports.ToString("N0") audited</small></div></div></div>
+        <div class="col-xl-3 col-md-6"><div class="card bg-success text-white h-100"><div class="card-body"><div>Capitation Paid</div><div class="h3 fw-bold">NGN @Model.Capitation.PaidAmount.ToString("N2")</div><small>@Model.Capitation.PaidPayments of @Model.Capitation.TotalPayments payments</small></div></div></div>
+        <div class="col-xl-3 col-md-6"><div class="card bg-primary text-white h-100"><div class="card-body"><div>Active Users</div><div class="display-6 fw-bold">@Model.ActiveUsersLast30Days.ToString("N0")</div><small>Last 30 days</small></div></div></div>
+    </div>
+
+    <div class="card shadow-sm mb-4">
+        <div class="card-header fw-bold">System Activity Matrix</div>
+        <div class="table-responsive">
+            <table class="table table-striped table-hover mb-0 ct-wide-table">
+                <thead><tr><th>Area</th><th>Indicator</th><th>Count</th><th>Rate</th><th>Decision Signal</th></tr></thead>
+                <tbody>
+                    @foreach (var row in Model.SystemActivityMatrix)
+                    {
+                        <tr><td class="fw-bold">@row.Area</td><td>@row.Indicator</td><td>@row.Count.ToString("N0")</td><td>@row.Rate%</td><td>@row.DecisionSignal</td></tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="row g-4 mb-4">
+        <div class="col-lg-7">
+            <div class="card h-100 shadow-sm">
+                <div class="card-header fw-bold">HMO Oversight</div>
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead><tr><th>HMO</th><th>Enrollees</th><th>Providers</th><th>Encounters</th><th>Complaints</th><th></th></tr></thead>
+                        <tbody>
+                        @foreach (var hmo in Model.HmoOversight.Take(10))
+                        {
+                            <tr>
+                                <td class="fw-bold">@hmo.Name</td><td>@hmo.Enrollees.ToString("N0")</td><td>@hmo.Providers.ToString("N0")</td><td>@hmo.Encounters.ToString("N0")</td><td>@hmo.Complaints.ToString("N0")</td>
+                                <td><a asp-controller="Hmo" asp-action="Details" asp-route-id="@hmo.Id" class="btn btn-sm btn-outline-success">View</a></td>
+                            </tr>
+                        }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-5">
+            <div class="card h-100 shadow-sm">
+                <div class="card-header fw-bold">Provider Level Metrics</div>
+                <div class="table-responsive">
+                    <table class="table table-striped mb-0">
+                        <thead><tr><th>Level</th><th>Providers</th><th>Enrollees</th><th>Encounters</th></tr></thead>
+                        <tbody>
+                        @foreach (var item in Model.ProviderLevelMetrics)
+                        {
+                            <tr><td class="fw-bold">@item.Level</td><td>@item.Providers.ToString("N0")</td><td>@item.Enrollees.ToString("N0")</td><td>@item.Encounters.ToString("N0")</td></tr>
+                        }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4 mb-4">
+        <div class="col-lg-6">
+            <div class="card h-100 shadow-sm">
+                <div class="card-header fw-bold">Disease Trends From Encounters</div>
+                <div class="table-responsive">
+                    <table class="table table-striped mb-0"><thead><tr><th>Diagnosis</th><th>Encounters</th><th>Share</th></tr></thead><tbody>
+                    @foreach (var trend in Model.DiseaseTrends)
+                    {
+                        <tr><td class="fw-bold">@trend.Diagnosis</td><td>@trend.Encounters.ToString("N0")</td><td>@trend.Percentage%</td></tr>
+                    }
+                    </tbody></table>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-6">
+            <div class="card h-100 shadow-sm">
+                <div class="card-header fw-bold">State Scorecard</div>
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0"><thead><tr><th>State</th><th>Active</th><th>Providers</th><th>Encounters</th><th>Referrals</th></tr></thead><tbody>
+                    @foreach (var state in Model.StateIndicators)
+                    {
+                        <tr><td class="fw-bold">@state.State</td><td>@state.ActiveEnrollees.ToString("N0")</td><td>@state.Providers.ToString("N0")</td><td>@state.Encounters.ToString("N0")</td><td>@state.Referrals.ToString("N0")</td></tr>
+                    }
+                    </tbody></table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+

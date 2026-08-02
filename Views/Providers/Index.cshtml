@@ -1,4 +1,4 @@
-﻿@using CTSHIPDashboard.Models.ViewModels
+@using CTSHIPDashboard.Models.ViewModels
 @model List<ProviderListViewModel>
 @{
     ViewData["Title"] = "Healthcare Providers Directory";
@@ -13,7 +13,7 @@
                 Healthcare Providers Directory
             </h1>
             <p class="lead text-muted">
-                All accredited hospitals & clinics under CTSHIP • North East Development Commission (NEDC)
+                All accredited hospitals & clinics under CTSHIP � North East Development Commission (NEDC)
             </p>
         </div>
         @if (canManageProviders)
@@ -102,8 +102,8 @@
                         <th>Hospital / Clinic</th>
                         <th>State</th>
                         <th>Level</th>
-                        <th>Visits</th>
                         <th>Enrollees</th>
+                        <th>Visits</th>
                         <th>Claims</th>
                         <th>Status</th>
                         <th>Actions</th>
@@ -129,6 +129,7 @@
                             </td>
                             <td>
                                 <a asp-action="Details" asp-route-id="@p.Id" class="btn btn-info btn-sm">View</a>
+                                <a asp-controller="Hmo" asp-action="EncountersPerProvider" asp-route-id="@p.Id" class="btn btn-outline-success btn-sm">Encounters</a>
                                 @if (canManageProviders)
                                 {
                                     <a asp-action="Edit" asp-route-id="@p.Id" class="btn btn-warning btn-sm">Edit</a>
@@ -173,3 +174,4 @@
         </div>
     </div>
 </div>
+

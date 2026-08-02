@@ -1,4 +1,12 @@
-ï»¿@model CTSHIPDashboard.Models.Encounter
+@using CTSHIPDashboard.Models.ViewModels
+@using Microsoft.AspNetCore.Mvc.Rendering
+@model CTSHIPDashboard.Models.Encounter
+@{
+    List<EncounterPrescriptionInputViewModel> prescriptionRows = Model.SelectedPrescriptions.Count > 0
+        ? Model.SelectedPrescriptions
+        : new List<EncounterPrescriptionInputViewModel> { new() };
+    List<SelectListItem> drugInventoryItems = ViewBag.DrugInventoryItems as List<SelectListItem> ?? new List<SelectListItem>();
+}
 <div class="container-fluid py-4">
     <div class="row justify-content-center">
         <div class="col-lg-11">
@@ -6,7 +14,7 @@
                 <!-- Header -->
                 <div class="bg-success text-white text-center py-5">
                     <h1 class="display-5 fw-bold mb-2">NEW PATIENT ENCOUNTER</h1>
-                    <p class="lead mb-0 opacity-90">CTSHIP Digital Hospital System â€¢ Federal Republic of Nigeria</p>
+                    <p class="lead mb-0 opacity-90">CTSHIP Digital Hospital System • Federal Republic of Nigeria</p>
                 </div>
 
                 <div class="card-body p-5">
@@ -37,10 +45,10 @@
                                         <img id="previewPhoto" src="/img/icon-192.png" class="rounded me-4 shadow"
                                              style="width:130px;height:130px;object-fit:cover;border:5px solid white;" />
                                         <div>
-                                            <h4 id="previewName" class="text-success fw-bold mb-1">â€”</h4>
-                                            <p class="mb-1"><strong>ID:</strong> <span id="previewNumber" class="text-primary fw-bold fs-5">â€”</span></p>
-                                            <p class="mb-1"><strong>HMO:</strong> <span id="previewHmo">â€”</span></p>
-                                            <p class="mb-0"><strong>State:</strong> <span id="previewState">â€”</span></p>
+                                            <h4 id="previewName" class="text-success fw-bold mb-1">—</h4>
+                                            <p class="mb-1"><strong>ID:</strong> <span id="previewNumber" class="text-primary fw-bold fs-5">—</span></p>
+                                            <p class="mb-1"><strong>HMO:</strong> <span id="previewHmo">—</span></p>
+                                            <p class="mb-0"><strong>State:</strong> <span id="previewState">—</span></p>
                                             <input type="hidden" asp-for="EnrolleeId" id="selectedEnrolleeId" />
                                         </div>
                                     </div>
@@ -60,9 +68,17 @@
                                     <option value="">Select visit type</option>
                                 </select>
                             </div>
+
+                            <div class="col-md-4">
+                                <label asp-for="ReasonForEncounter" class="form-label text-success fw-bold">Reason For Encounter</label>
+                                <select asp-for="ReasonForEncounter" class="form-select form-select-lg" asp-items="ViewBag.EncounterReasons">
+                                    <option value="">Select reason</option>
+                                </select>
+                                <span asp-validation-for="ReasonForEncounter" class="text-danger"></span>
+                            </div>
                             <partial name="_ServiceSelection" model="Model" />
 
-                            <!-- STATUS DROPDOWN â€” ADDED! -->
+                            <!-- STATUS DROPDOWN — ADDED! -->
                             <div class="col-md-4">
                                 <label asp-for="Status" class="form-label text-success fw-bold">Status</label>
                                 <select asp-for="Status" class="form-select form-select-lg" asp-items="ViewBag.Statuses">
@@ -106,6 +122,51 @@
                                 <span asp-validation-for="TreatmentGiven" class="text-danger"></span>
                             </div>
 
+                            <div class="col-12">
+                                <div class="border rounded-3 p-3">
+                                    <div class="d-flex justify-content-between align-items-center gap-3 mb-3">
+                                        <div>
+                                            <label class="form-label text-success fw-bold mb-0">Prescriptions</label>
+                                            <div class="small text-muted">Primary provider inventory drugs only.</div>
+                                        </div>
+                                        <button type="button" class="btn btn-outline-success btn-sm" id="addPrescriptionBtn">
+                                            <i class="bi bi-plus-circle me-1"></i> Add Drug
+                                        </button>
+                                    </div>
+                                    <div id="prescriptionRows" class="d-grid gap-2">
+                                        @for (int i = 0; i < prescriptionRows.Count; i++)
+                                        {
+                                            <div class="row g-2 align-items-end prescription-row">
+                                                <div class="col-md-8">
+                                                    <label class="form-label small fw-bold">Drug</label>
+                                                    <select name="SelectedPrescriptions[@i].DrugInventoryItemId" class="form-select drug-inventory-select">
+                                                        <option value="">No drug selected</option>
+                                                        @foreach (SelectListItem drug in drugInventoryItems)
+                                                        {
+                                                            if (drug.Value == prescriptionRows[i].DrugInventoryItemId.ToString())
+                                                            {
+                                                                <option value="@drug.Value" selected>@drug.Text</option>
+                                                            }
+                                                            else
+                                                            {
+                                                                <option value="@drug.Value">@drug.Text</option>
+                                                            }
+                                                        }
+                                                    </select>
+                                                </div>
+                                                <div class="col-md-3">
+                                                    <label class="form-label small fw-bold">Quantity</label>
+                                                    <input type="number" name="SelectedPrescriptions[@i].QuantityDispensed" value="@prescriptionRows[i].QuantityDispensed" class="form-control prescription-quantity" min="1" />
+                                                </div>
+                                                <div class="col-md-1 d-grid">
+                                                    <button type="button" class="btn btn-outline-danger remove-prescription-btn" aria-label="Remove prescription"><i class="bi bi-trash"></i></button>
+                                                </div>
+                                            </div>
+                                        }
+                                    </div>
+                                </div>
+                            </div>
+
                         </div>
 
                         <!-- Submit -->
@@ -141,7 +202,7 @@
 
                 <div class="bg-dark text-white text-center py-3">
                     <small>
-                        CTSHIP â€¢ Universal Health Coverage â€¢ Powered by North East Development Commission (NEDC)
+                        CTSHIP • Universal Health Coverage • Powered by North East Development Commission (NEDC)
                     </small>
                 </div>
             </div>
@@ -269,12 +330,101 @@
             }
         }
 
+        let drugInventoryOptions = Array.from(document.querySelectorAll('.drug-inventory-select option'))
+            .filter(option => option.value)
+            .map(option => ({ id: option.value, text: option.textContent }));
+
+        function renderDrugOptions(select, selectedValue) {
+            select.innerHTML = '<option value="">No drug selected</option>';
+            drugInventoryOptions.forEach(item => {
+                const option = document.createElement('option');
+                option.value = item.id;
+                option.textContent = item.text;
+                option.selected = String(item.id) === String(selectedValue || '');
+                select.appendChild(option);
+            });
+        }
+
+        function reindexPrescriptionRows() {
+            document.querySelectorAll('.prescription-row').forEach((row, index) => {
+                const select = row.querySelector('.drug-inventory-select');
+                const quantity = row.querySelector('.prescription-quantity');
+                if (select) select.name = `SelectedPrescriptions[${index}].DrugInventoryItemId`;
+                if (quantity) quantity.name = `SelectedPrescriptions[${index}].QuantityDispensed`;
+            });
+        }
+
+        function addPrescriptionRow(selectedDrugId = '', quantity = 1) {
+            const container = document.getElementById('prescriptionRows');
+            if (!container) return;
+
+            const row = document.createElement('div');
+            row.className = 'row g-2 align-items-end prescription-row';
+            row.innerHTML = `
+                <div class="col-md-8">
+                    <label class="form-label small fw-bold">Drug</label>
+                    <select class="form-select drug-inventory-select"></select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label small fw-bold">Quantity</label>
+                    <input type="number" class="form-control prescription-quantity" min="1" value="${quantity || 1}" />
+                </div>
+                <div class="col-md-1 d-grid">
+                    <button type="button" class="btn btn-outline-danger remove-prescription-btn" aria-label="Remove prescription"><i class="bi bi-trash"></i></button>
+                </div>`;
+            container.appendChild(row);
+            renderDrugOptions(row.querySelector('.drug-inventory-select'), selectedDrugId);
+            reindexPrescriptionRows();
+        }
+
+        async function refreshDrugInventoryDropdowns() {
+            const providerSelect = document.getElementById('ProviderId');
+            const selectedValues = Array.from(document.querySelectorAll('.drug-inventory-select')).map(select => select.value);
+
+            if (!providerSelect?.value) {
+                drugInventoryOptions = [];
+            } else {
+                try {
+                    const response = await fetch(`/Encounters/GetDrugInventoryByProvider?providerId=${encodeURIComponent(providerSelect.value)}`);
+                    const data = await response.json();
+                    drugInventoryOptions = data.success && Array.isArray(data.items)
+                        ? data.items.map(item => ({ id: item.id, text: item.text }))
+                        : [];
+                } catch {
+                    drugInventoryOptions = [];
+                }
+            }
+
+            document.querySelectorAll('.drug-inventory-select').forEach((select, index) => {
+                renderDrugOptions(select, selectedValues[index]);
+            });
+        }
+
+        document.getElementById('addPrescriptionBtn')?.addEventListener('click', () => addPrescriptionRow());
+        document.getElementById('prescriptionRows')?.addEventListener('click', event => {
+            const button = event.target.closest('.remove-prescription-btn');
+            if (!button) return;
+
+            const rows = document.querySelectorAll('.prescription-row');
+            if (rows.length === 1) {
+                const row = rows[0];
+                row.querySelector('.drug-inventory-select').value = '';
+                row.querySelector('.prescription-quantity').value = 1;
+                return;
+            }
+
+            button.closest('.prescription-row')?.remove();
+            reindexPrescriptionRows();
+        });
+
         document.getElementById('ProviderId')?.addEventListener('change', async () => {
             const doctorSelect = document.getElementById('DoctorId');
             if (doctorSelect) doctorSelect.dataset.selectedDoctor = '';
             await refreshDoctorDropdown();
+            await refreshDrugInventoryDropdowns();
         });
         refreshDoctorDropdown();
+        refreshDrugInventoryDropdowns();
 
         function addValidationError(errors, selector, message) {
             const field = document.querySelector(selector);
@@ -348,6 +498,18 @@
             if (!document.getElementById('TreatmentGiven')?.value.trim()) {
                 addValidationError(errors, '#TreatmentGiven', 'Treatment given is required.');
             }
+
+            if (!document.getElementById('ReasonForEncounter')?.value) {
+                addValidationError(errors, '#ReasonForEncounter', 'Select a reason for encounter.');
+            }
+
+            document.querySelectorAll('.prescription-row').forEach(row => {
+                const drug = row.querySelector('.drug-inventory-select')?.value;
+                const quantity = Number(row.querySelector('.prescription-quantity')?.value || 0);
+                if (drug && quantity <= 0) {
+                    addValidationError(errors, '.prescription-quantity', 'Prescription quantities must be greater than zero.');
+                }
+            });
 
             if (!visitDateValue || new Date(visitDateValue) > new Date()) {
                 addValidationError(errors, '#VisitDate', 'Encounter date cannot be in the future.');

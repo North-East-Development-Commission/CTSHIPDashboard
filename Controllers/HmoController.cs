@@ -20,6 +20,7 @@ using System.Globalization;
 public class HmoController : Controller
 {
     private const string HmoCrudRoles = "CTSHIPAdmin,Admin";
+    private const string HmoViewRoles = "CTSHIPAdmin,Admin,IHSA,NHIA,Monitoring";
     private static readonly string[] CapitationProofFileExtensions = { ".pdf", ".jpg", ".jpeg", ".png" };
 
     private readonly ApplicationDbContext _context;
@@ -70,7 +71,7 @@ public class HmoController : Controller
 
 
     // LIST ALL HMOs
-    [Authorize(Roles = HmoCrudRoles)]
+    [Authorize(Roles = HmoViewRoles)]
     public async Task<IActionResult> Index(string search = "")
     {
         var hmos = _context.Hmos.AsQueryable();
@@ -260,7 +261,7 @@ public class HmoController : Controller
     }
 
     // DETAILS
-    [Authorize(Roles = HmoCrudRoles)]
+    [Authorize(Roles = HmoViewRoles)]
     public async Task<IActionResult> Details(int id)
     {
         var hmo = await _context.Hmos
@@ -1098,7 +1099,7 @@ public class HmoController : Controller
         return View(providers);
     }
 
-    [Authorize(Roles = "CTSHIPAdmin,HMO")]
+    [Authorize(Roles = "CTSHIPAdmin,Admin,HMO,IHSA,NHIA,Monitoring")]
     public async Task<IActionResult> EncountersPerProvider(
     int id,
     string search = "",
@@ -1170,6 +1171,7 @@ public class HmoController : Controller
     }
 
     // DETAILS
+    [Authorize(Roles = "CTSHIPAdmin,Admin,HMO,IHSA,NHIA,Monitoring")]
     public async Task<IActionResult> EncDetails(int id)
     {
         var encounter = await _context.Encounters
@@ -2028,3 +2030,8 @@ public class HmoController : Controller
                     $"HMO_Claims_{currentUser.hmo?.Name ?? "All"}_{DateTime.Now:yyyyMMdd_HHmm}.xlsx");
     }
 }
+
+
+
+
+
