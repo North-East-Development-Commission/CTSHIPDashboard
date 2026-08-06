@@ -1,0 +1,170 @@
+@model dynamic
+@{
+    ViewData["Title"] = "Presenting Complaints - Monthly";
+}
+
+<div class="container-fluid py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-11">
+            <div class="card border-0 shadow-lg" style="border-radius: 25px; overflow: hidden;">
+                <div class="bg-success text-white text-center py-4">
+                    <h2 class="fw-bold mb-1">PRESENTING COMPLAINTS - MONTHLY SUMMARY</h2>
+                    <p class="mb-0 small">Select month and year to view top presenting complaints. Use referral filter to include only referred encounters if needed.</p>
+                </div>
+
+                <div class="card-body p-4">
+                    <form id="reportForm" class="row g-3 mb-3">
+                        <div class="col-md-3">
+                            <label class="form-label">Year</label>
+                            <select id="year" class="form-select">
+                                @for (int y = DateTime.Today.Year; y >= DateTime.Today.Year - 5; y--)
+                                {
+                                    <option value="@y">@y</option>
+                                }
+                            </select>
+                        </div>
+
+                        <div class="col-md-3">
+                            <label class="form-label">Month</label>
+                            <select id="month" class="form-select">
+                                @for (int m = 1; m <= 12; m++)
+                                {
+                                    <option value="@m">@System.Globalization.CultureInfo.CurrentCulture.DateTimeFormat.GetMonthName(m)</option>
+                                }
+                            </select>
+                        </div>
+
+                        <div class="col-md-2">
+                            <label class="form-label">Top N</label>
+                            <input id="top" type="number" class="form-control" value="10" min="1" />
+                        </div>
+
+                        <div class="col-md-4">
+                            <label class="form-label">Referral Filter</label>
+                            <select id="referral" class="form-select">
+                                <option value="All">All encounters</option>
+                                <option value="Referred">Only referred encounters</option>
+                                <option value="NonReferred">Exclude referred encounters</option>
+                            </select>
+                        </div>
+
+                        <div class="col-12 text-end">
+                            <button type="button" id="refreshBtn" class="btn btn-success">Refresh</button>
+                        </div>
+                    </form>
+
+                    <div class="row">
+                        <div class="col-lg-8">
+                            <div class="card border rounded-3 p-3 mb-3">
+                                <canvas id="complaintsChart" height="180"></canvas>
+                            </div>
+                        </div>
+                        <div class="col-lg-4">
+                            <div class="card border rounded-3 p-3 mb-3">
+                                <h5>Top Complaints</h5>
+                                <table class="table table-sm">
+                                    <thead>
+                                        <tr><th>#</th><th>Complaint</th><th class="text-end">Count</th></tr>
+                                    </thead>
+                                    <tbody id="complaintsTableBody">
+                                        <tr><td colspan="3" class="text-center text-muted">No data</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
+                <div class="bg-dark text-white text-center py-3">
+                    <small>CTSHIP • NEDC</small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        const chartCtx = document.getElementById('complaintsChart');
+        let complaintsChart = null;
+
+        async function loadReport() {
+            const year = document.getElementById('year').value;
+            const month = document.getElementById('month').value;
+            const top = document.getElementById('top').value || 10;
+            const referral = document.getElementById('referral').value || 'All';
+
+            try {
+                const res = await fetch(`/Encounters/PresentingComplaintsMonthly?year=${encodeURIComponent(year)}&month=${encodeURIComponent(month)}&top=${encodeURIComponent(top)}&referral=${encodeURIComponent(referral)}`);
+                if (!res.ok) throw new Error('Failed to load');
+                const data = await res.json();
+                if (!data.success) throw new Error('No data');
+
+                const items = data.items || [];
+                const labels = items.map(x => x.complaint || x.Complaint);
+                const counts = items.map(x => x.count || x.Count);
+
+                // render chart
+                if (complaintsChart) {
+                    complaintsChart.data.labels = labels;
+                    complaintsChart.data.datasets[0].data = counts;
+                    complaintsChart.update();
+                } else {
+                    complaintsChart = new Chart(chartCtx, {
+                        type: 'bar',
+                        data: {
+                            labels: labels,
+                            datasets: [{
+                                label: 'Count',
+                                data: counts,
+                                backgroundColor: 'rgba(40,167,69,0.7)'
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            scales: {
+                                x: { ticks: { autoSkip: false } },
+                                y: { beginAtZero: true }
+                            }
+                        }
+                    });
+                }
+
+                // render table
+                const tbody = document.getElementById('complaintsTableBody');
+                tbody.innerHTML = '';
+                if (items.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="3" class="text-center text-muted">No data for selected month</td></tr>';
+                } else {
+                    items.forEach((it, idx) => {
+                        const complaint = it.complaint || it.Complaint;
+                        const count = it.count || it.Count;
+                        const tr = document.createElement('tr');
+                        tr.innerHTML = `<td>${idx + 1}</td><td>${escapeHtml(complaint)}</td><td class="text-end">${count}</td>`;
+                        tbody.appendChild(tr);
+                    });
+                }
+
+            } catch (err) {
+                console.warn(err);
+                const tbody = document.getElementById('complaintsTableBody');
+                tbody.innerHTML = '<tr><td colspan="3" class="text-center text-danger">Failed to load report</td></tr>';
+            }
+        }
+
+        function escapeHtml(value) {
+            return String(value).replace(/[&<>'"]/g, char => ({
+                '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": "&#39;", '"': '&quot;'
+            }[char]));
+        }
+
+        document.getElementById('refreshBtn').addEventListener('click', loadReport);
+        // auto load current month
+        (function init() {
+            document.getElementById('year').value = new Date().getFullYear();
+            document.getElementById('month').value = new Date().getMonth() + 1;
+            loadReport();
+        })();
+    </script>
+}

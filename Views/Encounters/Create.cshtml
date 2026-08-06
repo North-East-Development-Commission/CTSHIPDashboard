@@ -177,7 +177,7 @@
                             <!-- CLINICAL -->
                             <div class="col-12">
                                 <label asp-for="ChiefComplaint" class="form-label text-success fw-bold">Complaint</label>
-                                <presenting-complaints asp-for="SelectedPresentingComplaints" asp-other-for="PresentingComplaintsOther"></presenting-complaints>
+                                <partial name="_PresentingComplaints" model="Model" />
                                 <textarea asp-for="ChiefComplaint" class="form-control form-control mt-2"></textarea>
                                 <span asp-validation-for="ChiefComplaint" class="text-danger"></span>
                             </div>
@@ -705,22 +705,15 @@
         }
 
         document.getElementById('encounterForm')?.addEventListener('submit', validateEncounterForm);
-        // Presenting complaints 'Other' toggle for select2
+        // Presenting complaints 'Other' toggle (checkbox list)
         function syncPresentingComplaintsOther() {
-            const select = document.getElementById('SelectedPresentingComplaints');
-            const row = document.getElementById('PresentingComplaintsOther_row');
-            if (!select || !row) return;
-            const selected = Array.from(select.selectedOptions || []).map(o => o.value || '');
-            const hasOther = selected.some(v => v === 'Other' || v.startsWith('Other:'));
-            row.style.display = hasOther ? 'block' : 'none';
+            const otherCheckbox = document.querySelector('.presenting-complaint-checkbox[value="Other"]');
+            const row = document.getElementById('presentingComplaintsOtherRow');
+            if (!otherCheckbox || !row) return;
+            row.style.display = otherCheckbox.checked ? 'block' : 'none';
         }
 
-        // support select2 change events and native select change
-        document.addEventListener('change', e => {
-            if (e.target && (e.target.id === 'SelectedPresentingComplaints')) {
-                syncPresentingComplaintsOther();
-            }
-        });
+        document.querySelectorAll('.presenting-complaint-checkbox').forEach(cb => cb.addEventListener('change', syncPresentingComplaintsOther));
         // initialize on load
         syncPresentingComplaintsOther();
     </script>

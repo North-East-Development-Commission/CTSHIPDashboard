@@ -549,7 +549,7 @@ namespace CTSHIPDashboard.Controllers
 
         // SEARCH ENROLLEE
         [HttpGet]
-        public async Task<IActionResult> PresentingComplaintsMonthly(int year, int month, int top = 10)
+        public async Task<IActionResult> PresentingComplaintsMonthly(int year, int month, int top = 10, string referral = "All")
         {
             if (year <= 0 || month < 1 || month > 12)
             {
@@ -559,10 +559,25 @@ namespace CTSHIPDashboard.Controllers
             var start = new DateTime(year, month, 1);
             var end = start.AddMonths(1);
 
-            var items = await _context.EncounterPresentingComplaints
+            var query = _context.EncounterPresentingComplaints
                 .AsNoTracking()
                 .Include(pc => pc.Encounter)
                 .Where(pc => pc.Encounter != null && pc.Encounter.VisitDate >= start && pc.Encounter.VisitDate < end)
+                .AsQueryable();
+
+            if (!string.IsNullOrWhiteSpace(referral) && !string.Equals(referral, "All", StringComparison.OrdinalIgnoreCase))
+            {
+                if (string.Equals(referral, "Referred", StringComparison.OrdinalIgnoreCase))
+                {
+                    query = query.Where(pc => pc.Encounter.Status != null && pc.Encounter.Status.ToLower() == "referred" || (pc.Encounter.VisitType != null && pc.Encounter.VisitType.ToLower().Contains("referral")));
+                }
+                else if (string.Equals(referral, "NonReferred", StringComparison.OrdinalIgnoreCase))
+                {
+                    query = query.Where(pc => (pc.Encounter.Status == null || pc.Encounter.Status.ToLower() != "referred") && (pc.Encounter.VisitType == null || !pc.Encounter.VisitType.ToLower().Contains("referral")));
+                }
+            }
+
+            var items = await query
                 .GroupBy(pc => pc.ComplaintName)
                 .Select(g => new { Complaint = g.Key, Count = g.Count() })
                 .OrderByDescending(x => x.Count)

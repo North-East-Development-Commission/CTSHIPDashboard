@@ -1,0 +1,76 @@
+trigger:
+  branches:
+    include:
+      - master
+
+variables:
+  buildConfiguration: 'Release'
+  dotnetSdk: '9.0.x'
+  outputDir: '$(Build.ArtifactStagingDirectory)/publish'
+
+stages:
+  - stage: Build
+    displayName: Build
+    jobs:
+      - job: Build
+        displayName: Restore, Build and Publish
+        pool:
+          vmImage: 'ubuntu-latest'
+        steps:
+          - task: UseDotNet@2
+            displayName: 'Use .NET SDK $(dotnetSdk)'
+            inputs:
+              packageType: 'sdk'
+              version: '$(dotnetSdk)'
+
+          - script: |
+              dotnet restore
+            displayName: 'dotnet restore'
+
+          - script: |
+              dotnet build --configuration $(buildConfiguration) --no-restore
+            displayName: 'dotnet build'
+
+          - script: |
+              dotnet publish -c $(buildConfiguration) -o $(outputDir)
+            displayName: 'dotnet publish'
+
+          - task: PublishBuildArtifacts@1
+            inputs:
+              PathtoPublish: '$(outputDir)'
+              ArtifactName: 'drop'
+              publishLocation: 'Container'
+
+  - stage: Deploy
+    displayName: Deploy
+    dependsOn: Build
+    jobs:
+      - deployment: DeployWeb
+        displayName: Deploy to Azure Web App
+        environment: 'production'
+        pool:
+          vmImage: 'ubuntu-latest'
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - download: current
+                  artifact: drop
+
+                - task: AzureWebApp@1
+                  displayName: 'Azure Web App Deploy'
+                  inputs:
+                    azureSubscription: 'Azure subscription 1' # replace with service connection name
+                    appType: 'webApp'
+                    appName: 'ctship-app' # replace with your web app name
+                    package: '$(Pipeline.Workspace)/drop'
+                    deploymentMethod: 'auto'
+
+                - script: |
+                    echo "Deployment finished"
+                  displayName: 'Post deployment'
+
+# Notes:
+# - Create an Azure Resource Manager service connection in the Project Settings and replace '<YOUR_AZURE_SERVICE_CONNECTION>'.
+# - Replace '<YOUR_WEBAPP_NAME>' with the name of your Azure Web App.
+# - For slot deployments or advanced configuration, update the AzureWebApp task inputs accordingly.

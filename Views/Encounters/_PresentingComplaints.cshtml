@@ -1,7 +1,13 @@
 @model CTSHIPDashboard.Models.Encounter
 
-<div class="col-12">
-    <label class="form-label text-success fw-bold">Presenting Complaints</label>
+<div class="border rounded-3 p-3 mb-3">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+        <div>
+            <label class="form-label text-success fw-bold mb-0">Presenting Complaints</label>
+            <div class="small text-muted">Select one or more complaints. If "Other", specify below.</div>
+        </div>
+    </div>
+
     <div class="row mb-2">
         @{
             var items = ViewBag.PresentingComplaints as List<SelectListItem> ?? new List<SelectListItem>();
@@ -18,10 +24,10 @@
             </div>
         }
     </div>
+
     <div class="row mb-3" id="presentingComplaintsOtherRow" style="display:none;">
         <div class="col-md-6">
             <input type="text" name="PresentingComplaintsOther" id="PresentingComplaintsOther" class="form-control" placeholder="If Other, specify..." value="@Model.PresentingComplaintsOther" />
         </div>
     </div>
-    <small class="text-muted">Select one or more complaints. If "Other", specify the complaint.</small>
 </div>
