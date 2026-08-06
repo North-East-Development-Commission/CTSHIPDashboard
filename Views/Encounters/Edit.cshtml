@@ -105,7 +105,8 @@
                             <!-- CLINICAL -->
                             <div class="col-12">
                                 <label asp-for="ChiefComplaint" class="form-label text-success fw-bold">Chief Complaint</label>
-                                <textarea asp-for="ChiefComplaint" class="form-control form-control-lg" rows="3" ></textarea>
+                                <presenting-complaints asp-for="SelectedPresentingComplaints" asp-other-for="PresentingComplaintsOther"></presenting-complaints>
+                                <textarea asp-for="ChiefComplaint" class="form-control form-control-lg mt-2" rows="3" ></textarea>
                                 <span asp-validation-for="ChiefComplaint" class="text-danger"></span>
                             </div>
 
@@ -309,6 +310,23 @@
         }
 
         document.getElementById('encounterForm')?.addEventListener('submit', validateEncounterForm);
+
+        // Presenting complaints 'Other' toggle for select2
+        function syncPresentingComplaintsOther() {
+            const select = document.getElementById('SelectedPresentingComplaints');
+            const row = document.getElementById('PresentingComplaintsOther_row');
+            if (!select || !row) return;
+            const selected = Array.from(select.selectedOptions || []).map(o => o.value || '');
+            const hasOther = selected.some(v => v === 'Other' || v.startsWith('Other:'));
+            row.style.display = hasOther ? 'block' : 'none';
+        }
+
+        document.addEventListener('change', e => {
+            if (e.target && (e.target.id === 'SelectedPresentingComplaints')) {
+                syncPresentingComplaintsOther();
+            }
+        });
+        syncPresentingComplaintsOther();
 
     </script>
 }

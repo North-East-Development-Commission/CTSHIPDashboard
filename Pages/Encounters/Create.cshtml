@@ -1,0 +1,111 @@
+@page
+@model CTSHIPDashboard.Pages.Encounters.CreateModel
+
+<h2>New Facility Encounter</h2>
+
+@if (TempData["Success"] != null)
+{
+    <div class="alert alert-success">@TempData["Success"]</div>
+}
+
+<form method="post" class="row g-3">
+    <div class="col-md-2">
+        <label asp-for="Encounter.Date" class="form-label"></label>
+        <input asp-for="Encounter.Date" class="form-control" />
+        <span asp-validation-for="Encounter.Date" class="text-danger"></span>
+    </div>
+
+    <div class="col-md-3">
+        <label asp-for="Encounter.EnrolleeNumber" class="form-label"></label>
+        <input asp-for="Encounter.EnrolleeNumber" class="form-control" />
+    </div>
+
+    <div class="col-md-4">
+        <label asp-for="Encounter.PatientName" class="form-label"></label>
+        <input asp-for="Encounter.PatientName" class="form-control" />
+    </div>
+
+    <div class="col-md-1">
+        <label asp-for="Encounter.Age" class="form-label"></label>
+        <input asp-for="Encounter.Age" class="form-control" />
+    </div>
+
+    <div class="col-md-2">
+        <label asp-for="Encounter.Sex" class="form-label"></label>
+        <select asp-for="Encounter.Sex" asp-items="Model.SexItems" class="form-select"></select>
+    </div>
+
+    <div class="col-12">
+        <label asp-for="Encounter.Community" class="form-label"></label>
+        <input asp-for="Encounter.Community" class="form-control" />
+    </div>
+
+    <div class="col-md-4">
+        <label asp-for="Encounter.TypeOfVisit" class="form-label"></label>
+        <select asp-for="Encounter.TypeOfVisit" asp-items="Model.TypeOfVisitItems" class="form-select">
+            <option value="">-- select --</option>
+        </select>
+    </div>
+
+    <div class="col-12">
+        <label class="form-label">Presenting Complaints</label>
+        <div class="row">
+            @foreach (var item in Model.PresentingComplaintsItems)
+            {
+                <div class="col-md-3">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox"
+                               name="Encounter.PresentingComplaints" value="@item.Value"
+                               id="pc_@item.Value.GetHashCode()" @(Model.Encounter.PresentingComplaints.Contains(item.Value) ? "checked" : "") />
+                        <label class="form-check-label" for="pc_@item.Value.GetHashCode()">@item.Text</label>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <label asp-for="Encounter.Diagnosis" class="form-label"></label>
+        <select asp-for="Encounter.Diagnosis" asp-items="Model.DiagnosisItems" class="form-select">
+            <option value="">-- select --</option>
+        </select>
+    </div>
+
+    <div class="col-12">
+        <label class="form-label">Services Provided (select all that apply)</label>
+        @foreach (var group in Model.ServicesProvidedItems)
+        {
+            <fieldset class="border rounded p-2 mb-2">
+                <legend class="small fw-bold">@group.Key</legend>
+                <div class="row">
+                    @foreach (var svc in group.Value)
+                    {
+                        <div class="col-md-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox"
+                                       name="Encounter.ServicesProvided" value="@svc.Value"
+                                       id="svc_@svc.Value.GetHashCode()" @(Model.Encounter.ServicesProvided.Contains(svc.Value) ? "checked" : "") />
+                                <label class="form-check-label" for="svc_@svc.Value.GetHashCode()">@svc.Text</label>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </fieldset>
+        }
+    </div>
+
+    <div class="col-md-4">
+        <label asp-for="Encounter.PatientOutcome" class="form-label"></label>
+        <select asp-for="Encounter.PatientOutcome" asp-items="Model.PatientOutcomeItems" class="form-select">
+            <option value="">-- select --</option>
+        </select>
+    </div>
+
+    <div class="col-12">
+        <button type="submit" class="btn btn-primary">Save Encounter</button>
+    </div>
+</form>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

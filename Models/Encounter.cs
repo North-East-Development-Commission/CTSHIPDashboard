@@ -59,11 +59,26 @@ namespace CTSHIPDashboard.Models
         public ICollection<EncounterService> Services { get; set; } = new List<EncounterService>();
         public ICollection<EncounterPrescription> Prescriptions { get; set; } = new List<EncounterPrescription>();
 
+        // Persisted presenting complaints (normalized)
+        public ICollection<EncounterPresentingComplaint> PresentingComplaints { get; set; } = new List<EncounterPresentingComplaint>();
+
         [NotMapped]
         public List<string> SelectedServices { get; set; } = new();
 
         [NotMapped]
+        public List<string> SelectedPresentingComplaints { get; set; } = new();
+
+        [NotMapped]
+        public string? PresentingComplaintsOther { get; set; }
+
+        [NotMapped]
         public List<EncounterPrescriptionInputViewModel> SelectedPrescriptions { get; set; } = new();
+
+        [NotMapped]
+        public List<string> SelectedLaboratoryTests { get; set; } = new();
+
+        [NotMapped]
+        public List<CTSHIPDashboard.ViewModels.EncounterLaboratoryInputViewModel> LaboratoryInvestigations { get; set; } = new();
 
         [NotMapped]
         public bool FeesWaived { get; set; }

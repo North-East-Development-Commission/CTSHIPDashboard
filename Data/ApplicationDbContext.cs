@@ -40,6 +40,7 @@ namespace CTSHIPDashboard.Data
         public DbSet<EncounterService> EncounterServices { get; set; }
         public DbSet<DrugInventoryItem> DrugInventoryItems { get; set; }
         public DbSet<EncounterPrescription> EncounterPrescriptions { get; set; }
+        public DbSet<EncounterPresentingComplaint> EncounterPresentingComplaints { get; set; }
         public DbSet<CapitationPayment> CapitationPayments { get; set; }
         public DbSet<AppNotification> AppNotifications { get; set; }
         public DbSet<AppNotificationRead> AppNotificationReads { get; set; }
@@ -92,6 +93,7 @@ namespace CTSHIPDashboard.Data
                     .HasForeignKey(x => x.DeathRegisterId)
                     .OnDelete(DeleteBehavior.Cascade);
             });
+
 
             builder.Entity<DeathRegisterAuditLog>(entity =>
             {

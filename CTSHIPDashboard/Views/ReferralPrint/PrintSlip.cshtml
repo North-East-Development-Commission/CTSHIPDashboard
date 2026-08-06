@@ -1,0 +1,80 @@
+@model CTSHIPDashboard.Models.Referral
+@{
+    Layout = "_Layout";
+}
+
+<style>
+    .referral-slip { max-width: 800px; margin: 0 auto; font-family: Arial, sans-serif; }
+    .referral-header { text-align: center; margin-bottom: 1rem; }
+    .referral-body { border: 1px solid #ddd; padding: 1.5rem; border-radius: 6px; }
+    .slip-row { display: flex; justify-content: space-between; margin-bottom: .5rem; }
+    .slip-label { font-weight: 600; }
+</style>
+
+<div class="referral-slip py-5">
+    <div class="referral-header">
+        <h3>CTSHIP Programme Referral Slip</h3>
+        <div class="text-muted">Present this code at the receiving facility</div>
+    </div>
+
+    <div class="referral-body">
+        <div class="slip-row">
+            <div>
+                <div class="slip-label">Referral Code</div>
+                <div class="fs-4 text-success fw-bold">@Model.ReferralVerificationCode</div>
+            </div>
+            <div>
+                <div class="slip-label">Issued</div>
+                <div>@(Model.ReferralVerificationCodeIssuedAt?.ToLocalTime().ToString("yyyy-MM-dd HH:mm") ?? "N/A")</div>
+                <div class="slip-label">Expires</div>
+                <div>@(Model.ReferralVerificationCodeExpiresAt?.ToLocalTime().ToString("yyyy-MM-dd HH:mm") ?? "N/A")</div>
+            </div>
+        </div>
+
+        <hr />
+
+        <div class="slip-row">
+            <div>
+                <div class="slip-label">Enrollee</div>
+                <div>@Model.EnrolleeFullName</div>
+                <div class="text-muted">@Model.EnrolleeNumber</div>
+            </div>
+            <div>
+                <div class="slip-label">Referring Provider</div>
+                <div>@Model.FromProviderName</div>
+            </div>
+        </div>
+
+        <div class="slip-row">
+            <div>
+                <div class="slip-label">Receiving Facility</div>
+                <div>@Model.ReferredHospital?.Name</div>
+                <div class="text-muted">@Model.ReferredHospital?.Address</div>
+            </div>
+            <div>
+                <div class="slip-label">HMO</div>
+                <div>@Model.HmoName</div>
+            </div>
+        </div>
+
+        <hr />
+
+        <div>
+            <div class="slip-label">Reason for Referral</div>
+            <div>@Model.ReasonForReferral</div>
+        </div>
+
+        <div class="mt-3">
+            <div class="slip-label">Provisional Diagnosis / Requested Service</div>
+            <div>@Model.Diagnosis</div>
+        </div>
+
+        <div class="mt-4 text-center">
+            <small class="text-muted">Give this referral code to the patient. The receiving facility must verify the code before recording an encounter. This code is valid for seven (7) calendar days from issuance.</small>
+        </div>
+
+        <div class="text-center mt-4">
+            <button class="btn btn-outline-primary" onclick="window.print();">Print</button>
+        </div>
+    </div>
+</div>

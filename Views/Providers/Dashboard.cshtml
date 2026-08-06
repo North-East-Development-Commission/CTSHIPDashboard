@@ -359,11 +359,10 @@
                                         <div class="doctor-rank me-3">@(Model.TopDoctors.IndexOf(doc) + 1)</div>
                                         <div>
                                             <strong class="fs-5">@doc.DoctorName</strong>
-                                            <br><small class="text-muted">@doc.EncounterCount encounters</small>
                                         </div>
                                     </div>
                                     <span class="badge bg-success rounded-pill fs-5 px-4 py-2">
-                                        ?@((int)doc.TotalAmount)
+                                        @doc.EncounterCount Encounters
                                     </span>
                                 </li>
                             }
@@ -414,7 +413,7 @@
                                             <td>
                                                 <strong>@(e.Doctor?.FullName ?? (string.IsNullOrEmpty(e.SeenBy) ? "—" : e.SeenBy))</strong>
                                             </td>
-                                            <td class="fw-bold text-success">?@((int)e.TotalAmount)</td>
+                                            <td class="fw-bold text-success">NGN @((int)e.TotalAmount)</td>
                                             <td>
                                                 @if (e.ClaimId == null)
                                                 {

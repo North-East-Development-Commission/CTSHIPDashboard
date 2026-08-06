@@ -27,6 +27,58 @@
                             </div>
                         </div>
 
+                        <div class="col-12">
+                            <div class="card shadow-sm">
+                                <div class="card-body">
+                                    <h5 class="text-success fw-bold">Laboratory Investigations</h5>
+                                    @if (string.IsNullOrWhiteSpace(Model.LabTests))
+                                    {
+                                        <p class="text-muted mb-0">No laboratory investigations recorded.</p>
+                                    }
+                                    else
+                                    {
+                                        var labText = Model.LabTests ?? string.Empty;
+                                        var parts = labText.Split(new[] { " - " }, StringSplitOptions.None);
+                                        var testsPart = parts.Length > 0 ? parts[0] : string.Empty;
+                                        var resultsPart = parts.Length > 1 ? parts[1] : string.Empty;
+                                        var tests = testsPart.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries)
+                                            .Select(s => s.Trim()).Where(s => !string.IsNullOrWhiteSpace(s)).ToList();
+                                        var results = resultsPart.Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries)
+                                            .Select(s => s.Trim()).Where(s => !string.IsNullOrWhiteSpace(s)).ToList();
+
+                                        <div>
+                                            <strong>Requested Tests:</strong>
+                                            @if (tests.Count == 0)
+                                            {
+                                                <span class="text-muted">None</span>
+                                            }
+                                            else
+                                            {
+                                                foreach (var t in tests)
+                                                {
+                                                    <span class="badge bg-primary me-1 mb-1">@t</span>
+                                                }
+                                            }
+                                        </div>
+
+                                        @if (results.Count > 0)
+                                        {
+                                            <hr />
+                                            <div>
+                                                <strong>Results:</strong>
+                                                <ul class="mb-0 mt-2">
+                                                    @foreach (var r in results)
+                                                    {
+                                                        <li>@r</li>
+                                                    }
+                                                </ul>
+                                            </div>
+                                        }
+                                    }
+                                </div>
+                            </div>
+                        </div>
+
                         <div class="col-md-7">
                             <div class="row g-4">
                                 <div class="col-12">

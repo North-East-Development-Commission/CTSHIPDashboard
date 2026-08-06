@@ -56,6 +56,73 @@
                                         </div>
                                     </div>
                                 </div>
+
+                            <div class="col-12">
+                                <div class="border rounded-3 p-3">
+                                    <div class="d-flex justify-content-between align-items-center gap-3 mb-3">
+                                        <div>
+                                            <label class="form-label text-success fw-bold mb-0">Laboratory Tests</label>
+                                            <div class="small text-muted">Select requested laboratory tests and enter results when available.</div>
+                                        </div>
+                                    </div>
+
+                                    @{ var labCatalog = ViewBag.LaboratoryCatalog as List<SelectListItem> ?? new List<SelectListItem>(); }
+
+                                    <select id="selectedLaboratoryTests" name="SelectedLaboratoryTests" class="form-select" multiple data-placeholder="Select laboratory tests">
+                                        @foreach (var item in labCatalog)
+                                        {
+                                            if (item.Selected)
+                                            {
+                                                <option value="@item.Value" selected="selected">@item.Text</option>
+                                            }
+                                            else
+                                            {
+                                                <option value="@item.Value">@item.Text</option>
+                                            }
+                                        }
+                                    </select>
+
+                                    <div id="laboratoryInvestigationsContainer" class="mt-3">
+                                        @if (Model.LaboratoryInvestigations != null && Model.LaboratoryInvestigations.Count > 0)
+                                        {
+                                            for (int i = 0; i < Model.LaboratoryInvestigations.Count; i++)
+                                            {
+                                                var row = Model.LaboratoryInvestigations[i];
+                                                <div class="row g-2 align-items-end lab-investigation-row mb-2">
+                                                    <input type="hidden" name="LaboratoryInvestigations[@i].LaboratoryTestName" value="@row.LaboratoryTestName" />
+                                                    <div class="col-md-4">
+                                                        <label class="form-label small fw-bold">Test</label>
+                                                        <input class="form-control" value="@row.LaboratoryTestName" disabled />
+                                                    </div>
+                                                    <div class="col-md-2">
+                                                        <label class="form-label small fw-bold">Result</label>
+                                                        <input type="text" name="LaboratoryInvestigations[@i].Result" value="@row.Result" class="form-control" />
+                                                    </div>
+                                                    <div class="col-md-2">
+                                                        <label class="form-label small fw-bold">Unit</label>
+                                                        <input type="text" name="LaboratoryInvestigations[@i].ResultUnit" value="@row.ResultUnit" class="form-control" />
+                                                    </div>
+                                                    <div class="col-md-2">
+                                                        <label class="form-label small fw-bold">Status</label>
+                                                        <select name="LaboratoryInvestigations[@i].ResultStatus" class="form-select">
+                                                            @if (row.ResultStatus == "Requested") { <option value="Requested" selected>Requested</option> } else { <option value="Requested">Requested</option> }
+                                                            @if (row.ResultStatus == "SampleCollected") { <option value="SampleCollected" selected>Sample Collected</option> } else { <option value="SampleCollected">Sample Collected</option> }
+                                                            @if (row.ResultStatus == "Processing") { <option value="Processing" selected>Processing</option> } else { <option value="Processing">Processing</option> }
+                                                            @if (row.ResultStatus == "Completed") { <option value="Completed" selected>Completed</option> } else { <option value="Completed">Completed</option> }
+                                                            @if (row.ResultStatus == "Cancelled") { <option value="Cancelled" selected>Cancelled</option> } else { <option value="Cancelled">Cancelled</option> }
+                                                        </select>
+                                                    </div>
+                                                    <div class="col-md-2 d-grid">
+                                                        <button type="button" class="btn btn-outline-danger remove-lab-row-btn" aria-label="Remove lab row"><i class="bi bi-trash"></i></button>
+                                                    </div>
+                                                </div>
+                                            }
+                                        }
+                                    </div>
+                                </div>
+                            </div>
+
+
                             </div>
 
                             <!-- VISIT DETAILS -->
@@ -110,7 +177,8 @@
                             <!-- CLINICAL -->
                             <div class="col-12">
                                 <label asp-for="ChiefComplaint" class="form-label text-success fw-bold">Complaint</label>
-                                <textarea asp-for="ChiefComplaint" class="form-control form-control"></textarea>
+                                <presenting-complaints asp-for="SelectedPresentingComplaints" asp-other-for="PresentingComplaintsOther"></presenting-complaints>
+                                <textarea asp-for="ChiefComplaint" class="form-control form-control mt-2"></textarea>
                                 <span asp-validation-for="ChiefComplaint" class="text-danger"></span>
                             </div>
 
@@ -308,6 +376,87 @@
 
         document.getElementById('enrollmentSearch')
             .addEventListener('keypress', e => e.key === 'Enter' && (e.preventDefault(), searchEnrollee()));
+
+        // Laboratory investigations dynamic rows
+        function reindexLabRows() {
+            document.querySelectorAll('.lab-investigation-row').forEach((row, index) => {
+                const hidden = row.querySelector('input[type=hidden]');
+                if (hidden) hidden.name = `LaboratoryInvestigations[${index}].LaboratoryTestName`;
+                const result = row.querySelector('input[name^="LaboratoryInvestigations"][name$=".Result"]') || row.querySelector(`input[name^='LaboratoryInvestigations'][name$='.Result']`);
+                if (result) result.name = `LaboratoryInvestigations[${index}].Result`;
+                const unit = row.querySelector('input[name^="LaboratoryInvestigations"][name$=".ResultUnit"]');
+                if (unit) unit.name = `LaboratoryInvestigations[${index}].ResultUnit`;
+                const status = row.querySelector('select[name^="LaboratoryInvestigations"][name$=".ResultStatus"]');
+                if (status) status.name = `LaboratoryInvestigations[${index}].ResultStatus`;
+            });
+        }
+
+        function buildLabRowsFromSelection() {
+            const select = document.getElementById('selectedLaboratoryTests');
+            const container = document.getElementById('laboratoryInvestigationsContainer');
+            if (!select || !container) return;
+            const selected = Array.from(select.selectedOptions).map(o => o.value);
+
+            // Preserve existing rows' data
+            const existing = {};
+            document.querySelectorAll('.lab-investigation-row').forEach(row => {
+                const nameInput = row.querySelector('input[type=hidden]');
+                const name = nameInput?.value;
+                if (!name) return;
+                const res = row.querySelector('input[name$=".Result"]')?.value || '';
+                const unit = row.querySelector('input[name$=".ResultUnit"]')?.value || '';
+                const status = row.querySelector('select[name$=".ResultStatus"]')?.value || 'Requested';
+                existing[name] = { res, unit, status };
+            });
+
+            // Clear container
+            container.innerHTML = '';
+            selected.forEach(name => {
+                const data = existing[name] || { res: '', unit: '', status: 'Requested' };
+                const idx = container.querySelectorAll('.lab-investigation-row').length;
+                const div = document.createElement('div');
+                div.className = 'row g-2 align-items-end lab-investigation-row mb-2';
+                div.innerHTML = `
+                    <input type="hidden" name="LaboratoryInvestigations[${idx}].LaboratoryTestName" value="${name}" />
+                    <div class="col-md-4">
+                        <label class="form-label small fw-bold">Test</label>
+                        <input class="form-control" value="${name}" disabled />
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label small fw-bold">Result</label>
+                        <input type="text" name="LaboratoryInvestigations[${idx}].Result" value="${data.res}" class="form-control" />
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label small fw-bold">Unit</label>
+                        <input type="text" name="LaboratoryInvestigations[${idx}].ResultUnit" value="${data.unit}" class="form-control" />
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label small fw-bold">Status</label>
+                        <select name="LaboratoryInvestigations[${idx}].ResultStatus" class="form-select">
+                            <option value="Requested" ${data.status === 'Requested' ? 'selected' : ''}>Requested</option>
+                            <option value="SampleCollected" ${data.status === 'SampleCollected' ? 'selected' : ''}>Sample Collected</option>
+                            <option value="Processing" ${data.status === 'Processing' ? 'selected' : ''}>Processing</option>
+                            <option value="Completed" ${data.status === 'Completed' ? 'selected' : ''}>Completed</option>
+                            <option value="Cancelled" ${data.status === 'Cancelled' ? 'selected' : ''}>Cancelled</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2 d-grid">
+                        <button type="button" class="btn btn-outline-danger remove-lab-row-btn" aria-label="Remove lab row"><i class="bi bi-trash"></i></button>
+                    </div>`;
+                container.appendChild(div);
+            });
+            // attach remove handlers
+            container.querySelectorAll('.remove-lab-row-btn').forEach(btn => btn.addEventListener('click', e => {
+                e.currentTarget.closest('.lab-investigation-row')?.remove();
+                reindexLabRows();
+            }));
+        }
+
+        document.getElementById('selectedLaboratoryTests')?.addEventListener('change', buildLabRowsFromSelection);
+        // initialize if there are preselected values
+        if (document.getElementById('selectedLaboratoryTests')) {
+            buildLabRowsFromSelection();
+        }
 
         async function refreshDoctorDropdown() {
             const providerSelect = document.getElementById('ProviderId');
@@ -556,6 +705,24 @@
         }
 
         document.getElementById('encounterForm')?.addEventListener('submit', validateEncounterForm);
+        // Presenting complaints 'Other' toggle for select2
+        function syncPresentingComplaintsOther() {
+            const select = document.getElementById('SelectedPresentingComplaints');
+            const row = document.getElementById('PresentingComplaintsOther_row');
+            if (!select || !row) return;
+            const selected = Array.from(select.selectedOptions || []).map(o => o.value || '');
+            const hasOther = selected.some(v => v === 'Other' || v.startsWith('Other:'));
+            row.style.display = hasOther ? 'block' : 'none';
+        }
+
+        // support select2 change events and native select change
+        document.addEventListener('change', e => {
+            if (e.target && (e.target.id === 'SelectedPresentingComplaints')) {
+                syncPresentingComplaintsOther();
+            }
+        });
+        // initialize on load
+        syncPresentingComplaintsOther();
     </script>
   
 }

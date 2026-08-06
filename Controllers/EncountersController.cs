@@ -153,6 +153,26 @@ namespace CTSHIPDashboard.Controllers
 
             EnsureEncounterDefaults(encounter);
             ValidateSelectedServices(encounter);
+            // If presenting complaints were selected on the form, synthesize ChiefComplaint
+            if (encounter.SelectedPresentingComplaints != null && encounter.SelectedPresentingComplaints.Count > 0)
+            {
+                var list = encounter.SelectedPresentingComplaints
+                    .Where(s => !string.IsNullOrWhiteSpace(s))
+                    .Select(s => s.Trim())
+                    .ToList();
+                // handle Other text
+                if (!string.IsNullOrWhiteSpace(encounter.PresentingComplaintsOther)
+                    && list.Exists(x => string.Equals(x, "Other", System.StringComparison.OrdinalIgnoreCase)))
+                {
+                    list = list.Where(x => !string.Equals(x, "Other", System.StringComparison.OrdinalIgnoreCase)).ToList();
+                    list.Add($"Other: {encounter.PresentingComplaintsOther.Trim()}");
+                }
+
+                if (list.Count > 0)
+                {
+                    encounter.ChiefComplaint = string.Join(", ", list);
+                }
+            }
             ValidateEncounterInput(encounter);
             Enrollee? selectedEnrollee =
                 await ValidateEnrolleeAssignmentAsync(encounter.EnrolleeId, encounter.ProviderId);
@@ -188,9 +208,59 @@ namespace CTSHIPDashboard.Controllers
 
                     SetEncounterServices(encounter);
                     SetEncounterPrescriptions(encounter, prescriptionInventoryItems);
+                    // Map selected laboratory investigations into encounter fields and compute lab fee
+                    if (encounter.LaboratoryInvestigations != null && encounter.LaboratoryInvestigations.Count > 0)
+                    {
+                        // Build a human-readable investigation summary and compute lab fee from selected test names
+                        var selectedNames = encounter.LaboratoryInvestigations
+                            .Where(x => !x.IsDeleted)
+                            .Select(x => x.LaboratoryTestName.Trim())
+                            .Distinct(StringComparer.OrdinalIgnoreCase)
+                            .ToList();
+
+                        encounter.LabTests = selectedNames.Count == 0 ? null : string.Join(", ", selectedNames);
+                        encounter.LabFee = ReferralEncounterClaimCatalog.SumSelected(selectedNames, ReferralEncounterClaimCatalog.LaboratoryTests);
+                        // If results were provided, append them to InvestigationSummary in LabTests for storage
+                        var resultLines = encounter.LaboratoryInvestigations
+                            .Where(x => !x.IsDeleted && !string.IsNullOrWhiteSpace(x.Result))
+                            .Select(x => $"{x.LaboratoryTestName}: {x.Result}{(string.IsNullOrWhiteSpace(x.ResultUnit) ? string.Empty : " " + x.ResultUnit)} ({x.ResultStatus})")
+                            .ToList();
+                        if (resultLines.Count > 0)
+                        {
+                            encounter.LabTests = (encounter.LabTests ?? string.Empty) + (encounter.LabTests != null && encounter.LabTests.Length > 0 ? " - " : string.Empty) + string.Join("; ", resultLines);
+                        }
+                    }
+                    else
+                    {
+                        encounter.SelectedLaboratoryTests ??= new List<string>();
+                        encounter.LabTests = encounter.SelectedLaboratoryTests.Count == 0
+                            ? null
+                            : string.Join(", ", encounter.SelectedLaboratoryTests.Select(s => s.Trim()));
+                        encounter.LabFee = ReferralEncounterClaimCatalog.SumSelected(encounter.SelectedLaboratoryTests, ReferralEncounterClaimCatalog.LaboratoryTests);
+                    }
                     if (IsCompletedStatus(encounter.Status))
                     {
                         DeductInventoryForPrescriptions(encounter.Prescriptions, prescriptionInventoryItems);
+                    }
+
+                    // Persist normalized presenting complaints if provided
+                    if (encounter.SelectedPresentingComplaints != null && encounter.SelectedPresentingComplaints.Count > 0)
+                    {
+                        encounter.PresentingComplaints = encounter.SelectedPresentingComplaints
+                            .Where(s => !string.IsNullOrWhiteSpace(s))
+                            .Select(s => s.Trim())
+                            .Select(name => new EncounterPresentingComplaint { ComplaintName = name })
+                            .ToList();
+                        if (!string.IsNullOrWhiteSpace(encounter.PresentingComplaintsOther)
+                            && encounter.PresentingComplaints.Any(x => string.Equals(x.ComplaintName, "Other", System.StringComparison.OrdinalIgnoreCase)))
+                        {
+                            // replace 'Other' with 'Other: {text}'
+                            var other = encounter.PresentingComplaints.FirstOrDefault(x => string.Equals(x.ComplaintName, "Other", System.StringComparison.OrdinalIgnoreCase));
+                            if (other != null)
+                            {
+                                other.ComplaintName = $"Other: {encounter.PresentingComplaintsOther.Trim()}";
+                            }
+                        }
                     }
 
                     _context.Encounters.Add(encounter);
@@ -265,6 +335,7 @@ namespace CTSHIPDashboard.Controllers
                 .Include(x => x.Doctor)
                 .Include(x => x.Services)
                 .Include(x => x.Prescriptions)
+                .Include(x => x.PresentingComplaints)
                 .FirstOrDefaultAsync(x => x.Id == id);
 
             if (encounter == null) return NotFound();
@@ -300,6 +371,7 @@ namespace CTSHIPDashboard.Controllers
                 .Include(x => x.Doctor)
                 .Include(x => x.Services)
                 .Include(x => x.Prescriptions)
+                .Include(x => x.PresentingComplaints)
                 .FirstOrDefaultAsync(x => x.Id == id);
 
             if (existing == null)
@@ -332,9 +404,55 @@ namespace CTSHIPDashboard.Controllers
                     existing.DoctorId = encounter.DoctorId;
                     existing.ChiefComplaint = encounter.ChiefComplaint;
                     existing.Diagnosis = encounter.Diagnosis;
-                    existing.LabTests = encounter.LabTests;
+                    // Persist selected laboratory tests from the posted model
+                    existing.LabTests = (encounter.SelectedLaboratoryTests == null || encounter.SelectedLaboratoryTests.Count == 0)
+                        ? null
+                        : string.Join(", ", encounter.SelectedLaboratoryTests.Select(s => s.Trim()));
+                    existing.LabFee = ReferralEncounterClaimCatalog.SumSelected(encounter.SelectedLaboratoryTests ?? Enumerable.Empty<string>(), ReferralEncounterClaimCatalog.LaboratoryTests);
+
+                    // If laboratory investigations were posted with results, persist them into LabTests summary and LabFee
+                    if (encounter.LaboratoryInvestigations != null && encounter.LaboratoryInvestigations.Count > 0)
+                    {
+                        var selectedNames = encounter.LaboratoryInvestigations
+                            .Where(x => !x.IsDeleted)
+                            .Select(x => x.LaboratoryTestName.Trim())
+                            .Distinct(StringComparer.OrdinalIgnoreCase)
+                            .ToList();
+
+                        existing.LabTests = selectedNames.Count == 0 ? existing.LabTests : string.Join(", ", selectedNames);
+                        existing.LabFee = ReferralEncounterClaimCatalog.SumSelected(selectedNames, ReferralEncounterClaimCatalog.LaboratoryTests);
+
+                        var resultLines = encounter.LaboratoryInvestigations
+                            .Where(x => !x.IsDeleted && !string.IsNullOrWhiteSpace(x.Result))
+                            .Select(x => $"{x.LaboratoryTestName}: {x.Result}{(string.IsNullOrWhiteSpace(x.ResultUnit) ? string.Empty : " " + x.ResultUnit)} ({x.ResultStatus})")
+                            .ToList();
+                        if (resultLines.Count > 0)
+                        {
+                            existing.LabTests = (existing.LabTests ?? string.Empty) + (string.IsNullOrWhiteSpace(existing.LabTests) ? string.Empty : " - ") + string.Join("; ", resultLines);
+                        }
+                    }
                     existing.TreatmentGiven = encounter.TreatmentGiven;
                     existing.Notes = encounter.Notes;
+                    // Update normalized presenting complaints
+                    existing.PresentingComplaints.Clear();
+                    if (encounter.SelectedPresentingComplaints != null && encounter.SelectedPresentingComplaints.Count > 0)
+                    {
+                        var list = encounter.SelectedPresentingComplaints
+                            .Where(s => !string.IsNullOrWhiteSpace(s))
+                            .Select(s => s.Trim())
+                            .Select(name => new EncounterPresentingComplaint { ComplaintName = name })
+                            .ToList();
+                        if (!string.IsNullOrWhiteSpace(encounter.PresentingComplaintsOther)
+                            && list.Any(x => string.Equals(x.ComplaintName, "Other", System.StringComparison.OrdinalIgnoreCase)))
+                        {
+                            var other = list.FirstOrDefault(x => string.Equals(x.ComplaintName, "Other", System.StringComparison.OrdinalIgnoreCase));
+                            if (other != null)
+                            {
+                                other.ComplaintName = $"Other: {encounter.PresentingComplaintsOther.Trim()}";
+                            }
+                        }
+                        foreach (var pc in list) existing.PresentingComplaints.Add(pc);
+                    }
                     ApplyDoctorSnapshot(existing, attendingDoctor!);
                     _context.EncounterServices.RemoveRange(existing.Services);
                     existing.Services.Clear();
@@ -431,6 +549,30 @@ namespace CTSHIPDashboard.Controllers
 
         // SEARCH ENROLLEE
         [HttpGet]
+        public async Task<IActionResult> PresentingComplaintsMonthly(int year, int month, int top = 10)
+        {
+            if (year <= 0 || month < 1 || month > 12)
+            {
+                return BadRequest(new { success = false, error = "Invalid year or month" });
+            }
+
+            var start = new DateTime(year, month, 1);
+            var end = start.AddMonths(1);
+
+            var items = await _context.EncounterPresentingComplaints
+                .AsNoTracking()
+                .Include(pc => pc.Encounter)
+                .Where(pc => pc.Encounter != null && pc.Encounter.VisitDate >= start && pc.Encounter.VisitDate < end)
+                .GroupBy(pc => pc.ComplaintName)
+                .Select(g => new { Complaint = g.Key, Count = g.Count() })
+                .OrderByDescending(x => x.Count)
+                .ThenBy(x => x.Complaint)
+                .Take(top)
+                .ToListAsync();
+
+            return Json(new { success = true, year, month, items });
+        }
+
         public async Task<IActionResult> SearchEnrollee(string q)
         {
             if (string.IsNullOrWhiteSpace(q))
@@ -536,6 +678,69 @@ namespace CTSHIPDashboard.Controllers
         {
             await PopulateDropdowns(encounter.ProviderId, encounter.DoctorId, encounter.ReasonForEncounter);
             await PopulateReferralFieldsAsync(encounter);
+
+            // Presenting complaints lookup and model mapping
+            // Prefer normalized presenting complaints if available
+            if (encounter.PresentingComplaints != null && encounter.PresentingComplaints.Count > 0)
+            {
+                encounter.SelectedPresentingComplaints = encounter.PresentingComplaints
+                    .Select(pc => pc.ComplaintName)
+                    .ToList();
+                // extract Other: text if present
+                var other = encounter.SelectedPresentingComplaints.FirstOrDefault(p => p.StartsWith("Other:", System.StringComparison.OrdinalIgnoreCase));
+                if (other != null)
+                {
+                    var idx = other.IndexOf(':');
+                    if (idx >= 0 && idx + 1 < other.Length)
+                    {
+                        encounter.PresentingComplaintsOther = other.Substring(idx + 1).Trim();
+                    }
+                }
+            }
+            else
+            {
+                // fallback to parsing ChiefComplaint free-text
+                if (!string.IsNullOrWhiteSpace(encounter.ChiefComplaint)
+                    && (encounter.SelectedPresentingComplaints == null || encounter.SelectedPresentingComplaints.Count == 0))
+                {
+                    var parts = encounter.ChiefComplaint.Split(',', System.StringSplitOptions.RemoveEmptyEntries)
+                        .Select(p => p.Trim()).ToList();
+                    encounter.SelectedPresentingComplaints = parts
+                        .Where(p => !string.IsNullOrWhiteSpace(p))
+                        .ToList();
+                    var other = parts.FirstOrDefault(p => p.StartsWith("Other:", System.StringComparison.OrdinalIgnoreCase));
+                    if (other != null)
+                    {
+                        var idx = other.IndexOf(':');
+                        if (idx >= 0 && idx + 1 < other.Length)
+                        {
+                            encounter.PresentingComplaintsOther = other.Substring(idx + 1).Trim();
+                        }
+                    }
+                }
+            }
+
+            ViewBag.PresentingComplaints = EncounterPresentingComplaintsCatalog.BuildSelectList(encounter.SelectedPresentingComplaints);
+
+            // Populate laboratory catalog for primary provider encounter forms
+            ViewBag.LaboratoryCatalog = ReferralEncounterClaimCatalog.LaboratoryTests
+                .Select(item => new SelectListItem
+                {
+                    Value = item.Name,
+                    Text = item.Label,
+                    Selected = encounter.SelectedLaboratoryTests != null && encounter.SelectedLaboratoryTests.Contains(item.Name, StringComparer.OrdinalIgnoreCase)
+                })
+                .ToList();
+
+            // If existing LabTests string exists, populate SelectedLaboratoryTests
+            if (!string.IsNullOrWhiteSpace(encounter.LabTests) && (encounter.SelectedLaboratoryTests == null || encounter.SelectedLaboratoryTests.Count == 0))
+            {
+                encounter.SelectedLaboratoryTests = encounter.LabTests
+                    .Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries)
+                    .Select(s => s.Trim())
+                    .Where(s => !string.IsNullOrWhiteSpace(s))
+                    .ToList();
+            }
         }
 
         private async Task PopulateDropdowns(int? selectedProviderId = null, int? selectedDoctorId = null, string? selectedReason = null)

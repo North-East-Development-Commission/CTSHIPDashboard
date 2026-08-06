@@ -136,7 +136,6 @@ namespace CTSHIPDashboard.Services
 
                 yield return new EncounterDemographicMatrixRowViewModel
                 {
-                    Dimension = dimension,
                     Category = category,
                     Enrollees = enrolleeCount,
                     EnrolleesWithEncounters = uniqueEncounterEnrolleeCount,

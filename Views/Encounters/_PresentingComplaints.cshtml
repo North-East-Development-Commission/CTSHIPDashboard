@@ -1,0 +1,27 @@
+@model CTSHIPDashboard.Models.Encounter
+
+<div class="col-12">
+    <label class="form-label text-success fw-bold">Presenting Complaints</label>
+    <div class="row mb-2">
+        @{
+            var items = ViewBag.PresentingComplaints as List<SelectListItem> ?? new List<SelectListItem>();
+        }
+        @foreach (var item in items)
+        {
+            <div class="col-md-3">
+                <div class="form-check">
+                    <input class="form-check-input presenting-complaint-checkbox" type="checkbox"
+                           name="SelectedPresentingComplaints" value="@item.Value"
+                           id="pc_@item.Value.GetHashCode()" @(item.Selected ? "checked" : "") />
+                    <label class="form-check-label" for="pc_@item.Value.GetHashCode()">@item.Text</label>
+                </div>
+            </div>
+        }
+    </div>
+    <div class="row mb-3" id="presentingComplaintsOtherRow" style="display:none;">
+        <div class="col-md-6">
+            <input type="text" name="PresentingComplaintsOther" id="PresentingComplaintsOther" class="form-control" placeholder="If Other, specify..." value="@Model.PresentingComplaintsOther" />
+        </div>
+    </div>
+    <small class="text-muted">Select one or more complaints. If "Other", specify the complaint.</small>
+</div>
