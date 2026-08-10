@@ -1,14 +1,19 @@
 @model CTSHIPDashboard.Models.Encounter
 
 <div class="col-md-4">
-    <label for="serviceSetting" class="form-label text-success fw-bold">Service Setting</label>
+    <label for="serviceSetting" class="form-label">Service Setting</label>
     <select asp-for="ServiceSetting" asp-items="ViewBag.ServiceSettings"
             class="form-select form-select-lg" id="serviceSetting"></select>
+    <small class="text-muted">Choose outpatient or inpatient service package.</small>
 </div>
 
 <div class="col-md-8">
-    <label for="selectedServices" class="form-label text-success fw-bold">Services Delivered</label>
-    <select asp-for="SelectedServices" class="form-select select2" id="selectedServices" multiple>
+    <label for="selectedServices" class="form-label">Services Delivered</label>
+    <select asp-for="SelectedServices"
+            class="form-select form-select-lg select2"
+            id="selectedServices"
+            multiple
+            data-placeholder="Select all services delivered">
         <optgroup label="Outpatient Services" data-setting="Outpatient">
             @foreach (string service in ViewBag.OutpatientServices)
             {
@@ -37,5 +42,5 @@
         </optgroup>
     </select>
     <span asp-validation-for="SelectedServices" class="text-danger"></span>
-    <small class="text-muted">Select every service delivered during this encounter.</small>
+    <small class="text-muted">Select every service delivered. Lab, medicines and referral panels appear only when selected.</small>
 </div>

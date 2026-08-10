@@ -1,0 +1,134 @@
+@model CTSHIPDashboard.Models.ViewModels.PrimaryProviderEncountersReportViewModel
+@{
+    ViewData["Title"] = "Primary Provider Encounter Register";
+}
+
+<div class="container-fluid py-5">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+        <div>
+            <h1 class="display-5 fw-bold text-success mb-1">Primary Provider Encounter Register</h1>
+            <p class="lead text-muted mb-0">Aggregate indicators generated from individual electronic service encounters and capitation submissions.</p>
+        </div>
+        <a asp-action="Dashboard" class="btn btn-outline-primary btn-lg">
+            <i class="bi bi-arrow-left me-1"></i> HMO Dashboard
+        </a>
+    </div>
+
+    <form asp-action="PrimaryProviderEncountersReport" method="get" class="card border-0 shadow-sm mb-4">
+        <div class="card-body">
+            <div class="row g-3 align-items-end">
+                <div class="col-md-4">
+                    <label class="form-label fw-bold text-success">Search</label>
+                    <input name="search" value="@Model.Search" class="form-control form-control-lg" placeholder="Encounter, enrollee, provider, diagnosis" />
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label fw-bold text-success">Status</label>
+                    <select name="status" class="form-select form-select-lg">
+                        <option value="All" selected="@(Model.Status == "All")">All</option>
+                        <option value="Submitted" selected="@(Model.Status == "Submitted")">Submitted</option>
+                        <option value="Query Raised" selected="@(Model.Status == "Query Raised")">Query Raised</option>
+                        <option value="Certified" selected="@(Model.Status == "Certified")">Certified</option>
+                        <option value="Verified" selected="@(Model.Status == "Verified")">IHSA Verified</option>
+                        <option value="Referred" selected="@(Model.Status == "Referred")">Referred</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label fw-bold text-success">From</label>
+                    <input type="date" name="fromDate" value="@Model.FromDate?.ToString("yyyy-MM-dd")" class="form-control form-control-lg" />
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label fw-bold text-success">To</label>
+                    <input type="date" name="toDate" value="@Model.ToDate?.ToString("yyyy-MM-dd")" class="form-control form-control-lg" />
+                </div>
+                <div class="col-md-2 d-grid">
+                    <button class="btn btn-success btn-lg">Filter</button>
+                </div>
+            </div>
+        </div>
+    </form>
+
+    <div class="row g-4 mb-4 text-center">
+        <div class="col-xl-3 col-md-6"><div class="card bg-primary text-white shadow h-100"><div class="card-body"><div>Total Encounters</div><h2 class="fw-bold">@Model.TotalEncounters</h2></div></div></div>
+        <div class="col-xl-3 col-md-6"><div class="card bg-warning text-dark shadow h-100"><div class="card-body"><div>Queries</div><h2 class="fw-bold">@Model.QueryEncounters</h2></div></div></div>
+        <div class="col-xl-3 col-md-6"><div class="card bg-success text-white shadow h-100"><div class="card-body"><div>HMO Certified</div><h2 class="fw-bold">@Model.HmoCertifiedEncounters</h2></div></div></div>
+        <div class="col-xl-3 col-md-6"><div class="card bg-info text-dark shadow h-100"><div class="card-body"><div>IHSA Verified</div><h2 class="fw-bold">@Model.IhsaVerifiedEncounters</h2></div></div></div>
+        <div class="col-xl-6 col-md-6"><div class="card border-success shadow h-100"><div class="card-body"><div class="text-muted">Unique Enrollees Served</div><h3 class="fw-bold text-success">@Model.UniqueEnrollees</h3></div></div></div>
+        <div class="col-xl-6 col-md-6"><div class="card border-success shadow h-100"><div class="card-body"><div class="text-muted">Capitation Service Charge</div><h3 class="fw-bold text-success">&#8358;@Model.TotalCapitationCharge.ToString("N2")</h3></div></div></div>
+    </div>
+
+    <div class="row g-4 mb-4">
+        <div class="col-lg-7">
+            <div class="card border-0 shadow h-100">
+                <div class="card-header bg-success text-white fw-bold">Provider Summary</div>
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0 align-middle">
+                        <thead><tr><th>Provider</th><th>State</th><th>Encounters</th><th>Enrollees</th><th>Queries</th><th>Capitation</th></tr></thead>
+                        <tbody>
+                            @foreach (var provider in Model.ProviderSummaries)
+                            {
+                                <tr>
+                                    <td class="fw-bold">@provider.ProviderName</td>
+                                    <td>@provider.State</td>
+                                    <td>@provider.Encounters</td>
+                                    <td>@provider.UniqueEnrollees</td>
+                                    <td>@provider.QueryEncounters</td>
+                                    <td class="fw-bold text-success">&#8358;@provider.CapitationCharge.ToString("N2")</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-5">
+            <div class="card border-0 shadow h-100">
+                <div class="card-header bg-primary text-white fw-bold">Top Services</div>
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0 align-middle">
+                        <thead><tr><th>Service</th><th>Encounters</th></tr></thead>
+                        <tbody>
+                            @foreach (var service in Model.ServiceSummaries)
+                            {
+                                <tr><td>@service.ServiceName</td><td class="fw-bold">@service.Encounters</td></tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-lg">
+        <div class="card-header bg-dark text-white fw-bold">Electronic Service Encounter Register</div>
+        <div class="table-responsive">
+            <table class="table table-hover mb-0 align-middle">
+                <thead class="table-light">
+                    <tr><th>Encounter</th><th>Enrollee</th><th>Provider</th><th>Reason / Outcome</th><th>Capitation</th><th>Queries</th><th>HMO</th><th>IHSA</th><th></th></tr>
+                </thead>
+                <tbody>
+                    @if (Model.Encounters.Count == 0)
+                    {
+                        <tr><td colspan="9" class="text-center py-5 text-muted">No primary-provider encounters found.</td></tr>
+                    }
+                    else
+                    {
+                        @foreach (var encounter in Model.Encounters)
+                        {
+                            <tr>
+                                <td><strong class="text-primary">@encounter.EncounterNumber</strong><br /><small>@encounter.VisitDate.ToString("dd MMM yyyy HH:mm")</small></td>
+                                <td>@encounter.EnrolleeName<br /><small class="text-muted">@encounter.EnrollmentNumber</small></td>
+                                <td>@encounter.ProviderName<br /><small class="text-muted">@encounter.State</small></td>
+                                <td>@encounter.ReasonForEncounter<br /><span class="badge bg-secondary">@encounter.Outcome</span></td>
+                                <td class="fw-bold text-success">&#8358;@encounter.CapitationCharge.ToString("N2")</td>
+                                <td>@encounter.OpenQueries</td>
+                                <td>@encounter.HmoVerificationStatus</td>
+                                <td>@encounter.IhsaVerificationStatus</td>
+                                <td><a asp-action="EncDetails" asp-route-id="@encounter.Id" class="btn btn-sm btn-outline-primary">View</a></td>
+                            </tr>
+                        }
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>

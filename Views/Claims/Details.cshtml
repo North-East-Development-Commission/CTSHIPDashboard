@@ -137,6 +137,108 @@
                         </div>
                     </div>
 
+
+                    <div class="row g-4 mt-4">
+                        <div class="col-12">
+                            <div class="card border-success shadow-sm">
+                                <div class="card-header bg-success text-white fw-bold">Secondary Provider Claim Reporting Trail</div>
+                                <div class="card-body">
+                                    <div class="row g-3 mb-4">
+                                        <div class="col-md-4"><strong>HMO Certification:</strong><br /><span class="badge bg-primary">@Model.HmoCertificationStatus</span></div>
+                                        <div class="col-md-4"><strong>IHSA Verification:</strong><br /><span class="badge bg-info text-dark">@Model.IhsaVerificationStatus</span></div>
+                                        <div class="col-md-4"><strong>Original Provider Data:</strong><br /><span class="text-muted">Preserved @(!string.IsNullOrWhiteSpace(Model.OriginalProviderDataJson) ? "Yes" : "Pending")</span></div>
+                                    </div>
+
+                                    <h6 class="fw-bold text-success">Query Cycle</h6>
+                                    @if (Model.Queries.Count == 0)
+                                    {
+                                        <p class="text-muted">No claim queries have been raised.</p>
+                                    }
+                                    else
+                                    {
+                                        <div class="table-responsive">
+                                            <table class="table table-sm align-middle">
+                                                <thead><tr><th>Query Raised</th><th>Responsible</th><th>Response</th><th>Resolution</th><th>Closure</th><th>Status / Timestamp</th></tr></thead>
+                                                <tbody>
+                                                    @foreach (var query in Model.Queries.OrderByDescending(q => q.RaisedAt))
+                                                    {
+                                                        <tr>
+                                                            <td>@query.QueryRaised<br /><small class="text-muted">By @query.RaisedByName</small></td>
+                                                            <td>@query.ResponsiblePerson</td>
+                                                            <td>@(query.Response ?? "?")<br /><small class="text-muted">@query.RespondedAt?.ToString("dd MMM yyyy HH:mm")</small></td>
+                                                            <td>@(query.Resolution ?? "?")</td>
+                                                            <td>@(query.ClosureNote ?? "?")<br /><small class="text-muted">@query.ClosedAt?.ToString("dd MMM yyyy HH:mm")</small></td>
+                                                            <td><span class="badge bg-secondary">@query.Status</span><br /><small>@query.RaisedAt.ToString("dd MMM yyyy HH:mm")</small></td>
+                                                        </tr>
+                                                    }
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    }
+
+                                    @if (User.IsInRole("HMO") || User.IsInRole("Reviewer"))
+                                    {
+                                        foreach (var query in Model.Queries.Where(q => q.Status != "Closed" && !string.IsNullOrWhiteSpace(q.Response)))
+                                        {
+                                            <form asp-action="CloseClaimQuery" method="post" class="border rounded-3 p-3 mb-3">
+                                                @Html.AntiForgeryToken()
+                                                <input type="hidden" name="queryId" value="@query.Id" />
+                                                <label class="form-label fw-bold text-success">Resolve @query.QueryNumber</label>
+                                                <textarea name="resolution" class="form-control mb-2" rows="2" placeholder="Resolution" required></textarea>
+                                                <input name="closureNote" class="form-control mb-2" placeholder="Closure note" />
+                                                <button class="btn btn-success">Close Query</button>
+                                            </form>
+                                        }
+
+                                        if (Model.HmoCertificationStatus != "Certified" && !Model.Queries.Any(q => q.Status != "Closed"))
+                                        {
+                                            <form asp-action="CertifyClaim" method="post" class="border rounded-3 p-3">
+                                                @Html.AntiForgeryToken()
+                                                <input type="hidden" name="id" value="@Model.Id" />
+                                                <label class="form-label fw-bold text-success">HMO Certification Note</label>
+                                                <textarea name="note" class="form-control mb-2" rows="2" placeholder="Certification note"></textarea>
+                                                <button class="btn btn-primary">Certify Dataset</button>
+                                            </form>
+                                        }
+                                    }
+
+                                    @if ((User.IsInRole("IHSA") || User.IsInRole("NEDCAdmin") || User.IsInRole("NHIA") || User.IsInRole("Monitoring") || User.IsInRole("CTSHIPAdmin") || User.IsInRole("Admin")) && Model.HmoCertificationStatus == "Certified")
+                                    {
+                                        <form asp-action="VerifyClaimByIhsa" method="post" class="border rounded-3 p-3 mt-3">
+                                            @Html.AntiForgeryToken()
+                                            <input type="hidden" name="id" value="@Model.Id" />
+                                            <label class="form-label fw-bold text-success">IHSA Verification Decision</label>
+                                            <select name="verificationStatus" class="form-select mb-2" required>
+                                                <option value="Verified">Verified</option>
+                                                <option value="Flagged">Flagged for follow-up</option>
+                                            </select>
+                                            <textarea name="note" class="form-control mb-2" rows="2" placeholder="IHSA technical oversight note"></textarea>
+                                            <button class="btn btn-success">Save IHSA Decision</button>
+                                        </form>
+                                    }
+
+                                    <h6 class="fw-bold text-success mt-4">Audit Trail</h6>
+                                    @if (Model.AuditTrails.Count == 0)
+                                    {
+                                        <p class="text-muted mb-0">No audit events recorded yet.</p>
+                                    }
+                                    else
+                                    {
+                                        <ul class="list-group">
+                                            @foreach (var item in Model.AuditTrails.OrderByDescending(a => a.PerformedAt))
+                                            {
+                                                <li class="list-group-item d-flex justify-content-between gap-3">
+                                                    <span><strong>@item.Action</strong><br /><span class="text-muted">@item.Summary</span></span>
+                                                    <small class="text-muted text-nowrap">@item.PerformedAt.ToString("dd MMM yyyy HH:mm")</small>
+                                                </li>
+                                            }
+                                        </ul>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <hr class="my-5 border-success opacity-75 border-2" />
 
                     <div class="text-center">
@@ -184,3 +286,4 @@
         </div>
     </div>
 </div>
+

@@ -45,6 +45,46 @@ namespace CTSHIPDashboard.Models
         [Range(typeof(decimal), "0", "9999999999999999")]
         public decimal DrugFee { get; set; }
         public decimal TotalAmount => ConsultationFee + LabFee + DrugFee;
+
+        [Range(typeof(decimal), "0", "9999999999999999")]
+        public decimal CapitationCharge { get; set; }
+
+        [StringLength(50)]
+        public string HmoVerificationStatus { get; set; } = "Submitted";
+
+        [StringLength(200)]
+        public string? HmoVerifiedBy { get; set; }
+
+        public DateTime? HmoVerifiedAt { get; set; }
+
+        [StringLength(1000)]
+        public string? HmoVerificationNote { get; set; }
+
+        [StringLength(50)]
+        public string IhsaVerificationStatus { get; set; } = "Not Ready";
+
+        [StringLength(200)]
+        public string? IhsaVerifiedBy { get; set; }
+
+        public DateTime? IhsaVerifiedAt { get; set; }
+
+        [StringLength(1000)]
+        public string? IhsaVerificationNote { get; set; }
+
+        public DateTime? SubmittedToHmoAt { get; set; }
+        public DateTime? ReturnedForClarificationAt { get; set; }
+
+        [StringLength(200)]
+        public string? ReturnedForClarificationBy { get; set; }
+
+        [StringLength(1000)]
+        public string? ClarificationNote { get; set; }
+
+        public string? OriginalFacilityDataJson { get; set; }
+
+        public ICollection<EncounterQuery> Queries { get; set; } = new List<EncounterQuery>();
+        public ICollection<EncounterAuditTrail> AuditTrails { get; set; } = new List<EncounterAuditTrail>();
+
         public int? ClaimId { get; set; }
         public Claim? Claim { get; set; }
 

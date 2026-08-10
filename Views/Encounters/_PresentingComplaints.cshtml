@@ -1,33 +1,44 @@
 @model CTSHIPDashboard.Models.Encounter
+@{
+    var items = ViewBag.PresentingComplaints as List<SelectListItem> ?? new List<SelectListItem>();
+}
 
-<div class="border rounded-3 p-3 mb-3">
-    <div class="d-flex justify-content-between align-items-center mb-2">
+<div class="complaint-multiselect-card mb-3">
+    <div class="d-flex justify-content-between align-items-center gap-3 mb-2">
         <div>
-            <label class="form-label text-success fw-bold mb-0">Presenting Complaints</label>
-            <div class="small text-muted">Select one or more complaints. If "Other", specify below.</div>
+            <label for="selectedPresentingComplaints" class="form-label mb-0">Presenting Complaints</label>
+            <div class="small text-muted">Use the dropdown to select one or more complaints. Choose Other to add a custom complaint.</div>
         </div>
+        <span class="badge rounded-pill text-bg-success">Multi-select</span>
     </div>
 
-    <div class="row mb-2">
-        @{
-            var items = ViewBag.PresentingComplaints as List<SelectListItem> ?? new List<SelectListItem>();
-        }
+    <select id="selectedPresentingComplaints"
+            name="SelectedPresentingComplaints"
+            class="form-select form-select-lg select2"
+            multiple
+            data-placeholder="Select presenting complaints">
         @foreach (var item in items)
         {
-            <div class="col-md-3">
-                <div class="form-check">
-                    <input class="form-check-input presenting-complaint-checkbox" type="checkbox"
-                           name="SelectedPresentingComplaints" value="@item.Value"
-                           id="pc_@item.Value.GetHashCode()" @(item.Selected ? "checked" : "") />
-                    <label class="form-check-label" for="pc_@item.Value.GetHashCode()">@item.Text</label>
-                </div>
-            </div>
+            if (item.Selected)
+            {
+                <option value="@item.Value" selected="selected">@item.Text</option>
+            }
+            else
+            {
+                <option value="@item.Value">@item.Text</option>
+            }
         }
-    </div>
+    </select>
 
-    <div class="row mb-3" id="presentingComplaintsOtherRow" style="display:none;">
-        <div class="col-md-6">
-            <input type="text" name="PresentingComplaintsOther" id="PresentingComplaintsOther" class="form-control" placeholder="If Other, specify..." value="@Model.PresentingComplaintsOther" />
+    <div class="row mt-3" id="presentingComplaintsOtherRow" style="display:none;">
+        <div class="col-md-8 col-lg-6">
+            <label for="PresentingComplaintsOther" class="form-label small">Other complaint</label>
+            <input type="text"
+                   name="PresentingComplaintsOther"
+                   id="PresentingComplaintsOther"
+                   class="form-control form-control-lg"
+                   placeholder="Specify other presenting complaint"
+                   value="@Model.PresentingComplaintsOther" />
         </div>
     </div>
 </div>

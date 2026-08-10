@@ -62,9 +62,12 @@
     </div>
     @if (User.IsInRole("HMO"))
     {
-        <div class="mb-3">
+        <div class="mb-3 d-flex flex-wrap gap-2">
             <a asp-controller="Hmo" asp-action="ExportClaims" class="btn btn-success btn-lg shadow-lg px-5">
                 <i class="bi bi-file-earmark-excel me-2"></i> Export to Excel
+            </a>
+            <a asp-controller="Claims" asp-action="SecondaryProviderClaimsReport" class="btn btn-outline-primary btn-lg shadow-lg px-5">
+                <i class="bi bi-bar-chart-line me-2"></i> Secondary Provider Claims Report
             </a>
         </div>
     }
@@ -84,6 +87,7 @@
                             <option value="All">All Status</option>
                             <option value="Submitted" selected="@(ViewBag.Status == "Submitted")">Submitted</option>
                             <option value="Approved" selected="@(ViewBag.Status == "Approved")">Approved</option>
+                            <option value="Query Raised" selected="@(ViewBag.Status == "Query Raised")">Query Raised</option>
                             <option value="Paid" selected="@(ViewBag.Status == "Paid")">Paid</option>
                             <option value="Rejected" selected="@(ViewBag.Status == "Rejected")">Rejected</option>
                         </select>
@@ -144,6 +148,7 @@
                                                     @(c.Status == "Paid" ? "bg-success" :
                                                       c.Status == "Approved" ? "bg-info" :
                                                       c.Status == "Submitted" ? "bg-warning text-dark" :
+                                                      c.Status == "Query Raised" ? "bg-secondary" :
                                                       "bg-danger")" >@c.Status
                                         </span>
                             </td>

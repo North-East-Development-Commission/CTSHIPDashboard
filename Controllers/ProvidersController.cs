@@ -1,4 +1,4 @@
-using AspNetCoreGeneratedDocument;
+﻿using AspNetCoreGeneratedDocument;
 using CTSHIPDashboard.Data;
 using CTSHIPDashboard.Helpers;
 using CTSHIPDashboard.Enums;
@@ -15,6 +15,7 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Options;
 using Microsoft.EntityFrameworkCore;
 using System.Diagnostics.Metrics;
+using System.Text.Json;
 
 public class ProvidersController : Controller
 {
@@ -437,7 +438,7 @@ public class ProvidersController : Controller
         return words.Length > 0 ? new string(words[0].Take(3).ToArray()) : "HOS";
     }
 
-    // DETAILS � GET
+    // DETAILS — GET
     [Authorize(Roles = "CTSHIPAdmin,Admin,HMO,Monitoring,SSHIA,NHIA,IHSA,NEDCAdmin")]
     public async Task<IActionResult> Details(int id)
     {
@@ -1334,7 +1335,24 @@ public class ProvidersController : Controller
             Treatment = encounter.TreatmentGiven ?? "Medical consultation and care",
             DateSubmitted = DateTime.Now,
             Status = "Submitted",
-            SubmittedBy = actorName
+            SubmittedBy = actorName,
+            HmoCertificationStatus = "Not Certified",
+            IhsaVerificationStatus = "Not Ready",
+            OriginalProviderDataJson = JsonSerializer.Serialize(new
+            {
+                EncounterNumber = encounter.EncounterNumber,
+                EnrolleeId = encounter.EnrolleeId,
+                EnrollmentNumber = encounter.Enrollee.EnrollmentNumber,
+                ProviderId = encounter.ProviderId,
+                ProviderName = encounter.Provider.Name,
+                ProviderLevel = encounter.Provider.Level,
+                HmoId = encounter.Enrollee.HmoId,
+                Amount = encounter.TotalAmount,
+                Diagnosis = encounter.Diagnosis ?? encounter.ChiefComplaint ?? "Clinical encounter",
+                Treatment = encounter.TreatmentGiven ?? "Medical consultation and care",
+                SubmittedBy = actorName,
+                SubmittedAt = DateTime.UtcNow
+            })
         };
 
         await using var transaction = await _context.Database.BeginTransactionAsync(cancellationToken);
@@ -1343,6 +1361,16 @@ public class ProvidersController : Controller
             _context.Claims.Add(claim);
             await _context.SaveChangesAsync(cancellationToken);
 
+
+            _context.ClaimAuditTrails.Add(new ClaimAuditTrail
+            {
+                ClaimId = claim.Id,
+                Action = "Provider.Submitted",
+                PerformedByName = actorName,
+                PerformedAt = DateTime.UtcNow,
+                Summary = "Secondary provider claim submitted to HMO with source evidence.",
+                NewValuesJson = claim.OriginalProviderDataJson
+            });
             List<ClaimSupportingDocument> evidenceDocuments = await SaveClaimEvidenceFilesAsync(
                 model.EvidenceFiles,
                 claim,
@@ -1573,8 +1601,11 @@ public class ProvidersController : Controller
             .Include(e => e.Enrollee).ThenInclude(e => e!.Hmo)
             .Include(e => e.Provider)
             .Include(e => e.Doctor)
+            .Include(e => e.Services)
             .Include(e => e.Claim)
-            .Include(e => e.Prescriptions)
+            .Include(e => e.Prescriptions).ThenInclude(p => p.DrugInventoryItem)
+            .Include(e => e.Queries)
+            .Include(e => e.AuditTrails)
             .FirstOrDefaultAsync(e => e.Id == id);
         var currentUser = await _userManager.GetUserAsync(User);
         if (encounter == null) return NotFound();
@@ -1601,6 +1632,8 @@ public class ProvidersController : Controller
             .Include(c => c.Enrollee).ThenInclude(e => e!.Hmo)
             .Include(c => c.Provider)
             .Include(c => c.SupportingDocuments)
+            .Include(c => c.Queries)
+            .Include(c => c.AuditTrails)
             .FirstOrDefaultAsync(c => c.Id == id);
 
         if (claim == null) return NotFound();
@@ -1614,6 +1647,58 @@ public class ProvidersController : Controller
         return View(claim);
     }
 
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [Authorize(Roles = "Provider")]
+    public async Task<IActionResult> RespondClaimQuery(int queryId, string response, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(response))
+        {
+            TempData["Error"] = "Enter a response before submitting the claim query.";
+            return RedirectToAction(nameof(MyClaims));
+        }
+
+        ApplicationUser? currentUser = await _userManager.GetUserAsync(User);
+        if (!currentUser?.ProviderId.HasValue ?? true)
+        {
+            return Forbid();
+        }
+
+        ClaimQuery? query = await _context.ClaimQueries
+            .Include(x => x.Claim)
+                .ThenInclude(x => x!.Provider)
+            .FirstOrDefaultAsync(x => x.Id == queryId, cancellationToken);
+
+        if (query?.Claim == null)
+        {
+            return NotFound();
+        }
+
+        if (query.Claim.ProviderId != currentUser!.ProviderId.Value)
+        {
+            return Forbid();
+        }
+
+        string actorName = currentUser.FullName ?? currentUser.Email ?? User.Identity?.Name ?? "Provider";
+        query.Response = response.Trim();
+        query.RespondedAt = DateTime.UtcNow;
+        query.RespondedByName = actorName;
+        query.Status = "Responded";
+        query.Claim.Status = "Submitted";
+
+        _context.ClaimAuditTrails.Add(new ClaimAuditTrail
+        {
+            ClaimId = query.ClaimId,
+            Action = "Provider.QueryResponded",
+            PerformedByName = actorName,
+            PerformedAt = DateTime.UtcNow,
+            Summary = $"Provider responded to query {query.QueryNumber}."
+        });
+
+        await _context.SaveChangesAsync(cancellationToken);
+        TempData["Success"] = "Query response submitted electronically to the HMO.";
+        return RedirectToAction(nameof(ClaimDetails), new { id = query.ClaimId });
+    }
     [Authorize(Roles = "Provider")]
     public async Task<IActionResult> MyClaims(
     string search = "",
@@ -1769,5 +1854,8 @@ public class ProvidersController : Controller
     }
 
 }
+
+
+
 
 

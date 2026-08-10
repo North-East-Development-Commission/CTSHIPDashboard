@@ -5,8 +5,19 @@ namespace CTSHIPDashboard.Models
         public const string Outpatient = "Outpatient";
         public const string Inpatient = "Inpatient";
 
+        public const string ConsultationService = "Consultation";
+        public const string MchService = "Maternal and child health (MCH)";
+        public const string NcdService = "Non-communicable disease (NCD) services";
+        public const string LaboratoryService = "Laboratory services";
+        public const string PrescriptionService = "Drug prescription/dispensing";
+
         public static readonly IReadOnlyList<string> OutpatientServices = new[]
         {
+            ConsultationService,
+            MchService,
+            NcdService,
+            LaboratoryService,
+            PrescriptionService,
             "Antenatal care (ANC)",
             "Postnatal care (PNC)",
             "Family planning services",
@@ -92,6 +103,7 @@ namespace CTSHIPDashboard.Models
         public static readonly IReadOnlySet<string> OtherPreventiveServices =
             new HashSet<string>(StringComparer.OrdinalIgnoreCase)
             {
+                MchService,
                 "Postnatal care (PNC)",
                 "Integrated Management of Childhood Illnesses (IMCI)",
                 "Growth monitoring",

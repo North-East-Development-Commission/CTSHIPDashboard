@@ -11,6 +11,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using System.Data;
+using System.Text.Json;
 
 namespace CTSHIPDashboard.Controllers
 {
@@ -35,7 +36,7 @@ namespace CTSHIPDashboard.Controllers
             _notificationService = notificationService;
         }
 
-        // INDEX — FULL LIST WITH SEARCH & FILTER
+        // INDEX â€” FULL LIST WITH SEARCH & FILTER
         public async Task<IActionResult> Index(string search = "", string status = "All", int page = 1, int pageSize = 10)
         {
             var query = _context.Encounters
@@ -106,6 +107,8 @@ namespace CTSHIPDashboard.Controllers
                 .Include(e => e.Claim)
                 .Include(e => e.Services)
                 .Include(e => e.Prescriptions)
+                .Include(e => e.Queries)
+                .Include(e => e.AuditTrails)
                 .FirstOrDefaultAsync(e => e.Id == id);
             if (encounter == null) return NotFound();
             if (!await CanAccessProviderAsync(encounter.ProviderId)) return Forbid();
@@ -134,7 +137,7 @@ namespace CTSHIPDashboard.Controllers
             return View(model);
         }
 
-        // CREATE POST — CLEAN & PERFECT
+        // CREATE POST â€” CLEAN & PERFECT
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create(Encounter encounter)
@@ -263,6 +266,8 @@ namespace CTSHIPDashboard.Controllers
                         }
                     }
 
+                    await ApplyPrimaryProviderCapitationSubmissionAsync(encounter, selectedEnrollee, selectedProvider, currentUser);
+
                     _context.Encounters.Add(encounter);
                     Guid? referralId = null;
 
@@ -327,7 +332,7 @@ namespace CTSHIPDashboard.Controllers
             return View(encounter);
         }
 
-        // EDIT GET — CLEAN
+        // EDIT GET â€” CLEAN
         public async Task<IActionResult> Edit(int id)
         {
             var encounter = await _context.Encounters
@@ -336,6 +341,8 @@ namespace CTSHIPDashboard.Controllers
                 .Include(x => x.Services)
                 .Include(x => x.Prescriptions)
                 .Include(x => x.PresentingComplaints)
+                .Include(x => x.Queries)
+                .Include(x => x.AuditTrails)
                 .FirstOrDefaultAsync(x => x.Id == id);
 
             if (encounter == null) return NotFound();
@@ -354,7 +361,7 @@ namespace CTSHIPDashboard.Controllers
             return View(encounter);
         }
 
-        // EDIT POST — CLEAN & SAFE
+        // EDIT POST â€” CLEAN & SAFE
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Edit(int id, Encounter encounter)
@@ -372,6 +379,8 @@ namespace CTSHIPDashboard.Controllers
                 .Include(x => x.Services)
                 .Include(x => x.Prescriptions)
                 .Include(x => x.PresentingComplaints)
+                .Include(x => x.Queries)
+                .Include(x => x.AuditTrails)
                 .FirstOrDefaultAsync(x => x.Id == id);
 
             if (existing == null)
@@ -463,6 +472,22 @@ namespace CTSHIPDashboard.Controllers
                         encounter.Doctor = existing.Doctor;
                         await PrepareEncounterFormAsync(encounter);
                         return View(encounter);
+                    }
+
+                    ApplicationUser? amendmentUser = await _userManager.GetUserAsync(User);
+                    string amendmentActor = amendmentUser?.FullName ?? amendmentUser?.Email ?? User.Identity?.Name ?? "Provider";
+                    existing.AuditTrails.Add(new EncounterAuditTrail
+                    {
+                        Action = "Facility.Amended",
+                        PerformedByName = amendmentActor,
+                        PerformedAt = DateTime.UtcNow,
+                        Summary = "Facility amended the encounter after initial submission; original source snapshot remains preserved.",
+                        NewValuesJson = BuildEncounterSourceSnapshot(existing)
+                    });
+
+                    if (existing.HmoVerificationStatus == "Query Raised")
+                    {
+                        existing.HmoVerificationStatus = "Submitted";
                     }
 
                     await _context.SaveChangesAsync();
@@ -687,6 +712,54 @@ namespace CTSHIPDashboard.Controllers
         public IActionResult CreateClaim(int id)
         {
             return RedirectToAction("CreateClaim", "Providers", new { id });
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> RespondEncounterQuery(int queryId, string response, CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrWhiteSpace(response))
+            {
+                TempData["Error"] = "Enter a response before submitting the encounter query.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            ApplicationUser? currentUser = await _userManager.GetUserAsync(User);
+            EncounterQuery? query = await _context.EncounterQueries
+                .Include(x => x.Encounter)
+                .FirstOrDefaultAsync(x => x.Id == queryId, cancellationToken);
+
+            if (query?.Encounter == null)
+            {
+                return NotFound();
+            }
+
+            if (!await CanAccessProviderAsync(query.Encounter.ProviderId))
+            {
+                return Forbid();
+            }
+
+            string actorName = currentUser?.FullName ?? currentUser?.Email ?? User.Identity?.Name ?? "Provider";
+            query.Response = response.Trim();
+            query.RespondedAt = DateTime.UtcNow;
+            query.RespondedByName = actorName;
+            query.Status = "Responded";
+            query.Encounter.HmoVerificationStatus = "Submitted";
+
+            _context.EncounterAuditTrails.Add(new EncounterAuditTrail
+            {
+                EncounterId = query.EncounterId,
+                Action = "Facility.QueryResponded",
+                PerformedByName = actorName,
+                PerformedAt = DateTime.UtcNow,
+                Summary = $"Facility responded to query {query.QueryNumber}."
+            });
+
+            await _context.SaveChangesAsync(cancellationToken);
+            TempData["Success"] = "Encounter query response submitted electronically to the HMO.";
+            return User.IsInRole("Provider")
+                ? RedirectToAction("ENCDetails", "Providers", new { id = query.EncounterId })
+                : RedirectToAction(nameof(Details), new { id = query.EncounterId });
         }
 
         private async Task PrepareEncounterFormAsync(Encounter encounter)
@@ -1112,6 +1185,91 @@ namespace CTSHIPDashboard.Controllers
                     "Referral.ReasonForReferral",
                     "Enter the reason for referral.");
             }
+        }
+
+        private async Task ApplyPrimaryProviderCapitationSubmissionAsync(
+            Encounter encounter,
+            Enrollee? enrollee,
+            Provider? provider,
+            ApplicationUser? currentUser)
+        {
+            if (provider == null || !string.Equals(provider.Level, "Primary", StringComparison.OrdinalIgnoreCase))
+            {
+                return;
+            }
+
+            encounter.SubmittedToHmoAt = DateTime.UtcNow;
+            encounter.HmoVerificationStatus = "Submitted";
+            encounter.IhsaVerificationStatus = "Not Ready";
+            encounter.CapitationCharge = await ResolveEncounterCapitationChargeAsync(encounter.ProviderId, enrollee?.HmoId, encounter.VisitDate);
+            encounter.OriginalFacilityDataJson = BuildEncounterSourceSnapshot(encounter, enrollee, provider);
+
+            string actorName = currentUser?.FullName ?? currentUser?.Email ?? User.Identity?.Name ?? "Provider";
+            encounter.AuditTrails.Add(new EncounterAuditTrail
+            {
+                Action = "Facility.Submitted",
+                PerformedByName = actorName,
+                PerformedAt = DateTime.UtcNow,
+                Summary = "Primary provider encounter submitted to HMO for capitation verification.",
+                NewValuesJson = encounter.OriginalFacilityDataJson
+            });
+        }
+
+        private async Task<decimal> ResolveEncounterCapitationChargeAsync(int providerId, int? hmoId, DateTime visitDate)
+        {
+            if (!hmoId.HasValue)
+            {
+                return 0m;
+            }
+
+            DateTime month = new(visitDate.Year, visitDate.Month, 1);
+            return await _context.CapitationPayments
+                .AsNoTracking()
+                .Where(payment => payment.ProviderId == providerId
+                    && payment.HmoId == hmoId.Value
+                    && payment.ReportingMonth == month)
+                .Select(payment => (decimal?)payment.CapitationPerEnrollee)
+                .FirstOrDefaultAsync() ?? 0m;
+        }
+
+        private static string BuildEncounterSourceSnapshot(Encounter encounter, Enrollee? enrollee = null, Provider? provider = null)
+        {
+            return JsonSerializer.Serialize(new
+            {
+                encounter.EncounterNumber,
+                encounter.EnrolleeId,
+                EnrollmentNumber = enrollee?.EnrollmentNumber ?? encounter.Enrollee?.EnrollmentNumber,
+                EnrolleeName = enrollee?.FullName ?? encounter.Enrollee?.FullName,
+                Sex = enrollee?.Gender ?? encounter.Enrollee?.Gender,
+                DateOfBirth = enrollee?.DateOfBirth ?? encounter.Enrollee?.DateOfBirth,
+                State = enrollee?.State ?? encounter.Enrollee?.State,
+                Lga = enrollee?.LGA ?? encounter.Enrollee?.LGA,
+                Ward = enrollee?.Ward ?? encounter.Enrollee?.Ward,
+                Community = enrollee?.Address ?? encounter.Enrollee?.Address,
+                encounter.ProviderId,
+                ProviderName = provider?.Name ?? encounter.Provider?.Name,
+                ProviderCode = provider?.Code ?? encounter.Provider?.Code,
+                encounter.VisitDate,
+                encounter.VisitType,
+                encounter.ReasonForEncounter,
+                encounter.ChiefComplaint,
+                encounter.Diagnosis,
+                Services = encounter.SelectedServices.Count > 0 ? encounter.SelectedServices : encounter.Services.Select(service => service.ServiceName).ToList(),
+                encounter.LabTests,
+                Prescriptions = encounter.Prescriptions.Select(prescription => new
+                {
+                    prescription.DrugName,
+                    prescription.Strength,
+                    prescription.QuantityDispensed,
+                    prescription.UnitOfMeasure
+                }).ToList(),
+                encounter.TreatmentGiven,
+                encounter.Status,
+                encounter.AttendedBy,
+                encounter.SeenBy,
+                encounter.CapitationCharge,
+                SubmittedAt = encounter.SubmittedToHmoAt
+            });
         }
 
         private async Task<bool> CanAccessProviderAsync(int providerId)

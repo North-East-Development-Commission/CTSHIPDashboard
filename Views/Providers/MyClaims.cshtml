@@ -87,6 +87,7 @@
                             <option value="All">All Status</option>
                             <option value="Submitted" selected="@(ViewBag.Status == "Submitted")">Submitted</option>
                             <option value="Under Review" selected="@(ViewBag.Status == "Under Review")">Under Review</option>
+                            <option value="Query Raised" selected="@(ViewBag.Status == "Query Raised")">Query Raised</option>
                             <option value="Approved" selected="@(ViewBag.Status == "Approved")">Approved</option>
                             <option value="Paid" selected="@(ViewBag.Status == "Paid")">Paid</option>
                             <option value="Rejected" selected="@(ViewBag.Status == "Rejected")">Rejected</option>
@@ -144,6 +145,7 @@
                                                     @(claim.Status == "Paid" ? "bg-success" :
                                                                                             claim.Status == "Approved" ? "bg-info" :
                                                                                             claim.Status == "Submitted" ? "bg-warning text-dark" :
+                                                                                            claim.Status == "Query Raised" ? "bg-secondary" :
                                                                                             claim.Status == "Rejected" ? "bg-danger" : "bg-secondary")">
                                     @claim.Status
                                 </span>

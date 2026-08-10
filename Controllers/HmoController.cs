@@ -295,7 +295,7 @@ public class HmoController : Controller
         return View(hmo);
     }
 
-    // DELETE POST — SAFE DELETE
+    // DELETE POST â€” SAFE DELETE
     [HttpPost, ActionName("Delete")]
     [ValidateAntiForgeryToken]
     [Authorize(Roles = HmoCrudRoles)]
@@ -403,7 +403,7 @@ public class HmoController : Controller
                 .FirstOrDefaultAsync(h => h.Id == currentUser.HmoId.Value);
         }
 
-        // METHOD 2: Fallback — match by email domain or HMO code in username
+        // METHOD 2: Fallback â€” match by email domain or HMO code in username
         if (hmo == null && !string.IsNullOrEmpty(currentUser.Email))
         {
             var emailDomain = currentUser.Email.Split('@').LastOrDefault()?.ToLower();
@@ -1175,6 +1175,123 @@ public class HmoController : Controller
         return View(encounters);
     }
 
+    [Authorize(Roles = "CTSHIPAdmin,Admin,HMO,Reviewer,IHSA,NEDCAdmin,NHIA,Monitoring")]
+    public async Task<IActionResult> PrimaryProviderEncountersReport(
+        string search = "",
+        string status = "All",
+        DateTime? fromDate = null,
+        DateTime? toDate = null,
+        CancellationToken cancellationToken = default)
+    {
+        IQueryable<Encounter> baseQuery = _context.Encounters
+            .AsNoTracking()
+            .Include(e => e.Enrollee!)
+                .ThenInclude(en => en.Hmo!)
+            .Include(e => e.Provider!)
+            .Include(e => e.Services)
+            .Include(e => e.Queries)
+            .Where(e => e.Provider != null && e.Provider.Level == "Primary");
+
+        ApplicationUser? currentUser = await _userManager.GetUserAsync(User);
+        if (User.IsInRole("HMO"))
+        {
+            if (currentUser?.HmoId.HasValue != true) return Forbid();
+            int hmoId = currentUser.HmoId.Value;
+            baseQuery = baseQuery.Where(e => e.Provider != null && e.Provider.HmoId == hmoId);
+        }
+
+        IQueryable<Encounter> query = baseQuery;
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            string term = $"%{search.Trim()}%";
+            query = query.Where(e =>
+                EF.Functions.Like(e.EncounterNumber, term) ||
+                EF.Functions.Like(e.Enrollee!.FullName, term) ||
+                EF.Functions.Like(e.Enrollee!.EnrollmentNumber, term) ||
+                EF.Functions.Like(e.Provider!.Name, term) ||
+                EF.Functions.Like(e.ReasonForEncounter, term) ||
+                EF.Functions.Like(e.Diagnosis, term));
+        }
+
+        if (!string.Equals(status, "All", StringComparison.OrdinalIgnoreCase))
+        {
+            query = query.Where(e => e.HmoVerificationStatus == status || e.Status == status);
+        }
+
+        if (fromDate.HasValue)
+        {
+            query = query.Where(e => e.VisitDate >= fromDate.Value.Date);
+        }
+
+        if (toDate.HasValue)
+        {
+            DateTime exclusiveTo = toDate.Value.Date.AddDays(1);
+            query = query.Where(e => e.VisitDate < exclusiveTo);
+        }
+
+        List<Encounter> encounters = await query
+            .OrderByDescending(e => e.VisitDate)
+            .Take(500)
+            .ToListAsync(cancellationToken);
+
+        var model = new PrimaryProviderEncountersReportViewModel
+        {
+            Search = search,
+            Status = status,
+            FromDate = fromDate,
+            ToDate = toDate,
+            TotalEncounters = encounters.Count,
+            QueryEncounters = encounters.Count(e => e.HmoVerificationStatus == "Query Raised" || e.Queries.Any(q => q.Status != "Closed")),
+            HmoCertifiedEncounters = encounters.Count(e => e.HmoVerificationStatus == "Certified"),
+            IhsaVerifiedEncounters = encounters.Count(e => e.IhsaVerificationStatus == "Verified"),
+            UniqueEnrollees = encounters.Select(e => e.EnrolleeId).Distinct().Count(),
+            TotalCapitationCharge = encounters.Sum(e => e.CapitationCharge),
+            Encounters = encounters.Select(e => new PrimaryProviderEncounterRowViewModel
+            {
+                Id = e.Id,
+                EncounterNumber = e.EncounterNumber,
+                EnrolleeName = e.Enrollee?.FullName ?? "N/A",
+                EnrollmentNumber = e.Enrollee?.EnrollmentNumber ?? "N/A",
+                ProviderName = e.Provider?.Name ?? "N/A",
+                HmoName = e.Enrollee?.Hmo?.Name ?? "N/A",
+                State = e.Provider?.State ?? e.Enrollee?.State ?? "N/A",
+                VisitDate = e.VisitDate,
+                ReasonForEncounter = e.ReasonForEncounter,
+                Outcome = e.Status,
+                CapitationCharge = e.CapitationCharge,
+                HmoVerificationStatus = e.HmoVerificationStatus,
+                IhsaVerificationStatus = e.IhsaVerificationStatus,
+                OpenQueries = e.Queries.Count(q => q.Status != "Closed")
+            }).ToList(),
+            ProviderSummaries = encounters
+                .GroupBy(e => new { Provider = e.Provider?.Name ?? "N/A", State = e.Provider?.State ?? "N/A" })
+                .Select(g => new PrimaryProviderEncounterProviderSummaryViewModel
+                {
+                    ProviderName = g.Key.Provider,
+                    State = g.Key.State,
+                    Encounters = g.Count(),
+                    UniqueEnrollees = g.Select(e => e.EnrolleeId).Distinct().Count(),
+                    CapitationCharge = g.Sum(e => e.CapitationCharge),
+                    QueryEncounters = g.Count(e => e.HmoVerificationStatus == "Query Raised" || e.Queries.Any(q => q.Status != "Closed"))
+                })
+                .OrderByDescending(x => x.Encounters)
+                .ToList(),
+            ServiceSummaries = encounters
+                .SelectMany(e => e.Services.Select(s => s.ServiceName))
+                .GroupBy(service => service)
+                .Select(g => new PrimaryProviderEncounterServiceSummaryViewModel
+                {
+                    ServiceName = g.Key,
+                    Encounters = g.Count()
+                })
+                .OrderByDescending(x => x.Encounters)
+                .Take(20)
+                .ToList()
+        };
+
+        return View(model);
+    }
+
     // DETAILS
     [Authorize(Roles = "CTSHIPAdmin,Admin,HMO,IHSA,NEDCAdmin,NHIA,Monitoring")]
     public async Task<IActionResult> EncDetails(int id)
@@ -1182,6 +1299,11 @@ public class HmoController : Controller
         var encounter = await _context.Encounters
             .Include(e => e.Enrollee).ThenInclude(e => e!.Hmo)
             .Include(e => e.Provider)
+            .Include(e => e.Doctor)
+            .Include(e => e.Services)
+            .Include(e => e.Prescriptions).ThenInclude(p => p.DrugInventoryItem)
+            .Include(e => e.Queries)
+            .Include(e => e.AuditTrails)
             .Include(e => e.Claim)
             .FirstOrDefaultAsync(e => e.Id == id);
         if (encounter == null) return NotFound();
@@ -1197,6 +1319,184 @@ public class HmoController : Controller
 
         encounter.AttendedBy = currentUser?.Email ?? "Unknown User";
         return View(encounter);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [Authorize(Roles = "HMO,Reviewer")]
+    public async Task<IActionResult> RaiseEncounterQuery(int id, string queryRaised, string responsiblePerson, CancellationToken cancellationToken = default)
+    {
+        Encounter? encounter = await _context.Encounters
+            .Include(e => e.Provider)
+            .FirstOrDefaultAsync(e => e.Id == id, cancellationToken);
+        if (encounter == null) return NotFound();
+        if (!await CanAccessHmoScopedEncounterAsync(encounter)) return Forbid();
+
+        if (string.IsNullOrWhiteSpace(queryRaised) || string.IsNullOrWhiteSpace(responsiblePerson))
+        {
+            TempData["Error"] = "Enter the query and responsible person before returning the encounter.";
+            return RedirectToAction(nameof(EncDetails), new { id });
+        }
+
+        ApplicationUser? user = await _userManager.GetUserAsync(User);
+        string actorName = user?.FullName ?? user?.Email ?? "HMO Reviewer";
+        string queryNumber = $"EQ-{DateTime.UtcNow:yyyyMMddHHmmss}-{encounter.Id}";
+
+        _context.EncounterQueries.Add(new EncounterQuery
+        {
+            EncounterId = encounter.Id,
+            QueryNumber = queryNumber,
+            QueryRaised = queryRaised.Trim(),
+            ResponsiblePerson = responsiblePerson.Trim(),
+            RaisedAt = DateTime.UtcNow,
+            RaisedByName = actorName,
+            Status = "Open"
+        });
+
+        encounter.HmoVerificationStatus = "Query Raised";
+        encounter.ReturnedForClarificationAt = DateTime.UtcNow;
+        encounter.ReturnedForClarificationBy = actorName;
+        encounter.ClarificationNote = queryRaised.Trim();
+
+        _context.EncounterAuditTrails.Add(new EncounterAuditTrail
+        {
+            EncounterId = encounter.Id,
+            Action = "HMO.QueryRaised",
+            PerformedByName = actorName,
+            PerformedAt = DateTime.UtcNow,
+            Summary = $"Query {queryNumber} returned electronically to facility. Responsible: {responsiblePerson.Trim()}"
+        });
+
+        await _context.SaveChangesAsync(cancellationToken);
+        TempData["Success"] = "Encounter query returned electronically to the primary provider.";
+        return RedirectToAction(nameof(EncDetails), new { id });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [Authorize(Roles = "HMO,Reviewer")]
+    public async Task<IActionResult> CloseEncounterQuery(int queryId, string resolution, string? closureNote = null, CancellationToken cancellationToken = default)
+    {
+        EncounterQuery? query = await _context.EncounterQueries
+            .Include(x => x.Encounter)
+                .ThenInclude(e => e!.Provider)
+            .FirstOrDefaultAsync(x => x.Id == queryId, cancellationToken);
+        if (query?.Encounter == null) return NotFound();
+        if (!await CanAccessHmoScopedEncounterAsync(query.Encounter)) return Forbid();
+
+        ApplicationUser? user = await _userManager.GetUserAsync(User);
+        string actorName = user?.FullName ?? user?.Email ?? "HMO Reviewer";
+        query.Resolution = resolution?.Trim();
+        query.ClosureNote = closureNote?.Trim();
+        query.ResolvedAt = DateTime.UtcNow;
+        query.ResolvedByName = actorName;
+        query.ClosedAt = DateTime.UtcNow;
+        query.ClosedByName = actorName;
+        query.Status = "Closed";
+
+        if (!await _context.EncounterQueries.AnyAsync(x => x.EncounterId == query.EncounterId && x.Id != query.Id && x.Status != "Closed", cancellationToken))
+        {
+            query.Encounter.HmoVerificationStatus = "Submitted";
+        }
+
+        _context.EncounterAuditTrails.Add(new EncounterAuditTrail
+        {
+            EncounterId = query.EncounterId,
+            Action = "HMO.QueryClosed",
+            PerformedByName = actorName,
+            PerformedAt = DateTime.UtcNow,
+            Summary = $"Query {query.QueryNumber} closed. Resolution: {resolution}"
+        });
+
+        await _context.SaveChangesAsync(cancellationToken);
+        TempData["Success"] = "Encounter query closed with resolution and timestamp.";
+        return RedirectToAction(nameof(EncDetails), new { id = query.EncounterId });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [Authorize(Roles = "HMO,Reviewer")]
+    public async Task<IActionResult> CertifyEncounter(int id, string? note = null, CancellationToken cancellationToken = default)
+    {
+        Encounter? encounter = await _context.Encounters
+            .Include(e => e.Provider)
+            .Include(e => e.Queries)
+            .FirstOrDefaultAsync(e => e.Id == id, cancellationToken);
+        if (encounter == null) return NotFound();
+        if (!await CanAccessHmoScopedEncounterAsync(encounter)) return Forbid();
+        if (encounter.Queries.Any(q => q.Status != "Closed"))
+        {
+            TempData["Error"] = "Close all encounter queries before HMO certification.";
+            return RedirectToAction(nameof(EncDetails), new { id });
+        }
+
+        ApplicationUser? user = await _userManager.GetUserAsync(User);
+        string actorName = user?.FullName ?? user?.Email ?? "HMO Reviewer";
+        encounter.HmoVerificationStatus = "Certified";
+        encounter.HmoVerifiedBy = actorName;
+        encounter.HmoVerifiedAt = DateTime.UtcNow;
+        encounter.HmoVerificationNote = note?.Trim();
+        encounter.IhsaVerificationStatus = "Ready for IHSA";
+
+        _context.EncounterAuditTrails.Add(new EncounterAuditTrail
+        {
+            EncounterId = encounter.Id,
+            Action = "HMO.Certified",
+            PerformedByName = actorName,
+            PerformedAt = DateTime.UtcNow,
+            Summary = "HMO electronically certified the encounter dataset without overwriting facility source data."
+        });
+
+        await _context.SaveChangesAsync(cancellationToken);
+        TempData["Success"] = "Encounter certified and moved to IHSA technical oversight.";
+        return RedirectToAction(nameof(EncDetails), new { id });
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [Authorize(Roles = "IHSA,NEDCAdmin,NHIA,Monitoring,CTSHIPAdmin,Admin")]
+    public async Task<IActionResult> VerifyEncounterByIhsa(int id, string verificationStatus, string? note = null, CancellationToken cancellationToken = default)
+    {
+        if (verificationStatus is not "Verified" and not "Flagged")
+        {
+            TempData["Error"] = "Select a valid IHSA verification decision.";
+            return RedirectToAction(nameof(EncDetails), new { id });
+        }
+
+        Encounter? encounter = await _context.Encounters.FindAsync(new object?[] { id }, cancellationToken);
+        if (encounter == null) return NotFound();
+        if (encounter.HmoVerificationStatus != "Certified")
+        {
+            TempData["Error"] = "HMO certification is required before IHSA verification.";
+            return RedirectToAction(nameof(EncDetails), new { id });
+        }
+
+        ApplicationUser? user = await _userManager.GetUserAsync(User);
+        string actorName = user?.FullName ?? user?.Email ?? User.Identity?.Name ?? "IHSA";
+        encounter.IhsaVerificationStatus = verificationStatus;
+        encounter.IhsaVerifiedBy = actorName;
+        encounter.IhsaVerifiedAt = DateTime.UtcNow;
+        encounter.IhsaVerificationNote = note?.Trim();
+
+        _context.EncounterAuditTrails.Add(new EncounterAuditTrail
+        {
+            EncounterId = encounter.Id,
+            Action = verificationStatus == "Verified" ? "IHSA.Verified" : "IHSA.Flagged",
+            PerformedByName = actorName,
+            PerformedAt = DateTime.UtcNow,
+            Summary = note?.Trim()
+        });
+
+        await _context.SaveChangesAsync(cancellationToken);
+        TempData["Success"] = "IHSA encounter verification decision saved.";
+        return RedirectToAction(nameof(EncDetails), new { id });
+    }
+
+    private async Task<bool> CanAccessHmoScopedEncounterAsync(Encounter encounter)
+    {
+        if (!User.IsInRole("HMO")) return true;
+        ApplicationUser? currentUser = await _userManager.GetUserAsync(User);
+        return currentUser?.HmoId.HasValue == true && encounter.Provider?.HmoId == currentUser.HmoId.Value;
     }
 
     [Authorize(Roles = "CTSHIPAdmin,HMO")]
@@ -1749,7 +2049,7 @@ public class HmoController : Controller
         return RedirectToAction(nameof(BulkUpload));
     }
 
-    // DELETE GET — SHOW CONFIRMATION
+    // DELETE GET â€” SHOW CONFIRMATION
     [Authorize(Roles = "CTSHIPAdmin,HMO")]
     public async Task<IActionResult> DeleteEnrollee(int id)
     {
@@ -1772,7 +2072,7 @@ public class HmoController : Controller
         return View(enrollee);
     }
 
-    // DELETE POST — SAFE & CONFIRMED
+    // DELETE POST â€” SAFE & CONFIRMED
     [HttpPost, ActionName("DeleteEnrollee")]
     [ValidateAntiForgeryToken]
     [Authorize(Roles = "CTSHIPAdmin,HMO")]
@@ -1789,7 +2089,7 @@ public class HmoController : Controller
             return RedirectToAction(nameof(EnrolleeDashboard));
         }
 
-        // FINAL SAFETY CHECK — PREVENT ORPHAN RECORDS
+        // FINAL SAFETY CHECK â€” PREVENT ORPHAN RECORDS
         if (enrollee.Encounters?.Any() == true || enrollee.Claims?.Any() == true)
         {
             TempData["Error"] = "Cannot delete enrollee with existing encounters or claims. Delete those first.";

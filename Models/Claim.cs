@@ -53,6 +53,26 @@ namespace CTSHIPDashboard.Models
         public string? RejectedBy { get; set; }
         public DateTime? DateRejected { get; set; }
 
+        public DateTime? ReturnedForClarificationAt { get; set; }
+        public string? ReturnedForClarificationBy { get; set; }
+        public string? ClarificationNote { get; set; }
+
+        public string HmoCertificationStatus { get; set; } = "Not Certified";
+        public string? HmoCertifiedBy { get; set; }
+        public DateTime? HmoCertifiedAt { get; set; }
+        public string? HmoCertificationNote { get; set; }
+
+        public string IhsaVerificationStatus { get; set; } = "Not Ready";
+        public string? IhsaVerifiedBy { get; set; }
+        public DateTime? IhsaVerifiedAt { get; set; }
+        public string? IhsaVerificationNote { get; set; }
+
+        public string? OriginalProviderDataJson { get; set; }
+
         public ICollection<ClaimSupportingDocument> SupportingDocuments { get; set; } = new List<ClaimSupportingDocument>();
+        public ICollection<ClaimQuery> Queries { get; set; } = new List<ClaimQuery>();
+        public ICollection<ClaimAuditTrail> AuditTrails { get; set; } = new List<ClaimAuditTrail>();
     }
 }
+
+

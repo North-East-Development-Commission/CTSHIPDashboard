@@ -159,6 +159,74 @@
                             </div>
                         </div>
                     </div>
+
+                    <div class="card border-success shadow-sm mt-4">
+                        <div class="card-header bg-success text-white fw-bold">Primary Encounter Capitation & Query Trail</div>
+                        <div class="card-body">
+                            <div class="row g-3 mb-4">
+                                <div class="col-md-3"><strong>Capitation Charge:</strong><br /><span class="text-success fw-bold">&#8358;@Model.CapitationCharge.ToString("N2")</span></div>
+                                <div class="col-md-3"><strong>HMO Status:</strong><br /><span class="badge bg-primary">@Model.HmoVerificationStatus</span></div>
+                                <div class="col-md-3"><strong>IHSA Status:</strong><br /><span class="badge bg-info text-dark">@Model.IhsaVerificationStatus</span></div>
+                                <div class="col-md-3"><strong>Original Data:</strong><br /><span class="text-muted">Preserved @(!string.IsNullOrWhiteSpace(Model.OriginalFacilityDataJson) ? "Yes" : "Pending")</span></div>
+                            </div>
+
+                            <h6 class="fw-bold text-success">Query Cycle</h6>
+                            @if (Model.Queries.Count == 0)
+                            {
+                                <p class="text-muted">No HMO clarification queries have been raised for this encounter.</p>
+                            }
+                            else
+                            {
+                                <div class="table-responsive">
+                                    <table class="table table-sm align-middle">
+                                        <thead><tr><th>Query Raised</th><th>Responsible</th><th>Response</th><th>Resolution</th><th>Status / Timestamp</th></tr></thead>
+                                        <tbody>
+                                            @foreach (var query in Model.Queries.OrderByDescending(q => q.RaisedAt))
+                                            {
+                                                <tr>
+                                                    <td>@query.QueryRaised<br /><small class="text-muted">By @query.RaisedByName</small></td>
+                                                    <td>@query.ResponsiblePerson</td>
+                                                    <td>@(query.Response ?? "?")<br /><small class="text-muted">@query.RespondedAt?.ToString("dd MMM yyyy HH:mm")</small></td>
+                                                    <td>@(query.Resolution ?? "?")</td>
+                                                    <td><span class="badge bg-secondary">@query.Status</span><br /><small>@query.RaisedAt.ToString("dd MMM yyyy HH:mm")</small></td>
+                                                </tr>
+                                            }
+                                        </tbody>
+                                    </table>
+                                </div>
+
+                                @foreach (var query in Model.Queries.Where(q => q.Status != "Closed" && string.IsNullOrWhiteSpace(q.Response)))
+                                {
+                                    <form asp-controller="Encounters" asp-action="RespondEncounterQuery" method="post" class="border rounded-3 p-3 mb-3">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="queryId" value="@query.Id" />
+                                        <label class="form-label fw-bold text-success">Respond to @query.QueryNumber</label>
+                                        <textarea name="response" class="form-control mb-2" rows="3" placeholder="Facility response / amendment note" required></textarea>
+                                        <button class="btn btn-success">Submit Response</button>
+                                    </form>
+                                }
+                            }
+
+                            <h6 class="fw-bold text-success mt-4">Audit Trail</h6>
+                            @if (Model.AuditTrails.Count == 0)
+                            {
+                                <p class="text-muted mb-0">No audit events recorded yet.</p>
+                            }
+                            else
+                            {
+                                <ul class="list-group">
+                                    @foreach (var item in Model.AuditTrails.OrderByDescending(a => a.PerformedAt))
+                                    {
+                                        <li class="list-group-item d-flex justify-content-between gap-3">
+                                            <span><strong>@item.Action</strong><br /><span class="text-muted">@item.Summary</span></span>
+                                            <small class="text-muted text-nowrap">@item.PerformedAt.ToString("dd MMM yyyy HH:mm")</small>
+                                        </li>
+                                    }
+                                </ul>
+                            }
+                        </div>
+                    </div>
+
                     <div class="text-center mt-5">
                         <a asp-action="EncEdit" asp-route-id="@Model.Id" class="btn btn-success btn-lg px-6">Edit Encounter</a>
                     </div>

@@ -1,0 +1,149 @@
+﻿@model CTSHIPDashboard.Models.ViewModels.SecondaryProviderClaimsReportViewModel
+@{
+    ViewData["Title"] = "Secondary Provider Claims Report";
+}
+
+<div class="container-fluid py-5">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+        <div>
+            <h1 class="display-5 fw-bold text-success mb-1">Secondary Provider Claims Report</h1>
+            <p class="lead text-muted mb-0">Aggregate claims indicators generated from individual secondary-provider submissions.</p>
+        </div>
+        <a asp-action="Dashboard" class="btn btn-outline-primary btn-lg">
+            <i class="bi bi-arrow-left me-1"></i> Claims Dashboard
+        </a>
+    </div>
+
+    <form asp-action="SecondaryProviderClaimsReport" method="get" class="card border-0 shadow-sm mb-4">
+        <div class="card-body">
+            <div class="row g-3 align-items-end">
+                <div class="col-md-4">
+                    <label class="form-label fw-bold text-success">Search</label>
+                    <input name="search" value="@Model.Search" class="form-control form-control-lg" placeholder="Claim, enrollee, provider" />
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label fw-bold text-success">Status</label>
+                    <select name="status" class="form-select form-select-lg">
+                        <option value="All" selected="@(Model.Status == "All")">All</option>
+                        <option value="Submitted" selected="@(Model.Status == "Submitted")">Submitted</option>
+                        <option value="Query Raised" selected="@(Model.Status == "Query Raised")">Query Raised</option>
+                        <option value="Approved" selected="@(Model.Status == "Approved")">Approved</option>
+                        <option value="Paid" selected="@(Model.Status == "Paid")">Paid</option>
+                        <option value="Rejected" selected="@(Model.Status == "Rejected")">Rejected</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label fw-bold text-success">From</label>
+                    <input type="date" name="fromDate" value="@Model.FromDate?.ToString("yyyy-MM-dd")" class="form-control form-control-lg" />
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label fw-bold text-success">To</label>
+                    <input type="date" name="toDate" value="@Model.ToDate?.ToString("yyyy-MM-dd")" class="form-control form-control-lg" />
+                </div>
+                <div class="col-md-2 d-grid">
+                    <button class="btn btn-success btn-lg">Filter</button>
+                </div>
+            </div>
+        </div>
+    </form>
+
+    <div class="row g-4 mb-4 text-center">
+        <div class="col-xl-3 col-md-6"><div class="card bg-primary text-white shadow h-100"><div class="card-body"><div>Total Claims</div><h2 class="fw-bold">@Model.TotalClaims</h2></div></div></div>
+        <div class="col-xl-3 col-md-6"><div class="card bg-warning text-dark shadow h-100"><div class="card-body"><div>Queries</div><h2 class="fw-bold">@Model.QueryClaims</h2></div></div></div>
+        <div class="col-xl-3 col-md-6"><div class="card bg-success text-white shadow h-100"><div class="card-body"><div>Paid Claims</div><h2 class="fw-bold">@Model.PaidClaims</h2></div></div></div>
+        <div class="col-xl-3 col-md-6"><div class="card bg-info text-dark shadow h-100"><div class="card-body"><div>IHSA Verified</div><h2 class="fw-bold">@Model.IhsaVerifiedClaims</h2></div></div></div>
+        <div class="col-xl-4 col-md-6"><div class="card border-success shadow h-100"><div class="card-body"><div class="text-muted">Total Claim Amount</div><h3 class="fw-bold text-success">₦@Model.TotalClaimAmount.ToString("N2")</h3></div></div></div>
+        <div class="col-xl-4 col-md-6"><div class="card border-success shadow h-100"><div class="card-body"><div class="text-muted">Paid Amount</div><h3 class="fw-bold text-success">₦@Model.PaidClaimAmount.ToString("N2")</h3></div></div></div>
+        <div class="col-xl-4 col-md-6"><div class="card border-success shadow h-100"><div class="card-body"><div class="text-muted">HMO Certified</div><h3 class="fw-bold text-success">@Model.CertifiedClaims</h3></div></div></div>
+    </div>
+
+    <div class="row g-4 mb-4">
+        <div class="col-lg-7">
+            <div class="card border-0 shadow h-100">
+                <div class="card-header bg-success text-white fw-bold">Provider Summary</div>
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0 align-middle">
+                        <thead><tr><th>Provider</th><th>State</th><th>Claims</th><th>Queries</th><th>Paid</th><th>Amount</th></tr></thead>
+                        <tbody>
+                            @foreach (var provider in Model.ProviderSummaries)
+                            {
+                                <tr>
+                                    <td class="fw-bold">@provider.ProviderName</td>
+                                    <td>@provider.State</td>
+                                    <td>@provider.Claims</td>
+                                    <td>@provider.QueryClaims</td>
+                                    <td>@provider.PaidClaims</td>
+                                    <td class="fw-bold text-success">₦@provider.Amount.ToString("N2")</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-5">
+            <div class="card border-0 shadow h-100">
+                <div class="card-header bg-primary text-white fw-bold">Status Summary</div>
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0 align-middle">
+                        <thead><tr><th>Status</th><th>Claims</th><th>Amount</th></tr></thead>
+                        <tbody>
+                            @foreach (var status in Model.StatusSummaries)
+                            {
+                                <tr>
+                                    <td><span class="badge bg-secondary">@status.Status</span></td>
+                                    <td>@status.Claims</td>
+                                    <td class="fw-bold">₦@status.Amount.ToString("N2")</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card border-0 shadow-lg">
+        <div class="card-header bg-dark text-white fw-bold">Claim Register</div>
+        <div class="table-responsive">
+            <table class="table table-hover mb-0 align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>Claim</th>
+                        <th>Enrollee</th>
+                        <th>Provider</th>
+                        <th>Amount</th>
+                        <th>Status</th>
+                        <th>Queries</th>
+                        <th>Certification</th>
+                        <th>IHSA</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (Model.Claims.Count == 0)
+                    {
+                        <tr><td colspan="9" class="text-center py-5 text-muted">No secondary-provider claims found.</td></tr>
+                    }
+                    else
+                    {
+                        @foreach (var claim in Model.Claims)
+                        {
+                            <tr>
+                                <td><strong class="text-primary">@claim.ClaimNumber</strong><br /><small>@claim.DateSubmitted.ToString("dd MMM yyyy")</small></td>
+                                <td>@claim.EnrolleeName<br /><small class="text-muted">@claim.EnrollmentNumber</small></td>
+                                <td>@claim.ProviderName<br /><small class="text-muted">@claim.State</small></td>
+                                <td class="fw-bold text-success">₦@claim.Amount.ToString("N2")</td>
+                                <td><span class="badge bg-secondary">@claim.Status</span></td>
+                                <td>@claim.OpenQueries</td>
+                                <td>@claim.HmoCertificationStatus</td>
+                                <td>@claim.IhsaVerificationStatus</td>
+                                <td><a asp-action="Details" asp-route-id="@claim.Id" class="btn btn-sm btn-outline-primary">View</a></td>
+                            </tr>
+                        }
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>

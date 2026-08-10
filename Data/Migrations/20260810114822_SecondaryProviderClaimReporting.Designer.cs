@@ -4,6 +4,7 @@ using CTSHIPDashboard.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CTSHIPDashboard.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260810114822_SecondaryProviderClaimReporting")]
+    partial class SecondaryProviderClaimReporting
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1052,19 +1055,12 @@ namespace CTSHIPDashboard.Migrations
                     b.Property<string>("BloodPressure")
                         .HasColumnType("nvarchar(max)");
 
-                    b.Property<decimal>("CapitationCharge")
-                        .HasColumnType("decimal(18,2)");
-
                     b.Property<string>("ChiefComplaint")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<int?>("ClaimId")
                         .HasColumnType("int");
-
-                    b.Property<string>("ClarificationNote")
-                        .HasMaxLength(1000)
-                        .HasColumnType("nvarchar(1000)");
 
                     b.Property<decimal>("ConsultationFee")
                         .HasColumnType("decimal(18,2)");
@@ -1085,42 +1081,6 @@ namespace CTSHIPDashboard.Migrations
                     b.Property<int>("EnrolleeId")
                         .HasColumnType("int");
 
-                    b.Property<string>("HmoVerificationNote")
-                        .HasMaxLength(1000)
-                        .HasColumnType("nvarchar(1000)");
-
-                    b.Property<string>("HmoVerificationStatus")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)")
-                        .HasDefaultValue("Submitted");
-
-                    b.Property<DateTime?>("HmoVerifiedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("HmoVerifiedBy")
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.Property<string>("IhsaVerificationNote")
-                        .HasMaxLength(1000)
-                        .HasColumnType("nvarchar(1000)");
-
-                    b.Property<string>("IhsaVerificationStatus")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)")
-                        .HasDefaultValue("Not Ready");
-
-                    b.Property<DateTime?>("IhsaVerifiedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("IhsaVerifiedBy")
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
                     b.Property<bool>("IsBilled")
                         .HasColumnType("bit");
 
@@ -1131,9 +1091,6 @@ namespace CTSHIPDashboard.Migrations
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Notes")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("OriginalFacilityDataJson")
                         .HasColumnType("nvarchar(max)");
 
                     b.Property<int>("ProviderId")
@@ -1152,13 +1109,6 @@ namespace CTSHIPDashboard.Migrations
                         .HasColumnType("nvarchar(100)")
                         .HasDefaultValue("Acute illness");
 
-                    b.Property<DateTime?>("ReturnedForClarificationAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("ReturnedForClarificationBy")
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
                     b.Property<string>("SeenBy")
                         .HasColumnType("nvarchar(max)");
 
@@ -1172,9 +1122,6 @@ namespace CTSHIPDashboard.Migrations
                     b.Property<string>("Status")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime?>("SubmittedToHmoAt")
-                        .HasColumnType("datetime2");
 
                     b.Property<decimal>("Temperature")
                         .HasColumnType("decimal(18,2)");
@@ -1196,53 +1143,9 @@ namespace CTSHIPDashboard.Migrations
 
                     b.HasIndex("EnrolleeId");
 
-                    b.HasIndex("HmoVerificationStatus");
-
-                    b.HasIndex("IhsaVerificationStatus");
-
                     b.HasIndex("ProviderId");
 
                     b.ToTable("Encounters");
-                });
-
-            modelBuilder.Entity("CTSHIPDashboard.Models.EncounterAuditTrail", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("Action")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<int>("EncounterId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("NewValuesJson")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("OriginalValuesJson")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime>("PerformedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("PerformedByName")
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.Property<string>("Summary")
-                        .HasMaxLength(2000)
-                        .HasColumnType("nvarchar(2000)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("EncounterId");
-
-                    b.ToTable("EncounterAuditTrails", (string)null);
                 });
 
             modelBuilder.Entity("CTSHIPDashboard.Models.EncounterPrescription", b =>
@@ -1319,88 +1222,6 @@ namespace CTSHIPDashboard.Migrations
                     b.HasIndex("EncounterId");
 
                     b.ToTable("EncounterPresentingComplaints");
-                });
-
-            modelBuilder.Entity("CTSHIPDashboard.Models.EncounterQuery", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime?>("ClosedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("ClosedByName")
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.Property<string>("ClosureNote")
-                        .HasMaxLength(1000)
-                        .HasColumnType("nvarchar(1000)");
-
-                    b.Property<int>("EncounterId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("QueryNumber")
-                        .IsRequired()
-                        .HasMaxLength(40)
-                        .HasColumnType("nvarchar(40)");
-
-                    b.Property<string>("QueryRaised")
-                        .IsRequired()
-                        .HasMaxLength(2000)
-                        .HasColumnType("nvarchar(2000)");
-
-                    b.Property<DateTime>("RaisedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("RaisedByName")
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.Property<string>("Resolution")
-                        .HasMaxLength(2000)
-                        .HasColumnType("nvarchar(2000)");
-
-                    b.Property<DateTime?>("ResolvedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("ResolvedByName")
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.Property<DateTime?>("RespondedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("RespondedByName")
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.Property<string>("Response")
-                        .HasMaxLength(2000)
-                        .HasColumnType("nvarchar(2000)");
-
-                    b.Property<string>("ResponsiblePerson")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)")
-                        .HasDefaultValue("Open");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("EncounterId");
-
-                    b.HasIndex("Status");
-
-                    b.ToTable("EncounterQueries", (string)null);
                 });
 
             modelBuilder.Entity("CTSHIPDashboard.Models.EncounterService", b =>
@@ -2648,17 +2469,6 @@ namespace CTSHIPDashboard.Migrations
                     b.Navigation("Provider");
                 });
 
-            modelBuilder.Entity("CTSHIPDashboard.Models.EncounterAuditTrail", b =>
-                {
-                    b.HasOne("CTSHIPDashboard.Models.Encounter", "Encounter")
-                        .WithMany("AuditTrails")
-                        .HasForeignKey("EncounterId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("Encounter");
-                });
-
             modelBuilder.Entity("CTSHIPDashboard.Models.EncounterPrescription", b =>
                 {
                     b.HasOne("CTSHIPDashboard.Models.DrugInventoryItem", "DrugInventoryItem")
@@ -2682,17 +2492,6 @@ namespace CTSHIPDashboard.Migrations
                 {
                     b.HasOne("CTSHIPDashboard.Models.Encounter", "Encounter")
                         .WithMany("PresentingComplaints")
-                        .HasForeignKey("EncounterId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("Encounter");
-                });
-
-            modelBuilder.Entity("CTSHIPDashboard.Models.EncounterQuery", b =>
-                {
-                    b.HasOne("CTSHIPDashboard.Models.Encounter", "Encounter")
-                        .WithMany("Queries")
                         .HasForeignKey("EncounterId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
@@ -2882,13 +2681,9 @@ namespace CTSHIPDashboard.Migrations
 
             modelBuilder.Entity("CTSHIPDashboard.Models.Encounter", b =>
                 {
-                    b.Navigation("AuditTrails");
-
                     b.Navigation("Prescriptions");
 
                     b.Navigation("PresentingComplaints");
-
-                    b.Navigation("Queries");
 
                     b.Navigation("Services");
                 });

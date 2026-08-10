@@ -3,6 +3,8 @@
 @using System.Text.Json
 @model CTSHIPDashboard.Models.Encounter
 @{
+    Layout = "~/Views/Shared/_Layout.cshtml";
+    ViewData["Title"] = "New Primary Provider Encounter";
     List<EncounterPrescriptionInputViewModel> prescriptionRows = Model.SelectedPrescriptions.Count > 0
         ? Model.SelectedPrescriptions
         : new List<EncounterPrescriptionInputViewModel> { new() };
@@ -10,272 +12,583 @@
     IReadOnlyDictionary<string, string> encounterReasonExamples =
         ViewBag.EncounterReasonExamples as IReadOnlyDictionary<string, string> ?? new Dictionary<string, string>();
 }
-<div class="container-fluid py-4">
+
+<style>
+    .encounter-register-page {
+        --ct-green: #3B703B;
+        --ct-green-dark: #244a2a;
+        --ct-gold: #FE9031;
+        --ct-soft: #f5fbf6;
+        --ct-border: rgba(59, 112, 59, .18);
+        color: #1f3324;
+    }
+
+    .encounter-register-page * {
+        box-sizing: border-box;
+    }
+
+    .encounter-register-page .container-fluid,
+    .container-fluid.encounter-register-page {
+        width: 100%;
+        max-width: 100%;
+    }
+
+    .encounter-register-page .card {
+        background: #fff;
+        border-radius: 1rem;
+    }
+
+    .encounter-register-page .form-control,
+    .encounter-register-page .form-select {
+        display: block;
+        width: 100%;
+        min-height: 2.85rem;
+        padding: .65rem .9rem;
+        color: #213527;
+        background-color: #fff;
+        border: 1px solid #ced4da;
+        border-radius: .65rem;
+    }
+
+    .encounter-register-page textarea.form-control {
+        min-height: 7rem;
+    }
+
+    .encounter-register-page .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: .35rem;
+        border-radius: .65rem;
+        padding: .7rem 1.2rem;
+        border: 1px solid transparent;
+        font-weight: 700;
+        text-decoration: none;
+        cursor: pointer;
+    }
+
+    .encounter-register-page .btn-outline-secondary {
+        color: #47524a;
+        border-color: #adb5bd;
+        background: #fff;
+    }
+
+    .encounter-register-page .input-group {
+        display: flex;
+        width: 100%;
+    }
+
+    .encounter-register-page .input-group .form-control {
+        flex: 1 1 auto;
+    }
+
+    .encounter-register-page .alert-success {
+        color: #244a2a;
+        background: #edf7ef;
+        border-radius: .9rem;
+        padding: 1rem;
+    }
+
+    .encounter-shell {
+        border-radius: 28px;
+        overflow: hidden;
+        border: 1px solid var(--ct-border);
+        background: #fff;
+    }
+
+    .encounter-hero {
+        background: linear-gradient(135deg, var(--ct-green-dark), var(--ct-green));
+        border-bottom: 5px solid var(--ct-gold);
+    }
+
+    .encounter-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: .45rem;
+        padding: .45rem .85rem;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, .16);
+        color: #fff;
+        font-weight: 700;
+        font-size: .85rem;
+    }
+
+    .encounter-step {
+        width: 2.35rem;
+        height: 2.35rem;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 999px;
+        color: #fff;
+        background: var(--ct-green);
+        box-shadow: 0 .35rem .8rem rgba(59, 112, 59, .22);
+        font-weight: 800;
+    }
+
+    .encounter-section-card {
+        border: 1px solid var(--ct-border);
+        border-radius: 22px;
+        box-shadow: 0 .75rem 1.5rem rgba(31, 51, 36, .08);
+        overflow: hidden;
+        background: #fff;
+    }
+
+    .encounter-section-header {
+        display: flex;
+        align-items: center;
+        gap: .85rem;
+        padding: 1.1rem 1.25rem;
+        background: linear-gradient(90deg, rgba(59, 112, 59, .12), rgba(254, 144, 49, .12));
+        border-bottom: 1px solid var(--ct-border);
+    }
+
+    .encounter-section-header h2 {
+        margin: 0;
+        color: var(--ct-green-dark);
+        font-size: 1.15rem;
+        font-weight: 800;
+    }
+
+    .encounter-section-header p {
+        margin: .15rem 0 0;
+        color: #66756a;
+        font-size: .92rem;
+    }
+
+    .encounter-section-body {
+        padding: 1.35rem;
+    }
+
+    .encounter-register-page .form-label {
+        color: var(--ct-green-dark) !important;
+        font-weight: 800;
+    }
+
+    .encounter-register-page .form-control:focus,
+    .encounter-register-page .form-select:focus {
+        border-color: var(--ct-green);
+        box-shadow: 0 0 0 .2rem rgba(59, 112, 59, .14);
+    }
+
+    .encounter-register-page .btn-success {
+        background: var(--ct-green);
+        border-color: var(--ct-green);
+    }
+
+    .encounter-register-page .btn-success:hover {
+        background: var(--ct-green-dark);
+        border-color: var(--ct-green-dark);
+    }
+
+    .encounter-preview-card {
+        border: 2px solid var(--ct-green);
+        background: linear-gradient(135deg, #fff, var(--ct-soft));
+    }
+
+    .conditional-service-section {
+        border: 1px dashed rgba(59, 112, 59, .35);
+        border-radius: 18px;
+        background: var(--ct-soft);
+        padding: 1.1rem;
+    }
+
+    .complaint-multiselect-card {
+        border: 1px dashed rgba(59, 112, 59, .35);
+        border-radius: 18px;
+        background: linear-gradient(135deg, #ffffff, var(--ct-soft));
+        padding: 1.1rem;
+    }
+
+    .encounter-register-page .select2-container {
+        width: 100% !important;
+    }
+
+    .encounter-register-page .select2-container--default .select2-selection--multiple {
+        min-height: 3rem;
+        border: 1px solid #ced4da;
+        border-radius: .65rem;
+        padding: .35rem .45rem;
+    }
+
+    .encounter-register-page .select2-container--default.select2-container--focus .select2-selection--multiple {
+        border-color: var(--ct-green);
+        box-shadow: 0 0 0 .2rem rgba(59, 112, 59, .14);
+    }
+
+    .encounter-register-page .select2-container--default .select2-selection--multiple .select2-selection__choice {
+        color: #fff !important;
+        background: var(--ct-green) !important;
+        border-color: var(--ct-green-dark) !important;
+        border-radius: 999px;
+        padding: .2rem .55rem;
+    }
+
+    .encounter-register-page .select2-container--default .select2-selection--multiple .select2-selection__choice__display,
+    .encounter-register-page .select2-container--default .select2-selection--multiple .select2-selection__choice__remove {
+        color: #fff !important;
+    }
+
+    .encounter-register-page .select2-container--default .select2-selection--multiple .select2-selection__choice__remove {
+        margin-right: .35rem;
+    }
+
+    body .select2-container--open .select2-dropdown {
+        z-index: 2055 !important;
+        color: #213527 !important;
+        background: #fff !important;
+        border: 2px solid #FE9031 !important;
+        box-shadow: 0 18px 40px rgba(33, 53, 39, .18) !important;
+    }
+
+    body .select2-container--default .select2-results__group {
+        color: #244a2a !important;
+        background: #f5fbf6 !important;
+        font-weight: 800 !important;
+        padding: .55rem .8rem !important;
+    }
+
+    body .select2-container--default .select2-results__option {
+        color: #213527 !important;
+        background: #fff !important;
+        font-weight: 700 !important;
+        line-height: 1.35 !important;
+        padding: .65rem .85rem !important;
+    }
+
+    body .select2-container--default .select2-results__option--highlighted[aria-selected] {
+        color: #fff !important;
+        background: #3B703B !important;
+    }
+
+    body .select2-container--default .select2-results__option[aria-selected="true"] {
+        color: #fff !important;
+        background: #FE9031 !important;
+    }
+
+    body .select2-container--default .select2-search--dropdown .select2-search__field {
+        color: #213527 !important;
+        background: #fff !important;
+        border: 1px solid rgba(59, 112, 59, .28) !important;
+    }
+
+    .encounter-submit-bar {
+        position: sticky;
+        bottom: 0;
+        z-index: 5;
+        border-top: 1px solid var(--ct-border);
+        background: rgba(255, 255, 255, .94);
+        backdrop-filter: blur(8px);
+    }
+</style>
+
+<div class="container-fluid py-4 encounter-register-page">
     <div class="row justify-content-center">
-        <div class="col-lg-11">
-            <div class="card border-0 shadow-lg" style="border-radius: 25px; overflow: hidden;">
-                <!-- Header -->
-                <div class="bg-success text-white text-center py-5">
-                    <h1 class="display-5 fw-bold mb-2">NEW PATIENT ENCOUNTER</h1>
-                    <p class="lead mb-0 opacity-90">CTSHIP Digital Hospital System • Federal Republic of Nigeria</p>
+        <div class="col-12 col-xxl-11">
+            <div class="card encounter-shell shadow-lg">
+                <div class="encounter-hero text-white p-4 p-lg-5">
+                    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
+                        <div>
+                            <span class="encounter-chip mb-3"><i class="bi bi-clipboard2-pulse"></i> Electronic Service Encounter Register</span>
+                            <h1 class="display-5 fw-bold mb-2">New Primary Provider Encounter</h1>
+                            <p class="lead mb-0 opacity-90">Enter the encounter once; the platform generates service, utilisation and capitation indicators.</p>
+                        </div>
+                        <div class="text-lg-end">
+                            <div class="encounter-chip"><i class="bi bi-shield-check"></i> Facility data preserved</div>
+                            <div class="encounter-chip mt-2"><i class="bi bi-cash-stack"></i> Capitation submission to HMO</div>
+                        </div>
+                    </div>
                 </div>
 
-                <div class="card-body p-5">
-                    <form asp-action="Create" method="post" id="encounterForm" novalidate>
-                        @Html.AntiForgeryToken()
+                <form asp-action="Create" method="post" id="encounterForm" novalidate>
+                    @Html.AntiForgeryToken()
+                    <div class="card-body p-3 p-lg-5">
                         <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
 
-                        <div class="row g-4">
-                            <!-- ENROLLEE SEARCH -->
-                            <div class="col-12">
-                                <label for="enrollmentSearch" class="form-label text-success fw-bold fs-5">
-                                    Search Enrollee by Enrollment Number <span class="text-danger">*</span>
-                                </label>
-                                <div class="input-group input-group-lg">
-                                    <input type="text" id="enrollmentSearch" class="form-control rounded-start-3"
-                                           placeholder="e.g., CTH-2025-LA-001234" />
-                                    <button type="button" class="btn btn-success rounded-end-3" onclick="searchEnrollee()">
-                                        <i class="bi bi-search"></i>
-                                    </button>
-                                </div>
-                                <small class="text-muted">Type full number and press Search or Enter</small>
-                            </div>
-
-                            <!-- ENROLLEE PREVIEW -->
-                            <div class="col-12" id="enrolleePreview" style="display:none;">
-                                <div class="card border-success border-4 shadow">
-                                    <div class="card-body d-flex align-items-center p-4">
-                                        <img id="previewPhoto" src="/img/icon-192.png" class="rounded me-4 shadow"
-                                             style="width:130px;height:130px;object-fit:cover;border:5px solid white;" />
-                                        <div>
-                                            <h4 id="previewName" class="text-success fw-bold mb-1">—</h4>
-                                            <p class="mb-1"><strong>ID:</strong> <span id="previewNumber" class="text-primary fw-bold fs-5">—</span></p>
-                                            <p class="mb-1"><strong>HMO:</strong> <span id="previewHmo">—</span></p>
-                                            <p class="mb-0"><strong>State:</strong> <span id="previewState">—</span></p>
-                                            <input type="hidden" asp-for="EnrolleeId" id="selectedEnrolleeId" />
-                                        </div>
+                        <div class="d-grid gap-4">
+                            <section class="encounter-section-card">
+                                <div class="encounter-section-header">
+                                    <span class="encounter-step">1</span>
+                                    <div>
+                                        <h2>Enrollee Identification</h2>
+                                        <p>Search once; ID, HMO, sex, age/DOB and location come from enrollment data.</p>
                                     </div>
                                 </div>
-
-                            <div class="col-12">
-                                <div class="border rounded-3 p-3">
-                                    <div class="d-flex justify-content-between align-items-center gap-3 mb-3">
-                                        <div>
-                                            <label class="form-label text-success fw-bold mb-0">Laboratory Tests</label>
-                                            <div class="small text-muted">Select requested laboratory tests and enter results when available.</div>
+                                <div class="encounter-section-body">
+                                    <div class="row g-4">
+                                        <div class="col-12">
+                                            <label for="enrollmentSearch" class="form-label fs-5">Search Enrollee by Enrollment Number <span class="text-danger">*</span></label>
+                                            <div class="input-group input-group-lg">
+                                                <input type="text" id="enrollmentSearch" class="form-control rounded-start-3" placeholder="e.g., CTH-2025-LA-001234" />
+                                                <button type="button" class="btn btn-success rounded-end-3" onclick="searchEnrollee()">
+                                                    <i class="bi bi-search me-1"></i> Search
+                                                </button>
+                                            </div>
+                                            <small class="text-muted">The selected enrollee locks the encounter to the system enrollment record.</small>
                                         </div>
-                                    </div>
 
-                                    @{ var labCatalog = ViewBag.LaboratoryCatalog as List<SelectListItem> ?? new List<SelectListItem>(); }
-
-                                    <select id="selectedLaboratoryTests" name="SelectedLaboratoryTests" class="form-select" multiple data-placeholder="Select laboratory tests">
-                                        @foreach (var item in labCatalog)
-                                        {
-                                            if (item.Selected)
-                                            {
-                                                <option value="@item.Value" selected="selected">@item.Text</option>
-                                            }
-                                            else
-                                            {
-                                                <option value="@item.Value">@item.Text</option>
-                                            }
-                                        }
-                                    </select>
-
-                                    <div id="laboratoryInvestigationsContainer" class="mt-3">
-                                        @if (Model.LaboratoryInvestigations != null && Model.LaboratoryInvestigations.Count > 0)
-                                        {
-                                            for (int i = 0; i < Model.LaboratoryInvestigations.Count; i++)
-                                            {
-                                                var row = Model.LaboratoryInvestigations[i];
-                                                <div class="row g-2 align-items-end lab-investigation-row mb-2">
-                                                    <input type="hidden" name="LaboratoryInvestigations[@i].LaboratoryTestName" value="@row.LaboratoryTestName" />
-                                                    <div class="col-md-4">
-                                                        <label class="form-label small fw-bold">Test</label>
-                                                        <input class="form-control" value="@row.LaboratoryTestName" disabled />
+                                        <div class="col-12" id="enrolleePreview" style="display:none;">
+                                            <div class="card encounter-preview-card shadow-sm">
+                                                <div class="card-body d-flex flex-wrap align-items-center gap-4 p-4">
+                                                    <img id="previewPhoto" src="/img/icon-192.png" class="rounded shadow" style="width:130px;height:130px;object-fit:cover;border:5px solid white;" />
+                                                    <div class="flex-grow-1">
+                                                        <h4 id="previewName" class="text-success fw-bold mb-1">&mdash;</h4>
+                                                        <p class="mb-1"><strong>Enrollee ID:</strong> <span id="previewNumber" class="text-primary fw-bold fs-5">&mdash;</span></p>
+                                                        <p class="mb-1"><strong>HMO:</strong> <span id="previewHmo">&mdash;</span></p>
+                                                        <p class="mb-0"><strong>State:</strong> <span id="previewState">&mdash;</span></p>
+                                                        <input type="hidden" asp-for="EnrolleeId" id="selectedEnrolleeId" />
                                                     </div>
-                                                    <div class="col-md-2">
-                                                        <label class="form-label small fw-bold">Result</label>
-                                                        <input type="text" name="LaboratoryInvestigations[@i].Result" value="@row.Result" class="form-control" />
-                                                    </div>
-                                                    <div class="col-md-2">
-                                                        <label class="form-label small fw-bold">Unit</label>
-                                                        <input type="text" name="LaboratoryInvestigations[@i].ResultUnit" value="@row.ResultUnit" class="form-control" />
-                                                    </div>
-                                                    <div class="col-md-2">
-                                                        <label class="form-label small fw-bold">Status</label>
-                                                        <select name="LaboratoryInvestigations[@i].ResultStatus" class="form-select">
-                                                            @if (row.ResultStatus == "Requested") { <option value="Requested" selected>Requested</option> } else { <option value="Requested">Requested</option> }
-                                                            @if (row.ResultStatus == "SampleCollected") { <option value="SampleCollected" selected>Sample Collected</option> } else { <option value="SampleCollected">Sample Collected</option> }
-                                                            @if (row.ResultStatus == "Processing") { <option value="Processing" selected>Processing</option> } else { <option value="Processing">Processing</option> }
-                                                            @if (row.ResultStatus == "Completed") { <option value="Completed" selected>Completed</option> } else { <option value="Completed">Completed</option> }
-                                                            @if (row.ResultStatus == "Cancelled") { <option value="Cancelled" selected>Cancelled</option> } else { <option value="Cancelled">Cancelled</option> }
-                                                        </select>
-                                                    </div>
-                                                    <div class="col-md-2 d-grid">
-                                                        <button type="button" class="btn btn-outline-danger remove-lab-row-btn" aria-label="Remove lab row"><i class="bi bi-trash"></i></button>
-                                                    </div>
-                                                </div>
-                                            }
-                                        }
-                                    </div>
-                                </div>
-                            </div>
-
-
-                            </div>
-
-                            <!-- VISIT DETAILS -->
-                            <div class="col-md-4">
-                                <label asp-for="VisitDate" class="form-label text-success fw-bold">Visit Date & Time</label>
-                                <input asp-for="VisitDate" class="form-control form-control" type="datetime-local" step="1" />
-                                <span asp-validation-for="VisitDate" class="text-danger"></span>
-                            </div>
-
-                            <div class="col-md-4">
-                                <label asp-for="VisitType" class="form-label text-success fw-bold">Visit Type</label>
-                                <select asp-for="VisitType" class="form-select form-select-lg" asp-items="ViewBag.VisitTypes">
-                                    <option value="">Select visit type</option>
-                                </select>
-                            </div>
-
-                            <div class="col-md-4">
-                                <label asp-for="ReasonForEncounter" class="form-label text-success fw-bold">Reason For Encounter</label>
-                                <select asp-for="ReasonForEncounter" class="form-select form-select-lg" asp-items="ViewBag.EncounterReasons" aria-describedby="reasonForEncounterHelp">
-                                    <option value="">Select reason</option>
-                                </select>
-                                <small id="reasonForEncounterHelp" class="form-text text-muted">Select the patient's stated reason or requested service before diagnosis.</small>
-                                <span asp-validation-for="ReasonForEncounter" class="text-danger"></span>
-                            </div>
-                            <partial name="_ServiceSelection" model="Model" />
-
-                            <!-- STATUS DROPDOWN — ADDED! -->
-                            <div class="col-md-4">
-                                <label asp-for="Status" class="form-label text-success fw-bold">Status</label>
-                                <select asp-for="Status" class="form-select form-select-lg" asp-items="ViewBag.Statuses">
-                                    <option value="">Select Status</option>
-                                </select>
-                            </div>
-
-                            <div class="col-md-4">
-                                <label asp-for="ProviderId" class="form-label text-success fw-bold fs-5">Facility</label>
-                                <select asp-for="ProviderId" class="form-select form-select-lg w-100" asp-items="ViewBag.Providers">
-                                    <option value="">Select Facility</option>
-                                </select>
-                            </div>
-
-                            <div class="col-md-4">
-                                <label asp-for="DoctorId" class="form-label text-success fw-bold">Attended By (Hospital Staff)</label>
-                                <select asp-for="DoctorId" class="form-select form-select-lg" asp-items="ViewBag.Doctors" data-selected-doctor="@Model.DoctorId">
-                                    <option value="">Select hospital staff</option>
-                                </select>
-                                <span asp-validation-for="DoctorId" class="text-danger"></span>
-                            </div>
-
-                            <partial name="_ReferralFields" model="Model.Referral" />
-
-                            <!-- CLINICAL -->
-                            <div class="col-12">
-                                <label asp-for="ChiefComplaint" class="form-label text-success fw-bold">Complaint</label>
-                                <partial name="_PresentingComplaints" model="Model" />
-                                <textarea asp-for="ChiefComplaint" class="form-control form-control mt-2"></textarea>
-                                <span asp-validation-for="ChiefComplaint" class="text-danger"></span>
-                            </div>
-
-                            <div class="col-12">
-                                <label asp-for="Diagnosis" class="form-label text-success fw-bold">Diagnosis</label>
-                                <textarea asp-for="Diagnosis" class="form-control form-control"></textarea>
-                                <span asp-validation-for="Diagnosis" class="text-danger"></span>
-                            </div>
-
-                            <div class="col-12">
-                                <label asp-for="TreatmentGiven" class="form-label text-success fw-bold">Note</label>
-                                <textarea asp-for="TreatmentGiven" class="form-control form-control"></textarea>
-                                <span asp-validation-for="TreatmentGiven" class="text-danger"></span>
-                            </div>
-
-                            <div class="col-12">
-                                <div class="border rounded-3 p-3">
-                                    <div class="d-flex justify-content-between align-items-center gap-3 mb-3">
-                                        <div>
-                                            <label class="form-label text-success fw-bold mb-0">Prescriptions</label>
-                                            <div class="small text-muted">Primary provider inventory drugs only.</div>
-                                        </div>
-                                        <button type="button" class="btn btn-outline-success btn-sm" id="addPrescriptionBtn">
-                                            <i class="bi bi-plus-circle me-1"></i> Add Drug
-                                        </button>
-                                    </div>
-                                    <div id="prescriptionRows" class="d-grid gap-2">
-                                        @for (int i = 0; i < prescriptionRows.Count; i++)
-                                        {
-                                            <div class="row g-2 align-items-end prescription-row">
-                                                <div class="col-md-8">
-                                                    <label class="form-label small fw-bold">Drug</label>
-                                                    <select name="SelectedPrescriptions[@i].DrugInventoryItemId" class="form-select drug-inventory-select">
-                                                        <option value="">No drug selected</option>
-                                                        @foreach (SelectListItem drug in drugInventoryItems)
-                                                        {
-                                                            if (drug.Value == prescriptionRows[i].DrugInventoryItemId.ToString())
-                                                            {
-                                                                <option value="@drug.Value" selected>@drug.Text</option>
-                                                            }
-                                                            else
-                                                            {
-                                                                <option value="@drug.Value">@drug.Text</option>
-                                                            }
-                                                        }
-                                                    </select>
-                                                </div>
-                                                <div class="col-md-3">
-                                                    <label class="form-label small fw-bold">Quantity</label>
-                                                    <input type="number" name="SelectedPrescriptions[@i].QuantityDispensed" value="@prescriptionRows[i].QuantityDispensed" class="form-control prescription-quantity" min="1" />
-                                                </div>
-                                                <div class="col-md-1 d-grid">
-                                                    <button type="button" class="btn btn-outline-danger remove-prescription-btn" aria-label="Remove prescription"><i class="bi bi-trash"></i></button>
+                                                    <span class="badge bg-success fs-6 px-3 py-2">Enrollment verified</span>
                                                 </div>
                                             </div>
-                                        }
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
+                            </section>
 
+                            <section class="encounter-section-card">
+                                <div class="encounter-section-header">
+                                    <span class="encounter-step">2</span>
+                                    <div>
+                                        <h2>Encounter & Provider Information</h2>
+                                        <p>Facility is resolved from the provider account and encounter details feed capitation review.</p>
+                                    </div>
+                                </div>
+                                <div class="encounter-section-body">
+                                    <div class="row g-4">
+                                        <div class="col-md-4">
+                                            <label asp-for="VisitDate" class="form-label">Date / Time</label>
+                                            <input asp-for="VisitDate" class="form-control form-control-lg" type="datetime-local" step="1" />
+                                            <span asp-validation-for="VisitDate" class="text-danger"></span>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label asp-for="VisitType" class="form-label">New / Repeat Visit</label>
+                                            <select asp-for="VisitType" class="form-select form-select-lg" asp-items="ViewBag.VisitTypes">
+                                                <option value="">Select visit type</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label asp-for="ReasonForEncounter" class="form-label">Reason for Encounter</label>
+                                            <select asp-for="ReasonForEncounter" class="form-select form-select-lg" asp-items="ViewBag.EncounterReasons" aria-describedby="reasonForEncounterHelp">
+                                                <option value="">Select reason</option>
+                                            </select>
+                                            <small id="reasonForEncounterHelp" class="form-text text-muted">Select the patient's stated reason or requested service before diagnosis.</small>
+                                            <span asp-validation-for="ReasonForEncounter" class="text-danger"></span>
+                                        </div>
+
+                                        <partial name="_ServiceSelection" model="Model" />
+
+                                        <div class="col-md-4">
+                                            <label asp-for="Status" class="form-label">Outcome of Encounter</label>
+                                            <select asp-for="Status" class="form-select form-select-lg" asp-items="ViewBag.Statuses">
+                                                <option value="">Select outcome</option>
+                                            </select>
+                                            <small class="text-muted">Treated, referred, follow-up or other disposition.</small>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label asp-for="ProviderId" class="form-label fs-5">Facility</label>
+                                            <select asp-for="ProviderId" class="form-select form-select-lg w-100" asp-items="ViewBag.Providers">
+                                                <option value="">Select Facility</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label asp-for="DoctorId" class="form-label">Staff Recording / Attending</label>
+                                            <select asp-for="DoctorId" class="form-select form-select-lg" asp-items="ViewBag.Doctors" data-selected-doctor="@Model.DoctorId">
+                                                <option value="">Select hospital staff</option>
+                                            </select>
+                                            <span asp-validation-for="DoctorId" class="text-danger"></span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </section>
+
+                            <section class="encounter-section-card">
+                                <div class="encounter-section-header">
+                                    <span class="encounter-step">3</span>
+                                    <div>
+                                        <h2>Clinical Details</h2>
+                                        <p>Capture complaint and diagnosis once; selected values drive reporting indicators.</p>
+                                    </div>
+                                </div>
+                                <div class="encounter-section-body">
+                                    <div class="row g-4">
+                                        <div class="col-12">
+                                            <label asp-for="ChiefComplaint" class="form-label">Presenting Complaint</label>
+                                            <partial name="_PresentingComplaints" model="Model" />
+                                            <textarea asp-for="ChiefComplaint" class="form-control form-control-lg mt-2" rows="3" placeholder="Brief clinical complaint / history"></textarea>
+                                            <span asp-validation-for="ChiefComplaint" class="text-danger"></span>
+                                        </div>
+                                        <div class="col-12">
+                                            <label asp-for="Diagnosis" class="form-label">Diagnosis</label>
+                                            <textarea asp-for="Diagnosis" class="form-control form-control-lg" rows="3" placeholder="Diagnosis or provisional diagnosis"></textarea>
+                                            <span asp-validation-for="Diagnosis" class="text-danger"></span>
+                                        </div>
+                                        <div class="col-12">
+                                            <label asp-for="TreatmentGiven" class="form-label">Treatment / Clinical Note</label>
+                                            <textarea asp-for="TreatmentGiven" class="form-control form-control-lg" rows="3" placeholder="Treatment given, advice, follow-up plan"></textarea>
+                                            <span asp-validation-for="TreatmentGiven" class="text-danger"></span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </section>
+
+                            <section class="encounter-section-card">
+                                <div class="encounter-section-header">
+                                    <span class="encounter-step">4</span>
+                                    <div>
+                                        <h2>Conditional Service Details</h2>
+                                        <p>Medicine, laboratory and referral sections only appear when the encounter requires them.</p>
+                                    </div>
+                                </div>
+                                <div class="encounter-section-body">
+                                    <div class="alert alert-success border-0 mb-4">
+                                        Select <strong>Laboratory services</strong> to show lab tests/results, <strong>Drug prescription/dispensing</strong> to show medicines, or choose a referred outcome to show referral details.
+                                    </div>
+
+                                    <div class="row g-4">
+                                        <div class="col-12" id="laboratorySection" style="display:none;">
+                                            <div class="conditional-service-section">
+                                                <div class="d-flex justify-content-between align-items-center gap-3 mb-3">
+                                                    <div>
+                                                        <label class="form-label mb-0">Laboratory Tests</label>
+                                                        <div class="small text-muted">Select requested/performed tests and enter results or upload-ready result data when available.</div>
+                                                    </div>
+                                                </div>
+
+                                                @{ var labCatalog = ViewBag.LaboratoryCatalog as List<SelectListItem> ?? new List<SelectListItem>(); }
+
+                                                <select id="selectedLaboratoryTests" name="SelectedLaboratoryTests" class="form-select select2" multiple data-placeholder="Select laboratory tests">
+                                                    @foreach (var item in labCatalog)
+                                                    {
+                                                        if (item.Selected)
+                                                        {
+                                                            <option value="@item.Value" selected="selected">@item.Text</option>
+                                                        }
+                                                        else
+                                                        {
+                                                            <option value="@item.Value">@item.Text</option>
+                                                        }
+                                                    }
+                                                </select>
+
+                                                <div id="laboratoryInvestigationsContainer" class="mt-3">
+                                                    @if (Model.LaboratoryInvestigations != null && Model.LaboratoryInvestigations.Count > 0)
+                                                    {
+                                                        for (int i = 0; i < Model.LaboratoryInvestigations.Count; i++)
+                                                        {
+                                                            var row = Model.LaboratoryInvestigations[i];
+                                                            <div class="row g-2 align-items-end lab-investigation-row mb-2">
+                                                                <input type="hidden" name="LaboratoryInvestigations[@i].LaboratoryTestName" value="@row.LaboratoryTestName" />
+                                                                <div class="col-md-4">
+                                                                    <label class="form-label small fw-bold">Test</label>
+                                                                    <input class="form-control" value="@row.LaboratoryTestName" disabled />
+                                                                </div>
+                                                                <div class="col-md-2">
+                                                                    <label class="form-label small fw-bold">Result</label>
+                                                                    <input type="text" name="LaboratoryInvestigations[@i].Result" value="@row.Result" class="form-control" />
+                                                                </div>
+                                                                <div class="col-md-2">
+                                                                    <label class="form-label small fw-bold">Unit</label>
+                                                                    <input type="text" name="LaboratoryInvestigations[@i].ResultUnit" value="@row.ResultUnit" class="form-control" />
+                                                                </div>
+                                                                <div class="col-md-2">
+                                                                    <label class="form-label small fw-bold">Status</label>
+                                                                    <select name="LaboratoryInvestigations[@i].ResultStatus" class="form-select">
+                                                                        @if (row.ResultStatus == "Requested") { <option value="Requested" selected>Requested</option> } else { <option value="Requested">Requested</option> }
+                                                                        @if (row.ResultStatus == "SampleCollected") { <option value="SampleCollected" selected>Sample Collected</option> } else { <option value="SampleCollected">Sample Collected</option> }
+                                                                        @if (row.ResultStatus == "Processing") { <option value="Processing" selected>Processing</option> } else { <option value="Processing">Processing</option> }
+                                                                        @if (row.ResultStatus == "Completed") { <option value="Completed" selected>Completed</option> } else { <option value="Completed">Completed</option> }
+                                                                        @if (row.ResultStatus == "Cancelled") { <option value="Cancelled" selected>Cancelled</option> } else { <option value="Cancelled">Cancelled</option> }
+                                                                    </select>
+                                                                </div>
+                                                                <div class="col-md-2 d-grid">
+                                                                    <button type="button" class="btn btn-outline-danger remove-lab-row-btn" aria-label="Remove lab row"><i class="bi bi-trash"></i></button>
+                                                                </div>
+                                                            </div>
+                                                        }
+                                                    }
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="col-12" id="prescriptionSection" style="display:none;">
+                                            <div class="conditional-service-section">
+                                                <div class="d-flex justify-content-between align-items-center gap-3 mb-3">
+                                                    <div>
+                                                        <label class="form-label mb-0">Medicines Prescribed / Dispensed</label>
+                                                        <div class="small text-muted">Primary provider inventory drugs only; section is hidden until drug prescription is selected.</div>
+                                                    </div>
+                                                    <button type="button" class="btn btn-outline-success btn-sm" id="addPrescriptionBtn">
+                                                        <i class="bi bi-plus-circle me-1"></i> Add Drug
+                                                    </button>
+                                                </div>
+                                                <div id="prescriptionRows" class="d-grid gap-2">
+                                                    @for (int i = 0; i < prescriptionRows.Count; i++)
+                                                    {
+                                                        <div class="row g-2 align-items-end prescription-row">
+                                                            <div class="col-md-8">
+                                                                <label class="form-label small fw-bold">Drug</label>
+                                                                <select name="SelectedPrescriptions[@i].DrugInventoryItemId" class="form-select drug-inventory-select">
+                                                                    <option value="">No drug selected</option>
+                                                                    @foreach (SelectListItem drug in drugInventoryItems)
+                                                                    {
+                                                                        if (drug.Value == prescriptionRows[i].DrugInventoryItemId.ToString())
+                                                                        {
+                                                                            <option value="@drug.Value" selected>@drug.Text</option>
+                                                                        }
+                                                                        else
+                                                                        {
+                                                                            <option value="@drug.Value">@drug.Text</option>
+                                                                        }
+                                                                    }
+                                                                </select>
+                                                            </div>
+                                                            <div class="col-md-3">
+                                                                <label class="form-label small fw-bold">Quantity</label>
+                                                                <input type="number" name="SelectedPrescriptions[@i].QuantityDispensed" value="@prescriptionRows[i].QuantityDispensed" class="form-control prescription-quantity" min="1" />
+                                                            </div>
+                                                            <div class="col-md-1 d-grid">
+                                                                <button type="button" class="btn btn-outline-danger remove-prescription-btn" aria-label="Remove prescription"><i class="bi bi-trash"></i></button>
+                                                            </div>
+                                                        </div>
+                                                    }
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <partial name="_ReferralFields" model="Model.Referral" />
+                                    </div>
+                                </div>
+                            </section>
                         </div>
+                    </div>
 
-                        <!-- Submit -->
-                        <div class="text-center mt-5 pt-4 border-top">
-                            @if (Model.EnrolleeId <= 0)
-                            {
-                                <button type="submit" class="btn btn-success btn-lg px-5 shadow-lg fw-bold fs-4" id="submitBtn" name="submitAction" value="save" formnovalidate disabled>
-                                    SAVE ENCOUNTER
-                                </button>
-                            }
-                            else
-                            {
-                                <button type="submit" class="btn btn-success btn-lg px-5 shadow-lg fw-bold fs-4" id="submitBtn" name="submitAction" value="save" formnovalidate>
-                                    SAVE ENCOUNTER
-                                </button>
-                            }
-                            @if (User.IsInRole("Provider"))
-                            {
-                                <a asp-controller="Providers" asp-action="MyEncounters" class="btn btn-secondary btn-lg px-6 ms-3">
-                                    Cancel
-                                </a>
-                            }
-                            @if (User.IsInRole("CTSHIPAdmin"))
-                            {
-                                <a asp-action="Index" class="btn btn-secondary btn-lg px-6 ms-3">
-                                    Cancel
-                                </a>
-                            }
-                         
-                        </div>
-                    </form>
-                </div>
+                    <div class="encounter-submit-bar text-center p-4">
+                        @if (Model.EnrolleeId <= 0)
+                        {
+                            <button type="submit" class="btn btn-success btn-lg px-5 shadow fw-bold" id="submitBtn" name="submitAction" value="save" formnovalidate disabled>
+                                Save Encounter
+                            </button>
+                        }
+                        else
+                        {
+                            <button type="submit" class="btn btn-success btn-lg px-5 shadow fw-bold" id="submitBtn" name="submitAction" value="save" formnovalidate>
+                                Save Encounter
+                            </button>
+                        }
+                        @if (User.IsInRole("Provider"))
+                        {
+                            <a asp-controller="Providers" asp-action="MyEncounters" class="btn btn-outline-secondary btn-lg px-5 ms-2">Cancel</a>
+                        }
+                        @if (User.IsInRole("CTSHIPAdmin"))
+                        {
+                            <a asp-action="Index" class="btn btn-outline-secondary btn-lg px-5 ms-2">Cancel</a>
+                        }
+                    </div>
+                </form>
 
-                <div class="bg-dark text-white text-center py-3">
-                    <small>
-                        CTSHIP • Universal Health Coverage • Powered by North East Development Commission (NEDC)
-                    </small>
+                <div class="footer-brand text-white text-center py-3">
+                    <small>CTSHIP &bull; Universal Health Coverage &bull; Powered by North East Development Commission (NEDC)</small>
                 </div>
             </div>
         </div>
@@ -338,9 +651,17 @@
             }
 
             $(select).trigger('change.select2');
+            select.dispatchEvent(new Event('change', { bubbles: true }));
         }
 
-        document.getElementById('serviceSetting')?.addEventListener('change', () => syncServiceDropdown(true));
+        document.getElementById('serviceSetting')?.addEventListener('change', () => {
+            syncServiceDropdown(true);
+            syncConditionalEncounterSections();
+        });
+        document.getElementById('selectedServices')?.addEventListener('change', syncConditionalEncounterSections);
+        if (window.jQuery) {
+            $('#selectedServices').on('change select2:select select2:unselect select2:clear', syncConditionalEncounterSections);
+        }
         syncServiceDropdown(true);
 
         async function searchEnrollee() {
@@ -566,6 +887,79 @@
             });
         }
 
+        function normalizeServiceLabel(value) {
+            return (value || '')
+                .toString()
+                .toLowerCase()
+                .replace(/&/g, ' and ')
+                .replace(/[\/()â€“â€”-]+/g, ' ')
+                .replace(/[^a-z0-9]+/g, ' ')
+                .replace(/\s+/g, ' ')
+                .trim();
+        }
+
+        function selectedServiceLabels() {
+            const select = document.getElementById('selectedServices');
+            if (!select) return [];
+
+            const nativeLabels = Array.from(select.selectedOptions || [])
+                .filter(option => !option.disabled)
+                .map(option => `${option.value} ${option.textContent}`);
+
+            const select2Labels = window.jQuery && $(select).data('select2')
+                ? ($(select).select2('data') || []).map(item => `${item.id || ''} ${item.text || ''}`)
+                : [];
+
+            return [...nativeLabels, ...select2Labels]
+                .map(normalizeServiceLabel)
+                .filter(Boolean);
+        }
+
+        function hasSelectedService(exactValue, fallbackTokens) {
+            const labels = selectedServiceLabels();
+            const exact = normalizeServiceLabel(exactValue);
+            const tokens = (fallbackTokens || []).map(normalizeServiceLabel).filter(Boolean);
+            return labels.some(label => label === exact || label.includes(exact) || tokens.some(token => label.includes(token)));
+        }
+
+        function clearPrescriptionRows() {
+            const rows = document.querySelectorAll('.prescription-row');
+            rows.forEach((row, index) => {
+                if (index > 0) row.remove();
+            });
+            const firstRow = document.querySelector('.prescription-row');
+            if (firstRow) {
+                const drug = firstRow.querySelector('.drug-inventory-select');
+                const quantity = firstRow.querySelector('.prescription-quantity');
+                if (drug) drug.value = '';
+                if (quantity) quantity.value = 1;
+            }
+            reindexPrescriptionRows();
+        }
+
+        function syncConditionalEncounterSections() {
+            const labRequired = hasSelectedService('Laboratory services', ['laboratory', 'lab']);
+            const prescriptionRequired = hasSelectedService('Drug prescription/dispensing', ['prescription', 'dispensing', 'drug']);
+            const laboratorySection = document.getElementById('laboratorySection');
+            const prescriptionSection = document.getElementById('prescriptionSection');
+            const laboratorySelect = document.getElementById('selectedLaboratoryTests');
+
+            if (laboratorySection) laboratorySection.style.display = labRequired ? 'block' : 'none';
+            if (!labRequired && laboratorySelect) {
+                Array.from(laboratorySelect.options).forEach(option => option.selected = false);
+                $(laboratorySelect).trigger('change.select2');
+                const labContainer = document.getElementById('laboratoryInvestigationsContainer');
+                if (labContainer) labContainer.innerHTML = '';
+            } else if (labRequired) {
+                buildLabRowsFromSelection();
+            }
+
+            if (prescriptionSection) prescriptionSection.style.display = prescriptionRequired ? 'block' : 'none';
+            if (!prescriptionRequired) {
+                clearPrescriptionRows();
+            }
+        }
+
         document.getElementById('addPrescriptionBtn')?.addEventListener('click', () => addPrescriptionRow());
         document.getElementById('prescriptionRows')?.addEventListener('click', event => {
             const button = event.target.closest('.remove-prescription-btn');
@@ -588,9 +982,10 @@
             if (doctorSelect) doctorSelect.dataset.selectedDoctor = '';
             await refreshDoctorDropdown();
             await refreshDrugInventoryDropdowns();
+            syncConditionalEncounterSections();
         });
         refreshDoctorDropdown();
-        refreshDrugInventoryDropdowns();
+        refreshDrugInventoryDropdowns().then(syncConditionalEncounterSections);
 
         function addValidationError(errors, selector, message) {
             const field = document.querySelector(selector);
@@ -637,6 +1032,7 @@
         document.getElementById('Status')?.addEventListener('change', syncReferralFields);
         document.getElementById('VisitType')?.addEventListener('change', syncReferralFields);
         syncReferralFields();
+        syncConditionalEncounterSections();
 
         function validateEncounterForm(event) {
             const form = document.getElementById('encounterForm');
@@ -685,6 +1081,17 @@
                 addValidationError(errors, '#selectedServices', 'Select at least one service delivered.');
             }
 
+            const labRequired = hasSelectedService('Laboratory services', ['laboratory', 'lab']);
+            if (labRequired && Array.from(document.getElementById('selectedLaboratoryTests')?.selectedOptions || []).length === 0) {
+                addValidationError(errors, '#selectedLaboratoryTests', 'Select at least one laboratory test or remove Laboratory services.');
+            }
+
+            const prescriptionRequired = hasSelectedService('Drug prescription/dispensing', ['prescription', 'dispensing', 'drug']);
+            const selectedDrugs = Array.from(document.querySelectorAll('.drug-inventory-select')).filter(select => select.value);
+            if (prescriptionRequired && selectedDrugs.length === 0) {
+                addValidationError(errors, '.drug-inventory-select', 'Select at least one drug or remove Drug prescription/dispensing.');
+            }
+
             if (isReferralEncounter()) {
                 if (!document.getElementById('Referral_ReferredHospitalId')?.value) {
                     addValidationError(errors, '#Referral_ReferredHospitalId', 'Select the referred hospital.');
@@ -705,16 +1112,18 @@
         }
 
         document.getElementById('encounterForm')?.addEventListener('submit', validateEncounterForm);
-        // Presenting complaints 'Other' toggle (checkbox list)
         function syncPresentingComplaintsOther() {
-            const otherCheckbox = document.querySelector('.presenting-complaint-checkbox[value="Other"]');
+            const select = document.getElementById('selectedPresentingComplaints');
             const row = document.getElementById('presentingComplaintsOtherRow');
-            if (!otherCheckbox || !row) return;
-            row.style.display = otherCheckbox.checked ? 'block' : 'none';
+            if (!select || !row) return;
+
+            const hasOther = Array.from(select.selectedOptions)
+                .some(option => option.value.toLowerCase() === 'other' || option.textContent.toLowerCase() === 'other');
+            row.style.display = hasOther ? 'block' : 'none';
         }
 
-        document.querySelectorAll('.presenting-complaint-checkbox').forEach(cb => cb.addEventListener('change', syncPresentingComplaintsOther));
-        // initialize on load
+        document.getElementById('selectedPresentingComplaints')?.addEventListener('change', syncPresentingComplaintsOther);
+        $('#selectedPresentingComplaints').on('select2:select select2:unselect', syncPresentingComplaintsOther);
         syncPresentingComplaintsOther();
     </script>
   

@@ -2,6 +2,7 @@
 using CTSHIPDashboard.Helpers;
 using CTSHIPDashboard.Hubs;
 using CTSHIPDashboard.Models;
+using CTSHIPDashboard.Models.ViewModels;
 using CTSHIPDashboard.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -94,6 +95,8 @@ namespace CTSHIPDashboard.Controllers
                 .Include(c => c.Enrollee).ThenInclude(e => e!.Hmo)
                 .Include(c => c.Provider)
                 .Include(c => c.SupportingDocuments)
+                .Include(c => c.Queries)
+                .Include(c => c.AuditTrails)
                 .FirstOrDefaultAsync(c => c.Id == id);
 
             if (claim == null) return NotFound();
@@ -326,21 +329,49 @@ namespace CTSHIPDashboard.Controllers
             if (!await CanAccessHmoScopedClaimAsync(claim)) return Forbid();
 
             var user = await _userManager.GetUserAsync(User);
+            string actorName = user?.FullName ?? user?.Email ?? "Reviewer";
 
             if (action == "approve")
             {
                 claim.Status = "Approved";
-                claim.ReviewedBy = user?.FullName ?? user?.Email ?? "Reviewer";
+                claim.ReviewedBy = actorName;
                 claim.DateReviewed = DateTime.Now;
                 claim.ReviewNotes = notes;
             }
             else if (action == "reject")
             {
                 claim.Status = "Rejected";
-                claim.RejectedBy = user?.FullName ?? user?.Email ?? "Reviewer";
+                claim.RejectedBy = actorName;
                 claim.DateRejected = DateTime.Now;
                 claim.RejectionReason = notes;
             }
+            else if (action == "query")
+            {
+                claim.Status = "Query Raised";
+                claim.ReturnedForClarificationAt = DateTime.UtcNow;
+                claim.ReturnedForClarificationBy = actorName;
+                claim.ClarificationNote = notes?.Trim();
+
+                _context.ClaimQueries.Add(new ClaimQuery
+                {
+                    ClaimId = claim.Id,
+                    QueryNumber = $"QRY-{DateTime.UtcNow:yyyyMMddHHmmss}-{claim.Id}",
+                    Status = "Open",
+                    QueryRaised = string.IsNullOrWhiteSpace(notes) ? "Clarification required before HMO certification." : notes.Trim(),
+                    ResponsiblePerson = claim.SubmittedBy,
+                    RaisedAt = DateTime.UtcNow,
+                    RaisedByName = actorName
+                });
+            }
+
+            _context.ClaimAuditTrails.Add(new ClaimAuditTrail
+            {
+                ClaimId = claim.Id,
+                Action = action == "query" ? "HMO.QueryRaised" : action == "reject" ? "HMO.Rejected" : "HMO.ReviewApproved",
+                PerformedByName = actorName,
+                PerformedAt = DateTime.UtcNow,
+                Summary = $"HMO review action '{action}' recorded. Notes: {notes}"
+            });
 
             await _context.SaveChangesAsync();
             await _auditService.LogAsync(
@@ -405,6 +436,15 @@ namespace CTSHIPDashboard.Controllers
                     : notes.Trim();
             }
 
+            _context.ClaimAuditTrails.Add(new ClaimAuditTrail
+            {
+                ClaimId = claim.Id,
+                Action = action == "reject" ? "HMO.PaymentRejected" : "HMO.Paid",
+                PerformedByName = user?.FullName ?? user?.Email ?? "Reviewer",
+                PerformedAt = DateTime.UtcNow,
+                Summary = action == "reject" ? claim.RejectionReason : $"Payment reference: {claim.PaymentReference}"
+            });
+
             await _context.SaveChangesAsync();
             await _auditService.LogAsync(
                 action == "reject" ? "Claim.PaymentRejected" : "Claim.Paid",
@@ -418,6 +458,233 @@ namespace CTSHIPDashboard.Controllers
                 HttpContext.RequestAborted);
             TempData["Success"] = $"Claim {claim.ClaimNumber} is now {claim.Status}!";
             return RedirectToClaimsLanding();
+        }
+
+
+        [Authorize(Roles = "CTSHIPAdmin,Admin,HMO,Reviewer,Monitoring,NHIA,IHSA,NEDCAdmin")]
+        public async Task<IActionResult> SecondaryProviderClaimsReport(
+            string search = "",
+            string status = "All",
+            DateTime? fromDate = null,
+            DateTime? toDate = null,
+            CancellationToken cancellationToken = default)
+        {
+            IQueryable<Claim> baseQuery = _context.Claims
+                .AsNoTracking()
+                .Include(c => c.Enrollee!)
+                    .ThenInclude(e => e.Hmo!)
+                .Include(c => c.Provider!)
+                .Include(c => c.Queries)
+                .Where(c => c.Provider != null && c.Provider.Level == "Secondary");
+
+            baseQuery = await ScopeClaimsToCurrentUserAsync(baseQuery);
+
+            IQueryable<Claim> query = baseQuery;
+            if (!string.IsNullOrWhiteSpace(search))
+            {
+                string term = $"%{search.Trim()}%";
+                query = query.Where(c =>
+                    EF.Functions.Like(c.ClaimNumber, term) ||
+                    EF.Functions.Like(c.Enrollee!.FullName, term) ||
+                    EF.Functions.Like(c.Enrollee!.EnrollmentNumber, term) ||
+                    EF.Functions.Like(c.Provider!.Name, term));
+            }
+
+            if (!string.Equals(status, "All", StringComparison.OrdinalIgnoreCase))
+            {
+                query = query.Where(c => c.Status == status);
+            }
+
+            if (fromDate.HasValue)
+            {
+                query = query.Where(c => c.DateSubmitted >= fromDate.Value.Date);
+            }
+
+            if (toDate.HasValue)
+            {
+                DateTime exclusiveTo = toDate.Value.Date.AddDays(1);
+                query = query.Where(c => c.DateSubmitted < exclusiveTo);
+            }
+
+            List<Claim> claims = await query
+                .OrderByDescending(c => c.DateSubmitted)
+                .Take(500)
+                .ToListAsync(cancellationToken);
+
+            var model = new SecondaryProviderClaimsReportViewModel
+            {
+                Search = search,
+                Status = status,
+                FromDate = fromDate,
+                ToDate = toDate,
+                TotalClaims = claims.Count,
+                SubmittedClaims = claims.Count(c => c.Status == "Submitted"),
+                QueryClaims = claims.Count(c => c.Status == "Query Raised" || c.Queries.Any(q => q.Status != "Closed")),
+                ApprovedClaims = claims.Count(c => c.Status == "Approved"),
+                PaidClaims = claims.Count(c => c.Status == "Paid"),
+                RejectedClaims = claims.Count(c => c.Status == "Rejected"),
+                CertifiedClaims = claims.Count(c => c.HmoCertificationStatus == "Certified"),
+                IhsaVerifiedClaims = claims.Count(c => c.IhsaVerificationStatus == "Verified"),
+                TotalClaimAmount = claims.Sum(c => c.Amount),
+                PaidClaimAmount = claims.Where(c => c.Status == "Paid").Sum(c => c.Amount),
+                Claims = claims.Select(c => new SecondaryProviderClaimRowViewModel
+                {
+                    Id = c.Id,
+                    ClaimNumber = c.ClaimNumber,
+                    EnrolleeName = c.Enrollee?.FullName ?? "N/A",
+                    EnrollmentNumber = c.Enrollee?.EnrollmentNumber ?? "N/A",
+                    ProviderName = c.Provider?.Name ?? "N/A",
+                    HmoName = c.Enrollee?.Hmo?.Name ?? "N/A",
+                    State = c.Provider?.State ?? c.Enrollee?.State ?? "N/A",
+                    Amount = c.Amount,
+                    Status = c.Status,
+                    HmoCertificationStatus = c.HmoCertificationStatus,
+                    IhsaVerificationStatus = c.IhsaVerificationStatus,
+                    OpenQueries = c.Queries.Count(q => q.Status != "Closed"),
+                    DateSubmitted = c.DateSubmitted
+                }).ToList(),
+                ProviderSummaries = claims
+                    .GroupBy(c => new { Provider = c.Provider?.Name ?? "N/A", State = c.Provider?.State ?? "N/A" })
+                    .Select(g => new SecondaryProviderClaimProviderSummaryViewModel
+                    {
+                        ProviderName = g.Key.Provider,
+                        State = g.Key.State,
+                        Claims = g.Count(),
+                        Amount = g.Sum(c => c.Amount),
+                        QueryClaims = g.Count(c => c.Status == "Query Raised" || c.Queries.Any(q => q.Status != "Closed")),
+                        PaidClaims = g.Count(c => c.Status == "Paid")
+                    })
+                    .OrderByDescending(x => x.Amount)
+                    .ToList(),
+                StatusSummaries = claims
+                    .GroupBy(c => c.Status)
+                    .Select(g => new SecondaryProviderClaimStatusSummaryViewModel
+                    {
+                        Status = g.Key,
+                        Claims = g.Count(),
+                        Amount = g.Sum(c => c.Amount)
+                    })
+                    .OrderByDescending(x => x.Claims)
+                    .ToList()
+            };
+
+            return View(model);
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        [Authorize(Roles = "HMO,Reviewer")]
+        public async Task<IActionResult> CloseClaimQuery(int queryId, string resolution, string? closureNote = null, CancellationToken cancellationToken = default)
+        {
+            ClaimQuery? query = await _context.ClaimQueries
+                .Include(x => x.Claim)
+                .FirstOrDefaultAsync(x => x.Id == queryId, cancellationToken);
+            if (query?.Claim == null) return NotFound();
+            if (!await CanAccessHmoScopedClaimAsync(query.Claim)) return Forbid();
+
+            ApplicationUser? user = await _userManager.GetUserAsync(User);
+            string actorName = user?.FullName ?? user?.Email ?? "Reviewer";
+            query.Resolution = resolution?.Trim();
+            query.ClosureNote = closureNote?.Trim();
+            query.ResolvedAt = DateTime.UtcNow;
+            query.ResolvedByName = actorName;
+            query.ClosedAt = DateTime.UtcNow;
+            query.ClosedByName = actorName;
+            query.Status = "Closed";
+
+            if (!await _context.ClaimQueries.AnyAsync(x => x.ClaimId == query.ClaimId && x.Id != query.Id && x.Status != "Closed", cancellationToken))
+            {
+                query.Claim.Status = "Submitted";
+            }
+
+            _context.ClaimAuditTrails.Add(new ClaimAuditTrail
+            {
+                ClaimId = query.ClaimId,
+                Action = "HMO.QueryClosed",
+                PerformedByName = actorName,
+                PerformedAt = DateTime.UtcNow,
+                Summary = $"Query {query.QueryNumber} closed. Resolution: {resolution}"
+            });
+
+            await _context.SaveChangesAsync(cancellationToken);
+            TempData["Success"] = "Claim query closed with resolution and timestamp.";
+            return RedirectToAction(nameof(Details), new { id = query.ClaimId });
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        [Authorize(Roles = "HMO,Reviewer")]
+        public async Task<IActionResult> CertifyClaim(int id, string? note = null, CancellationToken cancellationToken = default)
+        {
+            Claim? claim = await _context.Claims.Include(c => c.Queries).FirstOrDefaultAsync(c => c.Id == id, cancellationToken);
+            if (claim == null) return NotFound();
+            if (!await CanAccessHmoScopedClaimAsync(claim)) return Forbid();
+            if (claim.Queries.Any(q => q.Status != "Closed"))
+            {
+                TempData["Error"] = "Close all claim queries before HMO certification.";
+                return RedirectToAction(nameof(Details), new { id });
+            }
+
+            ApplicationUser? user = await _userManager.GetUserAsync(User);
+            string actorName = user?.FullName ?? user?.Email ?? "Reviewer";
+            claim.HmoCertificationStatus = "Certified";
+            claim.HmoCertifiedBy = actorName;
+            claim.HmoCertifiedAt = DateTime.UtcNow;
+            claim.HmoCertificationNote = note?.Trim();
+            claim.IhsaVerificationStatus = "Ready for IHSA";
+
+            _context.ClaimAuditTrails.Add(new ClaimAuditTrail
+            {
+                ClaimId = claim.Id,
+                Action = "HMO.Certified",
+                PerformedByName = actorName,
+                PerformedAt = DateTime.UtcNow,
+                Summary = "HMO electronically certified the claim dataset without overwriting provider source data."
+            });
+
+            await _context.SaveChangesAsync(cancellationToken);
+            TempData["Success"] = "Claim certified and moved to IHSA verification queue.";
+            return RedirectToAction(nameof(Details), new { id });
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        [Authorize(Roles = "IHSA,NEDCAdmin,NHIA,Monitoring,CTSHIPAdmin,Admin")]
+        public async Task<IActionResult> VerifyClaimByIhsa(int id, string verificationStatus, string? note = null, CancellationToken cancellationToken = default)
+        {
+            if (verificationStatus is not "Verified" and not "Flagged")
+            {
+                TempData["Error"] = "Select a valid IHSA verification decision.";
+                return RedirectToAction(nameof(Details), new { id });
+            }
+
+            Claim? claim = await _context.Claims.FindAsync(new object?[] { id }, cancellationToken);
+            if (claim == null) return NotFound();
+            if (claim.HmoCertificationStatus != "Certified")
+            {
+                TempData["Error"] = "HMO certification is required before IHSA verification.";
+                return RedirectToAction(nameof(Details), new { id });
+            }
+
+            ApplicationUser? user = await _userManager.GetUserAsync(User);
+            string actorName = user?.FullName ?? user?.Email ?? User.Identity?.Name ?? "IHSA";
+            claim.IhsaVerificationStatus = verificationStatus;
+            claim.IhsaVerifiedBy = actorName;
+            claim.IhsaVerifiedAt = DateTime.UtcNow;
+            claim.IhsaVerificationNote = note?.Trim();
+
+            _context.ClaimAuditTrails.Add(new ClaimAuditTrail
+            {
+                ClaimId = claim.Id,
+                Action = verificationStatus == "Verified" ? "IHSA.Verified" : "IHSA.Flagged",
+                PerformedByName = actorName,
+                PerformedAt = DateTime.UtcNow,
+                Summary = note?.Trim()
+            });
+
+            await _context.SaveChangesAsync(cancellationToken);
+            TempData["Success"] = "IHSA verification decision saved.";
+            return RedirectToAction(nameof(Details), new { id });
         }
 
 
@@ -570,5 +837,6 @@ namespace CTSHIPDashboard.Controllers
         }
     }
 }
+
 
 

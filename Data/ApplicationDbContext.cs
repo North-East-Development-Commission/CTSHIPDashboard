@@ -1,4 +1,4 @@
-using CTSHIPDashboard.Models;
+ï»¿using CTSHIPDashboard.Models;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
@@ -14,9 +14,13 @@ namespace CTSHIPDashboard.Data
         public DbSet<MedicalHistory> MedicalHistories { get; set; }
         public DbSet<Enrollee> Enrollees { get; set; }
         public DbSet<Encounter> Encounters { get; set; }
+        public DbSet<EncounterQuery> EncounterQueries { get; set; }
+        public DbSet<EncounterAuditTrail> EncounterAuditTrails { get; set; }
         public DbSet<Organization> Organizations { get; set; }
         public DbSet<Claim> Claims { get; set; }
         public DbSet<ClaimSupportingDocument> ClaimSupportingDocuments { get; set; }
+        public DbSet<ClaimQuery> ClaimQueries { get; set; }
+        public DbSet<ClaimAuditTrail> ClaimAuditTrails { get; set; }
         public DbSet<Provider> Providers { get; set; }
         public DbSet<Doctor> Doctors { get; set; }
         public DbSet<Complaint> Complaints { get; set; }
@@ -354,6 +358,57 @@ namespace CTSHIPDashboard.Data
                     .OnDelete(DeleteBehavior.Restrict);
             });
 
+            modelBuilder.Entity<Claim>(entity =>
+            {
+                entity.Property(x => x.Amount).HasColumnType("decimal(18,2)");
+                entity.Property(x => x.HmoCertificationStatus).IsRequired().HasMaxLength(50).HasDefaultValue("Not Certified");
+                entity.Property(x => x.HmoCertifiedBy).HasMaxLength(200);
+                entity.Property(x => x.HmoCertificationNote).HasMaxLength(1000);
+                entity.Property(x => x.IhsaVerificationStatus).IsRequired().HasMaxLength(50).HasDefaultValue("Not Ready");
+                entity.Property(x => x.IhsaVerifiedBy).HasMaxLength(200);
+                entity.Property(x => x.IhsaVerificationNote).HasMaxLength(1000);
+                entity.Property(x => x.ReturnedForClarificationBy).HasMaxLength(200);
+                entity.Property(x => x.ClarificationNote).HasMaxLength(1000);
+                entity.HasIndex(x => x.HmoCertificationStatus);
+                entity.HasIndex(x => x.IhsaVerificationStatus);
+            });
+
+            modelBuilder.Entity<ClaimQuery>(entity =>
+            {
+                entity.ToTable("ClaimQueries");
+                entity.HasKey(x => x.Id);
+                entity.Property(x => x.QueryNumber).IsRequired().HasMaxLength(40);
+                entity.Property(x => x.Status).IsRequired().HasMaxLength(50).HasDefaultValue("Open");
+                entity.Property(x => x.QueryRaised).IsRequired().HasMaxLength(2000);
+                entity.Property(x => x.ResponsiblePerson).IsRequired().HasMaxLength(200);
+                entity.Property(x => x.Response).HasMaxLength(2000);
+                entity.Property(x => x.Resolution).HasMaxLength(2000);
+                entity.Property(x => x.ClosureNote).HasMaxLength(1000);
+                entity.Property(x => x.RaisedByName).HasMaxLength(200);
+                entity.Property(x => x.RespondedByName).HasMaxLength(200);
+                entity.Property(x => x.ResolvedByName).HasMaxLength(200);
+                entity.Property(x => x.ClosedByName).HasMaxLength(200);
+                entity.HasIndex(x => x.ClaimId);
+                entity.HasIndex(x => x.Status);
+                entity.HasOne(x => x.Claim)
+                    .WithMany(x => x.Queries)
+                    .HasForeignKey(x => x.ClaimId)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            modelBuilder.Entity<ClaimAuditTrail>(entity =>
+            {
+                entity.ToTable("ClaimAuditTrails");
+                entity.HasKey(x => x.Id);
+                entity.Property(x => x.Action).IsRequired().HasMaxLength(100);
+                entity.Property(x => x.PerformedByName).HasMaxLength(200);
+                entity.Property(x => x.Summary).HasMaxLength(2000);
+                entity.HasIndex(x => x.ClaimId);
+                entity.HasOne(x => x.Claim)
+                    .WithMany(x => x.AuditTrails)
+                    .HasForeignKey(x => x.ClaimId)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
             modelBuilder.Entity<ClaimSupportingDocument>(entity =>
             {
                 entity.ToTable("ClaimSupportingDocuments");
@@ -383,6 +438,54 @@ namespace CTSHIPDashboard.Data
                     .IsRequired()
                     .HasMaxLength(100)
                     .HasDefaultValue("Acute illness");
+                entity.Property(x => x.CapitationCharge).HasColumnType("decimal(18,2)");
+                entity.Property(x => x.HmoVerificationStatus).IsRequired().HasMaxLength(50).HasDefaultValue("Submitted");
+                entity.Property(x => x.HmoVerifiedBy).HasMaxLength(200);
+                entity.Property(x => x.HmoVerificationNote).HasMaxLength(1000);
+                entity.Property(x => x.IhsaVerificationStatus).IsRequired().HasMaxLength(50).HasDefaultValue("Not Ready");
+                entity.Property(x => x.IhsaVerifiedBy).HasMaxLength(200);
+                entity.Property(x => x.IhsaVerificationNote).HasMaxLength(1000);
+                entity.Property(x => x.ReturnedForClarificationBy).HasMaxLength(200);
+                entity.Property(x => x.ClarificationNote).HasMaxLength(1000);
+                entity.HasIndex(x => x.HmoVerificationStatus);
+                entity.HasIndex(x => x.IhsaVerificationStatus);
+            });
+
+            modelBuilder.Entity<EncounterQuery>(entity =>
+            {
+                entity.ToTable("EncounterQueries");
+                entity.HasKey(x => x.Id);
+                entity.Property(x => x.QueryNumber).IsRequired().HasMaxLength(40);
+                entity.Property(x => x.Status).IsRequired().HasMaxLength(50).HasDefaultValue("Open");
+                entity.Property(x => x.QueryRaised).IsRequired().HasMaxLength(2000);
+                entity.Property(x => x.ResponsiblePerson).IsRequired().HasMaxLength(200);
+                entity.Property(x => x.Response).HasMaxLength(2000);
+                entity.Property(x => x.Resolution).HasMaxLength(2000);
+                entity.Property(x => x.ClosureNote).HasMaxLength(1000);
+                entity.Property(x => x.RaisedByName).HasMaxLength(200);
+                entity.Property(x => x.RespondedByName).HasMaxLength(200);
+                entity.Property(x => x.ResolvedByName).HasMaxLength(200);
+                entity.Property(x => x.ClosedByName).HasMaxLength(200);
+                entity.HasIndex(x => x.EncounterId);
+                entity.HasIndex(x => x.Status);
+                entity.HasOne(x => x.Encounter)
+                    .WithMany(x => x.Queries)
+                    .HasForeignKey(x => x.EncounterId)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            modelBuilder.Entity<EncounterAuditTrail>(entity =>
+            {
+                entity.ToTable("EncounterAuditTrails");
+                entity.HasKey(x => x.Id);
+                entity.Property(x => x.Action).IsRequired().HasMaxLength(100);
+                entity.Property(x => x.PerformedByName).HasMaxLength(200);
+                entity.Property(x => x.Summary).HasMaxLength(2000);
+                entity.HasIndex(x => x.EncounterId);
+                entity.HasOne(x => x.Encounter)
+                    .WithMany(x => x.AuditTrails)
+                    .HasForeignKey(x => x.EncounterId)
+                    .OnDelete(DeleteBehavior.Restrict);
             });
 
             modelBuilder.Entity<Doctor>(entity =>
@@ -437,7 +540,7 @@ namespace CTSHIPDashboard.Data
                     .OnDelete(DeleteBehavior.Restrict);
             });
 
-            // GLOBAL FIX — ALL decimal ? decimal(18,2)
+            // GLOBAL FIX â€” ALL decimal ? decimal(18,2)
             foreach (var property in modelBuilder.Model.GetEntityTypes()
                 .SelectMany(t => t.GetProperties())
                 .Where(p => p.ClrType == typeof(decimal)))
@@ -448,14 +551,14 @@ namespace CTSHIPDashboard.Data
        
             base.OnModelCreating(modelBuilder);
 
-            // FIX CASCADE DELETE ISSUE — THIS IS THE SOLUTION
+            // FIX CASCADE DELETE ISSUE â€” THIS IS THE SOLUTION
             foreach (var relationship in modelBuilder.Model.GetEntityTypes()
                 .SelectMany(e => e.GetForeignKeys()))
             {
                 relationship.DeleteBehavior = DeleteBehavior.Restrict;
             }
 
-            // OR — ONLY FIX SPECIFIC ONES (RECOMMENDED FOR PRODUCTION)
+            // OR â€” ONLY FIX SPECIFIC ONES (RECOMMENDED FOR PRODUCTION)
             modelBuilder.Entity<Claim>()
                 .HasOne(c => c.Provider)
                 .WithMany(p => p.Claims)
@@ -509,5 +612,7 @@ namespace CTSHIPDashboard.Data
         }
     }
 }
+
+
 
 

@@ -1,85 +1,216 @@
-﻿@model CTSHIPDashboard.Models.Encounter
+@model CTSHIPDashboard.Models.Encounter
+@{
+    ViewData["Title"] = "Encounter Details - " + Model.EncounterNumber;
+}
 
 <div class="container-fluid py-5">
     <div class="row justify-content-center">
-        <div class="col-12 col-lg-10">
-            <div class="card border-0 shadow-lg rounded-4">
+        <div class="col-12 col-xl-11">
+            <div class="card border-0 shadow-lg rounded-4 overflow-hidden">
                 <div class="bg-success text-white text-center py-5">
-                    <h1 class="display-5 fw-bold mb-2">ENCOUNTER DETAILS</h1>
+                    <h1 class="display-5 fw-bold mb-2">PRIMARY PROVIDER ENCOUNTER DETAILS</h1>
                     <p class="lead mb-0">@Model.EncounterNumber</p>
                 </div>
 
                 <div class="card-body p-5">
-                    <div class="row g-5">
-                        <div class="col-md-5">
-                            <div class="card border-success shadow">
+                    <div class="row g-4 mb-4">
+                        <div class="col-lg-4">
+                            <div class="card border-success shadow h-100">
                                 <div class="card-body text-center p-4">
                                     <img src="@EnrolleePhotoStorage.ResolvePhotoPath(Model.Enrollee?.PhotoPath, Model.Enrollee?.EnrollmentNumber)"
                                          class="rounded-circle shadow" style="width:180px;height:180px;object-fit:cover;border:6px solid #3B703B;" />
                                     <h4 class="mt-4 fw-bold">@Model.Enrollee?.FullName</h4>
-                                    <p>ID: @Model.Enrollee?.EnrollmentNumber</p>
-                                    <p>HMO: @Model.Enrollee?.Hmo?.Name</p>
+                                    <p class="mb-1"><strong>ID:</strong> @Model.Enrollee?.EnrollmentNumber</p>
+                                    <p class="mb-1"><strong>Sex / DOB:</strong> @(Model.Enrollee?.Gender ?? "N/A") / @(Model.Enrollee == null ? "N/A" : Model.Enrollee.DateOfBirth.ToString("dd MMM yyyy"))</p>
+                                    <p class="mb-0"><strong>Location:</strong> @Model.Enrollee?.State, @Model.Enrollee?.LGA, @Model.Enrollee?.Ward</p>
                                 </div>
                             </div>
                         </div>
 
-                        <div class="col-md-7">
+                        <div class="col-lg-8">
                             <div class="row g-4">
-                                <div class="col-12">
-                                    <div class="card shadow-sm">
-                                        <div class="card-body">
-                                            <h5 class="text-success fw-bold">Visit Information</h5>
-                                            <p><strong>Date:</strong> @Model.VisitDate</p>
-                                            <p><strong>Type:</strong> @Model.VisitType</p>
-                                            <p><strong>Provider:</strong> @Model.Provider?.Name</p>
-                                            <p>
-                                                <strong>Status:</strong>
-                                                <span class="badge bg-success fs-6">@Model.Status</span>
-                                            </p>
-                                        </div>
-                                    </div>
+                                <div class="col-md-6">
+                                    <div class="card shadow-sm h-100"><div class="card-body">
+                                        <h5 class="text-success fw-bold">Encounter Information</h5>
+                                        <p><strong>Date:</strong> @Model.VisitDate.ToString("dd MMM yyyy HH:mm")</p>
+                                        <p><strong>Type:</strong> @Model.VisitType</p>
+                                        <p><strong>Reason:</strong> @Model.ReasonForEncounter</p>
+                                        <p><strong>Outcome:</strong> <span class="badge bg-success">@Model.Status</span></p>
+                                    </div></div>
                                 </div>
-
-                                <div class="col-12">
-                                    <div class="card shadow-sm">
-                                        <div class="card-body">
-                                            <h5 class="text-success fw-bold">Clinical Details</h5>
-                                            <p><strong>Chief Complaint:</strong> @Model.ChiefComplaint</p>
-                                            <p><strong>Diagnosis:</strong> @Model.Diagnosis</p>
-                                            <p><strong>Treatment:</strong> @Model.TreatmentGiven</p>
-                                            <p><strong>Attended By:</strong> @(Model.Doctor?.FullName ?? Model.SeenBy ?? "N/A")</p>
-                                            <p><strong>Specialty / Unit:</strong> @(Model.Doctor?.Specialty ?? Model.Rank ?? "N/A")</p>
-                                            <p><strong>Recorded By:</strong> @Model.AttendedBy</p>
-                                        </div>
-                                    </div>
+                                <div class="col-md-6">
+                                    <div class="card shadow-sm h-100"><div class="card-body">
+                                        <h5 class="text-success fw-bold">Provider / Staff</h5>
+                                        <p><strong>Facility:</strong> @Model.Provider?.Name</p>
+                                        <p><strong>Facility ID:</strong> @Model.Provider?.Code</p>
+                                        <p><strong>Attended By:</strong> @(Model.Doctor?.FullName ?? Model.SeenBy ?? "N/A")</p>
+                                        <p><strong>Recorded By:</strong> @Model.AttendedBy</p>
+                                    </div></div>
                                 </div>
-
                                 <div class="col-12">
-                                    <div class="card @(Model.ClaimId == null ? "border-warning" : "border-success") shadow-sm">
-                                        <div class="card-body text-center py-4">
-                                            <h5>Total Amount</h5>
-                                            <h2 class="display-5 fw-bold text-success">₦@Model.TotalAmount</h2>
-                                            @if (Model.ClaimId == null)
-                                            {
-                                                <p class="text-warning fw-bold">Not yet claimed</p>
-                                            }
-                                            else
-                                            {
-                                                <p class="text-success fw-bold">Claim Submitted</p>
-                                            }
+                                    <div class="card border-success shadow-sm"><div class="card-body">
+                                        <div class="row g-3 text-center">
+                                            <div class="col-md-4"><div class="text-muted">Capitation Charge</div><h3 class="text-success fw-bold">&#8358;@Model.CapitationCharge.ToString("N2")</h3></div>
+                                            <div class="col-md-4"><div class="text-muted">HMO Status</div><span class="badge bg-primary fs-6">@Model.HmoVerificationStatus</span></div>
+                                            <div class="col-md-4"><div class="text-muted">IHSA Status</div><span class="badge bg-info text-dark fs-6">@Model.IhsaVerificationStatus</span></div>
                                         </div>
-                                    </div>
+                                    </div></div>
                                 </div>
                             </div>
                         </div>
                     </div>
+
+                    <div class="row g-4 mb-4">
+                        <div class="col-lg-6">
+                            <div class="card shadow-sm h-100"><div class="card-body">
+                                <h5 class="text-success fw-bold">Clinical Details</h5>
+                                <p><strong>Presenting Complaint:</strong> @Model.ChiefComplaint</p>
+                                <p><strong>Diagnosis:</strong> @Model.Diagnosis</p>
+                                <p><strong>Treatment / Note:</strong> @Model.TreatmentGiven</p>
+                                <p><strong>Services:</strong><br />
+                                    @foreach (var service in Model.Services)
+                                    {
+                                        <span class="badge bg-success me-1 mb-1">@service.ServiceName</span>
+                                    }
+                                </p>
+                            </div></div>
+                        </div>
+                        <div class="col-lg-6">
+                            <div class="card shadow-sm h-100"><div class="card-body">
+                                <h5 class="text-success fw-bold">Medicines / Laboratory</h5>
+                                <p><strong>Medicines:</strong></p>
+                                @if (Model.Prescriptions.Count == 0)
+                                {
+                                    <p class="text-muted">No drugs prescribed or dispensed.</p>
+                                }
+                                else
+                                {
+                                    <ul class="mb-3">
+                                        @foreach (var prescription in Model.Prescriptions)
+                                        {
+                                            <li>@prescription.DrugName @prescription.Strength - @prescription.QuantityDispensed.ToString("N0") @prescription.UnitOfMeasure</li>
+                                        }
+                                    </ul>
+                                }
+                                <p><strong>Laboratory:</strong> @(string.IsNullOrWhiteSpace(Model.LabTests) ? "No laboratory tests recorded." : Model.LabTests)</p>
+                            </div></div>
+                        </div>
+                    </div>
+
+                    <div class="card border-success shadow-sm mb-4">
+                        <div class="card-header bg-success text-white fw-bold">HMO Query, Certification & IHSA Verification Trail</div>
+                        <div class="card-body">
+                            <div class="row g-3 mb-4">
+                                <div class="col-md-4"><strong>Original Facility Data:</strong><br /><span class="text-muted">Preserved @(!string.IsNullOrWhiteSpace(Model.OriginalFacilityDataJson) ? "Yes" : "Pending")</span></div>
+                                <div class="col-md-4"><strong>HMO Certified By:</strong><br />@(Model.HmoVerifiedBy ?? "Pending") @Model.HmoVerifiedAt?.ToString("dd MMM yyyy HH:mm")</div>
+                                <div class="col-md-4"><strong>IHSA Verified By:</strong><br />@(Model.IhsaVerifiedBy ?? "Pending") @Model.IhsaVerifiedAt?.ToString("dd MMM yyyy HH:mm")</div>
+                            </div>
+
+                            <h6 class="fw-bold text-success">Query Cycle</h6>
+                            @if (Model.Queries.Count == 0)
+                            {
+                                <p class="text-muted">No encounter queries have been raised.</p>
+                            }
+                            else
+                            {
+                                <div class="table-responsive">
+                                    <table class="table table-sm align-middle">
+                                        <thead><tr><th>Query Raised</th><th>Responsible</th><th>Response</th><th>Resolution</th><th>Closure</th><th>Status / Timestamp</th></tr></thead>
+                                        <tbody>
+                                            @foreach (var query in Model.Queries.OrderByDescending(q => q.RaisedAt))
+                                            {
+                                                <tr>
+                                                    <td>@query.QueryRaised<br /><small class="text-muted">By @query.RaisedByName</small></td>
+                                                    <td>@query.ResponsiblePerson</td>
+                                                    <td>@(query.Response ?? "?")<br /><small class="text-muted">@query.RespondedAt?.ToString("dd MMM yyyy HH:mm")</small></td>
+                                                    <td>@(query.Resolution ?? "?")</td>
+                                                    <td>@(query.ClosureNote ?? "?")<br /><small class="text-muted">@query.ClosedAt?.ToString("dd MMM yyyy HH:mm")</small></td>
+                                                    <td><span class="badge bg-secondary">@query.Status</span><br /><small>@query.RaisedAt.ToString("dd MMM yyyy HH:mm")</small></td>
+                                                </tr>
+                                            }
+                                        </tbody>
+                                    </table>
+                                </div>
+                            }
+
+                            @if (User.IsInRole("HMO") || User.IsInRole("Reviewer"))
+                            {
+                                <div class="row g-3 mt-3">
+                                    <div class="col-lg-6">
+                                        <form asp-action="RaiseEncounterQuery" method="post" class="border rounded-3 p-3 h-100">
+                                            @Html.AntiForgeryToken()
+                                            <input type="hidden" name="id" value="@Model.Id" />
+                                            <label class="form-label fw-bold text-success">Return Query To Facility</label>
+                                            <textarea name="queryRaised" class="form-control mb-2" rows="3" placeholder="Clarification required" required></textarea>
+                                            <input name="responsiblePerson" class="form-control mb-2" placeholder="Responsible person / unit" required />
+                                            <button class="btn btn-warning fw-bold">Return Query</button>
+                                        </form>
+                                    </div>
+                                    <div class="col-lg-6">
+                                        @foreach (var query in Model.Queries.Where(q => q.Status != "Closed" && !string.IsNullOrWhiteSpace(q.Response)))
+                                        {
+                                            <form asp-action="CloseEncounterQuery" method="post" class="border rounded-3 p-3 mb-3">
+                                                @Html.AntiForgeryToken()
+                                                <input type="hidden" name="queryId" value="@query.Id" />
+                                                <label class="form-label fw-bold text-success">Resolve @query.QueryNumber</label>
+                                                <textarea name="resolution" class="form-control mb-2" rows="2" placeholder="Resolution" required></textarea>
+                                                <input name="closureNote" class="form-control mb-2" placeholder="Closure note" />
+                                                <button class="btn btn-success">Close Query</button>
+                                            </form>
+                                        }
+                                        @if (Model.HmoVerificationStatus != "Certified" && !Model.Queries.Any(q => q.Status != "Closed"))
+                                        {
+                                            <form asp-action="CertifyEncounter" method="post" class="border rounded-3 p-3">
+                                                @Html.AntiForgeryToken()
+                                                <input type="hidden" name="id" value="@Model.Id" />
+                                                <label class="form-label fw-bold text-success">HMO Certification Note</label>
+                                                <textarea name="note" class="form-control mb-2" rows="2" placeholder="Certification note"></textarea>
+                                                <button class="btn btn-primary">Certify Dataset</button>
+                                            </form>
+                                        }
+                                    </div>
+                                </div>
+                            }
+
+                            @if ((User.IsInRole("IHSA") || User.IsInRole("NEDCAdmin") || User.IsInRole("NHIA") || User.IsInRole("Monitoring") || User.IsInRole("CTSHIPAdmin") || User.IsInRole("Admin")) && Model.HmoVerificationStatus == "Certified")
+                            {
+                                <form asp-action="VerifyEncounterByIhsa" method="post" class="border rounded-3 p-3 mt-3">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="id" value="@Model.Id" />
+                                    <label class="form-label fw-bold text-success">IHSA Verification Decision</label>
+                                    <select name="verificationStatus" class="form-select mb-2" required>
+                                        <option value="Verified">Verified</option>
+                                        <option value="Flagged">Flagged for follow-up</option>
+                                    </select>
+                                    <textarea name="note" class="form-control mb-2" rows="2" placeholder="IHSA technical oversight note"></textarea>
+                                    <button class="btn btn-success">Save IHSA Decision</button>
+                                </form>
+                            }
+
+                            <h6 class="fw-bold text-success mt-4">Audit Trail</h6>
+                            @if (Model.AuditTrails.Count == 0)
+                            {
+                                <p class="text-muted mb-0">No audit events recorded yet.</p>
+                            }
+                            else
+                            {
+                                <ul class="list-group">
+                                    @foreach (var item in Model.AuditTrails.OrderByDescending(a => a.PerformedAt))
+                                    {
+                                        <li class="list-group-item d-flex justify-content-between gap-3">
+                                            <span><strong>@item.Action</strong><br /><span class="text-muted">@item.Summary</span></span>
+                                            <small class="text-muted text-nowrap">@item.PerformedAt.ToString("dd MMM yyyy HH:mm")</small>
+                                        </li>
+                                    }
+                                </ul>
+                            }
+                        </div>
+                    </div>
+
                     <div class="text-center mt-5">
-                        <a asp-action="EnrolleeDetails" asp-route-id="@Model.EnrolleeId" class="btn btn-primary btn-lg px-6">
-                            Enrollee Details
-                        </a>
-                        <a asp-action="EncountersPerProvider" asp-route-id="@Model.ProviderId" class="btn btn-secondary btn-lg px-6">
-                            Back to Encounters
-                        </a>
+                        <a asp-action="EnrolleeDetails" asp-route-id="@Model.EnrolleeId" class="btn btn-primary btn-lg px-6">Enrollee Details</a>
+                        <a asp-action="PrimaryProviderEncountersReport" class="btn btn-success btn-lg px-6">Encounter Register</a>
+                        <a asp-action="EncountersPerProvider" asp-route-id="@Model.ProviderId" class="btn btn-secondary btn-lg px-6">Back to Encounters</a>
                     </div>
                 </div>
             </div>
