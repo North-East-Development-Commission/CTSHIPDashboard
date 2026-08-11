@@ -1,8 +1,8 @@
 @description('Name of the App Service plan')
-param appServicePlanName string = 'ctship-asp'
+param appServicePlanName string = 'ctship-app'
 
 @description('Name of the Web App')
-param webAppName string = 'ctship-webapp'
+param webAppName string = 'ctship-app'
 
 @description('Location for all resources')
 param location string = resourceGroup().location
