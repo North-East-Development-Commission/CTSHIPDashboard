@@ -60,7 +60,7 @@ stages:
                 - task: AzureWebApp@1
                   displayName: 'Azure Web App Deploy'
                   inputs:
-                    azureSubscription: 'Azure subscription 1' # replace with service connection name
+                    azureSubscription: 'ASP-CTSHIPDashboardrg-a4c4 (P0v4: 1)' # replace with service connection name
                     appType: 'webApp'
                     appName: 'ctship-app' # replace with your web app name
                     package: '$(Pipeline.Workspace)/drop'
