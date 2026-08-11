@@ -25,6 +25,7 @@ namespace CTSHIPDashboard.Models
         public virtual ICollection<Doctor> Doctors { get; set; } = new List<Doctor>();
         public virtual ICollection<Encounter> Encounters { get; set; } = new List<Encounter>();
         public virtual ICollection<DrugInventoryItem> DrugInventoryItems { get; set; } = new List<DrugInventoryItem>();
+        public virtual ICollection<LaboratoryService> LaboratoryServices { get; set; } = new List<LaboratoryService>();
         public virtual ICollection<Claim> Claims { get; set; } = new List<Claim>();
         public DateTime DateRegistered { get; set; }
         public int HmoId { get; set; }

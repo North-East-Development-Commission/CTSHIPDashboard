@@ -50,7 +50,7 @@
                                 <div class="col-12">
                                     <div class="card border-success shadow-sm"><div class="card-body">
                                         <div class="row g-3 text-center">
-                                            <div class="col-md-4"><div class="text-muted">Capitation Charge</div><h3 class="text-success fw-bold">&#8358;@Model.CapitationCharge.ToString("N2")</h3></div>
+                                            <div class="col-md-4"><div class="text-muted">Total Encounter Amount</div><h3 class="text-success fw-bold">&#8358;@Model.TotalAmount.ToString("N2")</h3><small class="text-muted">Services &#8358;@Model.ServiceTotal.ToString("N2") + Capitation &#8358;@Model.CapitationCharge.ToString("N2")</small></div>
                                             <div class="col-md-4"><div class="text-muted">HMO Status</div><span class="badge bg-primary fs-6">@Model.HmoVerificationStatus</span></div>
                                             <div class="col-md-4"><div class="text-muted">IHSA Status</div><span class="badge bg-info text-dark fs-6">@Model.IhsaVerificationStatus</span></div>
                                         </div>

@@ -887,6 +887,39 @@
             });
         }
 
+        async function refreshLaboratoryServices() {
+            const providerSelect = document.getElementById('ProviderId');
+            const laboratorySelect = document.getElementById('selectedLaboratoryTests');
+            if (!laboratorySelect) return;
+
+            const selectedNames = new Set(Array.from(laboratorySelect.selectedOptions).map(option => option.value));
+            let items = [];
+
+            if (providerSelect?.value) {
+                try {
+                    const response = await fetch(`/Encounters/GetLaboratoryServicesByProvider?providerId=${encodeURIComponent(providerSelect.value)}`);
+                    const data = await response.json();
+                    items = data.success && Array.isArray(data.items) ? data.items : [];
+                } catch {
+                    items = [];
+                }
+            }
+
+            laboratorySelect.innerHTML = '';
+            items.forEach(item => {
+                const option = document.createElement('option');
+                option.value = item.name;
+                option.textContent = item.text;
+                option.selected = selectedNames.has(item.name);
+                laboratorySelect.appendChild(option);
+            });
+
+            if (window.jQuery && $(laboratorySelect).data('select2')) {
+                $(laboratorySelect).trigger('change.select2');
+            }
+            buildLabRowsFromSelection();
+        }
+
         function normalizeServiceLabel(value) {
             return (value || '')
                 .toString()
@@ -982,6 +1015,7 @@
             if (doctorSelect) doctorSelect.dataset.selectedDoctor = '';
             await refreshDoctorDropdown();
             await refreshDrugInventoryDropdowns();
+            await refreshLaboratoryServices();
             syncConditionalEncounterSections();
         });
         refreshDoctorDropdown();
@@ -1086,11 +1120,6 @@
                 addValidationError(errors, '#selectedLaboratoryTests', 'Select at least one laboratory test or remove Laboratory services.');
             }
 
-            const prescriptionRequired = hasSelectedService('Drug prescription/dispensing', ['prescription', 'dispensing', 'drug']);
-            const selectedDrugs = Array.from(document.querySelectorAll('.drug-inventory-select')).filter(select => select.value);
-            if (prescriptionRequired && selectedDrugs.length === 0) {
-                addValidationError(errors, '.drug-inventory-select', 'Select at least one drug or remove Drug prescription/dispensing.');
-            }
 
             if (isReferralEncounter()) {
                 if (!document.getElementById('Referral_ReferredHospitalId')?.value) {

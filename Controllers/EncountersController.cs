@@ -222,7 +222,7 @@ namespace CTSHIPDashboard.Controllers
                             .ToList();
 
                         encounter.LabTests = selectedNames.Count == 0 ? null : string.Join(", ", selectedNames);
-                        encounter.LabFee = ReferralEncounterClaimCatalog.SumSelected(selectedNames, ReferralEncounterClaimCatalog.LaboratoryTests);
+                        encounter.LabFee = await ResolveLaboratoryFeeAsync(encounter.ProviderId, selectedNames);
                         // If results were provided, append them to InvestigationSummary in LabTests for storage
                         var resultLines = encounter.LaboratoryInvestigations
                             .Where(x => !x.IsDeleted && !string.IsNullOrWhiteSpace(x.Result))
@@ -239,7 +239,7 @@ namespace CTSHIPDashboard.Controllers
                         encounter.LabTests = encounter.SelectedLaboratoryTests.Count == 0
                             ? null
                             : string.Join(", ", encounter.SelectedLaboratoryTests.Select(s => s.Trim()));
-                        encounter.LabFee = ReferralEncounterClaimCatalog.SumSelected(encounter.SelectedLaboratoryTests, ReferralEncounterClaimCatalog.LaboratoryTests);
+                        encounter.LabFee = await ResolveLaboratoryFeeAsync(encounter.ProviderId, encounter.SelectedLaboratoryTests);
                     }
                     if (IsCompletedStatus(encounter.Status))
                     {
@@ -298,6 +298,8 @@ namespace CTSHIPDashboard.Controllers
                             $"Enrollee:{encounter.EnrolleeId}",
                             $"Provider:{encounter.ProviderId}",
                             $"Total:NGN {encounter.TotalAmount:N2}"));
+
+                    await _notificationService.NotifyEncounterSubmittedAsync(encounter.Id, HttpContext.RequestAborted);
 
                     if (referralId.HasValue)
                     {
@@ -417,7 +419,7 @@ namespace CTSHIPDashboard.Controllers
                     existing.LabTests = (encounter.SelectedLaboratoryTests == null || encounter.SelectedLaboratoryTests.Count == 0)
                         ? null
                         : string.Join(", ", encounter.SelectedLaboratoryTests.Select(s => s.Trim()));
-                    existing.LabFee = ReferralEncounterClaimCatalog.SumSelected(encounter.SelectedLaboratoryTests ?? Enumerable.Empty<string>(), ReferralEncounterClaimCatalog.LaboratoryTests);
+                    existing.LabFee = await ResolveLaboratoryFeeAsync(existing.ProviderId, encounter.SelectedLaboratoryTests ?? Enumerable.Empty<string>());
 
                     // If laboratory investigations were posted with results, persist them into LabTests summary and LabFee
                     if (encounter.LaboratoryInvestigations != null && encounter.LaboratoryInvestigations.Count > 0)
@@ -429,7 +431,7 @@ namespace CTSHIPDashboard.Controllers
                             .ToList();
 
                         existing.LabTests = selectedNames.Count == 0 ? existing.LabTests : string.Join(", ", selectedNames);
-                        existing.LabFee = ReferralEncounterClaimCatalog.SumSelected(selectedNames, ReferralEncounterClaimCatalog.LaboratoryTests);
+                        existing.LabFee = await ResolveLaboratoryFeeAsync(existing.ProviderId, selectedNames);
 
                         var resultLines = encounter.LaboratoryInvestigations
                             .Where(x => !x.IsDeleted && !string.IsNullOrWhiteSpace(x.Result))
@@ -466,6 +468,14 @@ namespace CTSHIPDashboard.Controllers
                     _context.EncounterServices.RemoveRange(existing.Services);
                     existing.Services.Clear();
                     SetEncounterServices(existing, encounter.SelectedServices);
+                    existing.DrugFee = existing.Prescriptions.Sum(prescription => prescription.TotalCost);
+                    if (existing.SubmittedToHmoAt.HasValue)
+                    {
+                        existing.CapitationCharge = await ResolveEncounterCapitationChargeAsync(
+                            existing.ProviderId,
+                            existing.Enrollee?.HmoId,
+                            existing.VisitDate);
+                    }
                     if (!await DeductPendingEncounterPrescriptionsAsync(existing))
                     {
                         encounter.Enrollee = existing.Enrollee;
@@ -707,6 +717,22 @@ namespace CTSHIPDashboard.Controllers
 
             return Json(new { success = true, items });
         }
+        [HttpGet]
+        public async Task<IActionResult> GetLaboratoryServicesByProvider(int providerId)
+        {
+            if (!await CanAccessProviderAsync(providerId))
+            {
+                return Json(new { success = false, items = Array.Empty<object>() });
+            }
+
+            List<SelectListItem> options = await BuildLaboratoryOptionsAsync(providerId, Array.Empty<string>());
+            return Json(new
+            {
+                success = true,
+                items = options.Select(item => new { name = item.Value, text = item.Text })
+            });
+        }
+
 
         [Authorize(Roles = "Provider")]
         public IActionResult CreateClaim(int id)
@@ -810,17 +836,6 @@ namespace CTSHIPDashboard.Controllers
 
             ViewBag.PresentingComplaints = EncounterPresentingComplaintsCatalog.BuildSelectList(encounter.SelectedPresentingComplaints);
 
-            // Populate laboratory catalog for primary provider encounter forms
-            ViewBag.LaboratoryCatalog = ReferralEncounterClaimCatalog.LaboratoryTests
-                .Select(item => new SelectListItem
-                {
-                    Value = item.Name,
-                    Text = item.Label,
-                    Selected = encounter.SelectedLaboratoryTests != null && encounter.SelectedLaboratoryTests.Contains(item.Name, StringComparer.OrdinalIgnoreCase)
-                })
-                .ToList();
-
-            // If existing LabTests string exists, populate SelectedLaboratoryTests
             if (!string.IsNullOrWhiteSpace(encounter.LabTests) && (encounter.SelectedLaboratoryTests == null || encounter.SelectedLaboratoryTests.Count == 0))
             {
                 encounter.SelectedLaboratoryTests = encounter.LabTests
@@ -829,6 +844,10 @@ namespace CTSHIPDashboard.Controllers
                     .Where(s => !string.IsNullOrWhiteSpace(s))
                     .ToList();
             }
+
+            ViewBag.LaboratoryCatalog = await BuildLaboratoryOptionsAsync(
+                encounter.ProviderId,
+                encounter.SelectedLaboratoryTests);
         }
 
         private async Task PopulateDropdowns(int? selectedProviderId = null, int? selectedDoctorId = null, string? selectedReason = null)
@@ -932,6 +951,77 @@ namespace CTSHIPDashboard.Controllers
                 })
                 .ToList();
         }
+        private async Task<List<SelectListItem>> BuildLaboratoryOptionsAsync(
+            int? providerId,
+            IEnumerable<string>? selectedNames)
+        {
+            HashSet<string> selected = new(
+                selectedNames?.Where(name => !string.IsNullOrWhiteSpace(name)) ?? Enumerable.Empty<string>(),
+                StringComparer.OrdinalIgnoreCase);
+
+            bool hasManagedCatalog = providerId.HasValue
+                && await _context.LaboratoryServices
+                    .AsNoTracking()
+                    .AnyAsync(item => item.ProviderId == providerId.Value);
+
+            if (hasManagedCatalog)
+            {
+                List<LaboratoryService> services = await _context.LaboratoryServices
+                    .AsNoTracking()
+                    .Where(item => item.ProviderId == providerId!.Value)
+                    .OrderBy(item => item.Name)
+                    .ToListAsync();
+
+                return services
+                    .Where(item => item.IsActive || selected.Contains(item.Name))
+                    .Select(item => new SelectListItem
+                    {
+                        Value = item.Name,
+                        Text = $"{item.Name} - NGN {item.UnitCost:N2}",
+                        Selected = selected.Contains(item.Name)
+                    })
+                    .ToList();
+            }
+
+            return ReferralEncounterClaimCatalog.LaboratoryTests
+                .Select(item => new SelectListItem
+                {
+                    Value = item.Name,
+                    Text = item.Label,
+                    Selected = selected.Contains(item.Name)
+                })
+                .ToList();
+        }
+
+        private async Task<decimal> ResolveLaboratoryFeeAsync(int providerId, IEnumerable<string> selectedNames)
+        {
+            List<string> names = selectedNames
+                .Where(name => !string.IsNullOrWhiteSpace(name))
+                .Select(name => name.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            if (names.Count == 0) return 0m;
+
+            List<LaboratoryService> managedServices = await _context.LaboratoryServices
+                .AsNoTracking()
+                .Where(item => item.ProviderId == providerId && item.IsActive)
+                .ToListAsync();
+
+            decimal managedTotal = managedServices
+                .Where(item => names.Contains(item.Name, StringComparer.OrdinalIgnoreCase))
+                .Sum(item => item.UnitCost);
+
+            List<string> legacyNames = names
+                .Where(name => !managedServices.Any(item =>
+                    string.Equals(item.Name, name, StringComparison.OrdinalIgnoreCase)))
+                .ToList();
+
+            return managedTotal + ReferralEncounterClaimCatalog.SumSelected(
+                legacyNames,
+                ReferralEncounterClaimCatalog.LaboratoryTests);
+        }
+
 
         private async Task PopulateReferralFieldsAsync(Encounter encounter)
         {
@@ -1227,7 +1317,9 @@ namespace CTSHIPDashboard.Controllers
                 .AsNoTracking()
                 .Where(payment => payment.ProviderId == providerId
                     && payment.HmoId == hmoId.Value
-                    && payment.ReportingMonth == month)
+                    && payment.ReportingMonth <= month
+                    && payment.CapitationPerEnrollee > 0)
+                .OrderByDescending(payment => payment.ReportingMonth)
                 .Select(payment => (decimal?)payment.CapitationPerEnrollee)
                 .FirstOrDefaultAsync() ?? 0m;
         }
@@ -1501,6 +1593,8 @@ namespace CTSHIPDashboard.Controllers
                     DispensedAt = DateTime.UtcNow
                 });
             }
+
+            encounter.DrugFee = encounter.Prescriptions.Sum(prescription => prescription.TotalCost);
         }
 
         private static void DeductInventoryForPrescriptions(

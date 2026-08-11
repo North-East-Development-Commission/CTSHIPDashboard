@@ -43,6 +43,7 @@ namespace CTSHIPDashboard.Data
         public DbSet<ProgramMonitoringTarget> ProgramMonitoringTargets { get; set; }
         public DbSet<EncounterService> EncounterServices { get; set; }
         public DbSet<DrugInventoryItem> DrugInventoryItems { get; set; }
+        public DbSet<LaboratoryService> LaboratoryServices { get; set; }
         public DbSet<EncounterPrescription> EncounterPrescriptions { get; set; }
         public DbSet<EncounterPresentingComplaint> EncounterPresentingComplaints { get; set; }
         public DbSet<CapitationPayment> CapitationPayments { get; set; }
@@ -311,6 +312,24 @@ namespace CTSHIPDashboard.Data
                 entity.HasIndex(x => new { x.ProviderId, x.DrugName, x.Strength, x.DosageForm }).IsUnique();
                 entity.HasOne(x => x.Provider)
                     .WithMany(x => x.DrugInventoryItems)
+                    .HasForeignKey(x => x.ProviderId)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            modelBuilder.Entity<LaboratoryService>(entity =>
+            {
+                entity.ToTable("LaboratoryServices");
+                entity.HasKey(x => x.Id);
+                entity.Property(x => x.Name).IsRequired().HasMaxLength(200);
+                entity.Property(x => x.Description).HasMaxLength(500);
+                entity.Property(x => x.UnitCost).HasColumnType("decimal(18,2)");
+                entity.Property(x => x.CreatedByUserId).HasMaxLength(450);
+                entity.Property(x => x.CreatedByName).HasMaxLength(200);
+                entity.HasIndex(x => x.ProviderId);
+                entity.HasIndex(x => x.IsActive);
+                entity.HasIndex(x => new { x.ProviderId, x.Name }).IsUnique();
+                entity.HasOne(x => x.Provider)
+                    .WithMany(x => x.LaboratoryServices)
                     .HasForeignKey(x => x.ProviderId)
                     .OnDelete(DeleteBehavior.Restrict);
             });

@@ -53,6 +53,8 @@ namespace CTSHIPDashboard.Models
 
         public static readonly IReadOnlyList<string> InpatientServices = new[]
         {
+            LaboratoryService,
+            PrescriptionService,
             "Normal delivery",
             "Monitoring during labour",
             "Immediate newborn care",

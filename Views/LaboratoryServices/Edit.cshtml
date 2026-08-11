@@ -1,0 +1,24 @@
+@model CTSHIPDashboard.Models.ViewModels.LaboratoryServiceFormViewModel
+
+@{
+    ViewData["Title"] = "Edit Laboratory Service";
+}
+
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-success text-white">
+                    <h1 class="h4 mb-0">Edit Laboratory Service</h1>
+                </div>
+                <div class="card-body p-4">
+                    <partial name="_Form" model="Model" />
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

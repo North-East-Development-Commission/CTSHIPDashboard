@@ -155,8 +155,10 @@
                                 <div class="col-12">
                                     <div class="card @(Model.ClaimId == null ? "border-warning" : "border-success") shadow-sm">
                                         <div class="card-body text-center py-4">
-                                            <h5>Total Amount</h5>
-                                            <h2 class="display-5 fw-bold text-success">&#8358;@((int)Model.TotalAmount)</h2>
+                                            <h5>Total Encounter Amount</h5>
+                                            <h2 class="display-5 fw-bold text-success">&#8358;@Model.TotalAmount.ToString("N2")</h2>
+                                            <div class="text-muted">Services: &#8358;@Model.ServiceTotal.ToString("N2")</div>
+                                            <div class="text-muted">Capitation: &#8358;@Model.CapitationCharge.ToString("N2")</div>
                                             @if (Model.ClaimId == null)
                                             {
                                                 <p class="text-warning fw-bold">Not yet claimed</p>

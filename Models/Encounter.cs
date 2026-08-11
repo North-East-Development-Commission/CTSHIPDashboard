@@ -44,7 +44,12 @@ namespace CTSHIPDashboard.Models
 
         [Range(typeof(decimal), "0", "9999999999999999")]
         public decimal DrugFee { get; set; }
-        public decimal TotalAmount => ConsultationFee + LabFee + DrugFee;
+
+        [NotMapped]
+        public decimal ServiceTotal => ConsultationFee + LabFee + DrugFee;
+
+        [NotMapped]
+        public decimal TotalAmount => ServiceTotal + CapitationCharge;
 
         [Range(typeof(decimal), "0", "9999999999999999")]
         public decimal CapitationCharge { get; set; }

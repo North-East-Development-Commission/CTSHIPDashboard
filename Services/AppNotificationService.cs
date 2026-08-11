@@ -22,6 +22,75 @@ public class AppNotificationService : IAppNotificationService
         _hubContext = hubContext;
         _logger = logger;
     }
+    public async Task NotifyEncounterSubmittedAsync(
+        int encounterId,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var encounter = await _context.Encounters
+                .AsNoTracking()
+                .Where(x => x.Id == encounterId)
+                .Select(x => new
+                {
+                    x.Id,
+                    x.EncounterNumber,
+                    x.VisitDate,
+                    x.Status,
+                    x.ServiceSetting,
+                    x.ProviderId,
+                    ProviderName = x.Provider == null ? "Provider" : x.Provider.Name,
+                    EnrolleeName = x.Enrollee == null ? "enrollee" : x.Enrollee.FullName,
+                    EnrolleeNumber = x.Enrollee == null ? string.Empty : x.Enrollee.EnrollmentNumber,
+                    HmoId = x.Enrollee == null ? (int?)null : x.Enrollee.HmoId,
+                    HmoName = x.Enrollee == null || x.Enrollee.Hmo == null ? "the HMO" : x.Enrollee.Hmo.Name
+                })
+                .FirstOrDefaultAsync(cancellationToken);
+
+            if (encounter == null) return;
+
+            var payload = new
+            {
+                Type = "EncounterSubmitted",
+                Title = "Encounter received",
+                Message = $"{encounter.ProviderName} submitted encounter {encounter.EncounterNumber} for {encounter.EnrolleeName}.",
+                Url = $"/Hmo/EncDetails/{encounter.Id}",
+                Icon = "info",
+                encounter.Id,
+                encounter.EncounterNumber,
+                encounter.EnrolleeName,
+                encounter.EnrolleeNumber,
+                encounter.ProviderName,
+                encounter.HmoName,
+                encounter.VisitDate,
+                encounter.Status,
+                encounter.ServiceSetting
+            };
+
+            if (encounter.HmoId.HasValue)
+            {
+                await SendNotificationAsync(
+                    NotificationGroups.Hmo(encounter.HmoId.Value),
+                    "EncounterSubmitted",
+                    payload,
+                    cancellationToken);
+            }
+
+            await SendNotificationAsync(
+                NotificationGroups.Role("IHSA"),
+                "EncounterSubmitted",
+                payload,
+                cancellationToken);
+        }
+        catch (Exception exception)
+        {
+            _logger.LogWarning(
+                exception,
+                "Could not send encounter notification for encounter {EncounterId}.",
+                encounterId);
+        }
+    }
+
 
     public async Task NotifyReferralInitiatedAsync(
         Guid referralId,
