@@ -30,4 +30,8 @@
     <Folder Include="wwwroot\uploads\enrollees\" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Include=".github\workflows\ci-deploy.yml" />
+  </ItemGroup>
+
 </Project>
