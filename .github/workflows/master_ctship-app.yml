@@ -1,6 +1,3 @@
-# Docs for the Azure Web Apps Deploy action: https://github.com/Azure/webapps-deploy
-# More GitHub Actions for Azure: https://github.com/Azure/actions
-
 name: Build and deploy ASP.Net Core app to Azure Web App - ctship-app
 
 on:
@@ -9,11 +6,14 @@ on:
       - master
   workflow_dispatch:
 
+env:
+  PUBLISH_DIR: ${{ runner.temp }}/myapp
+
 jobs:
   build:
     runs-on: windows-latest
     permissions:
-      contents: read #This is required for actions/checkout
+      contents: read
 
     steps:
       - uses: actions/checkout@v4
@@ -23,34 +23,46 @@ jobs:
         with:
           dotnet-version: '9.x'
 
+      - name: Locate web project
+        id: find
+        run: |
+          $proj = Get-ChildItem -Path . -Recurse -Filter *.csproj -ErrorAction SilentlyContinue | Select-Object -First 1 -ExpandProperty FullName
+          if (-not $proj) { Write-Error 'No .csproj found'; exit 1 }
+          Write-Host "PROJECT_PATH=$proj"
+          echo "PROJECT_PATH=$proj" >> $GITHUB_ENV
+
       - name: Build with dotnet
-        run: dotnet build --configuration Release
+        run: dotnet build "$PROJECT_PATH" --configuration Release --no-restore
 
       - name: dotnet publish
-        run: dotnet publish -c Release -o "${{env.DOTNET_ROOT}}/myapp"
+        run: dotnet publish "$PROJECT_PATH" -c Release -o "${{ env.PUBLISH_DIR }}" --no-build
 
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
         with:
-          name: .net-app
-          path: ${{env.DOTNET_ROOT}}/myapp
+          name: dotnet-app
+          path: ${{ env.PUBLISH_DIR }}
 
   deploy:
     runs-on: windows-latest
     needs: build
     permissions:
-      id-token: write #This is required for requesting the JWT
-      contents: read #This is required for actions/checkout
+      contents: read
+      id-token: write
 
     steps:
       - name: Download artifact from build job
         uses: actions/download-artifact@v4
         with:
-          name: .net-app
-      
-      - name: Login to Azure
+          name: dotnet-app
+          path: ./dotnet-app
+
+      - name: Login to Azure (Service Principal)
         uses: azure/login@v2
         with:
+          # Primary: use the Entra service principal JSON stored in this secret
+          creds: ${{ secrets.CTSHIPDASHBOARD_SPN }}
+          # Included originals from your old file (kept for reference/fallback)
           client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_73176ACE1737405EB918EC9FD48EEC6D }}
           tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_D39C03C20BD24641AD8A1898411E9C6A }}
           subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_B5263CAECF004CB7A65F8BB3B2DB517A }}
@@ -61,5 +73,4 @@ jobs:
         with:
           app-name: 'ctship-app'
           slot-name: 'Production'
-          package: .
-          
+          package: ./dotnet-app
