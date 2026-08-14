@@ -8,14 +8,16 @@ on:
     branches:
       - master
   workflow_dispatch:
+
 env:
   AZURE_WEBAPP_NAME: ctship-app
   DOTNET_VERSION: '9.0.x'
+
 jobs:
   build:
     runs-on: windows-latest
     permissions:
-      contents: read #This is required for actions/checkout
+      contents: read # This is required for actions/checkout
 
     steps:
       - uses: actions/checkout@v4
@@ -41,8 +43,8 @@ jobs:
     runs-on: windows-latest
     needs: build
     permissions:
-      id-token: write #This is required for requesting the JWT
-      contents: read #This is required for actions/checkout
+      id-token: write # This is required for requesting the JWT
+      contents: read # This is required for actions/checkout
 
     steps:
       - name: Download artifact from build job
@@ -62,4 +64,3 @@ jobs:
           app-name: 'ctship-app'
           slot-name: 'Production'
           package: '.'
-          
