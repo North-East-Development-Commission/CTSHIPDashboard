@@ -8,7 +8,9 @@ on:
     branches:
       - master
   workflow_dispatch:
-
+env:
+  AZURE_WEBAPP_NAME: ctship-app
+  DOTNET_VERSION: '9.0.x'
 jobs:
   build:
     runs-on: windows-latest
@@ -59,5 +61,5 @@ jobs:
         with:
           app-name: 'ctship-app'
           slot-name: 'Production'
-          package: .
+          package: '.'
           
