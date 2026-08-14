@@ -51,6 +51,7 @@ jobs:
       - name: Login to Azure
         uses: azure/login@v2
         with:
+          creds: ${{ secrets.CTSHIPDASHBOARD_SPN }}
           client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_0E44B5C128CA4840AE578A10DE6C4508 }}
           tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_68F25F81F71340A89A9616860FAC60BB }}
           subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_5972E45F5C684EB68BEFF61BB35605AC }}
