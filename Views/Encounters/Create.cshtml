@@ -8,7 +8,7 @@
     List<EncounterPrescriptionInputViewModel> prescriptionRows = Model.SelectedPrescriptions.Count > 0
         ? Model.SelectedPrescriptions
         : new List<EncounterPrescriptionInputViewModel> { new() };
-    List<SelectListItem> drugInventoryItems = ViewBag.DrugInventoryItems as List<SelectListItem> ?? new List<SelectListItem>();
+    var medicineGroups = ViewBag.Medicines as IDictionary<string, List<string>> ?? new Dictionary<string, List<string>>();
     IReadOnlyDictionary<string, string> encounterReasonExamples =
         ViewBag.EncounterReasonExamples as IReadOnlyDictionary<string, string> ?? new Dictionary<string, string>();
 }
@@ -290,12 +290,12 @@
                     <div class="d-flex flex-wrap justify-content-between align-items-center gap-3">
                         <div>
                             <span class="encounter-chip mb-3"><i class="bi bi-clipboard2-pulse"></i> Electronic Service Encounter Register</span>
-                            <h1 class="display-5 fw-bold mb-2">New Primary Provider Encounter</h1>
+                            <h1 class="display-5 fw-bold mb-2">Primary Provider Encounter</h1>
                             <p class="lead mb-0 opacity-90">Enter the encounter once; the platform generates service, utilisation and capitation indicators.</p>
                         </div>
                         <div class="text-lg-end">
                             <div class="encounter-chip"><i class="bi bi-shield-check"></i> Facility data preserved</div>
-                            <div class="encounter-chip mt-2"><i class="bi bi-cash-stack"></i> Capitation submission to HMO</div>
+                            <div class="encounter-chip mt-2"><i class="bi bi-cash-stack"></i> Encounter submission to HMO</div>
                         </div>
                     </div>
                 </div>
@@ -319,7 +319,7 @@
                                         <div class="col-12">
                                             <label for="enrollmentSearch" class="form-label fs-5">Search Enrollee by Enrollment Number <span class="text-danger">*</span></label>
                                             <div class="input-group input-group-lg">
-                                                <input type="text" id="enrollmentSearch" class="form-control rounded-start-3" placeholder="e.g., CTH-2025-LA-001234" />
+                                                <input type="text" id="enrollmentSearch" class="form-control rounded-start-3" placeholder="e.g., CTH-2025-LA-001234" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" />
                                                 <button type="button" class="btn btn-success rounded-end-3" onclick="searchEnrollee()">
                                                     <i class="bi bi-search me-1"></i>
                                                     Search </button>
@@ -362,28 +362,22 @@
                                             <span asp-validation-for="VisitDate" class="text-danger"></span>
                                         </div>
                                         <div class="col-md-4">
-                                            <label asp-for="VisitType" class="form-label">New / Repeat Visit</label>
+                                            <label asp-for="VisitType" class="form-label">Type of Visit</label>
                                             <select asp-for="VisitType" class="form-select form-select-lg" asp-items="ViewBag.VisitTypes">
                                                 <option value="">Select visit type</option>
                                             </select>
                                         </div>
-                                        <div class="col-md-4">
-                                            <label asp-for="ReasonForEncounter" class="form-label">Reason for Encounter</label>
-                                            <select asp-for="ReasonForEncounter" class="form-select form-select-lg" asp-items="ViewBag.EncounterReasons" aria-describedby="reasonForEncounterHelp">
-                                                <option value="">Select reason</option>
-                                            </select>
-                                            <small id="reasonForEncounterHelp" class="form-text text-muted">Select the patient's stated reason or requested service before diagnosis.</small>
-                                            <span asp-validation-for="ReasonForEncounter" class="text-danger"></span>
-                                        </div>
+
 
                                         <partial name="_ServiceSelection" model="Model" />
 
                                         <div class="col-md-4">
-                                            <label asp-for="Status" class="form-label">Outcome of Encounter</label>
-                                            <select asp-for="Status" class="form-select form-select-lg" asp-items="ViewBag.Statuses">
-                                                <option value="">Select outcome</option>
+                                            <label asp-for="PatientOutcome" class="form-label">Patient Outcome</label>
+                                            <select asp-for="PatientOutcome" class="form-select form-select-lg" asp-items="ViewBag.PatientOutcomes">
+                                                <option value="">Select patient outcome</option>
                                             </select>
-                                            <small class="text-muted">Treated, referred, follow-up or other disposition.</small>
+                                            <span asp-validation-for="PatientOutcome" class="text-danger"></span>
+                                            <small class="text-muted">Capture the outcome for every patient.</small>
                                         </div>
                                         <div class="col-md-4">
                                             <label asp-for="ProviderId" class="form-label fs-5">Facility</label>
@@ -418,11 +412,8 @@
                                             <textarea asp-for="ChiefComplaint" class="form-control form-control-lg mt-2" rows="3" placeholder="Brief clinical complaint / history"></textarea>
                                             <span asp-validation-for="ChiefComplaint" class="text-danger"></span>
                                         </div>
-                                        <div class="col-12">
-                                            <label asp-for="Diagnosis" class="form-label">Diagnosis</label>
-                                            <textarea asp-for="Diagnosis" class="form-control form-control-lg" rows="3" placeholder="Diagnosis or provisional diagnosis"></textarea>
-                                            <span asp-validation-for="Diagnosis" class="text-danger"></span>
-                                        </div>
+                                        <input type="hidden" asp-for="ReasonForEncounter" />
+                                        <partial name="_DiagnosisSelection" model="Model" />
                                         <div class="col-12">
                                             <label asp-for="TreatmentGiven" class="form-label">Treatment / Clinical Note</label>
                                             <textarea asp-for="TreatmentGiven" class="form-control form-control-lg" rows="3" placeholder="Treatment given, advice, follow-up plan"></textarea>
@@ -442,7 +433,7 @@
                                 </div>
                                 <div class="encounter-section-body">
                                     <div class="alert alert-success border-0 mb-4">
-                                        Select <strong>Laboratory services</strong> to show lab tests/results, <strong>Drug prescription/dispensing</strong> to show medicines, or choose a referred outcome to show referral details.
+                                        Select <strong>Laboratory Services</strong> to show tests/results, <strong>Pharmacy and Medicines Dispensing Service</strong> to show medicines, or <strong>Referral Services</strong> to show the referral form.
                                     </div>
 
                                     <div class="row g-4">
@@ -471,6 +462,10 @@
                                                     }
                                                 </select>
 
+                                                                                                <div id="laboratoryOtherRow" class="mt-3" style="display:none;">
+                                                    <label asp-for="LaboratoryOther" class="form-label">Other laboratory service</label>
+                                                    <input asp-for="LaboratoryOther" class="form-control" placeholder="Specify the other laboratory service" />
+                                                </div>
                                                 <div id="laboratoryInvestigationsContainer" class="mt-3">
                                                     @if (Model.LaboratoryInvestigations != null && Model.LaboratoryInvestigations.Count > 0)
                                                     {
@@ -516,7 +511,7 @@
                                                 <div class="d-flex justify-content-between align-items-center gap-3 mb-3">
                                                     <div>
                                                         <label class="form-label mb-0">Medicines Prescribed / Dispensed</label>
-                                                        <div class="small text-muted">Primary provider inventory drugs only; section is hidden until drug prescription is selected.</div>
+                                                        <div class="small text-muted">Select medicines from the Primary Provider drug list. Each row captures drug title, dosage, and quantity.</div>
                                                     </div>
                                                     <button type="button" class="btn btn-outline-success btn-sm" id="addPrescriptionBtn">
                                                         <i class="bi bi-plus-circle me-1"></i> Add Drug
@@ -525,25 +520,40 @@
                                                 <div id="prescriptionRows" class="d-grid gap-2">
                                                     @for (int i = 0; i < prescriptionRows.Count; i++)
                                                     {
+                                                        bool isOtherMedicine = string.Equals(prescriptionRows[i].DrugName, "Other Medicines", StringComparison.OrdinalIgnoreCase);
+                                                        string otherMedicineDisplay = isOtherMedicine ? "block" : "none";
                                                         <div class="row g-2 align-items-end prescription-row">
-                                                            <div class="col-md-8">
-                                                                <label class="form-label small fw-bold">Drug</label>
-                                                                <select name="SelectedPrescriptions[@i].DrugInventoryItemId" class="form-select drug-inventory-select">
-                                                                    <option value="">No drug selected</option>
-                                                                    @foreach (SelectListItem drug in drugInventoryItems)
+                                                            <div class="col-md-5">
+                                                                <label class="form-label small fw-bold">Drug Title</label>
+                                                                <select name="SelectedPrescriptions[@i].DrugName" class="form-select drug-catalog-select">
+                                                                    <option value="">Select drug title</option>
+                                                                    @foreach (var group in medicineGroups)
                                                                     {
-                                                                        if (drug.Value == prescriptionRows[i].DrugInventoryItemId.ToString())
-                                                                        {
-                                                                            <option value="@drug.Value" selected>@drug.Text</option>
-                                                                        }
-                                                                        else
-                                                                        {
-                                                                            <option value="@drug.Value">@drug.Text</option>
-                                                                        }
+                                                                        <optgroup label="@group.Key">
+                                                                            @foreach (string medicine in group.Value)
+                                                                            {
+                                                                                if (string.Equals(medicine, prescriptionRows[i].DrugName, StringComparison.OrdinalIgnoreCase))
+                                                                                {
+                                                                                    <option value="@medicine" selected>@medicine</option>
+                                                                                }
+                                                                                else
+                                                                                {
+                                                                                    <option value="@medicine">@medicine</option>
+                                                                                }
+                                                                            }
+                                                                        </optgroup>
                                                                     }
                                                                 </select>
+                                                                <div class="prescription-other-row mt-2" style="display:@otherMedicineDisplay;">
+                                                                    <label class="form-label small fw-bold">Other Medicine</label>
+                                                                    <input type="text" name="SelectedPrescriptions[@i].OtherDrugName" value="@prescriptionRows[i].OtherDrugName" class="form-control prescription-other-drug" placeholder="Enter other medicine" />
+                                                                </div>
                                                             </div>
-                                                            <div class="col-md-3">
+                                                            <div class="col-md-4">
+                                                                <label class="form-label small fw-bold">Dosage</label>
+                                                                <input type="text" name="SelectedPrescriptions[@i].Strength" value="@prescriptionRows[i].Strength" class="form-control prescription-dosage" placeholder="e.g., 500mg tablet, 5ml syrup" />
+                                                            </div>
+                                                            <div class="col-md-2">
                                                                 <label class="form-label small fw-bold">Quantity</label>
                                                                 <input type="number" name="SelectedPrescriptions[@i].QuantityDispensed" value="@prescriptionRows[i].QuantityDispensed" class="form-control prescription-quantity" min="1" />
                                                             </div>
@@ -555,7 +565,7 @@
                                                 </div>
                                             </div>
                                         </div>
-
+                                        <partial name="_PreventiveServiceFields" model="Model" />
                                         <partial name="_ReferralFields" model="Model.Referral" />
                                     </div>
                                 </div>
@@ -628,33 +638,24 @@
         document.getElementById('ReasonForEncounter')?.addEventListener('change', syncEncounterReasonHelp);
         syncEncounterReasonHelp();
         function syncServiceDropdown(selectFirstIfEmpty) {
-            const setting = document.getElementById('serviceSetting').value;
             const select = document.getElementById('selectedServices');
-            if (!setting || !select) return;
+            if (!select) return;
 
-            let hasSelectedEnabledOption = false;
+            const availableOptions = Array.from(select.options).filter(option => !option.disabled && option.value);
+            const hasSelectedOption = availableOptions.some(option => option.selected);
 
-            Array.from(select.querySelectorAll('optgroup')).forEach(group => {
-                const enabled = group.dataset.setting === setting;
-                Array.from(group.children).forEach(option => {
-                    option.disabled = !enabled;
-                    if (!enabled) option.selected = false;
-                    if (enabled && option.selected) hasSelectedEnabledOption = true;
-                });
-            });
-
-            if (selectFirstIfEmpty && !hasSelectedEnabledOption) {
-                const firstEnabledOption = Array.from(select.options).find(option => !option.disabled);
-                if (firstEnabledOption) {
-                    firstEnabledOption.selected = true;
-                }
+            if (selectFirstIfEmpty && !hasSelectedOption) {
+                const defaultOption = availableOptions.find(option => option.value === 'General Outpatient Consultation') || availableOptions[0];
+                if (defaultOption) defaultOption.selected = true;
             }
 
-            $(select).trigger('change.select2');
+            if (window.jQuery && $(select).data('select2')) {
+                $(select).trigger('change.select2');
+            }
             select.dispatchEvent(new Event('change', { bubbles: true }));
         }
 
-        document.getElementById('serviceSetting')?.addEventListener('change', () => {
+        (document.getElementById('serviceSetting') || document.getElementById('ServiceSetting'))?.addEventListener('change', () => {
             syncServiceDropdown(true);
             syncConditionalEncounterSections();
         });
@@ -697,6 +698,26 @@
 
         document.getElementById('enrollmentSearch')
             .addEventListener('keypress', e => e.key === 'Enter' && (e.preventDefault(), searchEnrollee()));
+
+        function keepEnrolleeSearchClosedOnLoad() {
+            const enrollmentSearch = document.getElementById('enrollmentSearch');
+            if (enrollmentSearch && document.activeElement === enrollmentSearch) {
+                enrollmentSearch.blur();
+                document.body?.focus();
+            }
+
+            if (window.jQuery) {
+                $('select.select2, select[multiple]').each(function () {
+                    if ($(this).data('select2')) {
+                        $(this).select2('close');
+                    }
+                });
+            }
+        }
+
+        window.addEventListener('pageshow', keepEnrolleeSearchClosedOnLoad);
+        window.addEventListener('load', keepEnrolleeSearchClosedOnLoad);
+        setTimeout(keepEnrolleeSearchClosedOnLoad, 0);
 
         // Laboratory investigations dynamic rows
         function reindexLabRows() {
@@ -774,6 +795,9 @@
         }
 
         document.getElementById('selectedLaboratoryTests')?.addEventListener('change', buildLabRowsFromSelection);
+        if (window.jQuery) {
+            $('#selectedLaboratoryTests').on('change select2:select select2:unselect select2:clear', buildLabRowsFromSelection);
+        }
         // initialize if there are preselected values
         if (document.getElementById('selectedLaboratoryTests')) {
             buildLabRowsFromSelection();
@@ -817,42 +841,62 @@
             }
         }
 
-        let drugInventoryOptions = Array.from(document.querySelectorAll('.drug-inventory-select option'))
-            .filter(option => option.value)
-            .map(option => ({ id: option.value, text: option.textContent }));
+        const drugCatalogOptionsHtml = document.querySelector('.drug-catalog-select')?.innerHTML || '<option value="">Select drug title</option>';
 
         function renderDrugOptions(select, selectedValue) {
-            select.innerHTML = '<option value="">No drug selected</option>';
-            drugInventoryOptions.forEach(item => {
-                const option = document.createElement('option');
-                option.value = item.id;
-                option.textContent = item.text;
-                option.selected = String(item.id) === String(selectedValue || '');
-                select.appendChild(option);
+            if (!select) return;
+            select.innerHTML = drugCatalogOptionsHtml;
+            select.value = selectedValue || '';
+        }
+
+        function isOtherMedicineValue(value) {
+            return normalizeServiceLabel(value) === normalizeServiceLabel('Other Medicines');
+        }
+
+        function syncPrescriptionOtherRows() {
+            document.querySelectorAll('.prescription-row').forEach(row => {
+                const select = row.querySelector('.drug-catalog-select');
+                const otherRow = row.querySelector('.prescription-other-row');
+                const otherInput = row.querySelector('.prescription-other-drug');
+                const showOther = isOtherMedicineValue(select?.value || '');
+                if (otherRow) otherRow.style.display = showOther ? 'block' : 'none';
+                if (!showOther && otherInput) otherInput.value = '';
             });
         }
 
         function reindexPrescriptionRows() {
             document.querySelectorAll('.prescription-row').forEach((row, index) => {
-                const select = row.querySelector('.drug-inventory-select');
+                const select = row.querySelector('.drug-catalog-select');
+                const other = row.querySelector('.prescription-other-drug');
+                const dosage = row.querySelector('.prescription-dosage');
                 const quantity = row.querySelector('.prescription-quantity');
-                if (select) select.name = `SelectedPrescriptions[${index}].DrugInventoryItemId`;
+                if (select) select.name = `SelectedPrescriptions[${index}].DrugName`;
+                if (other) other.name = `SelectedPrescriptions[${index}].OtherDrugName`;
+                if (dosage) dosage.name = `SelectedPrescriptions[${index}].Strength`;
                 if (quantity) quantity.name = `SelectedPrescriptions[${index}].QuantityDispensed`;
             });
         }
 
-        function addPrescriptionRow(selectedDrugId = '', quantity = 1) {
+        function addPrescriptionRow(selectedDrugName = '', dosage = '', quantity = 1, otherDrugName = '') {
             const container = document.getElementById('prescriptionRows');
             if (!container) return;
 
             const row = document.createElement('div');
             row.className = 'row g-2 align-items-end prescription-row';
             row.innerHTML = `
-                <div class="col-md-8">
-                    <label class="form-label small fw-bold">Drug</label>
-                    <select class="form-select drug-inventory-select"></select>
+                <div class="col-md-5">
+                    <label class="form-label small fw-bold">Drug Title</label>
+                    <select class="form-select drug-catalog-select"></select>
+                    <div class="prescription-other-row mt-2" style="display:none;">
+                        <label class="form-label small fw-bold">Other Medicine</label>
+                        <input type="text" class="form-control prescription-other-drug" placeholder="Enter other medicine" />
+                    </div>
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-4">
+                    <label class="form-label small fw-bold">Dosage</label>
+                    <input type="text" class="form-control prescription-dosage" placeholder="e.g., 500mg tablet, 5ml syrup" />
+                </div>
+                <div class="col-md-2">
                     <label class="form-label small fw-bold">Quantity</label>
                     <input type="number" class="form-control prescription-quantity" min="1" value="${quantity || 1}" />
                 </div>
@@ -860,33 +904,12 @@
                     <button type="button" class="btn btn-outline-danger remove-prescription-btn" aria-label="Remove prescription"><i class="bi bi-trash"></i></button>
                 </div>`;
             container.appendChild(row);
-            renderDrugOptions(row.querySelector('.drug-inventory-select'), selectedDrugId);
+            renderDrugOptions(row.querySelector('.drug-catalog-select'), selectedDrugName);
+            row.querySelector('.prescription-dosage').value = dosage || '';
+            row.querySelector('.prescription-other-drug').value = otherDrugName || '';
             reindexPrescriptionRows();
+            syncPrescriptionOtherRows();
         }
-
-        async function refreshDrugInventoryDropdowns() {
-            const providerSelect = document.getElementById('ProviderId');
-            const selectedValues = Array.from(document.querySelectorAll('.drug-inventory-select')).map(select => select.value);
-
-            if (!providerSelect?.value) {
-                drugInventoryOptions = [];
-            } else {
-                try {
-                    const response = await fetch(`/Encounters/GetDrugInventoryByProvider?providerId=${encodeURIComponent(providerSelect.value)}`);
-                    const data = await response.json();
-                    drugInventoryOptions = data.success && Array.isArray(data.items)
-                        ? data.items.map(item => ({ id: item.id, text: item.text }))
-                        : [];
-                } catch {
-                    drugInventoryOptions = [];
-                }
-            }
-
-            document.querySelectorAll('.drug-inventory-select').forEach((select, index) => {
-                renderDrugOptions(select, selectedValues[index]);
-            });
-        }
-
         async function refreshLaboratoryServices() {
             const providerSelect = document.getElementById('ProviderId');
             const laboratorySelect = document.getElementById('selectedLaboratoryTests');
@@ -925,7 +948,7 @@
                 .toString()
                 .toLowerCase()
                 .replace(/&/g, ' and ')
-                .replace(/[\/()–—-]+/g, ' ')
+                .replace(/[\/()\\-]+/g, ' ')
                 .replace(/[^a-z0-9]+/g, ' ')
                 .replace(/\s+/g, ' ')
                 .trim();
@@ -962,19 +985,25 @@
             });
             const firstRow = document.querySelector('.prescription-row');
             if (firstRow) {
-                const drug = firstRow.querySelector('.drug-inventory-select');
+                const drug = firstRow.querySelector('.drug-catalog-select');
+                const other = firstRow.querySelector('.prescription-other-drug');
+                const dosage = firstRow.querySelector('.prescription-dosage');
                 const quantity = firstRow.querySelector('.prescription-quantity');
                 if (drug) drug.value = '';
+                if (other) other.value = '';
+                if (dosage) dosage.value = '';
                 if (quantity) quantity.value = 1;
             }
             reindexPrescriptionRows();
         }
 
         function syncConditionalEncounterSections() {
-            const labRequired = hasSelectedService('Laboratory services', ['laboratory', 'lab']);
-            const prescriptionRequired = hasSelectedService('Drug prescription/dispensing', ['prescription', 'dispensing', 'drug']);
+            const labRequired = hasSelectedService('Laboratory Services', ['laboratory', 'lab']);
+            const prescriptionRequired = hasSelectedService('Pharmacy and Medicines Dispensing Service');
             const laboratorySection = document.getElementById('laboratorySection');
             const prescriptionSection = document.getElementById('prescriptionSection');
+            const preventiveRequired = hasSelectedService('Preventive Services', ['preventive']);
+            const preventiveSection = document.getElementById('preventiveSection');
             const laboratorySelect = document.getElementById('selectedLaboratoryTests');
 
             if (laboratorySection) laboratorySection.style.display = labRequired ? 'block' : 'none';
@@ -988,12 +1017,20 @@
             }
 
             if (prescriptionSection) prescriptionSection.style.display = prescriptionRequired ? 'block' : 'none';
+            syncPrescriptionOtherRows();
+            if (preventiveSection) preventiveSection.style.display = preventiveRequired ? 'block' : 'none';
             if (!prescriptionRequired) {
                 clearPrescriptionRows();
             }
         }
 
         document.getElementById('addPrescriptionBtn')?.addEventListener('click', () => addPrescriptionRow());
+        document.getElementById('prescriptionRows')?.addEventListener('change', event => {
+            if (event.target.closest('.drug-catalog-select')) {
+                syncPrescriptionOtherRows();
+            }
+        });
+
         document.getElementById('prescriptionRows')?.addEventListener('click', event => {
             const button = event.target.closest('.remove-prescription-btn');
             if (!button) return;
@@ -1001,25 +1038,29 @@
             const rows = document.querySelectorAll('.prescription-row');
             if (rows.length === 1) {
                 const row = rows[0];
-                row.querySelector('.drug-inventory-select').value = '';
+                row.querySelector('.drug-catalog-select').value = '';
+                row.querySelector('.prescription-other-drug').value = '';
+                row.querySelector('.prescription-dosage').value = '';
                 row.querySelector('.prescription-quantity').value = 1;
+                syncPrescriptionOtherRows();
                 return;
             }
 
             button.closest('.prescription-row')?.remove();
             reindexPrescriptionRows();
+            syncPrescriptionOtherRows();
         });
 
         document.getElementById('ProviderId')?.addEventListener('change', async () => {
             const doctorSelect = document.getElementById('DoctorId');
             if (doctorSelect) doctorSelect.dataset.selectedDoctor = '';
             await refreshDoctorDropdown();
-            await refreshDrugInventoryDropdowns();
             await refreshLaboratoryServices();
             syncConditionalEncounterSections();
         });
         refreshDoctorDropdown();
-        refreshDrugInventoryDropdowns().then(syncConditionalEncounterSections);
+        syncConditionalEncounterSections();
+        syncPrescriptionOtherRows();
 
         function addValidationError(errors, selector, message) {
             const field = document.querySelector(selector);
@@ -1030,9 +1071,7 @@
         }
 
         function isReferralEncounter() {
-            const status = (document.getElementById('Status')?.value || '').toLowerCase();
-            const visitType = (document.getElementById('VisitType')?.value || '').toLowerCase();
-            return status === 'referred' || visitType === 'referral';
+            return hasSelectedService('Referral Services', ['referral']);
         }
 
         function syncReferralFields() {
@@ -1040,7 +1079,6 @@
             const referralFields = document.getElementById('referralFields');
             const requiresReferral = document.getElementById('Referral_RequiresReferral');
             const submitBtn = document.getElementById('submitBtn');
-            const statusSelect = document.getElementById('Status');
 
             if (referralFields) {
                 referralFields.style.display = referralActive ? 'block' : 'none';
@@ -1053,18 +1091,9 @@
             if (submitBtn) {
                 submitBtn.textContent = referralActive ? 'SUBMIT TO HMO' : 'SAVE ENCOUNTER';
             }
-
-            if (referralActive && statusSelect && statusSelect.value.toLowerCase() !== 'referred') {
-                const referredOption = Array.from(statusSelect.options)
-                    .find(option => option.value.toLowerCase() === 'referred');
-                if (referredOption) {
-                    statusSelect.value = referredOption.value;
-                }
-            }
         }
-
-        document.getElementById('Status')?.addEventListener('change', syncReferralFields);
-        document.getElementById('VisitType')?.addEventListener('change', syncReferralFields);
+        document.getElementById('selectedServices')?.addEventListener('change', syncReferralFields);
+        if (window.jQuery) jQuery('#selectedServices').on('select2:select select2:unselect', syncReferralFields);
         syncReferralFields();
         syncConditionalEncounterSections();
 
@@ -1087,8 +1116,8 @@
                 addValidationError(errors, '#ChiefComplaint', 'Complaint is required.');
             }
 
-            if (!document.getElementById('Diagnosis')?.value.trim()) {
-                addValidationError(errors, '#Diagnosis', 'Diagnosis is required.');
+            if (!hasAnySelectedOption('selectedDiagnoses')) {
+                addValidationError(errors, '#selectedDiagnoses', 'Diagnosis is required.');
             }
 
             if (!document.getElementById('TreatmentGiven')?.value.trim()) {
@@ -1100,8 +1129,16 @@
             }
 
             document.querySelectorAll('.prescription-row').forEach(row => {
-                const drug = row.querySelector('.drug-inventory-select')?.value;
+                const drug = row.querySelector('.drug-catalog-select')?.value;
+                const otherDrug = row.querySelector('.prescription-other-drug')?.value.trim();
+                const dosage = row.querySelector('.prescription-dosage')?.value.trim();
                 const quantity = Number(row.querySelector('.prescription-quantity')?.value || 0);
+                if (drug && isOtherMedicineValue(drug) && !otherDrug) {
+                    addValidationError(errors, '.prescription-other-drug', 'Enter the other medicine name.');
+                }
+                if (drug && !dosage) {
+                    addValidationError(errors, '.prescription-dosage', 'Enter the dosage for each selected drug.');
+                }
                 if (drug && quantity <= 0) {
                     addValidationError(errors, '.prescription-quantity', 'Prescription quantities must be greater than zero.');
                 }
@@ -1112,15 +1149,31 @@
             }
 
             if (selectedServices.length === 0) {
-                addValidationError(errors, '#selectedServices', 'Select at least one service delivered.');
+                addValidationError(errors, '#selectedServices', 'Select at least one service provided.');
             }
 
-            const labRequired = hasSelectedService('Laboratory services', ['laboratory', 'lab']);
+            const labRequired = hasSelectedService('Laboratory Services', ['laboratory', 'lab']);
+            const prescriptionRequired = hasSelectedService('Pharmacy and Medicines Dispensing Service');
+            const selectedPrescriptionCount = Array.from(document.querySelectorAll('.drug-catalog-select')).filter(select => select.value).length;
+            if (prescriptionRequired && selectedPrescriptionCount === 0) {
+                addValidationError(errors, '.drug-catalog-select', 'Select at least one drug or remove Pharmacy and Medicines Dispensing Service.');
+            }
+
             if (labRequired && Array.from(document.getElementById('selectedLaboratoryTests')?.selectedOptions || []).length === 0) {
-                addValidationError(errors, '#selectedLaboratoryTests', 'Select at least one laboratory test or remove Laboratory services.');
+                addValidationError(errors, '#selectedLaboratoryTests', 'Select at least one laboratory test or remove Laboratory Services.');
             }
 
 
+
+            if (selectedHas('selectedPreventiveServices', 'Immunization')
+                && !document.getElementById('selectedImmunizations')?.value) {
+                addValidationError(errors, '#selectedImmunizations', 'Select an immunization type.');
+            }
+
+            if (selectedHas('selectedPreventiveServices', 'Screening Test')
+                && !document.getElementById('selectedScreeningTests')?.value) {
+                addValidationError(errors, '#selectedScreeningTests', 'Select a screening test.');
+            }
             if (isReferralEncounter()) {
                 if (!document.getElementById('Referral_ReferredHospitalId')?.value) {
                     addValidationError(errors, '#Referral_ReferredHospitalId', 'Select the referred hospital.');
@@ -1154,6 +1207,77 @@
         document.getElementById('selectedPresentingComplaints')?.addEventListener('change', syncPresentingComplaintsOther);
         $('#selectedPresentingComplaints').on('select2:select select2:unselect', syncPresentingComplaintsOther);
         syncPresentingComplaintsOther();
+
+        function selectedHas(selectId, value) {
+            const select = document.getElementById(selectId);
+            if (!select) return false;
+
+            const expected = normalizeServiceLabel(value);
+            const nativeValues = Array.from(select.selectedOptions || [])
+                .map(option => (option.value || '') + ' ' + (option.textContent || ''));
+            const select2Values = window.jQuery && $(select).data('select2')
+                ? ($(select).select2('data') || []).map(item => (item.id || '') + ' ' + (item.text || ''))
+                : [];
+
+            return nativeValues.concat(select2Values)
+                .map(normalizeServiceLabel)
+                .some(selected => selected === expected || selected.includes(expected));
+        }
+
+        function hasAnySelectedOption(selectId) {
+            const select = document.getElementById(selectId);
+            if (!select) return false;
+
+            const nativeValues = Array.from(select.selectedOptions || [])
+                .filter(option => !option.disabled)
+                .map(option => (option.value || '').trim())
+                .filter(Boolean);
+            const select2Values = window.jQuery && $(select).data('select2')
+                ? ($(select).select2('data') || [])
+                    .map(item => (item.id || '').trim())
+                    .filter(Boolean)
+                : [];
+
+            return nativeValues.concat(select2Values).length > 0;
+        }
+        function syncOtherAndPreventiveFields() {
+            const serviceOther = document.getElementById('servicesProvidedOtherRow');
+            const diagnosisOther = document.getElementById('diagnosisOtherRow');
+            const preventiveOther = document.getElementById('preventiveOtherRow');
+            const laboratoryOther = document.getElementById('laboratoryOtherRow');
+            const immunization = document.getElementById('immunizationSection');
+            const screening = document.getElementById('screeningSection');
+
+            if (serviceOther) serviceOther.style.display = selectedHas('selectedServices', 'Others') ? 'block' : 'none';
+            if (diagnosisOther) diagnosisOther.style.display = selectedHas('selectedDiagnoses', 'Other') ? 'block' : 'none';
+            if (preventiveOther) preventiveOther.style.display = selectedHas('selectedPreventiveServices', 'Others') ? 'block' : 'none';
+            if (laboratoryOther) laboratoryOther.style.display = selectedHas('selectedLaboratoryTests', 'Others') ? 'block' : 'none';
+            const hasImmunization = selectedHas('selectedPreventiveServices', 'Immunization');
+            const hasScreening = selectedHas('selectedPreventiveServices', 'Screening Test');
+            if (immunization) immunization.style.display = hasImmunization ? 'block' : 'none';
+            if (screening) screening.style.display = hasScreening ? 'block' : 'none';
+
+            if (!hasImmunization) {
+                const select = document.getElementById('selectedImmunizations');
+                if (select) {
+                    select.value = '';
+                    if (window.jQuery && $(select).data('select2')) $(select).trigger('change.select2');
+                }
+            }
+            if (!hasScreening) {
+                const select = document.getElementById('selectedScreeningTests');
+                if (select) {
+                    select.value = '';
+                    if (window.jQuery && $(select).data('select2')) $(select).trigger('change.select2');
+                }
+            }
+        }
+
+        ['selectedServices', 'selectedDiagnoses', 'selectedPreventiveServices', 'selectedLaboratoryTests'].forEach(id => {
+            document.getElementById(id)?.addEventListener('change', syncOtherAndPreventiveFields);
+            if (window.jQuery) $('#' + id).on('change select2:select select2:unselect select2:clear', syncOtherAndPreventiveFields);
+        });
+        syncOtherAndPreventiveFields();
     </script>
-  
+
 }

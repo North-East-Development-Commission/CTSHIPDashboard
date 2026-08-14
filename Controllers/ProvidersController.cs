@@ -1156,7 +1156,7 @@ public class ProvidersController : Controller
         }
 
         List<EncounterPrescription> pendingPrescriptions = encounter.Prescriptions
-            .Where(prescription => !prescription.InventoryDeducted)
+            .Where(prescription => !prescription.InventoryDeducted && prescription.DrugInventoryItemId.HasValue)
             .ToList();
 
         if (pendingPrescriptions.Count == 0)
@@ -1165,7 +1165,7 @@ public class ProvidersController : Controller
         }
 
         List<int> inventoryIds = pendingPrescriptions
-            .Select(prescription => prescription.DrugInventoryItemId)
+            .Select(prescription => prescription.DrugInventoryItemId!.Value)
             .Distinct()
             .ToList();
 
@@ -1604,12 +1604,19 @@ public class ProvidersController : Controller
             .Include(e => e.Services)
             .Include(e => e.Claim)
             .Include(e => e.Prescriptions).ThenInclude(p => p.DrugInventoryItem)
+            .Include(e => e.PresentingComplaints)
             .Include(e => e.Queries)
             .Include(e => e.AuditTrails)
             .FirstOrDefaultAsync(e => e.Id == id);
         var currentUser = await _userManager.GetUserAsync(User);
         if (encounter == null) return NotFound();
         if (User.IsInRole("Provider") && currentUser?.ProviderId != encounter.ProviderId) return Forbid();
+
+        ViewBag.LinkedReferral = await _context.Referrals
+            .Include(r => r.ReferredHospital)
+            .AsNoTracking()
+            .FirstOrDefaultAsync(r => !r.IsDeleted && r.EncounterReference == encounter.EncounterNumber);
+
         return View(encounter);
     }
 

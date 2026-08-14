@@ -1,0 +1,25 @@
+@model CTSHIPDashboard.Models.Encounter
+@{
+    var groups = ViewBag.Medicines as IDictionary<string, List<string>> ?? new Dictionary<string, List<string>>();
+}
+<div class="col-12" id="medicineCatalogSection" style="display:none;">
+    <div class="conditional-service-section">
+        <label for="selectedMedicines" class="form-label">Medicines Prescribed / Dispensed</label>
+        <div class="small text-muted mb-2">Select medicines from the Primary Provider medicines list.</div>
+        <select id="selectedMedicines" name="SelectedMedicines" class="form-select select2" multiple data-placeholder="Select medicines">
+            @foreach (var group in groups)
+            {
+                <optgroup label="@group.Key">
+                    @foreach (string medicine in group.Value)
+                    {
+                        <option value="@medicine" selected="@(Model.SelectedMedicines.Contains(medicine, StringComparer.OrdinalIgnoreCase) ? "selected" : null)">@medicine</option>
+                    }
+                </optgroup>
+            }
+        </select>
+        <div id="medicinesOtherRow" class="mt-3" style="display:none;">
+            <label asp-for="MedicinesOther" class="form-label">Other medicine</label>
+            <input asp-for="MedicinesOther" class="form-control" placeholder="Specify the other medicine" />
+        </div>
+    </div>
+</div>

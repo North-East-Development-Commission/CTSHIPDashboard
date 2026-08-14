@@ -36,7 +36,7 @@ namespace CTSHIPDashboard.Controllers
             _notificationService = notificationService;
         }
 
-        // INDEX — FULL LIST WITH SEARCH & FILTER
+        // INDEX â€” FULL LIST WITH SEARCH & FILTER
         public async Task<IActionResult> Index(string search = "", string status = "All", int page = 1, int pageSize = 10)
         {
             var query = _context.Encounters
@@ -77,7 +77,7 @@ namespace CTSHIPDashboard.Controllers
             }
 
             if (status != "All")
-                query = query.Where(e => e.Status == status);
+                query = query.Where(e => e.PatientOutcome == status);
 
             var totalItems = await query.CountAsync();
             var model = await query
@@ -137,7 +137,7 @@ namespace CTSHIPDashboard.Controllers
             return View(model);
         }
 
-        // CREATE POST — CLEAN & PERFECT
+        // CREATE POST â€” CLEAN & PERFECT
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create(Encounter encounter)
@@ -155,6 +155,7 @@ namespace CTSHIPDashboard.Controllers
             }
 
             EnsureEncounterDefaults(encounter);
+            ApplyClinicalSelections(encounter);
             ValidateSelectedServices(encounter);
             // If presenting complaints were selected on the form, synthesize ChiefComplaint
             if (encounter.SelectedPresentingComplaints != null && encounter.SelectedPresentingComplaints.Count > 0)
@@ -180,7 +181,7 @@ namespace CTSHIPDashboard.Controllers
             Enrollee? selectedEnrollee =
                 await ValidateEnrolleeAssignmentAsync(encounter.EnrolleeId, encounter.ProviderId);
             Provider? selectedProvider = await ValidateProviderSelectionAsync(encounter.ProviderId);
-            List<DrugInventoryItem> prescriptionInventoryItems = await ValidateSelectedPrescriptionsAsync(encounter, selectedProvider);
+            ValidateSelectedPrescriptions(encounter);
             await ValidateReferralInputAsync(encounter, selectedEnrollee);
             Doctor? attendingDoctor = await ValidateDoctorSelectionAsync(
                 encounter.ProviderId,
@@ -210,7 +211,7 @@ namespace CTSHIPDashboard.Controllers
                     encounter.IsBilled = false;
 
                     SetEncounterServices(encounter);
-                    SetEncounterPrescriptions(encounter, prescriptionInventoryItems);
+                    SetEncounterPrescriptions(encounter);
                     // Map selected laboratory investigations into encounter fields and compute lab fee
                     if (encounter.LaboratoryInvestigations != null && encounter.LaboratoryInvestigations.Count > 0)
                     {
@@ -241,10 +242,7 @@ namespace CTSHIPDashboard.Controllers
                             : string.Join(", ", encounter.SelectedLaboratoryTests.Select(s => s.Trim()));
                         encounter.LabFee = await ResolveLaboratoryFeeAsync(encounter.ProviderId, encounter.SelectedLaboratoryTests);
                     }
-                    if (IsCompletedStatus(encounter.Status))
-                    {
-                        DeductInventoryForPrescriptions(encounter.Prescriptions, prescriptionInventoryItems);
-                    }
+
 
                     // Persist normalized presenting complaints if provided
                     if (encounter.SelectedPresentingComplaints != null && encounter.SelectedPresentingComplaints.Count > 0)
@@ -297,7 +295,7 @@ namespace CTSHIPDashboard.Controllers
                         AuditActor.Details(
                             $"Enrollee:{encounter.EnrolleeId}",
                             $"Provider:{encounter.ProviderId}",
-                            $"Total:NGN {encounter.TotalAmount:N2}"));
+                            "Funding: Capitation"));
 
                     await _notificationService.NotifyEncounterSubmittedAsync(encounter.Id, HttpContext.RequestAborted);
 
@@ -334,7 +332,7 @@ namespace CTSHIPDashboard.Controllers
             return View(encounter);
         }
 
-        // EDIT GET — CLEAN
+        // EDIT GET â€” CLEAN
         public async Task<IActionResult> Edit(int id)
         {
             var encounter = await _context.Encounters
@@ -356,6 +354,8 @@ namespace CTSHIPDashboard.Controllers
                 .Select(prescription => new EncounterPrescriptionInputViewModel
                 {
                     DrugInventoryItemId = prescription.DrugInventoryItemId,
+                    DrugName = prescription.DrugName,
+                    Strength = prescription.Strength,
                     QuantityDispensed = prescription.QuantityDispensed
                 })
                 .ToList();
@@ -363,7 +363,7 @@ namespace CTSHIPDashboard.Controllers
             return View(encounter);
         }
 
-        // EDIT POST — CLEAN & SAFE
+        // EDIT POST â€” CLEAN & SAFE
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Edit(int id, Encounter encounter)
@@ -371,6 +371,7 @@ namespace CTSHIPDashboard.Controllers
             if (id != encounter.Id) return NotFound();
 
             EnsureEncounterDefaults(encounter);
+            ApplyClinicalSelections(encounter);
             ValidateSelectedServices(encounter);
             ValidateEncounterInput(encounter);
 
@@ -408,10 +409,21 @@ namespace CTSHIPDashboard.Controllers
                 {
                     existing.VisitDate = encounter.VisitDate;
                     existing.VisitDate = TrimToSecond(existing.VisitDate);
+                    ApplyClinicalSelections(encounter);
                     existing.VisitType = encounter.VisitType;
                     existing.ServiceSetting = encounter.ServiceSetting;
                     existing.ReasonForEncounter = encounter.ReasonForEncounter;
                     existing.Status = encounter.Status;
+                    existing.PatientOutcome = encounter.PatientOutcome;
+                    existing.DiagnosisOther = encounter.DiagnosisOther;
+                    existing.ServicesProvidedOther = encounter.ServicesProvidedOther;
+                    existing.MedicinesOther = encounter.MedicinesOther;
+                    existing.LaboratoryOther = encounter.LaboratoryOther;
+                    existing.PreventiveServicesOther = encounter.PreventiveServicesOther;
+                    existing.SelectedMedicinesData = encounter.SelectedMedicinesData;
+                    existing.PreventiveServicesData = encounter.PreventiveServicesData;
+                    existing.ImmunizationsData = encounter.ImmunizationsData;
+                    existing.ScreeningTestsData = encounter.ScreeningTestsData;
                     existing.DoctorId = encounter.DoctorId;
                     existing.ChiefComplaint = encounter.ChiefComplaint;
                     existing.Diagnosis = encounter.Diagnosis;
@@ -510,12 +522,12 @@ namespace CTSHIPDashboard.Controllers
                             $"Enrollee:{existing.EnrolleeId}",
                             $"Provider:{existing.ProviderId}",
                             $"Status:{existing.Status}",
-                            $"Total:NGN {existing.TotalAmount:N2}"),
+                            "Funding: Capitation"),
                         HttpContext.RequestAborted);
                     TempData["Success"] = $"Encounter {encounter.EncounterNumber} updated successfully!";
-                  
+
                    return RedirectToAction("Index", "Encounters");
-                    
+
                 }
                 catch (DbUpdateException)
                 {
@@ -575,7 +587,7 @@ namespace CTSHIPDashboard.Controllers
                     AuditActor.Details(
                         $"Enrollee:{encounter.EnrolleeId}",
                         $"Provider:{encounter.ProviderId}",
-                        $"Total:NGN {encounter.TotalAmount:N2}"),
+                        "Funding: Capitation"),
                     HttpContext.RequestAborted);
                 TempData["Success"] = $"Encounter {encounter.EncounterNumber} deleted.";
             }
@@ -709,7 +721,7 @@ namespace CTSHIPDashboard.Controllers
             var items = inventoryItems.Select(item => new
             {
                 id = item.Id,
-                text = item.DisplayName + " (Stock: " + item.QuantityOnHand + " " + item.UnitOfMeasure + ")",
+                text = FormatDrugInventoryLabel(item),
                 stock = item.QuantityOnHand,
                 unit = item.UnitOfMeasure,
                 unitCost = item.UnitCost
@@ -836,6 +848,12 @@ namespace CTSHIPDashboard.Controllers
 
             ViewBag.PresentingComplaints = EncounterPresentingComplaintsCatalog.BuildSelectList(encounter.SelectedPresentingComplaints);
 
+            encounter.SelectedDiagnoses = SplitClinicalData(encounter.Diagnosis);
+            encounter.SelectedMedicines = SplitClinicalData(encounter.SelectedMedicinesData);
+            encounter.SelectedPreventiveServices = SplitClinicalData(encounter.PreventiveServicesData);
+            encounter.SelectedImmunizations = SplitClinicalData(encounter.ImmunizationsData);
+            encounter.SelectedScreeningTests = SplitClinicalData(encounter.ScreeningTestsData);
+
             if (!string.IsNullOrWhiteSpace(encounter.LabTests) && (encounter.SelectedLaboratoryTests == null || encounter.SelectedLaboratoryTests.Count == 0))
             {
                 encounter.SelectedLaboratoryTests = encounter.LabTests
@@ -898,7 +916,6 @@ namespace CTSHIPDashboard.Controllers
                 new() { Value = "Pending", Text = "Pending", Selected = string.Equals(Request.HasFormContentType ? Request.Form[nameof(Encounter.Status)].ToString() : null, "Pending", StringComparison.OrdinalIgnoreCase) },
                 new() { Value = "Cancelled", Text = "Cancelled", Selected = string.Equals(Request.HasFormContentType ? Request.Form[nameof(Encounter.Status)].ToString() : null, "Cancelled", StringComparison.OrdinalIgnoreCase) },
                 new() { Value = "Referred", Text = "Referred", Selected = string.Equals(Request.HasFormContentType ? Request.Form[nameof(Encounter.Status)].ToString() : null, "Referred", StringComparison.OrdinalIgnoreCase) },
-                new() { Value = "Claimed", Text = "Claimed", Selected = string.Equals(Request.HasFormContentType ? Request.Form[nameof(Encounter.Status)].ToString() : null, "Claimed", StringComparison.OrdinalIgnoreCase) }
             };
 
             ViewBag.ServiceSettings = new List<SelectListItem>
@@ -906,20 +923,28 @@ namespace CTSHIPDashboard.Controllers
                 new(EncounterServiceCatalog.Outpatient, EncounterServiceCatalog.Outpatient),
                 new(EncounterServiceCatalog.Inpatient, EncounterServiceCatalog.Inpatient)
             };
-            ViewBag.VisitTypes = new List<SelectListItem>
-            {
-                new("New Visit", "New Visit"),
-                new("Follow-up", "Follow-up"),
-                new("Emergency", "Emergency"),
-                new("Referral", "Referral")
-            };
+            ViewBag.VisitTypes = EncounterLookups.TypesOfVisit.Select(x => new SelectListItem(x, x)).ToList();
+            ViewBag.PatientOutcomes = EncounterLookups.PatientOutcomes.Select(x => new SelectListItem(x, x)).ToList();
+            ViewBag.Diagnoses = EncounterLookups.Diagnoses;
+            ViewBag.Medicines = EncounterLookups.Medicines;
+            ViewBag.PreventiveServices = EncounterLookups.PreventiveServices;
+            ViewBag.Immunizations = EncounterLookups.Immunizations;
+            ViewBag.ScreeningTests = EncounterLookups.ScreeningTests;
             ViewBag.EncounterReasons = EncounterReasonCatalog.BuildSelectList(selectedReason);
             ViewBag.EncounterReasonExamples = EncounterReasonCatalog.Examples;
-            ViewBag.DrugInventoryItems = await BuildDrugInventoryOptionsAsync(selectedProviderId);
-            ViewBag.OutpatientServices = EncounterServiceCatalog.OutpatientServices;
-            ViewBag.InpatientServices = EncounterServiceCatalog.InpatientServices;
+            ViewBag.OutpatientServices = EncounterLookups.ServicesProvided;
+            ViewBag.InpatientServices = EncounterLookups.ServicesProvided;
         }
 
+        private static string FormatDrugInventoryLabel(DrugInventoryItem item)
+        {
+            string dosage = string.Join(" ", new[] { item.Strength, item.DosageForm }
+                .Where(value => !string.IsNullOrWhiteSpace(value)));
+
+            return string.IsNullOrWhiteSpace(dosage)
+                ? item.DrugName
+                : $"{item.DrugName} - {dosage}";
+        }
         private async Task<List<SelectListItem>> BuildDrugInventoryOptionsAsync(int? providerId)
         {
             if (!providerId.HasValue)
@@ -947,11 +972,11 @@ namespace CTSHIPDashboard.Controllers
                 .Select(item => new SelectListItem
                 {
                     Value = item.Id.ToString(),
-                    Text = item.DisplayName + " (Stock: " + item.QuantityOnHand + " " + item.UnitOfMeasure + ")"
+                    Text = FormatDrugInventoryLabel(item)
                 })
                 .ToList();
         }
-        private async Task<List<SelectListItem>> BuildLaboratoryOptionsAsync(
+        private Task<List<SelectListItem>> BuildLaboratoryOptionsAsync(
             int? providerId,
             IEnumerable<string>? selectedNames)
         {
@@ -959,67 +984,21 @@ namespace CTSHIPDashboard.Controllers
                 selectedNames?.Where(name => !string.IsNullOrWhiteSpace(name)) ?? Enumerable.Empty<string>(),
                 StringComparer.OrdinalIgnoreCase);
 
-            bool hasManagedCatalog = providerId.HasValue
-                && await _context.LaboratoryServices
-                    .AsNoTracking()
-                    .AnyAsync(item => item.ProviderId == providerId.Value);
-
-            if (hasManagedCatalog)
-            {
-                List<LaboratoryService> services = await _context.LaboratoryServices
-                    .AsNoTracking()
-                    .Where(item => item.ProviderId == providerId!.Value)
-                    .OrderBy(item => item.Name)
-                    .ToListAsync();
-
-                return services
-                    .Where(item => item.IsActive || selected.Contains(item.Name))
-                    .Select(item => new SelectListItem
-                    {
-                        Value = item.Name,
-                        Text = $"{item.Name} - NGN {item.UnitCost:N2}",
-                        Selected = selected.Contains(item.Name)
-                    })
-                    .ToList();
-            }
-
-            return ReferralEncounterClaimCatalog.LaboratoryTests
-                .Select(item => new SelectListItem
+            List<SelectListItem> options = EncounterLookups.LaboratoryTests
+                .Select(name => new SelectListItem
                 {
-                    Value = item.Name,
-                    Text = item.Label,
-                    Selected = selected.Contains(item.Name)
+                    Value = name,
+                    Text = name,
+                    Selected = selected.Contains(name)
                 })
                 .ToList();
+            return Task.FromResult(options);
         }
 
-        private async Task<decimal> ResolveLaboratoryFeeAsync(int providerId, IEnumerable<string> selectedNames)
+        private Task<decimal> ResolveLaboratoryFeeAsync(int providerId, IEnumerable<string> selectedNames)
         {
-            List<string> names = selectedNames
-                .Where(name => !string.IsNullOrWhiteSpace(name))
-                .Select(name => name.Trim())
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .ToList();
-
-            if (names.Count == 0) return 0m;
-
-            List<LaboratoryService> managedServices = await _context.LaboratoryServices
-                .AsNoTracking()
-                .Where(item => item.ProviderId == providerId && item.IsActive)
-                .ToListAsync();
-
-            decimal managedTotal = managedServices
-                .Where(item => names.Contains(item.Name, StringComparer.OrdinalIgnoreCase))
-                .Sum(item => item.UnitCost);
-
-            List<string> legacyNames = names
-                .Where(name => !managedServices.Any(item =>
-                    string.Equals(item.Name, name, StringComparison.OrdinalIgnoreCase)))
-                .ToList();
-
-            return managedTotal + ReferralEncounterClaimCatalog.SumSelected(
-                legacyNames,
-                ReferralEncounterClaimCatalog.LaboratoryTests);
+            // Primary Provider encounters are funded through capitation, not fee-for-service billing.
+            return Task.FromResult(0m);
         }
 
 
@@ -1089,9 +1068,10 @@ namespace CTSHIPDashboard.Controllers
                 VisitType = "New Visit",
                 ServiceSetting = EncounterServiceCatalog.Outpatient,
                 ReasonForEncounter = EncounterReasonCatalog.DefaultReason,
-                Status = "Completed"
+                Status = "Completed",
+                PatientOutcome = "Treated"
             };
-            encounter.SelectedServices.Add("Management of common infectious diseases");
+            encounter.SelectedServices.Add("General Outpatient Consultation");
             return encounter;
         }
 
@@ -1121,12 +1101,7 @@ namespace CTSHIPDashboard.Controllers
                 ModelState.Remove(nameof(Encounter.ReasonForEncounter));
             }
 
-            if (IsReferralVisitType(encounter.VisitType)
-                && !IsReferralStatus(encounter.Status))
-            {
-                encounter.Status = "Referred";
-                ModelState.Remove(nameof(Encounter.Status));
-            }
+
         }
 
         private async Task<Enrollee?> ValidateEnrolleeAssignmentAsync(int enrolleeId, int providerId)
@@ -1164,72 +1139,82 @@ namespace CTSHIPDashboard.Controllers
             return provider;
         }
 
-        private async Task<List<DrugInventoryItem>> ValidateSelectedPrescriptionsAsync(Encounter encounter, Provider? provider)
+        private void ValidateSelectedPrescriptions(Encounter encounter)
         {
-            encounter.SelectedPrescriptions = encounter.SelectedPrescriptions
-                .Where(prescription => prescription.DrugInventoryItemId > 0)
-                .GroupBy(prescription => prescription.DrugInventoryItemId)
-                .Select(group => new EncounterPrescriptionInputViewModel
+            if (!encounter.SelectedServices.Contains(EncounterServiceCatalog.PrescriptionService, StringComparer.OrdinalIgnoreCase))
+            {
+                encounter.SelectedPrescriptions = new List<EncounterPrescriptionInputViewModel>();
+                return;
+            }
+
+            HashSet<string> allowedMedicines = new(
+                EncounterLookups.Medicines.SelectMany(group => group.Value),
+                StringComparer.OrdinalIgnoreCase);
+
+            List<EncounterPrescriptionInputViewModel> normalized = new();
+
+            foreach (EncounterPrescriptionInputViewModel prescription in encounter.SelectedPrescriptions ?? new List<EncounterPrescriptionInputViewModel>())
+            {
+                string selectedDrug = prescription.DrugName?.Trim() ?? string.Empty;
+                if (string.IsNullOrWhiteSpace(selectedDrug))
                 {
-                    DrugInventoryItemId = group.Key,
-                    QuantityDispensed = group.Sum(item => item.QuantityDispensed)
-                })
-                .ToList();
+                    continue;
+                }
 
-            if (encounter.SelectedPrescriptions.Count == 0)
-            {
-                return new List<DrugInventoryItem>();
-            }
+                bool isOtherMedicine = string.Equals(selectedDrug, "Other Medicines", StringComparison.OrdinalIgnoreCase);
+                if (!allowedMedicines.Contains(selectedDrug))
+                {
+                    ModelState.AddModelError(nameof(Encounter.SelectedPrescriptions), "Select a medicine from the primary provider drug list.");
+                    continue;
+                }
 
-            if (provider == null)
-            {
-                ModelState.AddModelError(nameof(Encounter.SelectedPrescriptions), "Select a facility before adding prescriptions.");
-                return new List<DrugInventoryItem>();
-            }
+                string finalDrugName = selectedDrug;
+                if (isOtherMedicine)
+                {
+                    if (string.IsNullOrWhiteSpace(prescription.OtherDrugName))
+                    {
+                        ModelState.AddModelError(nameof(Encounter.SelectedPrescriptions), "Enter the other medicine name.");
+                        continue;
+                    }
 
-            if (!string.Equals(provider.Level, "Primary", StringComparison.OrdinalIgnoreCase))
-            {
-                ModelState.AddModelError(nameof(Encounter.SelectedPrescriptions), "Drug inventory prescriptions are available only for primary providers.");
-                return new List<DrugInventoryItem>();
-            }
+                    finalDrugName = prescription.OtherDrugName.Trim();
+                }
 
-            foreach (EncounterPrescriptionInputViewModel prescription in encounter.SelectedPrescriptions)
-            {
+                string dosage = prescription.Strength?.Trim() ?? string.Empty;
+                if (string.IsNullOrWhiteSpace(dosage))
+                {
+                    ModelState.AddModelError(nameof(Encounter.SelectedPrescriptions), "Enter the dosage for each selected drug.");
+                }
+
                 if (prescription.QuantityDispensed <= 0)
                 {
                     ModelState.AddModelError(nameof(Encounter.SelectedPrescriptions), "Prescription quantities must be greater than zero.");
                 }
+
+                normalized.Add(new EncounterPrescriptionInputViewModel
+                {
+                    DrugInventoryItemId = prescription.DrugInventoryItemId,
+                    DrugName = finalDrugName,
+                    OtherDrugName = isOtherMedicine ? finalDrugName : null,
+                    Strength = dosage,
+                    QuantityDispensed = prescription.QuantityDispensed
+                });
             }
 
-            List<int> inventoryIds = encounter.SelectedPrescriptions
-                .Select(prescription => prescription.DrugInventoryItemId)
-                .Distinct()
+            encounter.SelectedPrescriptions = normalized
+                .GroupBy(prescription => new
+                {
+                    DrugName = prescription.DrugName ?? string.Empty,
+                    Strength = prescription.Strength ?? string.Empty
+                })
+                .Select(group => new EncounterPrescriptionInputViewModel
+                {
+                    DrugName = group.Key.DrugName,
+                    Strength = group.Key.Strength,
+                    QuantityDispensed = group.Sum(item => item.QuantityDispensed)
+                })
                 .ToList();
-
-            List<DrugInventoryItem> inventoryItems = await _context.DrugInventoryItems
-                .Where(item => inventoryIds.Contains(item.Id) && item.ProviderId == provider.Id && item.IsActive)
-                .ToListAsync();
-
-            foreach (EncounterPrescriptionInputViewModel prescription in encounter.SelectedPrescriptions)
-            {
-                DrugInventoryItem? item = inventoryItems.FirstOrDefault(candidate => candidate.Id == prescription.DrugInventoryItemId);
-                if (item == null)
-                {
-                    ModelState.AddModelError(nameof(Encounter.SelectedPrescriptions), "Select an active drug from the provider inventory.");
-                    continue;
-                }
-
-                if (item.QuantityOnHand < prescription.QuantityDispensed)
-                {
-                    ModelState.AddModelError(
-                        nameof(Encounter.SelectedPrescriptions),
-                        $"{item.DisplayName} has only {item.QuantityOnHand:N0} {item.UnitOfMeasure} in stock.");
-                }
-            }
-
-            return inventoryItems;
         }
-
         private async Task ValidateReferralInputAsync(Encounter encounter, Enrollee? enrollee)
         {
             encounter.Referral ??= new EncounterReferralInputViewModel();
@@ -1516,6 +1501,26 @@ namespace CTSHIPDashboard.Controllers
                 ModelState.AddModelError(nameof(Encounter.TreatmentGiven), "Treatment given is required.");
             }
 
+            bool pharmacySelected = encounter.SelectedServices.Contains(
+                EncounterServiceCatalog.PrescriptionService,
+                StringComparer.OrdinalIgnoreCase);
+            bool hasPrescription = encounter.SelectedPrescriptions.Any(prescription => !string.IsNullOrWhiteSpace(prescription.DrugName));
+            if (pharmacySelected && !hasPrescription)
+            {
+                ModelState.AddModelError(nameof(Encounter.SelectedPrescriptions), "Select at least one drug for Pharmacy and Medicines Dispensing Service.");
+            }
+
+            if (encounter.SelectedPreventiveServices.Contains("Immunization", StringComparer.OrdinalIgnoreCase)
+                && encounter.SelectedImmunizations.Count == 0)
+            {
+                ModelState.AddModelError(nameof(Encounter.SelectedImmunizations), "Select an immunization type.");
+            }
+
+            if (encounter.SelectedPreventiveServices.Contains("Screening Test", StringComparer.OrdinalIgnoreCase)
+                && encounter.SelectedScreeningTests.Count == 0)
+            {
+                ModelState.AddModelError(nameof(Encounter.SelectedScreeningTests), "Select a screening test.");
+            }
             if (encounter.VisitDate > DateTime.Now)
             {
                 ModelState.AddModelError(nameof(Encounter.VisitDate), "Encounter date cannot be in the future.");
@@ -1523,99 +1528,46 @@ namespace CTSHIPDashboard.Controllers
 
         }
 
-        private async Task<bool> DeductPendingEncounterPrescriptionsAsync(Encounter encounter)
+        private Task<bool> DeductPendingEncounterPrescriptionsAsync(Encounter encounter)
         {
-            if (!IsCompletedStatus(encounter.Status))
+            foreach (EncounterPrescription prescription in encounter.Prescriptions.Where(prescription => !prescription.InventoryDeducted))
             {
-                return true;
+                prescription.InventoryDeducted = true;
+                prescription.DispensedAt = DateTime.UtcNow;
             }
 
-            List<EncounterPrescription> pendingPrescriptions = encounter.Prescriptions
-                .Where(prescription => !prescription.InventoryDeducted)
-                .ToList();
-
-            if (pendingPrescriptions.Count == 0)
-            {
-                return true;
-            }
-
-            List<int> inventoryIds = pendingPrescriptions
-                .Select(prescription => prescription.DrugInventoryItemId)
-                .Distinct()
-                .ToList();
-
-            List<DrugInventoryItem> inventoryItems = await _context.DrugInventoryItems
-                .Where(item => inventoryIds.Contains(item.Id) && item.ProviderId == encounter.ProviderId && item.IsActive)
-                .ToListAsync();
-
-            foreach (EncounterPrescription prescription in pendingPrescriptions)
-            {
-                DrugInventoryItem? item = inventoryItems.FirstOrDefault(candidate => candidate.Id == prescription.DrugInventoryItemId);
-                if (item == null)
-                {
-                    ModelState.AddModelError(string.Empty, $"{prescription.DrugName} is no longer active in inventory.");
-                    return false;
-                }
-
-                if (item.QuantityOnHand < prescription.QuantityDispensed)
-                {
-                    ModelState.AddModelError(
-                        string.Empty,
-                        $"{item.DisplayName} has only {item.QuantityOnHand:N0} {item.UnitOfMeasure} in stock.");
-                    return false;
-                }
-            }
-
-            DeductInventoryForPrescriptions(pendingPrescriptions, inventoryItems);
-            return true;
+            return Task.FromResult(true);
         }
 
-        private static void SetEncounterPrescriptions(Encounter encounter, IReadOnlyCollection<DrugInventoryItem> inventoryItems)
+        private static void SetEncounterPrescriptions(Encounter encounter)
         {
+            encounter.Prescriptions.Clear();
+
             foreach (EncounterPrescriptionInputViewModel prescription in encounter.SelectedPrescriptions)
             {
-                DrugInventoryItem? item = inventoryItems.FirstOrDefault(candidate => candidate.Id == prescription.DrugInventoryItemId);
-                if (item == null)
+                if (string.IsNullOrWhiteSpace(prescription.DrugName))
                 {
                     continue;
                 }
 
                 encounter.Prescriptions.Add(new EncounterPrescription
                 {
-                    DrugInventoryItemId = item.Id,
-                    DrugName = item.DrugName,
-                    Strength = item.Strength,
-                    DosageForm = item.DosageForm,
-                    UnitOfMeasure = item.UnitOfMeasure,
+                    DrugInventoryItemId = prescription.DrugInventoryItemId,
+                    DrugName = prescription.DrugName.Trim(),
+                    Strength = string.IsNullOrWhiteSpace(prescription.Strength) ? null : prescription.Strength.Trim(),
+                    DosageForm = null,
+                    UnitOfMeasure = "Unit",
                     QuantityDispensed = prescription.QuantityDispensed,
-                    UnitCost = item.UnitCost,
-                    InventoryDeducted = false,
+                    UnitCost = 0m,
+                    InventoryDeducted = true,
                     DispensedAt = DateTime.UtcNow
                 });
             }
 
-            encounter.DrugFee = encounter.Prescriptions.Sum(prescription => prescription.TotalCost);
+            encounter.SelectedMedicines = encounter.Prescriptions.Select(prescription => prescription.DrugName).ToList();
+            encounter.SelectedMedicinesData = JoinClinicalData(encounter.SelectedMedicines);
+            encounter.DrugFee = 0m;
         }
-
-        private static void DeductInventoryForPrescriptions(
-            IEnumerable<EncounterPrescription> prescriptions,
-            IReadOnlyCollection<DrugInventoryItem> inventoryItems)
-        {
-            foreach (EncounterPrescription prescription in prescriptions.Where(prescription => !prescription.InventoryDeducted))
-            {
-                DrugInventoryItem? item = inventoryItems.FirstOrDefault(candidate => candidate.Id == prescription.DrugInventoryItemId);
-                if (item == null)
-                {
-                    continue;
-                }
-
-                item.QuantityOnHand -= prescription.QuantityDispensed;
-                item.UpdatedAt = DateTime.UtcNow;
-                prescription.InventoryDeducted = true;
-                prescription.DispensedAt = DateTime.UtcNow;
-            }
-        }
-
         private static bool IsCompletedStatus(string? status)
         {
             return string.Equals(status, "Completed", StringComparison.OrdinalIgnoreCase);
@@ -1633,7 +1585,8 @@ namespace CTSHIPDashboard.Controllers
 
         private static bool RequiresEncounterReferral(Encounter encounter)
         {
-            return IsReferralStatus(encounter.Status) || IsReferralVisitType(encounter.VisitType);
+            return encounter.SelectedServices.Any(service => string.Equals(service, "Referral Services", StringComparison.OrdinalIgnoreCase))
+                || encounter.Services.Any(service => string.Equals(service.ServiceName, "Referral Services", StringComparison.OrdinalIgnoreCase));
         }
 
         private static string LimitText(string? value, int maxLength, string? fallback = null)
@@ -1668,6 +1621,53 @@ namespace CTSHIPDashboard.Controllers
                 value.Kind);
         }
 
+
+        private void ApplyClinicalSelections(Encounter encounter)
+        {
+            encounter.SelectedDiagnoses = CleanSelection(encounter.SelectedDiagnoses, EncounterLookups.Diagnoses);
+            encounter.Diagnosis = encounter.SelectedDiagnoses.Count == 0 ? encounter.Diagnosis : string.Join(" | ", encounter.SelectedDiagnoses);
+            encounter.SelectedMedicinesData = JoinClinicalData(CleanSelection(encounter.SelectedMedicines, EncounterLookups.Medicines.SelectMany(x => x.Value)));
+            encounter.SelectedPreventiveServices = CleanSelection(encounter.SelectedPreventiveServices, EncounterLookups.PreventiveServices);
+            encounter.PreventiveServicesData = JoinClinicalData(encounter.SelectedPreventiveServices);
+            encounter.SelectedImmunizations = encounter.SelectedPreventiveServices.Contains("Immunization", StringComparer.OrdinalIgnoreCase)
+                ? CleanSelection(encounter.SelectedImmunizations, EncounterLookups.Immunizations).Take(1).ToList()
+                : new List<string>();
+            encounter.SelectedScreeningTests = encounter.SelectedPreventiveServices.Contains("Screening Test", StringComparer.OrdinalIgnoreCase)
+                ? CleanSelection(encounter.SelectedScreeningTests, EncounterLookups.ScreeningTests).Take(1).ToList()
+                : new List<string>();
+            encounter.ImmunizationsData = JoinClinicalData(encounter.SelectedImmunizations);
+            encounter.ScreeningTestsData = JoinClinicalData(encounter.SelectedScreeningTests);
+
+            if (!EncounterLookups.PatientOutcomes.Contains(encounter.PatientOutcome, StringComparer.OrdinalIgnoreCase))
+            {
+                encounter.PatientOutcome = "Treated";
+            }
+
+            encounter.Status = string.Equals(encounter.PatientOutcome, "Referred", StringComparison.OrdinalIgnoreCase)
+                ? "Referred"
+                : "Completed";
+        }
+
+        private static List<string> CleanSelection(IEnumerable<string>? values, IEnumerable<string> catalog)
+        {
+            HashSet<string> allowed = new(catalog, StringComparer.OrdinalIgnoreCase);
+            return (values ?? Enumerable.Empty<string>())
+                .Where(x => !string.IsNullOrWhiteSpace(x) && allowed.Contains(x.Trim()))
+                .Select(x => x.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+        }
+
+        private static string? JoinClinicalData(IEnumerable<string> values)
+        {
+            List<string> clean = values.Where(x => !string.IsNullOrWhiteSpace(x)).ToList();
+            return clean.Count == 0 ? null : string.Join(" | ", clean);
+        }
+
+        private static List<string> SplitClinicalData(string? value) =>
+            string.IsNullOrWhiteSpace(value)
+                ? new List<string>()
+                : value.Split(" | ", StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
         private static void SetEncounterServices(Encounter encounter, IEnumerable<string>? selectedServices = null)
         {
             foreach (string service in selectedServices ?? encounter.SelectedServices)

@@ -10,7 +10,6 @@
     <div class="row justify-content-center">
         <div class="col-lg-11">
             <div class="card border-0 shadow-lg" style="border-radius: 25px; overflow: hidden;">
-                <!-- Header -->
                 <div class="bg-warning text-dark text-center py-5">
                     <h1 class="display-5 fw-bold mb-2">EDIT ENCOUNTER</h1>
                     <p class="lead mb-0 opacity-90">Encounter #: <strong class="text-primary">@Model.EncounterNumber</strong></p>
@@ -32,13 +31,10 @@
                         <input type="hidden" asp-for="EnrolleeId" />
                         <input type="hidden" asp-for="ClaimId" />
 
-                        <!-- ENROLLEE INFO (READ-ONLY) -->
                         <div class="row g-4 mb-4">
                             <div class="col-12">
                                 <div class="card border-success border-3 shadow">
                                     <div class="card-body d-flex align-items-center p-4">
-                                        <img src="@EnrolleePhotoStorage.ResolvePhotoPath(Model.Enrollee?.PhotoPath, Model.Enrollee?.EnrollmentNumber)"
-                                             class="rounded me-4 shadow" style="width:120px;height:120px;object-fit:cover;border:5px solid white;" />
                                         <div>
                                             <h4 class="text-success fw-bold mb-1">@Model.Enrollee?.FullName</h4>
                                             <p class="mb-1"><strong>ID:</strong> @Model.Enrollee?.EnrollmentNumber</p>
@@ -51,7 +47,6 @@
                         </div>
 
                         <div class="row g-4">
-                            <!-- VISIT DETAILS -->
                             <div class="col-md-4">
                                 <label asp-for="VisitDate" class="form-label text-success fw-bold">Visit Date & Time</label>
                                 <input asp-for="VisitDate" class="form-control form-control-lg" type="datetime-local" step="1" />
@@ -59,27 +54,21 @@
                             </div>
 
                             <div class="col-md-4">
-                                <label asp-for="VisitType" class="form-label text-success fw-bold">Visit Type</label>
+                                <label asp-for="VisitType" class="form-label text-success fw-bold">Type of Visit</label>
                                 <select asp-for="VisitType" class="form-select form-select-lg" asp-items="ViewBag.VisitTypes">
                                     <option value="">Select visit type</option>
                                 </select>
                             </div>
 
-                            <div class="col-md-4">
-                                <label asp-for="ReasonForEncounter" class="form-label text-success fw-bold">Reason For Encounter</label>
-                                <select asp-for="ReasonForEncounter" class="form-select form-select-lg" asp-items="ViewBag.EncounterReasons" aria-describedby="reasonForEncounterHelp">
-                                    <option value="">Select reason</option>
-                                </select>
-                                <small id="reasonForEncounterHelp" class="form-text text-muted">Select the patient's stated reason or requested service before diagnosis.</small>
-                                <span asp-validation-for="ReasonForEncounter" class="text-danger"></span>
-                            </div>
+                            <input type="hidden" asp-for="ReasonForEncounter" />
                             <partial name="_ServiceSelection" model="Model" />
 
                             <div class="col-md-4">
-                                <label asp-for="Status" class="form-label text-success fw-bold">Status</label>
-                                <select asp-for="Status" class="form-select form-select-lg" asp-items="ViewBag.Statuses">
-                                    <option value="">Select Status</option>
+                                <label asp-for="PatientOutcome" class="form-label text-success fw-bold">Patient Outcome</label>
+                                <select asp-for="PatientOutcome" class="form-select form-select-lg" asp-items="ViewBag.PatientOutcomes">
+                                    <option value="">Select patient outcome</option>
                                 </select>
+                                <span asp-validation-for="PatientOutcome" class="text-danger"></span>
                             </div>
 
                             <div class="col-md-4">
@@ -102,25 +91,59 @@
                                 <input asp-for="AttendedBy" class="form-control form-control-lg" readonly />
                             </div>
 
-                            <!-- CLINICAL -->
                             <div class="col-12">
                                 <label asp-for="ChiefComplaint" class="form-label text-success fw-bold">Chief Complaint</label>
                                 <partial name="_PresentingComplaints" model="Model" />
-                                <textarea asp-for="ChiefComplaint" class="form-control form-control-lg mt-2" rows="3" ></textarea>
+                                <textarea asp-for="ChiefComplaint" class="form-control form-control-lg mt-2" rows="3"></textarea>
                                 <span asp-validation-for="ChiefComplaint" class="text-danger"></span>
                             </div>
 
-                            <div class="col-12">
-                                <label asp-for="Diagnosis" class="form-label text-success fw-bold">Diagnosis</label>
-                                <textarea asp-for="Diagnosis" class="form-control form-control-lg" rows="4" ></textarea>
-                                <span asp-validation-for="Diagnosis" class="text-danger"></span>
-                            </div>
+                            <partial name="_DiagnosisSelection" model="Model" />
 
                             <div class="col-12">
                                 <label asp-for="TreatmentGiven" class="form-label text-success fw-bold">Treatment Given</label>
-                                <textarea asp-for="TreatmentGiven" class="form-control form-control-lg" rows="5" ></textarea>
+                                <textarea asp-for="TreatmentGiven" class="form-control form-control-lg" rows="5"></textarea>
                                 <span asp-validation-for="TreatmentGiven" class="text-danger"></span>
                             </div>
+
+                            <div class="col-12" id="prescriptionSection" style="display:none;">
+                                <div class="border rounded-4 p-3 bg-light">
+                                    <h5 class="text-success fw-bold mb-3">Medicines Dispensed</h5>
+                                    @if (Model.Prescriptions == null || Model.Prescriptions.Count == 0)
+                                    {
+                                        <p class="text-muted mb-0">No medicines recorded for this encounter.</p>
+                                    }
+                                    else
+                                    {
+                                        <div class="table-responsive">
+                                            <table class="table table-sm align-middle mb-0">
+                                                <thead>
+                                                    <tr><th>Drug Title</th><th>Dosage</th><th>Quantity</th></tr>
+                                                </thead>
+                                                <tbody>
+                                                    @for (int i = 0; i < Model.SelectedPrescriptions.Count; i++)
+                                                    {
+                                                        <input type="hidden" name="SelectedPrescriptions[@i].DrugInventoryItemId" value="@Model.SelectedPrescriptions[i].DrugInventoryItemId" />
+                                                        <input type="hidden" name="SelectedPrescriptions[@i].DrugName" value="@Model.SelectedPrescriptions[i].DrugName" />
+                                                        <input type="hidden" name="SelectedPrescriptions[@i].Strength" value="@Model.SelectedPrescriptions[i].Strength" />
+                                                        <input type="hidden" name="SelectedPrescriptions[@i].QuantityDispensed" value="@Model.SelectedPrescriptions[i].QuantityDispensed" />
+                                                    }
+                                                    @foreach (var prescription in Model.Prescriptions)
+                                                    {
+                                                        <tr>
+                                                            <td>@prescription.DrugName</td>
+                                                            <td>@string.Join(" ", new[] { prescription.Strength, prescription.DosageForm }.Where(value => !string.IsNullOrWhiteSpace(value)))</td>
+                                                            <td>@prescription.QuantityDispensed.ToString("N0") @prescription.UnitOfMeasure</td>
+                                                        </tr>
+                                                    }
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+
+                            <partial name="_PreventiveServiceFields" model="Model" />
 
                             <div class="col-12">
                                 <label asp-for="Notes" class="form-label text-success fw-bold">Additional Notes</label>
@@ -128,23 +151,18 @@
                             </div>
                         </div>
 
-                        <!-- SUBMIT -->
                         <div class="text-center mt-5 pt-4 border-top">
                             <button type="submit" class="btn btn-success btn-lg px-6 shadow-lg fw-bold fs-4" name="submitAction" value="save" formnovalidate>
                                 UPDATE ENCOUNTER
                             </button>
-                            <a asp-action="Details" asp-route-id="@Model.Id" class="btn btn-info btn-lg px-6 ms-3">
-                                View Details
-                            </a>
-                            <a asp-action="Index" class="btn btn-secondary btn-lg px-6 ms-3">
-                                Back to List
-                            </a>
+                            <a asp-action="Details" asp-route-id="@Model.Id" class="btn btn-info btn-lg px-6 ms-3">View Details</a>
+                            <a asp-action="Index" class="btn btn-secondary btn-lg px-6 ms-3">Back to List</a>
                         </div>
                     </form>
                 </div>
 
                 <div class="bg-dark text-white text-center py-3">
-                    <small>CTSHIP • Universal Health Coverage • Powered by North East Development Commission (NEDC)</small>
+                    <small>CTSHIP - Universal Health Coverage - Powered by North East Development Commission (NEDC)</small>
                 </div>
             </div>
         </div>
@@ -177,40 +195,53 @@
             const reasonSelect = document.getElementById('ReasonForEncounter');
             const helpText = document.getElementById('reasonForEncounterHelp');
             if (!reasonSelect || !helpText) return;
-
             helpText.textContent = encounterReasonExamples[reasonSelect.value] || defaultEncounterReasonHelp;
         }
 
-        document.getElementById('ReasonForEncounter')?.addEventListener('change', syncEncounterReasonHelp);
-        syncEncounterReasonHelp();
-        function syncServiceDropdown(selectFirstIfEmpty) {
-            const setting = document.getElementById('serviceSetting').value;
-            const select = document.getElementById('selectedServices');
-            if (!setting || !select) return;
-
-            let hasSelectedEnabledOption = false;
-
-            Array.from(select.querySelectorAll('optgroup')).forEach(group => {
-                const enabled = group.dataset.setting === setting;
-                Array.from(group.children).forEach(option => {
-                    option.disabled = !enabled;
-                    if (!enabled) option.selected = false;
-                    if (enabled && option.selected) hasSelectedEnabledOption = true;
-                });
-            });
-
-            if (selectFirstIfEmpty && !hasSelectedEnabledOption) {
-                const firstEnabledOption = Array.from(select.options).find(option => !option.disabled);
-                if (firstEnabledOption) {
-                    firstEnabledOption.selected = true;
-                }
-            }
-
-            $(select).trigger('change.select2');
+        function normalizeLabel(value) {
+            return (value || '')
+                .toString()
+                .toLowerCase()
+                .replace(/&/g, ' and ')
+                .replace(/[\/()\-]+/g, ' ')
+                .replace(/[^a-z0-9]+/g, ' ')
+                .replace(/\s+/g, ' ')
+                .trim();
         }
 
-        document.getElementById('serviceSetting')?.addEventListener('change', () => syncServiceDropdown(true));
-        syncServiceDropdown(false);
+        function selectedHas(selectId, value) {
+            const select = document.getElementById(selectId);
+            if (!select) return false;
+
+            const expected = normalizeLabel(value);
+            const nativeValues = Array.from(select.selectedOptions || [])
+                .map(option => (option.value || '') + ' ' + (option.textContent || ''));
+            const select2Values = window.jQuery && $(select).data('select2')
+                ? ($(select).select2('data') || []).map(item => (item.id || '') + ' ' + (item.text || ''))
+                : [];
+
+            return nativeValues.concat(select2Values)
+                .map(normalizeLabel)
+                .some(selected => selected === expected || selected.includes(expected));
+        }
+
+        function syncServiceDropdown(selectFirstIfEmpty) {
+            const select = document.getElementById('selectedServices');
+            if (!select) return;
+
+            const availableOptions = Array.from(select.options).filter(option => !option.disabled && option.value);
+            const hasSelectedOption = availableOptions.some(option => option.selected);
+
+            if (selectFirstIfEmpty && !hasSelectedOption) {
+                const defaultOption = availableOptions.find(option => option.value === 'General Outpatient Consultation') || availableOptions[0];
+                if (defaultOption) defaultOption.selected = true;
+            }
+
+            if (window.jQuery && $(select).data('select2')) {
+                $(select).trigger('change.select2');
+            }
+            select.dispatchEvent(new Event('change', { bubbles: true }));
+        }
 
         async function refreshDoctorDropdown() {
             const providerSelect = document.getElementById('ProviderId');
@@ -220,17 +251,12 @@
             const selectedDoctorId = doctorSelect.dataset.selectedDoctor || doctorSelect.value;
             doctorSelect.innerHTML = '<option value="">Select hospital staff</option>';
 
-            if (!providerSelect.value) {
-                return;
-            }
+            if (!providerSelect.value) return;
 
             try {
                 const response = await fetch(`/Encounters/GetDoctorsByProvider?providerId=${encodeURIComponent(providerSelect.value)}&selectedDoctorId=${encodeURIComponent(selectedDoctorId || '')}`);
                 const data = await response.json();
-
-                if (!data.success || !Array.isArray(data.doctors)) {
-                    return;
-                }
+                if (!data.success || !Array.isArray(data.doctors)) return;
 
                 data.doctors.forEach(doctor => {
                     const option = document.createElement('option');
@@ -250,38 +276,101 @@
             }
         }
 
-        document.getElementById('ProviderId')?.addEventListener('change', async () => {
-            const doctorSelect = document.getElementById('DoctorId');
-            if (doctorSelect) doctorSelect.dataset.selectedDoctor = '';
-            await refreshDoctorDropdown();
-        });
-        refreshDoctorDropdown();
-
         function addValidationError(errors, selector, message) {
             const field = document.querySelector(selector);
-            if (field) {
-                field.classList.add('is-invalid');
-            }
+            if (field) field.classList.add('is-invalid');
             errors.push(message);
         }
 
+        function syncPresentingComplaintsOther() {
+            const select = document.getElementById('selectedPresentingComplaints');
+            const row = document.getElementById('presentingComplaintsOtherRow');
+            if (!row) return;
+
+            if (select) {
+                row.style.display = selectedHas('selectedPresentingComplaints', 'Other') ? 'block' : 'none';
+                return;
+            }
+
+            const otherCheckbox = document.querySelector('.presenting-complaint-checkbox[value="Other"]');
+            row.style.display = otherCheckbox && otherCheckbox.checked ? 'block' : 'none';
+        }
+
+        function syncEditClinicalSections() {
+            const hasPharmacy = selectedHas('selectedServices', 'Pharmacy and Medicines Dispensing Service');
+            const hasPreventive = selectedHas('selectedServices', 'Preventive Services');
+            const prescription = document.getElementById('prescriptionSection');
+            const preventive = document.getElementById('preventiveSection');
+            const immunization = document.getElementById('immunizationSection');
+            const screening = document.getElementById('screeningSection');
+
+            if (prescription) prescription.style.display = hasPharmacy ? 'block' : 'none';
+            if (preventive) preventive.style.display = hasPreventive ? 'block' : 'none';
+
+            const toggles = {
+                servicesProvidedOtherRow: selectedHas('selectedServices', 'Others'),
+                diagnosisOtherRow: selectedHas('selectedDiagnoses', 'Other'),
+                preventiveOtherRow: selectedHas('selectedPreventiveServices', 'Others')
+            };
+
+            Object.entries(toggles).forEach(([id, visible]) => {
+                const element = document.getElementById(id);
+                if (element) element.style.display = visible ? 'block' : 'none';
+            });
+
+            const hasImmunization = selectedHas('selectedPreventiveServices', 'Immunization');
+            const hasScreening = selectedHas('selectedPreventiveServices', 'Screening Test');
+            if (immunization) immunization.style.display = hasImmunization ? 'block' : 'none';
+            if (screening) screening.style.display = hasScreening ? 'block' : 'none';
+
+            if (!hasImmunization) {
+                const select = document.getElementById('selectedImmunizations');
+                if (select) {
+                    select.value = '';
+                    if (window.jQuery && $(select).data('select2')) $(select).trigger('change.select2');
+                }
+            }
+
+            if (!hasScreening) {
+                const select = document.getElementById('selectedScreeningTests');
+                if (select) {
+                    select.value = '';
+                    if (window.jQuery && $(select).data('select2')) $(select).trigger('change.select2');
+                }
+            }
+        }
+
+        function hasAnySelectedOption(selectId) {
+            const select = document.getElementById(selectId);
+            if (!select) return false;
+
+            const nativeValues = Array.from(select.selectedOptions || [])
+                .filter(option => !option.disabled)
+                .map(option => (option.value || '').trim())
+                .filter(Boolean);
+            const select2Values = window.jQuery && $(select).data('select2')
+                ? ($(select).select2('data') || [])
+                    .map(item => (item.id || '').trim())
+                    .filter(Boolean)
+                : [];
+
+            return nativeValues.concat(select2Values).length > 0;
+        }
         function validateEncounterForm(event) {
             const form = document.getElementById('encounterForm');
             if (!form) return true;
 
             form.querySelectorAll('.is-invalid').forEach(field => field.classList.remove('is-invalid'));
-
             const errors = [];
-            const selectedServices = Array.from(document.getElementById('selectedServices')?.selectedOptions || [])
-                .filter(option => !option.disabled);
+            const selectedServices = Array.from(document.getElementById('selectedServices')?.selectedOptions || []).filter(option => !option.disabled);
             const visitDateValue = document.getElementById('VisitDate')?.value;
 
             if (!document.getElementById('ChiefComplaint')?.value.trim()) {
                 addValidationError(errors, '#ChiefComplaint', 'Complaint is required.');
             }
 
-            if (!document.getElementById('Diagnosis')?.value.trim()) {
-                addValidationError(errors, '#Diagnosis', 'Diagnosis is required.');
+            if (!hasAnySelectedOption('selectedDiagnoses')) {
+                addValidationError(errors, '#selectedDiagnoses', 'Diagnosis is required.');
             }
 
             if (!document.getElementById('TreatmentGiven')?.value.trim()) {
@@ -300,6 +389,14 @@
                 addValidationError(errors, '#selectedServices', 'Select at least one service delivered.');
             }
 
+            if (selectedHas('selectedPreventiveServices', 'Immunization') && !document.getElementById('selectedImmunizations')?.value) {
+                addValidationError(errors, '#selectedImmunizations', 'Select an immunization type.');
+            }
+
+            if (selectedHas('selectedPreventiveServices', 'Screening Test') && !document.getElementById('selectedScreeningTests')?.value) {
+                addValidationError(errors, '#selectedScreeningTests', 'Select a screening test.');
+            }
+
             if (errors.length > 0) {
                 event.preventDefault();
                 Swal.fire('Check Encounter Form', errors.join('<br>'), 'warning');
@@ -309,17 +406,30 @@
             return true;
         }
 
+        document.getElementById('ReasonForEncounter')?.addEventListener('change', syncEncounterReasonHelp);
+        document.getElementById('ProviderId')?.addEventListener('change', async () => {
+            const doctorSelect = document.getElementById('DoctorId');
+            if (doctorSelect) doctorSelect.dataset.selectedDoctor = '';
+            await refreshDoctorDropdown();
+        });
         document.getElementById('encounterForm')?.addEventListener('submit', validateEncounterForm);
-        // Presenting complaints 'Other' toggle (checkbox list)
-        function syncPresentingComplaintsOther() {
-            const otherCheckbox = document.querySelector('.presenting-complaint-checkbox[value="Other"]');
-            const row = document.getElementById('presentingComplaintsOtherRow');
-            if (!otherCheckbox || !row) return;
-            row.style.display = otherCheckbox.checked ? 'block' : 'none';
+        document.getElementById('selectedPresentingComplaints')?.addEventListener('change', syncPresentingComplaintsOther);
+        document.querySelectorAll('.presenting-complaint-checkbox').forEach(cb => cb.addEventListener('change', syncPresentingComplaintsOther));
+
+        ['selectedServices', 'selectedDiagnoses', 'selectedPreventiveServices'].forEach(id => {
+            document.getElementById(id)?.addEventListener('change', syncEditClinicalSections);
+            if (window.jQuery) $('#' + id).on('change select2:select select2:unselect select2:clear', syncEditClinicalSections);
+        });
+
+        if (window.jQuery) {
+            $('#selectedPresentingComplaints').on('change select2:select select2:unselect select2:clear', syncPresentingComplaintsOther);
         }
 
-        document.querySelectorAll('.presenting-complaint-checkbox').forEach(cb => cb.addEventListener('change', syncPresentingComplaintsOther));
+        (document.getElementById('serviceSetting') || document.getElementById('ServiceSetting'))?.addEventListener('change', () => syncServiceDropdown(true));
+        syncEncounterReasonHelp();
+        syncServiceDropdown(false);
+        refreshDoctorDropdown();
         syncPresentingComplaintsOther();
-
+        syncEditClinicalSections();
     </script>
 }

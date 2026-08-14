@@ -1,239 +1,470 @@
 ﻿@model CTSHIPDashboard.Models.Encounter
 
+@functions {
+    private static List<string> SplitClinicalData(string? value)
+    {
+        return string.IsNullOrWhiteSpace(value)
+            ? new List<string>()
+            : value.Split(new[] { " | ", "," }, StringSplitOptions.RemoveEmptyEntries)
+                .Select(item => item.Trim())
+                .Where(item => !string.IsNullOrWhiteSpace(item))
+                .ToList();
+    }
+
+    private static string NotRecorded(string? value)
+    {
+        return string.IsNullOrWhiteSpace(value) ? "Not recorded" : value.Trim();
+    }
+}
+
+@{
+    var linkedReferral = ViewBag.LinkedReferral as CTSHIPDashboard.Models.Referral;
+    var services = Model.Services?
+        .Where(service => !string.IsNullOrWhiteSpace(service.ServiceName))
+        .OrderBy(service => service.ServiceName)
+        .ToList() ?? new List<CTSHIPDashboard.Models.EncounterService>();
+    var serviceNames = services.Select(service => service.ServiceName.Trim()).ToList();
+    var referralSelected = serviceNames.Any(service => string.Equals(service, "Referral Services", StringComparison.OrdinalIgnoreCase));
+    var complaints = Model.PresentingComplaints?
+        .Where(complaint => !string.IsNullOrWhiteSpace(complaint.ComplaintName))
+        .Select(complaint => complaint.ComplaintName.Trim())
+        .ToList() ?? new List<string>();
+    var prescriptions = Model.Prescriptions?
+        .Where(prescription => !string.IsNullOrWhiteSpace(prescription.DrugName))
+        .OrderBy(prescription => prescription.DrugName)
+        .ToList() ?? new List<CTSHIPDashboard.Models.EncounterPrescription>();
+    var selectedMedicines = SplitClinicalData(Model.SelectedMedicinesData);
+    var preventiveServices = SplitClinicalData(Model.PreventiveServicesData);
+    var immunizations = SplitClinicalData(Model.ImmunizationsData);
+    var screeningTests = SplitClinicalData(Model.ScreeningTestsData);
+    var labText = Model.LabTests ?? string.Empty;
+    var labParts = labText.Split(new[] { " - " }, StringSplitOptions.None);
+    var requestedLabTests = string.IsNullOrWhiteSpace(labParts.ElementAtOrDefault(0))
+        ? new List<string>()
+        : labParts[0].Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries)
+            .Select(test => test.Trim())
+            .Where(test => !string.IsNullOrWhiteSpace(test))
+            .ToList();
+    var labResults = labParts.Length > 1
+        ? labParts.Skip(1)
+            .SelectMany(part => part.Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries))
+            .Select(result => result.Trim())
+            .Where(result => !string.IsNullOrWhiteSpace(result))
+            .ToList()
+        : new List<string>();
+    var queries = Model.Queries?
+        .OrderByDescending(query => query.RaisedAt)
+        .ToList() ?? new List<CTSHIPDashboard.Models.EncounterQuery>();
+    var auditTrails = Model.AuditTrails?
+        .OrderByDescending(audit => audit.PerformedAt)
+        .ToList() ?? new List<CTSHIPDashboard.Models.EncounterAuditTrail>();
+}
+
 <div class="container-fluid py-5">
     <div class="row justify-content-center">
-        <div class="col-12 col-lg-10">
-            <div class="card border-0 shadow-lg rounded-4">
-                <div class="bg-success text-white text-center py-5">
-                    <h1 class="display-5 fw-bold mb-2">ENCOUNTER DETAILS</h1>
-                    <p class="lead mb-0">Encounter Number:@Model.EncounterNumber</p>
+        <div class="col-12 col-xl-11">
+            <div class="card border-0 shadow-lg rounded-4 overflow-hidden">
+                <div class="bg-success text-white py-5 px-4">
+                    <div class="d-flex flex-column flex-lg-row align-items-lg-center justify-content-between gap-3">
+                        <div>
+                            <p class="text-uppercase small fw-bold opacity-75 mb-2">Primary Provider Encounter</p>
+                            <h1 class="display-6 fw-bold mb-2">Encounter Details</h1>
+                            <p class="lead mb-0">@Model.EncounterNumber</p>
+                        </div>
+                        <div class="text-lg-end">
+                            <span class="badge bg-light text-success fs-6 px-3 py-2">Funding: Capitation</span>
+                            <div class="mt-2 small opacity-75">No billing or claim amount is required for this primary provider encounter.</div>
+                        </div>
+                    </div>
                 </div>
 
-                <div class="card-body p-5">
-                    <div class="row g-5">
-                        <div class="col-md-5">
-                            <div class="card border-success shadow">
+                <div class="card-body p-4 p-lg-5">
+                    <div class="row g-4 mb-4">
+                        <div class="col-lg-4">
+                            <div class="card border-success h-100 shadow-sm">
                                 <div class="card-body text-center p-4">
                                     <img src="@EnrolleePhotoStorage.ResolvePhotoPath(Model.Enrollee?.PhotoPath, Model.Enrollee?.EnrollmentNumber)"
-                                         class="rounded-circle shadow" style="width:180px;height:180px;object-fit:cover;border:6px solid #3B703B;" />
-                                    <h4 class="mt-4 fw-bold">@Model.Enrollee?.FullName</h4>
-                                    <p>ID: @Model.Enrollee?.EnrollmentNumber</p>
-                                    <p>HMO: @Model.Enrollee?.Hmo?.Name</p>
+                                         class="rounded-circle shadow mb-3" style="width:170px;height:170px;object-fit:cover;border:6px solid #3B703B;" />
+                                    <h4 class="fw-bold mb-1">@Model.Enrollee?.FullName</h4>
+                                    <p class="text-muted mb-1">ID: @Model.Enrollee?.EnrollmentNumber</p>
+                                    <p class="text-muted mb-0">HMO: @Model.Enrollee?.Hmo?.Name</p>
                                 </div>
                             </div>
                         </div>
 
-                        <div class="col-12">
-                            <div class="card shadow-sm">
-                                <div class="card-body">
+                        <div class="col-lg-8">
+                            <div class="card shadow-sm h-100">
+                                <div class="card-body p-4">
+                                    <div class="d-flex flex-column flex-md-row justify-content-between gap-3 mb-3">
+                                        <div>
+                                            <h5 class="text-success fw-bold mb-1">Visit Information</h5>
+                                            <p class="text-muted mb-0">Facility and encounter workflow summary</p>
+                                        </div>
+                                        <div>
+                                            <span class="badge bg-success fs-6">@Model.Status</span>
+                                            <span class="badge bg-primary fs-6">@Model.PatientOutcome</span>
+                                        </div>
+                                    </div>
+
+                                    <div class="row g-3">
+                                        <div class="col-md-6"><strong>Date:</strong><br />@Model.VisitDate.ToString("dd MMM yyyy HH:mm")</div>
+                                        <div class="col-md-6"><strong>Visit Type:</strong><br />@NotRecorded(Model.VisitType)</div>
+                                        <div class="col-md-6"><strong>Service Setting:</strong><br />@NotRecorded(Model.ServiceSetting)</div>
+                                        <div class="col-md-6"><strong>Reason:</strong><br />@NotRecorded(Model.ReasonForEncounter)</div>
+                                        <div class="col-md-6"><strong>Provider:</strong><br />@Model.Provider?.Name</div>
+                                        <div class="col-md-6"><strong>Funding Mode:</strong><br /><span class="badge bg-light text-success border border-success">Capitation</span></div>
+                                    </div>
+
+                                    <hr />
+                                    <div>
+                                        <strong>Services Provided:</strong>
+                                        <div class="mt-2">
+                                            @if (services.Count == 0)
+                                            {
+                                                <span class="text-muted">No services recorded.</span>
+                                            }
+                                            else
+                                            {
+                                                foreach (var service in services)
+                                                {
+                                                    <span class="badge bg-primary me-1 mb-1">@service.ServiceName</span>
+                                                }
+                                            }
+                                            @if (!string.IsNullOrWhiteSpace(Model.ServicesProvidedOther))
+                                            {
+                                                <span class="badge bg-secondary me-1 mb-1">Other: @Model.ServicesProvidedOther</span>
+                                            }
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row g-4">
+                        <div class="col-lg-7">
+                            <div class="card shadow-sm h-100">
+                                <div class="card-body p-4">
+                                    <h5 class="text-success fw-bold">Clinical Details</h5>
+
+                                    <div class="mb-3">
+                                        <strong>Presenting Complaint(s):</strong>
+                                        <div class="mt-2">
+                                            @if (complaints.Count > 0)
+                                            {
+                                                foreach (var complaint in complaints)
+                                                {
+                                                    <span class="badge bg-light text-dark border me-1 mb-1">@complaint</span>
+                                                }
+                                            }
+                                            else
+                                            {
+                                                <span>@NotRecorded(Model.ChiefComplaint)</span>
+                                            }
+                                        </div>
+                                    </div>
+
+                                    <p><strong>Diagnosis:</strong> @NotRecorded(Model.Diagnosis?.Replace(" | ", ", "))</p>
+                                    @if (!string.IsNullOrWhiteSpace(Model.DiagnosisOther))
+                                    {
+                                        <p><strong>Other Diagnosis:</strong> @Model.DiagnosisOther</p>
+                                    }
+                                    <p><strong>Treatment Given:</strong> @NotRecorded(Model.TreatmentGiven)</p>
+                                    @if (!string.IsNullOrWhiteSpace(Model.Notes))
+                                    {
+                                        <p><strong>Notes:</strong> @Model.Notes</p>
+                                    }
+
+                                    <hr />
+                                    <div class="row g-3">
+                                        <div class="col-md-4"><strong>Temperature:</strong><br />@(Model.Temperature > 0 ? $"{Model.Temperature:N1} °C" : "Not recorded")</div>
+                                        <div class="col-md-4"><strong>Blood Pressure:</strong><br />@NotRecorded(Model.BloodPressure)</div>
+                                        <div class="col-md-4"><strong>Pulse Rate:</strong><br />@(Model.PulseRate > 0 ? $"{Model.PulseRate:N0} bpm" : "Not recorded")</div>
+                                    </div>
+
+                                    <hr />
+                                    <p class="mb-1"><strong>Attended By:</strong> @(Model.Doctor?.FullName ?? Model.SeenBy ?? "Not recorded")</p>
+                                    <p class="mb-1"><strong>Specialty / Unit:</strong> @(Model.Doctor?.Specialty ?? Model.Rank ?? "Not recorded")</p>
+                                    <p class="mb-0"><strong>Recorded By:</strong> @NotRecorded(Model.AttendedBy)</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-lg-5">
+                            <div class="card shadow-sm h-100">
+                                <div class="card-body p-4">
                                     <h5 class="text-success fw-bold">Laboratory Investigations</h5>
-                                    @if (string.IsNullOrWhiteSpace(Model.LabTests))
+                                    @if (string.IsNullOrWhiteSpace(Model.LabTests) && string.IsNullOrWhiteSpace(Model.LaboratoryOther))
                                     {
                                         <p class="text-muted mb-0">No laboratory investigations recorded.</p>
                                     }
                                     else
                                     {
-                                        var labText = Model.LabTests ?? string.Empty;
-                                        var parts = labText.Split(new[] { " - " }, StringSplitOptions.None);
-                                        var testsPart = parts.Length > 0 ? parts[0] : string.Empty;
-                                        var resultsPart = parts.Length > 1 ? parts[1] : string.Empty;
-                                        var tests = testsPart.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries)
-                                            .Select(s => s.Trim()).Where(s => !string.IsNullOrWhiteSpace(s)).ToList();
-                                        var results = resultsPart.Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries)
-                                            .Select(s => s.Trim()).Where(s => !string.IsNullOrWhiteSpace(s)).ToList();
-
-                                        <div>
+                                        <div class="mb-3">
                                             <strong>Requested Tests:</strong>
-                                            @if (tests.Count == 0)
-                                            {
-                                                <span class="text-muted">None</span>
-                                            }
-                                            else
-                                            {
-                                                foreach (var t in tests)
+                                            <div class="mt-2">
+                                                @if (requestedLabTests.Count == 0)
                                                 {
-                                                    <span class="badge bg-primary me-1 mb-1">@t</span>
+                                                    <span class="text-muted">None recorded.</span>
                                                 }
-                                            }
+                                                else
+                                                {
+                                                    foreach (var test in requestedLabTests)
+                                                    {
+                                                        <span class="badge bg-primary me-1 mb-1">@test</span>
+                                                    }
+                                                }
+                                            </div>
                                         </div>
 
-                                        @if (results.Count > 0)
+                                        @if (labResults.Count > 0)
                                         {
-                                            <hr />
-                                            <div>
+                                            <div class="mb-3">
                                                 <strong>Results:</strong>
                                                 <ul class="mb-0 mt-2">
-                                                    @foreach (var r in results)
+                                                    @foreach (var result in labResults)
                                                     {
-                                                        <li>@r</li>
+                                                        <li>@result</li>
                                                     }
                                                 </ul>
                                             </div>
+                                        }
+
+                                        @if (!string.IsNullOrWhiteSpace(Model.LaboratoryOther))
+                                        {
+                                            <p class="mb-0"><strong>Other Laboratory Service:</strong> @Model.LaboratoryOther</p>
                                         }
                                     }
                                 </div>
                             </div>
                         </div>
 
-                        <div class="col-md-7">
-                            <div class="row g-4">
-                                <div class="col-12">
-                                    <div class="card shadow-sm">
-                                        <div class="card-body">
-                                            <h5 class="text-success fw-bold">Visit Information</h5>
-                                            <p><strong>Date:</strong> @Model.VisitDate</p>
-                                            <p><strong>Type:</strong> @Model.VisitType</p>
-                                            <p><strong>Reason:</strong> @Model.ReasonForEncounter</p>
-                                            <p><strong>Provider:</strong> @Model.Provider?.Name</p>
-                                            <p>
-                                                <strong>Status:</strong>
-                                                <span class="badge bg-success fs-6">@Model.Status</span>
-                                            </p>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div class="col-12">
-                                    <div class="card shadow-sm">
-                                        <div class="card-body">
-                                            <h5 class="text-success fw-bold">Clinical Details</h5>
-                                            <p><strong>Complain:</strong> @Model.ChiefComplaint</p>
-                                            <p><strong>Diagnosis:</strong> @Model.Diagnosis</p>
-                                            <p><strong>Treatment:</strong> @Model.TreatmentGiven</p>
-                                            <p>
-                                                <strong>Attended By:</strong> @(Model.Doctor?.FullName ?? Model.SeenBy)<br />
-                                                <strong>Specialty / Unit:</strong> @(Model.Doctor?.Specialty ?? Model.Rank)
-                                            </p>
-                                            <p><strong>Recorded By:</strong> @Model.AttendedBy</p>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="col-12">
-                                    <div class="card shadow-sm">
-                                        <div class="card-body">
-                                            <h5 class="text-success fw-bold">Prescriptions</h5>
-                                            @if (Model.Prescriptions.Count == 0)
-                                            {
-                                                <p class="text-muted mb-0">No inventory prescriptions recorded.</p>
-                                            }
-                                            else
-                                            {
-                                                <div class="table-responsive">
-                                                    <table class="table table-sm align-middle mb-0">
-                                                        <thead>
-                                                            <tr><th>Drug</th><th>Quantity</th><th>Deducted</th></tr>
-                                                        </thead>
-                                                        <tbody>
-                                                            @foreach (var prescription in Model.Prescriptions)
-                                                            {
-                                                                <tr>
-                                                                    <td>@prescription.DrugName @prescription.Strength @prescription.DosageForm</td>
-                                                                    <td>@prescription.QuantityDispensed.ToString("N0") @prescription.UnitOfMeasure</td>
-                                                                    <td><span class="badge @(prescription.InventoryDeducted ? "bg-success" : "bg-warning text-dark")">@(prescription.InventoryDeducted ? "Yes" : "Pending")</span></td>
-                                                                </tr>
-                                                            }
-                                                        </tbody>
-                                                    </table>
-                                                </div>
-                                            }
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div class="col-12">
-                                    <div class="card @(Model.ClaimId == null ? "border-warning" : "border-success") shadow-sm">
-                                        <div class="card-body text-center py-4">
-                                            <h5>Total Encounter Amount</h5>
-                                            <h2 class="display-5 fw-bold text-success">&#8358;@Model.TotalAmount.ToString("N2")</h2>
-                                            <div class="text-muted">Services: &#8358;@Model.ServiceTotal.ToString("N2")</div>
-                                            <div class="text-muted">Capitation: &#8358;@Model.CapitationCharge.ToString("N2")</div>
-                                            @if (Model.ClaimId == null)
-                                            {
-                                                <p class="text-warning fw-bold">Not yet claimed</p>
-                                            }
-                                            else
-                                            {
-                                                <p class="text-success fw-bold">Claim Submitted</p>
-                                            }
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="card border-success shadow-sm mt-4">
-                        <div class="card-header bg-success text-white fw-bold">Primary Encounter Capitation & Query Trail</div>
-                        <div class="card-body">
-                            <div class="row g-3 mb-4">
-                                <div class="col-md-3"><strong>Capitation Charge:</strong><br /><span class="text-success fw-bold">&#8358;@Model.CapitationCharge.ToString("N2")</span></div>
-                                <div class="col-md-3"><strong>HMO Status:</strong><br /><span class="badge bg-primary">@Model.HmoVerificationStatus</span></div>
-                                <div class="col-md-3"><strong>IHSA Status:</strong><br /><span class="badge bg-info text-dark">@Model.IhsaVerificationStatus</span></div>
-                                <div class="col-md-3"><strong>Original Data:</strong><br /><span class="text-muted">Preserved @(!string.IsNullOrWhiteSpace(Model.OriginalFacilityDataJson) ? "Yes" : "Pending")</span></div>
-                            </div>
-
-                            <h6 class="fw-bold text-success">Query Cycle</h6>
-                            @if (Model.Queries.Count == 0)
-                            {
-                                <p class="text-muted">No HMO clarification queries have been raised for this encounter.</p>
-                            }
-                            else
-                            {
-                                <div class="table-responsive">
-                                    <table class="table table-sm align-middle">
-                                        <thead><tr><th>Query Raised</th><th>Responsible</th><th>Response</th><th>Resolution</th><th>Status / Timestamp</th></tr></thead>
-                                        <tbody>
-                                            @foreach (var query in Model.Queries.OrderByDescending(q => q.RaisedAt))
-                                            {
-                                                <tr>
-                                                    <td>@query.QueryRaised<br /><small class="text-muted">By @query.RaisedByName</small></td>
-                                                    <td>@query.ResponsiblePerson</td>
-                                                    <td>@(query.Response ?? "?")<br /><small class="text-muted">@query.RespondedAt?.ToString("dd MMM yyyy HH:mm")</small></td>
-                                                    <td>@(query.Resolution ?? "?")</td>
-                                                    <td><span class="badge bg-secondary">@query.Status</span><br /><small>@query.RaisedAt.ToString("dd MMM yyyy HH:mm")</small></td>
-                                                </tr>
-                                            }
-                                        </tbody>
-                                    </table>
-                                </div>
-
-                                @foreach (var query in Model.Queries.Where(q => q.Status != "Closed" && string.IsNullOrWhiteSpace(q.Response)))
-                                {
-                                    <form asp-controller="Encounters" asp-action="RespondEncounterQuery" method="post" class="border rounded-3 p-3 mb-3">
-                                        @Html.AntiForgeryToken()
-                                        <input type="hidden" name="queryId" value="@query.Id" />
-                                        <label class="form-label fw-bold text-success">Respond to @query.QueryNumber</label>
-                                        <textarea name="response" class="form-control mb-2" rows="3" placeholder="Facility response / amendment note" required></textarea>
-                                        <button class="btn btn-success">Submit Response</button>
-                                    </form>
-                                }
-                            }
-
-                            <h6 class="fw-bold text-success mt-4">Audit Trail</h6>
-                            @if (Model.AuditTrails.Count == 0)
-                            {
-                                <p class="text-muted mb-0">No audit events recorded yet.</p>
-                            }
-                            else
-                            {
-                                <ul class="list-group">
-                                    @foreach (var item in Model.AuditTrails.OrderByDescending(a => a.PerformedAt))
+                        <div class="col-lg-7">
+                            <div class="card shadow-sm h-100">
+                                <div class="card-body p-4">
+                                    <h5 class="text-success fw-bold">Medicines Prescribed / Dispensed</h5>
+                                    @if (prescriptions.Count > 0)
                                     {
-                                        <li class="list-group-item d-flex justify-content-between gap-3">
-                                            <span><strong>@item.Action</strong><br /><span class="text-muted">@item.Summary</span></span>
-                                            <small class="text-muted text-nowrap">@item.PerformedAt.ToString("dd MMM yyyy HH:mm")</small>
-                                        </li>
+                                        <div class="table-responsive">
+                                            <table class="table table-sm align-middle mb-0">
+                                                <thead>
+                                                    <tr>
+                                                        <th>Title</th>
+                                                        <th>Dosage</th>
+                                                        <th class="text-end">Quantity</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    @foreach (var prescription in prescriptions)
+                                                    {
+                                                        var dosage = string.Join(" ", new[] { prescription.Strength, prescription.DosageForm }
+                                                            .Where(value => !string.IsNullOrWhiteSpace(value)));
+                                                        <tr>
+                                                            <td>@prescription.DrugName</td>
+                                                            <td>@(string.IsNullOrWhiteSpace(dosage) ? "Not recorded" : dosage)</td>
+                                                            <td class="text-end">@prescription.QuantityDispensed.ToString("N0")</td>
+                                                        </tr>
+                                                    }
+                                                </tbody>
+                                            </table>
+                                        </div>
                                     }
-                                </ul>
-                            }
+                                    else if (selectedMedicines.Count > 0)
+                                    {
+                                        <div>
+                                            @foreach (var medicine in selectedMedicines)
+                                            {
+                                                <span class="badge bg-light text-dark border me-1 mb-1">@medicine</span>
+                                            }
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <p class="text-muted mb-0">No medicines recorded.</p>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-lg-5">
+                            <div class="card shadow-sm h-100">
+                                <div class="card-body p-4">
+                                    <h5 class="text-success fw-bold">Preventive Services</h5>
+                                    @if (preventiveServices.Count == 0 && immunizations.Count == 0 && screeningTests.Count == 0 && string.IsNullOrWhiteSpace(Model.PreventiveServicesOther))
+                                    {
+                                        <p class="text-muted mb-0">No preventive services recorded.</p>
+                                    }
+                                    else
+                                    {
+                                        @if (preventiveServices.Count > 0)
+                                        {
+                                            <div class="mb-3">
+                                                <strong>Services:</strong>
+                                                <div class="mt-2">
+                                                    @foreach (var service in preventiveServices)
+                                                    {
+                                                        <span class="badge bg-success me-1 mb-1">@service</span>
+                                                    }
+                                                </div>
+                                            </div>
+                                        }
+
+                                        @if (immunizations.Count > 0)
+                                        {
+                                            <div class="mb-3">
+                                                <strong>Type of Immunization:</strong>
+                                                <div class="mt-2">
+                                                    @foreach (var immunization in immunizations)
+                                                    {
+                                                        <span class="badge bg-info text-dark me-1 mb-1">@immunization</span>
+                                                    }
+                                                </div>
+                                            </div>
+                                        }
+
+                                        @if (screeningTests.Count > 0)
+                                        {
+                                            <div class="mb-3">
+                                                <strong>Screening Test Option:</strong>
+                                                <div class="mt-2">
+                                                    @foreach (var screening in screeningTests)
+                                                    {
+                                                        <span class="badge bg-warning text-dark me-1 mb-1">@screening</span>
+                                                    }
+                                                </div>
+                                            </div>
+                                        }
+
+                                        @if (!string.IsNullOrWhiteSpace(Model.PreventiveServicesOther))
+                                        {
+                                            <p class="mb-0"><strong>Other Preventive Service:</strong> @Model.PreventiveServicesOther</p>
+                                        }
+                                    }
+                                </div>
+                            </div>
+                        </div>
+
+                        @if (referralSelected || linkedReferral != null)
+                        {
+                            <div class="col-12">
+                                <div class="card border-warning shadow-sm">
+                                    <div class="card-body p-4">
+                                        <div class="d-flex flex-column flex-lg-row justify-content-between gap-3">
+                                            <div>
+                                                <h5 class="text-success fw-bold">Referral Services</h5>
+                                                @if (linkedReferral != null)
+                                                {
+                                                    <p class="mb-1"><strong>Referred Hospital:</strong> @linkedReferral.ReferredHospital?.Name</p>
+                                                    <p class="mb-1"><strong>Priority:</strong> @linkedReferral.Priority</p>
+                                                    <p class="mb-1"><strong>Status:</strong> <span class="badge bg-secondary">@linkedReferral.Status</span></p>
+                                                    <p class="mb-0"><strong>Reason:</strong> @linkedReferral.ReasonForReferral</p>
+                                                }
+                                                else
+                                                {
+                                                    <p class="text-muted mb-0">Referral Services was selected for this encounter. No linked referral record was found yet.</p>
+                                                }
+                                            </div>
+                                            <div class="text-lg-end">
+                                                @if (linkedReferral != null)
+                                                {
+                                                    <a asp-controller="ProviderReferrals" asp-action="Details" asp-route-id="@linkedReferral.Id" class="btn btn-outline-success">
+                                                        Open Referral
+                                                    </a>
+                                                }
+                                                else
+                                                {
+                                                    <a asp-controller="ProviderReferrals" asp-action="Index" class="btn btn-outline-success">
+                                                        View Referrals
+                                                    </a>
+                                                }
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+
+                        <div class="col-12">
+                            <div class="card border-success shadow-sm">
+                                <div class="card-header bg-success text-white fw-bold">Review Status & Query Trail</div>
+                                <div class="card-body p-4">
+                                    <div class="row g-3 mb-4">
+                                        <div class="col-md-3"><strong>Funding Mode:</strong><br /><span class="badge bg-light text-success border border-success">Capitation</span></div>
+                                        <div class="col-md-3"><strong>HMO Status:</strong><br /><span class="badge bg-primary">@Model.HmoVerificationStatus</span></div>
+                                        <div class="col-md-3"><strong>IHSA Status:</strong><br /><span class="badge bg-info text-dark">@Model.IhsaVerificationStatus</span></div>
+                                        <div class="col-md-3"><strong>Original Data:</strong><br /><span class="text-muted">@(!string.IsNullOrWhiteSpace(Model.OriginalFacilityDataJson) ? "Preserved" : "Pending")</span></div>
+                                    </div>
+
+                                    <h6 class="fw-bold text-success">Query Cycle</h6>
+                                    @if (queries.Count == 0)
+                                    {
+                                        <p class="text-muted">No HMO clarification queries have been raised for this encounter.</p>
+                                    }
+                                    else
+                                    {
+                                        <div class="table-responsive">
+                                            <table class="table table-sm align-middle">
+                                                <thead>
+                                                    <tr>
+                                                        <th>Query Raised</th>
+                                                        <th>Responsible</th>
+                                                        <th>Response</th>
+                                                        <th>Resolution</th>
+                                                        <th>Status / Timestamp</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    @foreach (var query in queries)
+                                                    {
+                                                        <tr>
+                                                            <td>@query.QueryRaised<br /><small class="text-muted">By @query.RaisedByName</small></td>
+                                                            <td>@query.ResponsiblePerson</td>
+                                                            <td>@(!string.IsNullOrWhiteSpace(query.Response) ? query.Response : "No response yet")<br /><small class="text-muted">@query.RespondedAt?.ToString("dd MMM yyyy HH:mm")</small></td>
+                                                            <td>@(!string.IsNullOrWhiteSpace(query.Resolution) ? query.Resolution : "Pending")</td>
+                                                            <td><span class="badge bg-secondary">@query.Status</span><br /><small>@query.RaisedAt.ToString("dd MMM yyyy HH:mm")</small></td>
+                                                        </tr>
+                                                    }
+                                                </tbody>
+                                            </table>
+                                        </div>
+
+                                        @foreach (var query in queries.Where(query => query.Status != "Closed" && string.IsNullOrWhiteSpace(query.Response)))
+                                        {
+                                            <form asp-controller="Encounters" asp-action="RespondEncounterQuery" method="post" class="border rounded-3 p-3 mb-3">
+                                                @Html.AntiForgeryToken()
+                                                <input type="hidden" name="queryId" value="@query.Id" />
+                                                <label class="form-label fw-bold text-success">Respond to @query.QueryNumber</label>
+                                                <textarea name="response" class="form-control mb-2" rows="3" placeholder="Facility response / amendment note" required></textarea>
+                                                <button class="btn btn-success">Submit Response</button>
+                                            </form>
+                                        }
+                                    }
+
+                                    <h6 class="fw-bold text-success mt-4">Audit Trail</h6>
+                                    @if (auditTrails.Count == 0)
+                                    {
+                                        <p class="text-muted mb-0">No audit events recorded yet.</p>
+                                    }
+                                    else
+                                    {
+                                        <ul class="list-group">
+                                            @foreach (var item in auditTrails)
+                                            {
+                                                <li class="list-group-item d-flex justify-content-between gap-3">
+                                                    <span><strong>@item.Action</strong><br /><span class="text-muted">@item.Summary</span></span>
+                                                    <small class="text-muted text-nowrap">@item.PerformedAt.ToString("dd MMM yyyy HH:mm")</small>
+                                                </li>
+                                            }
+                                        </ul>
+                                    }
+                                </div>
+                            </div>
                         </div>
                     </div>
 
-                    <div class="text-center mt-5">
-                        <a asp-action="EncEdit" asp-route-id="@Model.Id" class="btn btn-success btn-lg px-6">Edit Encounter</a>
-                    </div>
-                    <div class="text-center mt-5">
-                        <a asp-action="MyEncounters" class="btn btn-secondary btn-lg px-6">Back to List</a>
+                    <div class="d-flex flex-column flex-sm-row justify-content-center gap-3 mt-5">
+                        <a asp-action="EncEdit" asp-route-id="@Model.Id" class="btn btn-success btn-lg px-5">Edit Encounter</a>
+                        <a asp-action="MyEncounters" class="btn btn-secondary btn-lg px-5">Back to List</a>
                     </div>
                 </div>
             </div>

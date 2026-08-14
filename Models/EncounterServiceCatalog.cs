@@ -8,8 +8,8 @@ namespace CTSHIPDashboard.Models
         public const string ConsultationService = "Consultation";
         public const string MchService = "Maternal and child health (MCH)";
         public const string NcdService = "Non-communicable disease (NCD) services";
-        public const string LaboratoryService = "Laboratory services";
-        public const string PrescriptionService = "Drug prescription/dispensing";
+        public const string LaboratoryService = "Laboratory Services";
+        public const string PrescriptionService = "Pharmacy and Medicines Dispensing Service";
 
         public static readonly IReadOnlyList<string> OutpatientServices = new[]
         {
@@ -124,8 +124,7 @@ namespace CTSHIPDashboard.Models
 
         public static bool IsValid(string setting, string service)
         {
-            IReadOnlyList<string> services = setting == Inpatient ? InpatientServices : OutpatientServices;
-            return services.Contains(service, StringComparer.OrdinalIgnoreCase);
+            return Services.EncounterLookups.ServicesProvided.Contains(service, StringComparer.OrdinalIgnoreCase);
         }
     }
 }

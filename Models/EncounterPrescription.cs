@@ -1,4 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace CTSHIPDashboard.Models
@@ -11,8 +11,7 @@ namespace CTSHIPDashboard.Models
         public int EncounterId { get; set; }
         public Encounter? Encounter { get; set; }
 
-        [Required]
-        public int DrugInventoryItemId { get; set; }
+        public int? DrugInventoryItemId { get; set; }
         public DrugInventoryItem? DrugInventoryItem { get; set; }
 
         [Required]

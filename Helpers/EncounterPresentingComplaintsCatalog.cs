@@ -10,7 +10,7 @@ namespace CTSHIPDashboard.Helpers
             "Fever",
             "Cough",
             "Difficulty breathing",
-            "Diarrhoea",
+            "Diarrhea",
             "Vomiting",
             "Headache",
             "Abdominal pain",

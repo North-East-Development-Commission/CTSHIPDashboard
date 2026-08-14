@@ -1,4 +1,4 @@
-﻿@model CTSHIPDashboard.Models.Encounter
+@model CTSHIPDashboard.Models.Encounter
 
 @{
     bool canUseClaims = ViewBag.CanUseClaims == true;
@@ -88,19 +88,15 @@
                                             <p><strong>Date:</strong> @Model.VisitDate.Date</p>
                                             <p><strong>Type:</strong> @Model.VisitType</p>
                                             <p><strong>Reason:</strong> @Model.ReasonForEncounter</p>
-                                            <p><strong>Service Setting:</strong> @Model.ServiceSetting</p>
+                                            <p><strong>Patient Outcome:</strong> <span class="badge bg-success">@Model.PatientOutcome</span></p>
                                             <div>
-                                                <strong>Services Delivered:</strong>
+                                                <strong>Services Provided:</strong>
                                                 @foreach (var service in Model.Services)
                                                 {
                                                     <span class="badge bg-primary me-1 mb-1">@service.ServiceName</span>
                                                 }
                                             </div>
                                             <p><strong>Provider:</strong> @Model.Provider?.Name</p>
-                                            <p>
-                                                <strong>Status:</strong>
-                                                <span class="badge bg-success fs-6">@Model.Status</span>
-                                            </p>
                                         </div>
                                     </div>
                                 </div>
@@ -112,6 +108,30 @@
                                             <p><strong>Complaint:</strong> @Model.ChiefComplaint</p>
                                             <p><strong>Diagnosis:</strong> @Model.Diagnosis</p>
                                             <p><strong>Treatment:</strong> @Model.TreatmentGiven</p>
+                                            @if (!string.IsNullOrWhiteSpace(Model.DiagnosisOther))
+                                            {
+                                                <p><strong>Other Diagnosis:</strong> @Model.DiagnosisOther</p>
+                                            }
+                                            @if (!string.IsNullOrWhiteSpace(Model.LaboratoryOther))
+                                            {
+                                                <p><strong>Other Laboratory Service:</strong> @Model.LaboratoryOther</p>
+                                            }
+                                            @if (!string.IsNullOrWhiteSpace(Model.SelectedMedicinesData))
+                                            {
+                                                <p><strong>Medicines:</strong> @Model.SelectedMedicinesData.Replace(" | ", ", ")</p>
+                                            }
+                                            @if (!string.IsNullOrWhiteSpace(Model.PreventiveServicesData))
+                                            {
+                                                <p><strong>Preventive Services:</strong> @Model.PreventiveServicesData.Replace(" | ", ", ")</p>
+                                            }
+                                            @if (!string.IsNullOrWhiteSpace(Model.ImmunizationsData))
+                                            {
+                                                <p><strong>Immunizations:</strong> @Model.ImmunizationsData.Replace(" | ", ", ")</p>
+                                            }
+                                            @if (!string.IsNullOrWhiteSpace(Model.ScreeningTestsData))
+                                            {
+                                                <p><strong>Screening Tests:</strong> @Model.ScreeningTestsData.Replace(" | ", ", ")</p>
+                                            }
                                             <p>
                                                 <strong>Attended By:</strong> @(Model.Doctor?.FullName ?? Model.SeenBy)<br />
                                                 <strong>Specialty / Unit:</strong> @(Model.Doctor?.Specialty ?? Model.Rank)
@@ -151,33 +171,11 @@
                                         </div>
                                     </div>
                                 </div>
-
-                                <div class="col-12">
-                                    <div class="card @(Model.ClaimId == null ? "border-warning" : "border-success") shadow-sm">
-                                        <div class="card-body text-center py-4">
-                                            <h5>Total Encounter Amount</h5>
-                                            <h2 class="display-5 fw-bold text-success">&#8358;@Model.TotalAmount.ToString("N2")</h2>
-                                            <div class="text-muted">Services: &#8358;@Model.ServiceTotal.ToString("N2")</div>
-                                            <div class="text-muted">Capitation: &#8358;@Model.CapitationCharge.ToString("N2")</div>
-                                            @if (Model.ClaimId == null)
-                                            {
-                                                <p class="text-warning fw-bold">Not yet claimed</p>
-                                            }
-                                            else
-                                            {
-                                                <p class="text-success fw-bold">Claim Submitted</p>
-                                            }
-                                        </div>
-                                    </div>
-                                </div>
                             </div>
+                        </div>
                         </div>
                     </div>
                     <div class="text-center mt-5">
-                        @if (User.IsInRole("Provider") && canUseClaims && Model.ClaimId == null && Model.Status != "Cancelled")
-                        {
-                            <a asp-action="CreateClaim" asp-route-id="@Model.Id" class="btn btn-primary btn-lg px-6 me-2">Submit Claim</a>
-                        }
                         <a asp-action="Index" class="btn btn-secondary btn-lg px-6">Back to List</a>
                     </div>
                 </div>

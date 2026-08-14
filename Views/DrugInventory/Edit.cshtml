@@ -17,47 +17,42 @@
                         <input type="hidden" asp-for="Id" />
                         <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
                         <div class="row g-3">
-                            <div class="col-md-8">
+                            <div class="col-md-6">
                                 <label asp-for="DrugName" class="form-label fw-bold"></label>
-                                <input asp-for="DrugName" class="form-control" />
+                                <select asp-for="DrugName" class="form-select" id="DrugName">
+                                    <option value="">Select drug title</option>
+                                    @foreach (var group in Model.MedicineGroups)
+                                    {
+                                        <optgroup label="@group.Key">
+                                            @foreach (string medicine in group.Value)
+                                            {
+                                                <option value="@medicine" selected="@(string.Equals(Model.DrugName, medicine, StringComparison.OrdinalIgnoreCase) ? "selected" : null)">@medicine</option>
+                                            }
+                                        </optgroup>
+                                    }
+                                </select>
                                 <span asp-validation-for="DrugName" class="text-danger"></span>
                             </div>
-                            <div class="col-md-4">
-                                <label asp-for="UnitOfMeasure" class="form-label fw-bold"></label>
-                                <select asp-for="UnitOfMeasure" asp-items="Model.Units" class="form-select"></select>
-                                <span asp-validation-for="UnitOfMeasure" class="text-danger"></span>
+                            <div class="col-md-6" id="otherMedicineRow" style="display:none;">
+                                <label asp-for="OtherDrugName" class="form-label fw-bold"></label>
+                                <input asp-for="OtherDrugName" class="form-control" placeholder="Enter other medicine name" />
+                                <span asp-validation-for="OtherDrugName" class="text-danger"></span>
                             </div>
                             <div class="col-md-6">
                                 <label asp-for="Strength" class="form-label fw-bold"></label>
-                                <input asp-for="Strength" class="form-control" />
+                                <input asp-for="Strength" class="form-control" placeholder="e.g., 500mg tablet, 5ml syrup, vial" />
                                 <span asp-validation-for="Strength" class="text-danger"></span>
                             </div>
                             <div class="col-md-6">
-                                <label asp-for="DosageForm" class="form-label fw-bold"></label>
-                                <input asp-for="DosageForm" class="form-control" />
-                                <span asp-validation-for="DosageForm" class="text-danger"></span>
-                            </div>
-                            <div class="col-md-4">
                                 <label asp-for="QuantityOnHand" class="form-label fw-bold"></label>
                                 <input asp-for="QuantityOnHand" class="form-control" min="0" />
                                 <span asp-validation-for="QuantityOnHand" class="text-danger"></span>
                             </div>
-                            <div class="col-md-4">
-                                <label asp-for="ReorderLevel" class="form-label fw-bold"></label>
-                                <input asp-for="ReorderLevel" class="form-control" min="0" />
-                                <span asp-validation-for="ReorderLevel" class="text-danger"></span>
-                            </div>
-                            <div class="col-md-4">
-                                <label asp-for="UnitCost" class="form-label fw-bold"></label>
-                                <input asp-for="UnitCost" class="form-control" min="0" step="0.01" />
-                                <span asp-validation-for="UnitCost" class="text-danger"></span>
-                            </div>
-                            <div class="col-12">
-                                <div class="form-check form-switch">
-                                    <input asp-for="IsActive" class="form-check-input" />
-                                    <label asp-for="IsActive" class="form-check-label fw-bold">Active</label>
-                                </div>
-                            </div>
+                            <input type="hidden" asp-for="DosageForm" />
+                            <input type="hidden" asp-for="UnitOfMeasure" />
+                            <input type="hidden" asp-for="ReorderLevel" />
+                            <input type="hidden" asp-for="UnitCost" />
+                            <input type="hidden" asp-for="IsActive" />
                         </div>
                         <div class="d-flex justify-content-end gap-2 mt-4">
                             <a asp-action="Index" class="btn btn-outline-secondary">Cancel</a>
@@ -72,4 +67,16 @@
 
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
+    <script>
+        function syncOtherMedicine() {
+            const select = document.getElementById("DrugName")
+            const row = document.getElementById("otherMedicineRow")
+            if (!select) return
+            if (!row) return
+            row.style.display = select.value.toLowerCase() === "other medicines" ? "block" : "none"
+        }
+
+        document.getElementById("DrugName")?.addEventListener("change", syncOtherMedicine)
+        syncOtherMedicine()
+    </script>
 }

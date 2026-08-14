@@ -1,0 +1,24 @@
+@model CTSHIPDashboard.Models.Encounter
+@{
+    var diagnoses = ViewBag.Diagnoses as IEnumerable<string> ?? Enumerable.Empty<string>();
+}
+<div class="col-12">
+    <div class="d-flex justify-content-between align-items-center gap-3 mb-2">
+        <div>
+            <label for="selectedDiagnoses" class="form-label mb-0">Diagnosis</label>
+            <div class="small text-muted">Select all confirmed or provisional diagnoses.</div>
+        </div>
+        <span class="badge rounded-pill text-bg-success">Multi-select</span>
+    </div>
+    <select id="selectedDiagnoses" name="SelectedDiagnoses" class="form-select form-select-lg select2" multiple data-placeholder="Select diagnosis">
+        @foreach (string diagnosis in diagnoses)
+        {
+            <option value="@diagnosis" selected="@(Model.SelectedDiagnoses.Contains(diagnosis, StringComparer.OrdinalIgnoreCase) ? "selected" : null)">@diagnosis</option>
+        }
+    </select>
+    <span asp-validation-for="Diagnosis" class="text-danger"></span>
+    <div id="diagnosisOtherRow" class="mt-3" style="display:none;">
+        <label asp-for="DiagnosisOther" class="form-label">Other diagnosis</label>
+        <input asp-for="DiagnosisOther" class="form-control form-control-lg" placeholder="Specify the other diagnosis" />
+    </div>
+</div>

@@ -1,4 +1,4 @@
-﻿using CTSHIPDashboard.Models;
+using CTSHIPDashboard.Models;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
@@ -352,7 +352,8 @@ namespace CTSHIPDashboard.Data
                 entity.HasOne(x => x.DrugInventoryItem)
                     .WithMany(x => x.EncounterPrescriptions)
                     .HasForeignKey(x => x.DrugInventoryItemId)
-                    .OnDelete(DeleteBehavior.Restrict);
+                    .OnDelete(DeleteBehavior.Restrict)
+                    .IsRequired(false);
             });
             modelBuilder.Entity<CapitationPayment>(entity =>
             {

@@ -33,11 +33,8 @@ namespace CTSHIPDashboard.Pages.Encounters
             DiagnosisItems = EncounterLookups.Diagnoses
                 .Select(x => new SelectListItem(x, x)).ToList();
 
-            foreach (var kv in EncounterLookups.ServicesProvided)
-            {
-                ServicesProvidedItems[kv.Key] = kv.Value
-                    .Select(v => new SelectListItem(v, v)).ToList();
-            }
+            ServicesProvidedItems["Primary Provider Services"] = EncounterLookups.ServicesProvided
+                .Select(v => new SelectListItem(v, v)).ToList();
 
             PatientOutcomeItems = EncounterLookups.PatientOutcomes
                 .Select(x => new SelectListItem(x, x)).ToList();

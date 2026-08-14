@@ -1,0 +1,32 @@
+@model CTSHIPDashboard.Models.Encounter
+@{
+    var services = ViewBag.PreventiveServices as IEnumerable<string> ?? Enumerable.Empty<string>();
+    var immunizations = ViewBag.Immunizations as IEnumerable<string> ?? Enumerable.Empty<string>();
+    var screenings = ViewBag.ScreeningTests as IEnumerable<string> ?? Enumerable.Empty<string>();
+}
+<div class="col-12" id="preventiveSection" style="display:none;">
+    <div class="conditional-service-section">
+        <label for="selectedPreventiveServices" class="form-label">Preventive Services Provided</label>
+        <select id="selectedPreventiveServices" name="SelectedPreventiveServices" class="form-select select2" multiple data-placeholder="Select preventive services">
+            @foreach (string item in services) { <option value="@item" selected="@(Model.SelectedPreventiveServices.Contains(item, StringComparer.OrdinalIgnoreCase) ? "selected" : null)">@item</option> }
+        </select>
+        <div id="immunizationSection" class="mt-3" style="display:none;">
+            <label for="selectedImmunizations" class="form-label">Type of Immunization</label>
+            <select id="selectedImmunizations" name="SelectedImmunizations" class="form-select select2" data-placeholder="Select immunization type">
+                <option value="">Select immunization type</option>
+                @foreach (string item in immunizations) { <option value="@item" selected="@(Model.SelectedImmunizations.Contains(item, StringComparer.OrdinalIgnoreCase) ? "selected" : null)">@item</option> }
+            </select>
+        </div>
+        <div id="screeningSection" class="mt-3" style="display:none;">
+            <label for="selectedScreeningTests" class="form-label">Type of Screening</label>
+            <select id="selectedScreeningTests" name="SelectedScreeningTests" class="form-select select2" data-placeholder="Select screening test">
+                <option value="">Select screening test</option>
+                @foreach (string item in screenings) { <option value="@item" selected="@(Model.SelectedScreeningTests.Contains(item, StringComparer.OrdinalIgnoreCase) ? "selected" : null)">@item</option> }
+            </select>
+        </div>
+        <div id="preventiveOtherRow" class="mt-3" style="display:none;">
+            <label asp-for="PreventiveServicesOther" class="form-label">Other preventive service</label>
+            <input asp-for="PreventiveServicesOther" class="form-control" placeholder="Specify the other preventive service" />
+        </div>
+    </div>
+</div>

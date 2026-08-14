@@ -1,6 +1,7 @@
 using CTSHIPDashboard.Data;
 using CTSHIPDashboard.Models;
 using CTSHIPDashboard.Models.ViewModels;
+using CTSHIPDashboard.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -76,7 +77,7 @@ namespace CTSHIPDashboard.Controllers
 
             if (!ModelState.IsValid)
             {
-                model.Units = BuildUnitOptions(model.UnitOfMeasure);
+                PrepareFormModelForDisplay(model);
                 return View(model);
             }
 
@@ -136,7 +137,7 @@ namespace CTSHIPDashboard.Controllers
 
             if (!ModelState.IsValid)
             {
-                model.Units = BuildUnitOptions(model.UnitOfMeasure);
+                PrepareFormModelForDisplay(model);
                 return View(model);
             }
 
@@ -265,10 +266,45 @@ namespace CTSHIPDashboard.Controllers
                     IsActive = item.IsActive
                 };
 
-            model.Units = BuildUnitOptions(model.UnitOfMeasure);
+            PrepareFormModelForDisplay(model);
             return model;
         }
 
+        private static void PrepareFormModelForDisplay(DrugInventoryFormViewModel model)
+        {
+            string selectedDrug = model.DrugName?.Trim() ?? string.Empty;
+            if (!string.IsNullOrWhiteSpace(selectedDrug)
+                && !IsOtherMedicine(selectedDrug)
+                && !IsCatalogMedicine(selectedDrug))
+            {
+                model.OtherDrugName = selectedDrug;
+                model.DrugName = OtherMedicineOption;
+            }
+
+            model.Units = BuildUnitOptions(model.UnitOfMeasure);
+            model.MedicineGroups = EncounterLookups.Medicines.ToDictionary(
+                group => group.Key,
+                group => group.Value);
+        }
+
+        private const string OtherMedicineOption = "Other Medicines";
+
+        private static bool IsOtherMedicine(string? medicine)
+        {
+            return string.Equals(medicine?.Trim(), OtherMedicineOption, StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static bool IsCatalogMedicine(string? medicine)
+        {
+            if (string.IsNullOrWhiteSpace(medicine))
+            {
+                return false;
+            }
+
+            return EncounterLookups.Medicines
+                .SelectMany(group => group.Value)
+                .Any(item => string.Equals(item, medicine.Trim(), StringComparison.OrdinalIgnoreCase));
+        }
         private static List<SelectListItem> BuildUnitOptions(string? selectedUnit = null)
         {
             return InventoryUnits
@@ -281,10 +317,39 @@ namespace CTSHIPDashboard.Controllers
                 .ToList();
         }
 
-        private static void NormalizeForm(DrugInventoryFormViewModel model)
+        private void NormalizeForm(DrugInventoryFormViewModel model)
         {
-            model.DrugName = model.DrugName.Trim();
+            string selectedDrug = model.DrugName?.Trim() ?? string.Empty;
+            if (string.IsNullOrWhiteSpace(selectedDrug))
+            {
+                ModelState.AddModelError(nameof(model.DrugName), "Select a drug title from the primary provider list.");
+            }
+            else if (IsOtherMedicine(selectedDrug))
+            {
+                if (string.IsNullOrWhiteSpace(model.OtherDrugName))
+                {
+                    ModelState.AddModelError(nameof(model.OtherDrugName), "Enter the other medicine name.");
+                }
+                else
+                {
+                    model.DrugName = model.OtherDrugName.Trim();
+                }
+            }
+            else
+            {
+                if (!IsCatalogMedicine(selectedDrug))
+                {
+                    ModelState.AddModelError(nameof(model.DrugName), "Select a medicine from the primary provider drug list.");
+                }
+                model.DrugName = selectedDrug;
+            }
+
             model.Strength = string.IsNullOrWhiteSpace(model.Strength) ? null : model.Strength.Trim();
+            if (string.IsNullOrWhiteSpace(model.Strength))
+            {
+                ModelState.AddModelError(nameof(model.Strength), "Enter the dosage.");
+            }
+
             model.DosageForm = string.IsNullOrWhiteSpace(model.DosageForm) ? null : model.DosageForm.Trim();
             model.UnitOfMeasure = string.IsNullOrWhiteSpace(model.UnitOfMeasure) ? "Unit" : model.UnitOfMeasure.Trim();
         }

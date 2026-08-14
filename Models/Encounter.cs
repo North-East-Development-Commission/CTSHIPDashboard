@@ -1,4 +1,4 @@
-﻿// Models/Encounter.cs
+// Models/Encounter.cs
 using CTSHIPDashboard.Models.ViewModels;
 using CTSHIPDashboard.ViewModels;
 using System.ComponentModel.DataAnnotations;
@@ -28,6 +28,9 @@ namespace CTSHIPDashboard.Models
         public string ChiefComplaint { get; set; } = string.Empty;
 
         public string? Diagnosis { get; set; }
+
+        [StringLength(500)]
+        public string? DiagnosisOther { get; set; }
         public string? LabTests { get; set; }
         public string? TreatmentGiven { get; set; }
 
@@ -94,6 +97,28 @@ namespace CTSHIPDashboard.Models
         public Claim? Claim { get; set; }
 
         public string Status { get; set; } = "Completed";
+
+        [Required]
+        [StringLength(50)]
+        [Display(Name = "Patient Outcome")]
+        public string PatientOutcome { get; set; } = "Treated";
+
+        [StringLength(500)]
+        public string? ServicesProvidedOther { get; set; }
+
+        [StringLength(500)]
+        public string? MedicinesOther { get; set; }
+
+        [StringLength(500)]
+        public string? LaboratoryOther { get; set; }
+
+        [StringLength(500)]
+        public string? PreventiveServicesOther { get; set; }
+
+        public string? SelectedMedicinesData { get; set; }
+        public string? PreventiveServicesData { get; set; }
+        public string? ImmunizationsData { get; set; }
+        public string? ScreeningTestsData { get; set; }
         public decimal Temperature { get; set; }
         public string? BloodPressure { get; set; }
         public string? VisitType { get; set; }
@@ -121,6 +146,21 @@ namespace CTSHIPDashboard.Models
 
         [NotMapped]
         public List<string> SelectedLaboratoryTests { get; set; } = new();
+
+        [NotMapped]
+        public List<string> SelectedDiagnoses { get; set; } = new();
+
+        [NotMapped]
+        public List<string> SelectedMedicines { get; set; } = new();
+
+        [NotMapped]
+        public List<string> SelectedPreventiveServices { get; set; } = new();
+
+        [NotMapped]
+        public List<string> SelectedImmunizations { get; set; } = new();
+
+        [NotMapped]
+        public List<string> SelectedScreeningTests { get; set; } = new();
 
         [NotMapped]
         public List<CTSHIPDashboard.ViewModels.EncounterLaboratoryInputViewModel> LaboratoryInvestigations { get; set; } = new();

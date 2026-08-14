@@ -47,10 +47,15 @@ namespace CTSHIPDashboard.Models.ViewModels
 
         [Required]
         [StringLength(200)]
-        [Display(Name = "Drug Name")]
+        [Display(Name = "Drug Title")]
         public string DrugName { get; set; } = string.Empty;
 
+        [StringLength(200)]
+        [Display(Name = "Other Medicine")]
+        public string? OtherDrugName { get; set; }
+
         [StringLength(100)]
+        [Display(Name = "Dosage")]
         public string? Strength { get; set; }
 
         [StringLength(100)]
@@ -63,7 +68,7 @@ namespace CTSHIPDashboard.Models.ViewModels
         public string UnitOfMeasure { get; set; } = "Unit";
 
         [Range(0, int.MaxValue)]
-        [Display(Name = "Quantity On Hand")]
+        [Display(Name = "Quantity")]
         public int QuantityOnHand { get; set; }
 
         [Range(0, int.MaxValue)]
@@ -76,11 +81,21 @@ namespace CTSHIPDashboard.Models.ViewModels
 
         public bool IsActive { get; set; } = true;
         public List<SelectListItem> Units { get; set; } = new();
+        public Dictionary<string, List<string>> MedicineGroups { get; set; } = new();
     }
 
     public class EncounterPrescriptionInputViewModel
     {
-        public int DrugInventoryItemId { get; set; }
+        public int? DrugInventoryItemId { get; set; }
+
+        [StringLength(200)]
+        public string? DrugName { get; set; }
+
+        [StringLength(200)]
+        public string? OtherDrugName { get; set; }
+
+        [StringLength(100)]
+        public string? Strength { get; set; }
 
         [Range(1, int.MaxValue, ErrorMessage = "Enter a quantity greater than zero.")]
         public int QuantityDispensed { get; set; } = 1;

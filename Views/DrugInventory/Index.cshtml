@@ -35,12 +35,9 @@
             <table class="table table-hover align-middle mb-0">
                 <thead class="table-light">
                     <tr>
-                        <th>Drug</th>
-                        <th>Unit</th>
-                        <th>Stock</th>
-                        <th>Reorder Level</th>
-                        <th>Unit Cost</th>
-                        <th>Status</th>
+                        <th>Drug Title</th>
+                        <th>Dosage</th>
+                        <th>Quantity</th>
                         <th class="text-end">Actions</th>
                     </tr>
                 </thead>
@@ -48,7 +45,7 @@
                     @if (Model.Items.Count == 0)
                     {
                         <tr>
-                            <td colspan="7" class="text-center text-muted py-5">No drugs have been added to inventory yet.</td>
+                            <td colspan="4" class="text-center text-muted py-5">No drugs have been added to inventory yet.</td>
                         </tr>
                     }
                     else
@@ -58,20 +55,18 @@
                             <tr>
                                 <td>
                                     <div class="fw-bold">@item.DrugName</div>
-                                    <div class="small text-muted">@string.Join(" | ", new[] { item.Strength, item.DosageForm }.Where(x => !string.IsNullOrWhiteSpace(x)))</div>
+                                    @if (!item.IsActive)
+                                    {
+                                        <span class="badge bg-secondary">Inactive</span>
+                                    }
                                 </td>
-                                <td>@item.UnitOfMeasure</td>
+                                <td>@(string.IsNullOrWhiteSpace(item.Strength) ? "-" : item.Strength)</td>
                                 <td>
                                     <span class="fw-bold @(item.IsLowStock ? "text-danger" : "text-success")">@item.QuantityOnHand.ToString("N0")</span>
                                     @if (item.IsLowStock)
                                     {
                                         <span class="badge bg-danger ms-1">Low</span>
                                     }
-                                </td>
-                                <td>@item.ReorderLevel.ToString("N0")</td>
-                                <td>NGN @item.UnitCost.ToString("N2")</td>
-                                <td>
-                                    <span class="badge @(item.IsActive ? "bg-success" : "bg-secondary")">@(item.IsActive ? "Active" : "Inactive")</span>
                                 </td>
                                 <td>
                                     <div class="d-flex justify-content-end align-items-center gap-2 flex-wrap">
