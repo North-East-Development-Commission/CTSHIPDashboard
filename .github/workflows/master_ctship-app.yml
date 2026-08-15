@@ -91,6 +91,39 @@ jobs:
           name: ctship-app
           path: deployment
 
+      - name: Inspect downloaded deployment package
+        shell: pwsh
+        run: |
+          $packagePath = Join-Path $PWD "deployment/ctship-app.zip"
+          if (-not (Test-Path -LiteralPath $packagePath -PathType Leaf)) {
+            throw "Deployment package was not downloaded to: $packagePath"
+          }
+
+          $inspectPath = Join-Path $env:RUNNER_TEMP "ctship-package-inspect"
+          if (Test-Path -LiteralPath $inspectPath) {
+            Remove-Item -LiteralPath $inspectPath -Recurse -Force
+          }
+          New-Item -ItemType Directory -Path $inspectPath | Out-Null
+          Expand-Archive -LiteralPath $packagePath -DestinationPath $inspectPath -Force
+
+          Write-Host "Deployment package root files:"
+          Get-ChildItem -LiteralPath $inspectPath -File | Select-Object Name,Length | Format-Table -AutoSize
+
+          $requiredFiles = @(
+            "web.config",
+            "CTSHIPDashboard.exe",
+            "CTSHIPDashboard.dll",
+            "CTSHIPDashboard.deps.json",
+            "CTSHIPDashboard.runtimeconfig.json",
+            "hostfxr.dll"
+          )
+
+          foreach ($file in $requiredFiles) {
+            if (-not (Test-Path -LiteralPath (Join-Path $inspectPath $file) -PathType Leaf)) {
+              throw "Downloaded deployment package is missing required root file: $file"
+            }
+          }
+
       - name: Login to Azure
         uses: azure/login@v2
         with:
@@ -181,6 +214,41 @@ jobs:
 
           $defaultHostName = (az webapp show --resource-group $env:WEB_APP_RESOURCE_GROUP --name $env:WEB_APP_NAME --query defaultHostName --output tsv).Trim()
           "webapp-url=https://$defaultHostName" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+
+      - name: Inspect deployed Azure wwwroot files
+        shell: pwsh
+        run: |
+          $credentials = az webapp deployment list-publishing-credentials `
+            --resource-group $env:WEB_APP_RESOURCE_GROUP `
+            --name $env:WEB_APP_NAME `
+            --query "{user:publishingUserName,password:publishingPassword}" `
+            --output json | ConvertFrom-Json
+
+          $pair = "$($credentials.user):$($credentials.password)"
+          $encoded = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes($pair))
+          $headers = @{ Authorization = "Basic $encoded" }
+          $kuduBaseUrl = "https://$env:WEB_APP_NAME.scm.azurewebsites.net"
+          $wwwrootUrl = "$kuduBaseUrl/api/vfs/site/wwwroot/"
+
+          Write-Host "Inspecting deployed files at $wwwrootUrl"
+          $files = Invoke-RestMethod -Uri $wwwrootUrl -Headers $headers -Method Get
+          $files | Select-Object name, size, mtime | Sort-Object name | Format-Table -AutoSize
+
+          $fileNames = @($files | ForEach-Object { $_.name })
+          $requiredFiles = @(
+            "web.config",
+            "CTSHIPDashboard.exe",
+            "CTSHIPDashboard.dll",
+            "CTSHIPDashboard.deps.json",
+            "CTSHIPDashboard.runtimeconfig.json",
+            "hostfxr.dll"
+          )
+
+          foreach ($file in $requiredFiles) {
+            if ($fileNames -notcontains $file) {
+              throw "Azure site/wwwroot is missing required deployed file: $file"
+            }
+          }
 
       - name: Inspect Azure Web App runtime settings
         shell: pwsh
