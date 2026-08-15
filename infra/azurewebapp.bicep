@@ -36,7 +36,7 @@ resource webApp 'Microsoft.Web/sites@2022-03-01' = {
     httpsOnly: true
     serverFarmId: appServicePlan.id
     siteConfig: {
-      netFrameworkVersion: 'v9.0'
+      netFrameworkVersion: 'v4.0'
       scmType: 'None'
       alwaysOn: true
       http20Enabled: true

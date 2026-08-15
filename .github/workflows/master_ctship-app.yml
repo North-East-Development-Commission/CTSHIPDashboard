@@ -97,7 +97,7 @@ jobs:
             throw "Azure Web App '$env:WEB_APP_NAME' was not found."
           }
 
-          az webapp config set --resource-group $resourceGroup --name $env:WEB_APP_NAME --net-framework-version "v9.0" --always-on true --http20-enabled true --output none
+          az webapp config set --resource-group $resourceGroup --name $env:WEB_APP_NAME --net-framework-version "v4.0" --always-on true --http20-enabled true --output none
           az webapp update --resource-group $resourceGroup --name $env:WEB_APP_NAME --https-only true --output none
           az webapp config connection-string set --resource-group $resourceGroup --name $env:WEB_APP_NAME --connection-string-type SQLAzure --settings "DefaultConnection=$env:AZURE_SQL_CONNECTION_STRING" --output none
           az webapp config appsettings set --resource-group $resourceGroup --name $env:WEB_APP_NAME --settings "ASPNETCORE_ENVIRONMENT=Production" "Database__ApplyMigrationsOnStartup=true" "ASPNETCORE_FORWARDEDHEADERS_ENABLED=true" --output none
@@ -107,6 +107,7 @@ jobs:
             throw "Azure did not return a default hostname for '$env:WEB_APP_NAME'."
           }
 
+          "WEB_APP_RESOURCE_GROUP=$resourceGroup" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
           "WEB_APP_HOSTNAME=$defaultHostName" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
       - name: Deploy to Azure Web App
@@ -117,25 +118,48 @@ jobs:
           slot-name: Production
           package: deployment/ctship-app.zip
 
+      - name: Restart Azure Web App
+        shell: pwsh
+        run: az webapp restart --resource-group $env:WEB_APP_RESOURCE_GROUP --name $env:WEB_APP_NAME
+
       - name: Verify application and database health
         shell: pwsh
         run: |
           $healthUrl = "https://$env:WEB_APP_HOSTNAME/health"
-          for ($attempt = 1; $attempt -le 12; $attempt++) {
+          $loginUrl = "https://$env:WEB_APP_HOSTNAME/Identity/Account/Login"
+          $notFoundUrl = "https://$env:WEB_APP_HOSTNAME/__ctship_missing_route_probe__"
+
+          for ($attempt = 1; $attempt -le 30; $attempt++) {
             try {
               $response = Invoke-WebRequest -Uri $healthUrl -UseBasicParsing -TimeoutSec 30
               $hasHealthyPayload = $response.Content -match '"status"\s*:\s*"healthy"'
               if ($response.StatusCode -eq 200 -and $hasHealthyPayload) {
-                $loginUrl = "https://$env:WEB_APP_HOSTNAME/Identity/Account/Login"
                 $loginResponse = Invoke-WebRequest -Uri $loginUrl -UseBasicParsing -TimeoutSec 30
                 $hasLoginPage = $loginResponse.Content -match '<form'
 
                 if ($loginResponse.StatusCode -eq 200 -and $hasLoginPage) {
-                  Write-Host "Application, Azure SQL, and login page are healthy."
-                  exit 0
-                }
+                  try {
+                    Invoke-WebRequest -Uri $notFoundUrl -UseBasicParsing -TimeoutSec 30 | Out-Null
+                    Write-Host "Missing-route validation failed: $notFoundUrl returned HTTP 200."
+                  }
+                  catch {
+                    $notFoundStatusCode = if ($null -ne $_.Exception.Response) {
+                      [int]$_.Exception.Response.StatusCode
+                    } else {
+                      "unavailable"
+                    }
 
-                Write-Host "Login page validation failed (HTTP $($loginResponse.StatusCode), bytes=$($loginResponse.RawContentLength))."
+                    if ($notFoundStatusCode -eq 404) {
+                      Write-Host "Application, Azure SQL, login page, and routing are healthy."
+                      exit 0
+                    }
+
+                    Write-Host "Missing-route validation returned HTTP $notFoundStatusCode instead of 404."
+                  }
+                }
+                else {
+                  Write-Host "Login page validation failed (HTTP $($loginResponse.StatusCode), bytes=$($loginResponse.RawContentLength))."
+                }
               }
 
               Write-Host "Health endpoint returned HTTP $($response.StatusCode), bytes=$($response.RawContentLength), body=$($response.Content)"
