@@ -259,7 +259,7 @@ app.MapRazorPages()
 app.Run();
 
 app.MapGet("/test-alive", () =>
-    Results.Text("CTSHIP ASP.NET CORE IS RUNNING", "text/plain"))
+    Results.Text("CTSHIP ASP.NET CORE IS RUNNING", "text/plain"));
 //#FE9031 
 //#FE9031
 
