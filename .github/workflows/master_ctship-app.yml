@@ -31,7 +31,26 @@ jobs:
         run: dotnet build --configuration Release --no-restore
 
       - name: Publish
-        run: dotnet publish --configuration Release --no-build --output "${{ runner.temp }}/publish"
+        run: dotnet publish .\CTSHIPDashboard.csproj --configuration Release --no-build --output "${{ runner.temp }}/publish"
+
+      - name: Validate publish output
+        shell: pwsh
+        run: |
+          $publishPath = "${{ runner.temp }}/publish"
+          $requiredFiles = @(
+            "web.config",
+            "CTSHIPDashboard.dll",
+            "CTSHIPDashboard.runtimeconfig.json"
+          )
+
+          foreach ($file in $requiredFiles) {
+            $filePath = Join-Path $publishPath $file
+            if (-not (Test-Path -LiteralPath $filePath -PathType Leaf)) {
+              throw "Publish output is missing required root file: $file"
+            }
+          }
+
+          Write-Host "Publish output root contains the Azure web.config and application DLL."
 
       - name: Package Azure deployment
         shell: pwsh
