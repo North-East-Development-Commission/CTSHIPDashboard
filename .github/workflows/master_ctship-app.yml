@@ -141,7 +141,7 @@ jobs:
               "ASPNETCORE_ENVIRONMENT=Production" `
               "ASPNETCORE_FORWARDEDHEADERS_ENABLED=true" `
               "ConnectionStrings__DefaultConnection=$effectiveConnectionString" `
-              "Database__ApplyMigrationsOnStartup=true" `
+              "Database__ApplyMigrationsOnStartup=false" `
               "SCM_DO_BUILD_DURING_DEPLOYMENT=false" `
               "WEBSITE_RUN_FROM_PACKAGE=1" `
             --output none
