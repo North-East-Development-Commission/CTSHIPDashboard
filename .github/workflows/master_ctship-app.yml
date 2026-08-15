@@ -97,7 +97,7 @@ jobs:
             throw "Azure Web App '$env:WEB_APP_NAME' was not found."
           }
 
-          az webapp config set --resource-group $resourceGroup --name $env:WEB_APP_NAME --net-framework-version "v4.0" --always-on true --http20-enabled true --output none
+          az webapp config set --resource-group $resourceGroup --name $env:WEB_APP_NAME --always-on true --http20-enabled true --output none
           az webapp update --resource-group $resourceGroup --name $env:WEB_APP_NAME --https-only true --output none
           az webapp config connection-string set --resource-group $resourceGroup --name $env:WEB_APP_NAME --connection-string-type SQLAzure --settings "DefaultConnection=$env:AZURE_SQL_CONNECTION_STRING" --output none
           az webapp config appsettings set --resource-group $resourceGroup --name $env:WEB_APP_NAME --settings "ASPNETCORE_ENVIRONMENT=Production" "Database__ApplyMigrationsOnStartup=true" "ASPNETCORE_FORWARDEDHEADERS_ENABLED=true" --output none
