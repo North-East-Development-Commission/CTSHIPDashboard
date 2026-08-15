@@ -136,6 +136,12 @@ jobs:
             --settings "DefaultConnection=$effectiveConnectionString" `
             --output none
 
+          az webapp config appsettings delete `
+            --resource-group $resourceGroup `
+            --name $env:WEB_APP_NAME `
+            --setting-names WEBSITE_RUN_FROM_PACKAGE `
+            --output none
+
           az webapp config appsettings set `
             --resource-group $resourceGroup `
             --name $env:WEB_APP_NAME `
@@ -145,7 +151,6 @@ jobs:
               "ConnectionStrings__DefaultConnection=$effectiveConnectionString" `
               "Database__ApplyMigrationsOnStartup=false" `
               "SCM_DO_BUILD_DURING_DEPLOYMENT=false" `
-              "WEBSITE_RUN_FROM_PACKAGE=1" `
             --output none
 
           $defaultHostName = (az webapp show --resource-group $resourceGroup --name $env:WEB_APP_NAME --query defaultHostName --output tsv).Trim()
@@ -156,14 +161,41 @@ jobs:
           "WEB_APP_RESOURCE_GROUP=$resourceGroup" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
           "WEB_APP_HOSTNAME=$defaultHostName" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
-      - name: Deploy to Azure Web App
+      - name: Deploy zip package to Azure Web App
         id: deploy-to-webapp
-        uses: azure/webapps-deploy@v3
-        with:
-          app-name: ${{ env.WEB_APP_NAME }}
-          slot-name: Production
-          package: deployment/ctship-app.zip
+        shell: pwsh
+        run: |
+          $packagePath = Join-Path $PWD "deployment/ctship-app.zip"
+          if (-not (Test-Path -LiteralPath $packagePath -PathType Leaf)) {
+            throw "Deployment package was not found: $packagePath"
+          }
 
+          az webapp deploy `
+            --resource-group $env:WEB_APP_RESOURCE_GROUP `
+            --name $env:WEB_APP_NAME `
+            --src-path $packagePath `
+            --type zip `
+            --clean true `
+            --restart true `
+            --output json
+
+          $defaultHostName = (az webapp show --resource-group $env:WEB_APP_RESOURCE_GROUP --name $env:WEB_APP_NAME --query defaultHostName --output tsv).Trim()
+          "webapp-url=https://$defaultHostName" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+
+      - name: Inspect Azure Web App runtime settings
+        shell: pwsh
+        run: |
+          az webapp config show `
+            --resource-group $env:WEB_APP_RESOURCE_GROUP `
+            --name $env:WEB_APP_NAME `
+            --query "{linuxFxVersion:linuxFxVersion, netFrameworkVersion:netFrameworkVersion, use32BitWorkerProcess:use32BitWorkerProcess, alwaysOn:alwaysOn}" `
+            --output json
+
+          az webapp config appsettings list `
+            --resource-group $env:WEB_APP_RESOURCE_GROUP `
+            --name $env:WEB_APP_NAME `
+            --query "[?name=='WEBSITE_RUN_FROM_PACKAGE' || name=='SCM_DO_BUILD_DURING_DEPLOYMENT' || name=='ASPNETCORE_FORWARDEDHEADERS_ENABLED' || name=='ASPNETCORE_ENVIRONMENT'].{name:name,value:value}" `
+            --output table
       - name: Restart Azure Web App
         shell: pwsh
         run: az webapp restart --resource-group $env:WEB_APP_RESOURCE_GROUP --name $env:WEB_APP_NAME
