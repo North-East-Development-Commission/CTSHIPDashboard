@@ -1,7 +1,7 @@
-trigger:
-  branches:
-    include:
-      - master
+# GitHub Actions is the automatic production deployment path.
+# Keep this Azure DevOps pipeline available for explicitly queued runs only.
+trigger: none
+pr: none
 
 variables:
   buildConfiguration: 'Release'
