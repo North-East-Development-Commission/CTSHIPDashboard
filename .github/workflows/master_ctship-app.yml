@@ -201,9 +201,13 @@ jobs:
             $loginResponse = Invoke-WebRequest -Uri $loginUrl -UseBasicParsing -TimeoutSec 45 -SkipHttpErrorCheck
             Write-Host "Login: HTTP $($loginResponse.StatusCode), bytes=$($loginResponse.RawContentLength), body='$($loginResponse.Content)'"
 
-            if ($loginResponse.StatusCode -eq 200) {
+            if ($loginResponse.StatusCode -eq 200 -and $loginResponse.Content -match 'id="account"|id="login-submit"|LOGIN') {
               Write-Host "CTSHIP deployment verification PASSED."
               exit 0
+            }
+
+            if ($loginResponse.StatusCode -eq 200) {
+              Write-Host "Login returned HTTP 200 but did not contain the expected login form markup. The response body is not a valid rendered login page yet."
             }
 
             Start-Sleep -Seconds 10
