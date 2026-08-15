@@ -188,7 +188,8 @@ jobs:
 
           $defaultHostName = (az webapp show --resource-group $resourceGroup --name $env:WEB_APP_NAME --query defaultHostName --output tsv).Trim()
           if ([string]::IsNullOrWhiteSpace($defaultHostName)) {
-            throw "Azure did not return a default hostname for '$env:WEB_APP_NAME'."
+          $scmHostName = $env:WEB_APP_HOSTNAME -replace '^([^.]+)\.', '$1.scm.'
+          $kuduBaseUrl = "https://$scmHostName"
           }
 
           "WEB_APP_RESOURCE_GROUP=$resourceGroup" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
@@ -227,7 +228,8 @@ jobs:
           $pair = "$($credentials.user):$($credentials.password)"
           $encoded = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes($pair))
           $headers = @{ Authorization = "Basic $encoded" }
-          $kuduBaseUrl = "https://$env:WEB_APP_NAME.scm.azurewebsites.net"
+          $scmHostName = $env:WEB_APP_HOSTNAME -replace '^([^.]+)\.', '$1.scm.'
+          $kuduBaseUrl = "https://$scmHostName"
           $wwwrootUrl = "$kuduBaseUrl/api/vfs/site/wwwroot/"
 
           Write-Host "Inspecting deployed files at $wwwrootUrl"
