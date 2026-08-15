@@ -252,6 +252,29 @@ jobs:
             }
           }
 
+      - name: Inspect deployed Azure web.config
+        shell: pwsh
+        run: |
+          $credentials = az webapp deployment list-publishing-credentials `
+            --resource-group $env:WEB_APP_RESOURCE_GROUP `
+            --name $env:WEB_APP_NAME `
+            --query "{user:publishingUserName,password:publishingPassword}" `
+            --output json | ConvertFrom-Json
+
+          $pair = "$($credentials.user):$($credentials.password)"
+          $encoded = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes($pair))
+          $headers = @{ Authorization = "Basic $encoded" }
+          $scmHostName = $env:WEB_APP_HOSTNAME -replace '^([^.]+)\.', '$1.scm.'
+          $webConfigUrl = "https://$scmHostName/api/vfs/site/wwwroot/web.config"
+
+          Write-Host "Inspecting deployed web.config at $webConfigUrl"
+          $webConfig = Invoke-RestMethod -Uri $webConfigUrl -Headers $headers -Method Get
+          Write-Host $webConfig
+
+          if ($webConfig -notmatch '<aspNetCore' -or $webConfig -notmatch 'processPath="\.\\CTSHIPDashboard\.exe"') {
+            throw "Azure web.config is not configured to start CTSHIPDashboard.exe through ASP.NET Core Module."
+          }
+
       - name: Inspect Azure Web App runtime settings
         shell: pwsh
         run: |
