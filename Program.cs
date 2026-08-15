@@ -1,4 +1,4 @@
-﻿using CTSHIPDashboard.Data;
+using CTSHIPDashboard.Data;
 using CTSHIPDashboard.Hubs;
 using CTSHIPDashboard.Models;
 using CTSHIPDashboard.Services;
@@ -238,36 +238,61 @@ app.MapControllerRoute(
     pattern: "{controller=Analytics}/{action=Index}/{id?}");
 
 app.MapHub<AnalyticsHub>("/analyticsHub");
+app.MapGet("/alive", () => Results.Ok(new { status = "alive" }))
+    .AllowAnonymous();
 app.MapGet("/health", async (
     ApplicationDbContext context,
     CancellationToken cancellationToken) =>
 {
+    using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+    timeout.CancelAfter(TimeSpan.FromSeconds(10));
+    context.Database.SetCommandTimeout(TimeSpan.FromSeconds(5));
+
     try
     {
-        if (!await context.Database.CanConnectAsync(cancellationToken))
+        if (!await context.Database.CanConnectAsync(timeout.Token))
         {
-            return Results.StatusCode(StatusCodes.Status503ServiceUnavailable);
+            return Results.Json(
+                new { status = "unhealthy", reason = "database_unreachable" },
+                statusCode: StatusCodes.Status503ServiceUnavailable);
         }
 
         var pendingMigrations = await context.Database
-            .GetPendingMigrationsAsync(cancellationToken);
+            .GetPendingMigrationsAsync(timeout.Token);
 
         return pendingMigrations.Any()
-            ? Results.StatusCode(StatusCodes.Status503ServiceUnavailable)
+            ? Results.Json(
+                new
+                {
+                    status = "unhealthy",
+                    reason = "pending_migrations",
+                    pendingMigrations = pendingMigrations.ToArray()
+                },
+                statusCode: StatusCodes.Status503ServiceUnavailable)
             : Results.Ok(new { status = "healthy" });
     }
-    catch
+    catch (OperationCanceledException)
     {
-        return Results.StatusCode(StatusCodes.Status503ServiceUnavailable);
+        return Results.Json(
+            new { status = "unhealthy", reason = "database_probe_timeout" },
+            statusCode: StatusCodes.Status503ServiceUnavailable);
+    }
+    catch (Exception exception)
+    {
+        return Results.Json(
+            new
+            {
+                status = "unhealthy",
+                reason = "database_probe_failed",
+                error = exception.GetType().Name
+            },
+            statusCode: StatusCodes.Status503ServiceUnavailable);
     }
 }).AllowAnonymous();
 app.MapRazorPages()
     .WithStaticAssets();
 
 app.Run();
-
-app.MapGet("/test-alive", () =>
-    Results.Text("CTSHIP ASP.NET CORE IS RUNNING", "text/plain"));
 //#FE9031 
 //#FE9031
 

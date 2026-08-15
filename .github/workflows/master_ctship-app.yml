@@ -126,11 +126,20 @@ jobs:
         shell: pwsh
         run: |
           $healthUrl = "https://$env:WEB_APP_HOSTNAME/health"
+          $aliveUrl = "https://$env:WEB_APP_HOSTNAME/alive"
           $loginUrl = "https://$env:WEB_APP_HOSTNAME/Identity/Account/Login"
           $notFoundUrl = "https://$env:WEB_APP_HOSTNAME/__ctship_missing_route_probe__"
 
           for ($attempt = 1; $attempt -le 30; $attempt++) {
             try {
+              $aliveResponse = Invoke-WebRequest -Uri $aliveUrl -UseBasicParsing -TimeoutSec 30
+              $hasAlivePayload = $aliveResponse.Content -match '"status"\s*:\s*"alive"'
+              if ($aliveResponse.StatusCode -ne 200 -or -not $hasAlivePayload) {
+                Write-Host "Alive endpoint is not ready (HTTP $($aliveResponse.StatusCode), bytes=$($aliveResponse.RawContentLength), body=$($aliveResponse.Content))"
+                Start-Sleep -Seconds 10
+                continue
+              }
+
               $response = Invoke-WebRequest -Uri $healthUrl -UseBasicParsing -TimeoutSec 30
               $hasHealthyPayload = $response.Content -match '"status"\s*:\s*"healthy"'
               if ($response.StatusCode -eq 200 -and $hasHealthyPayload) {
@@ -170,7 +179,7 @@ jobs:
               } else {
                 "unavailable"
               }
-              Write-Host "Health check attempt $attempt failed for $healthUrl (HTTP $statusCode): $($_.Exception.Message)"
+              Write-Host "Readiness check attempt $attempt failed for $healthUrl (HTTP $statusCode): $($_.Exception.Message)"
             }
 
             Start-Sleep -Seconds 10
