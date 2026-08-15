@@ -7,39 +7,38 @@ variables:
   buildConfiguration: 'Release'
   dotnetSdk: '9.0.x'
   outputDir: '$(Build.ArtifactStagingDirectory)/publish'
+  azureSubscription: 'ASP-CTSHIPDashboardrg-a4c4 (P0v4: 1)'
+  webAppName: 'ctship-app'
 
 stages:
   - stage: Build
     displayName: Build
     jobs:
       - job: Build
-        displayName: Restore, Build and Publish
+        displayName: Restore, build and publish
         pool:
           vmImage: 'ubuntu-latest'
         steps:
           - task: UseDotNet@2
             displayName: 'Use .NET SDK $(dotnetSdk)'
             inputs:
-              packageType: 'sdk'
+              packageType: sdk
               version: '$(dotnetSdk)'
 
-          - script: |
-              dotnet restore
-            displayName: 'dotnet restore'
+          - script: dotnet restore
+            displayName: Restore
 
-          - script: |
-              dotnet build --configuration $(buildConfiguration) --no-restore
-            displayName: 'dotnet build'
+          - script: dotnet build --configuration $(buildConfiguration) --no-restore
+            displayName: Build
 
-          - script: |
-              dotnet publish -c $(buildConfiguration) -o $(outputDir)
-            displayName: 'dotnet publish'
+          - script: dotnet publish --configuration $(buildConfiguration) --no-build --output $(outputDir)
+            displayName: Publish
 
-          - task: PublishBuildArtifacts@1
+          - task: PublishPipelineArtifact@1
+            displayName: Upload deployment artifact
             inputs:
-              PathtoPublish: '$(outputDir)'
-              ArtifactName: 'drop'
-              publishLocation: 'Container'
+              targetPath: '$(outputDir)'
+              artifact: drop
 
   - stage: Deploy
     displayName: Deploy
@@ -47,7 +46,7 @@ stages:
     jobs:
       - deployment: DeployWeb
         displayName: Deploy to Azure Web App
-        environment: 'production'
+        environment: production
         pool:
           vmImage: 'ubuntu-latest'
         strategy:
@@ -57,20 +56,51 @@ stages:
                 - download: current
                   artifact: drop
 
-                - task: AzureWebApp@1
-                  displayName: 'Azure Web App Deploy'
+                - task: AzureCLI@2
+                  displayName: Configure Azure SQL and migration settings
                   inputs:
-                    azureSubscription: 'ASP-CTSHIPDashboardrg-a4c4 (P0v4: 1)' # replace with service connection name
-                    appType: 'webApp'
-                    appName: 'ctship-app' # replace with your web app name
+                    azureSubscription: '$(azureSubscription)'
+                    scriptType: bash
+                    scriptLocation: inlineScript
+                    inlineScript: |
+                      if [ -z "$AZURE_SQL_CONNECTION_STRING" ]; then
+                        echo "Secret pipeline variable AzureSqlConnectionString is required."
+                        exit 1
+                      fi
+
+                      resource_group=$(az webapp list --query "[?name=='$WEB_APP_NAME'].resourceGroup | [0]" --output tsv)
+                      if [ -z "$resource_group" ]; then
+                        echo "Azure Web App '$WEB_APP_NAME' was not found."
+                        exit 1
+                      fi
+
+                      az webapp config connection-string set --resource-group "$resource_group" --name "$WEB_APP_NAME" --connection-string-type SQLAzure --settings "DefaultConnection=$AZURE_SQL_CONNECTION_STRING" --output none
+                      az webapp config appsettings set --resource-group "$resource_group" --name "$WEB_APP_NAME" --settings "ASPNETCORE_ENVIRONMENT=Production" "Database__ApplyMigrationsOnStartup=true" --output none
+                  env:
+                    AZURE_SQL_CONNECTION_STRING: $(AzureSqlConnectionString)
+                    WEB_APP_NAME: $(webAppName)
+
+                - task: AzureWebApp@1
+                  displayName: Deploy Azure Web App
+                  inputs:
+                    azureSubscription: '$(azureSubscription)'
+                    appType: webApp
+                    appName: '$(webAppName)'
                     package: '$(Pipeline.Workspace)/drop'
-                    deploymentMethod: 'auto'
+                    deploymentMethod: auto
 
-                - script: |
-                    echo "Deployment finished"
-                  displayName: 'Post deployment'
+                - bash: |
+                    health_url="https://$(webAppName).azurewebsites.net/health"
+                    for attempt in {1..12}; do
+                      if curl --fail --silent --show-error --max-time 30 "$health_url"; then
+                        echo "Application and Azure SQL are healthy."
+                        exit 0
+                      fi
 
-# Notes:
-# - Create an Azure Resource Manager service connection in the Project Settings and replace '<YOUR_AZURE_SERVICE_CONNECTION>'.
-# - Replace '<YOUR_WEBAPP_NAME>' with the name of your Azure Web App.
-# - For slot deployments or advanced configuration, update the AzureWebApp task inputs accordingly.
+                      echo "Health check attempt $attempt failed."
+                      sleep 10
+                    done
+
+                    echo "Application health check failed after deployment."
+                    exit 1
+                  displayName: Verify application and database health

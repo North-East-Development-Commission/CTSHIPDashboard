@@ -10,6 +10,10 @@ param location string = resourceGroup().location
 @description('SKU for App Service plan')
 param skuName string = 'P1v2'
 
+@secure()
+@description('Azure SQL connection string. Pass this from a secure parameter or pipeline secret.')
+param sqlConnectionString string
+
 resource appServicePlan 'Microsoft.Web/serverfarms@2022-03-01' = {
   name: appServicePlanName
   location: location
@@ -25,13 +29,37 @@ resource appServicePlan 'Microsoft.Web/serverfarms@2022-03-01' = {
 resource webApp 'Microsoft.Web/sites@2022-03-01' = {
   name: webAppName
   location: location
+  identity: {
+    type: 'SystemAssigned'
+  }
   properties: {
+    httpsOnly: true
     serverFarmId: appServicePlan.id
     siteConfig: {
-      netFrameworkVersion: ''
+      netFrameworkVersion: 'v9.0'
       scmType: 'None'
       alwaysOn: true
-      linuxFxVersion: ''
+      http20Enabled: true
+      minTlsVersion: '1.2'
+      ftpsState: 'Disabled'
+      healthCheckPath: '/health'
+      appSettings: [
+        {
+          name: 'ASPNETCORE_ENVIRONMENT'
+          value: 'Production'
+        }
+        {
+          name: 'Database__ApplyMigrationsOnStartup'
+          value: 'true'
+        }
+      ]
+      connectionStrings: [
+        {
+          name: 'DefaultConnection'
+          connectionString: sqlConnectionString
+          type: 'SQLAzure'
+        }
+      ]
     }
   }
 }
@@ -39,4 +67,5 @@ resource webApp 'Microsoft.Web/sites@2022-03-01' = {
 output webAppDefaultHostName string = webApp.properties.defaultHostName
 
 // Usage:
-// az deployment group create -g <rg> -f infra/azurewebapp.bicep -p webAppName=<name> appServicePlanName=<plan>
+// az deployment group create -g <rg> -f infra/azurewebapp.bicep \
+//   -p webAppName=<name> appServicePlanName=<plan> sqlConnectionString='<secret>'

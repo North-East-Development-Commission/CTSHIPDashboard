@@ -1,7 +1,4 @@
-# Docs for the Azure Web Apps Deploy action: https://github.com/Azure/webapps-deploy
-# More GitHub Actions for Azure: https://github.com/Azure/actions
-
-name: Build and deploy ASP.Net Core app to Azure Web App - ctship-app
+name: Build and deploy ASP.NET Core app to Azure Web App - ctship-app
 
 on:
   push:
@@ -9,58 +6,105 @@ on:
       - master
   workflow_dispatch:
 
+env:
+  DOTNET_VERSION: '9.0.x'
+  WEB_APP_NAME: 'ctship-app'
+
 jobs:
   build:
     runs-on: windows-latest
     permissions:
-      contents: read #This is required for actions/checkout
+      contents: read
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up .NET Core
+      - name: Set up .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '9.x'
+          dotnet-version: ${{ env.DOTNET_VERSION }}
 
-      - name: Build with dotnet
-        run: dotnet build --configuration Release
+      - name: Restore
+        run: dotnet restore
 
-      - name: dotnet publish
-        run: dotnet publish -c Release -o "${{env.DOTNET_ROOT}}/myapp"
+      - name: Build
+        run: dotnet build --configuration Release --no-restore
 
-      - name: Upload artifact for deployment job
+      - name: Publish
+        run: dotnet publish --configuration Release --no-build --output "${{ runner.temp }}/publish"
+
+      - name: Upload deployment artifact
         uses: actions/upload-artifact@v4
         with:
           name: .net-app
-          path: ${{env.DOTNET_ROOT}}/myapp
+          path: ${{ runner.temp }}/publish
 
   deploy:
     runs-on: windows-latest
     needs: build
+    environment:
+      name: production
+      url: ${{ steps.deploy-to-webapp.outputs.webapp-url }}
     permissions:
-      id-token: write #This is required for requesting the JWT
-      contents: read #This is required for actions/checkout
+      id-token: write
+      contents: read
 
     steps:
-      - name: Download artifact from build job
+      - name: Download deployment artifact
         uses: actions/download-artifact@v4
         with:
           name: .net-app
-      
+          path: publish
+
       - name: Login to Azure
         uses: azure/login@v2
         with:
-          creds: ${{ secrets.CTSHIPDASHBOARD_SPN }}
           client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_0E44B5C128CA4840AE578A10DE6C4508 }}
           tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_68F25F81F71340A89A9616860FAC60BB }}
           subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_5972E45F5C684EB68BEFF61BB35605AC }}
+
+      - name: Configure Azure SQL and migration settings
+        shell: pwsh
+        env:
+          AZURE_SQL_CONNECTION_STRING: ${{ secrets.AZURE_SQL_CONNECTION_STRING }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:AZURE_SQL_CONNECTION_STRING)) {
+            throw "Repository secret AZURE_SQL_CONNECTION_STRING is required."
+          }
+
+          $resourceGroup = az webapp list --query "[?name=='$env:WEB_APP_NAME'].resourceGroup | [0]" --output tsv
+          if ([string]::IsNullOrWhiteSpace($resourceGroup)) {
+            throw "Azure Web App '$env:WEB_APP_NAME' was not found."
+          }
+
+          az webapp config connection-string set --resource-group $resourceGroup --name $env:WEB_APP_NAME --connection-string-type SQLAzure --settings "DefaultConnection=$env:AZURE_SQL_CONNECTION_STRING" --output none
+          az webapp config appsettings set --resource-group $resourceGroup --name $env:WEB_APP_NAME --settings "ASPNETCORE_ENVIRONMENT=Production" "Database__ApplyMigrationsOnStartup=true" --output none
 
       - name: Deploy to Azure Web App
         id: deploy-to-webapp
         uses: azure/webapps-deploy@v3
         with:
-          app-name: 'ctship-app'
-          slot-name: 'Production'
-          package: .
-          
+          app-name: ${{ env.WEB_APP_NAME }}
+          slot-name: Production
+          package: publish
+
+      - name: Verify application and database health
+        shell: pwsh
+        run: |
+          $healthUrl = "https://$env:WEB_APP_NAME.azurewebsites.net/health"
+          for ($attempt = 1; $attempt -le 12; $attempt++) {
+            try {
+              $response = Invoke-WebRequest -Uri $healthUrl -UseBasicParsing -TimeoutSec 30
+              if ($response.StatusCode -eq 200) {
+                Write-Host "Application and Azure SQL are healthy."
+                exit 0
+              }
+            }
+            catch {
+              Write-Host "Health check attempt $attempt failed: $($_.Exception.Message)"
+            }
+
+            Start-Sleep -Seconds 10
+          }
+
+          throw "Application health check failed after deployment."

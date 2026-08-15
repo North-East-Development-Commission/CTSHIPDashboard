@@ -20,7 +20,16 @@ var connectionString =
         "Connection string 'DefaultConnection' not found.");
 
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseSqlServer(connectionString));
+    options.UseSqlServer(
+        connectionString,
+        sqlServerOptions =>
+        {
+            sqlServerOptions.EnableRetryOnFailure(
+                maxRetryCount: 5,
+                maxRetryDelay: TimeSpan.FromSeconds(10),
+                errorNumbersToAdd: null);
+            sqlServerOptions.CommandTimeout(60);
+        }));
 
 builder.Services
     .AddIdentity<ApplicationUser, IdentityRole>(options =>
@@ -52,10 +61,15 @@ builder.Services.Configure<CookiePolicyOptions>(options =>
     options.Secure = CookieSecurePolicy.Always;
 });
 
-var dataProtectionKeysPath = Path.Combine(
-    builder.Environment.ContentRootPath,
-    "App_Data",
-    "DataProtectionKeys");
+var azureHomePath = Environment.GetEnvironmentVariable("HOME");
+var isAzureAppService = !string.IsNullOrWhiteSpace(
+    Environment.GetEnvironmentVariable("WEBSITE_INSTANCE_ID"));
+var dataProtectionKeysPath = isAzureAppService && !string.IsNullOrWhiteSpace(azureHomePath)
+    ? Path.Combine(azureHomePath, "DataProtectionKeys")
+    : Path.Combine(
+        builder.Environment.ContentRootPath,
+        "App_Data",
+        "DataProtectionKeys");
 Directory.CreateDirectory(dataProtectionKeysPath);
 builder.Services
     .AddDataProtection()
@@ -86,6 +100,13 @@ try
     RoleManager<IdentityRole> roleManager =
         scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
     IServiceProvider services = scope.ServiceProvider;
+
+    if (builder.Configuration.GetValue<bool>("Database:ApplyMigrationsOnStartup"))
+    {
+        app.Logger.LogInformation("Applying pending database migrations.");
+        await context.Database.MigrateAsync();
+        app.Logger.LogInformation("Database migrations completed.");
+    }
 
     foreach (string requiredRole in new[] { "HmoEnrollmentOfficer", "IHSA" })
     {
@@ -199,6 +220,29 @@ app.MapControllerRoute(
     pattern: "{controller=Analytics}/{action=Index}/{id?}");
 
 app.MapHub<AnalyticsHub>("/analyticsHub");
+app.MapGet("/health", async (
+    ApplicationDbContext context,
+    CancellationToken cancellationToken) =>
+{
+    try
+    {
+        if (!await context.Database.CanConnectAsync(cancellationToken))
+        {
+            return Results.StatusCode(StatusCodes.Status503ServiceUnavailable);
+        }
+
+        var pendingMigrations = await context.Database
+            .GetPendingMigrationsAsync(cancellationToken);
+
+        return pendingMigrations.Any()
+            ? Results.StatusCode(StatusCodes.Status503ServiceUnavailable)
+            : Results.Ok(new { status = "healthy" });
+    }
+    catch
+    {
+        return Results.StatusCode(StatusCodes.Status503ServiceUnavailable);
+    }
+}).AllowAnonymous();
 app.MapRazorPages()
     .WithStaticAssets();
 
