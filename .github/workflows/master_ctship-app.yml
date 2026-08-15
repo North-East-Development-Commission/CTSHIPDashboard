@@ -9,7 +9,7 @@ on:
 env:
   DOTNET_VERSION: '9.0.x'
   WEB_APP_NAME: 'ctship-app'
-  PUBLISH_RUNTIME: 'win-x64'
+  PUBLISH_RUNTIME: 'win-x86'
 
 jobs:
   build:
@@ -28,7 +28,7 @@ jobs:
       - name: Restore
         run: dotnet restore .\CTSHIPDashboard.csproj --runtime ${{ env.PUBLISH_RUNTIME }}
 
-      - name: Publish self-contained Windows package
+      - name: Publish self-contained Windows x86 package
         shell: pwsh
         run: |
           $publishPath = "${{ runner.temp }}/publish"
@@ -47,7 +47,8 @@ jobs:
             "web.config",
             "CTSHIPDashboard.exe",
             "CTSHIPDashboard.dll",
-            "CTSHIPDashboard.runtimeconfig.json"
+            "CTSHIPDashboard.runtimeconfig.json",
+            "hostfxr.dll"
           )
 
           foreach ($file in $requiredFiles) {
@@ -62,7 +63,7 @@ jobs:
             throw "web.config does not point IIS to CTSHIPDashboard.exe."
           }
 
-          Write-Host "Publish output contains CTSHIPDashboard.exe and a valid Azure web.config."
+          Write-Host "Publish output contains CTSHIPDashboard.exe, hostfxr.dll, and a valid Azure web.config."
 
       - name: Package Azure deployment
         shell: pwsh
@@ -119,6 +120,7 @@ jobs:
             --net-framework-version "v9.0" `
             --always-on true `
             --http20-enabled true `
+            --use-32bit-worker-process true `
             --output none
 
           az webapp update `
