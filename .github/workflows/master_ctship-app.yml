@@ -9,6 +9,7 @@ on:
 env:
   DOTNET_VERSION: '9.0.x'
   WEB_APP_NAME: 'ctship-app'
+  PUBLISH_RUNTIME: 'win-x64'
 
 jobs:
   build:
@@ -25,13 +26,18 @@ jobs:
           dotnet-version: ${{ env.DOTNET_VERSION }}
 
       - name: Restore
-        run: dotnet restore
+        run: dotnet restore .\CTSHIPDashboard.csproj --runtime ${{ env.PUBLISH_RUNTIME }}
 
-      - name: Build
-        run: dotnet build --configuration Release --no-restore
-
-      - name: Publish
-        run: dotnet publish .\CTSHIPDashboard.csproj --configuration Release --no-build --output "${{ runner.temp }}/publish"
+      - name: Publish self-contained Windows package
+        shell: pwsh
+        run: |
+          $publishPath = "${{ runner.temp }}/publish"
+          dotnet publish .\CTSHIPDashboard.csproj `
+            --configuration Release `
+            --runtime $env:PUBLISH_RUNTIME `
+            --self-contained true `
+            --no-restore `
+            --output $publishPath
 
       - name: Validate publish output
         shell: pwsh
@@ -39,6 +45,7 @@ jobs:
           $publishPath = "${{ runner.temp }}/publish"
           $requiredFiles = @(
             "web.config",
+            "CTSHIPDashboard.exe",
             "CTSHIPDashboard.dll",
             "CTSHIPDashboard.runtimeconfig.json"
           )
@@ -50,7 +57,12 @@ jobs:
             }
           }
 
-          Write-Host "Publish output root contains the Azure web.config and application DLL."
+          $webConfig = Get-Content -LiteralPath (Join-Path $publishPath "web.config") -Raw
+          if ($webConfig -notmatch 'processPath="\.\\CTSHIPDashboard\.exe"') {
+            throw "web.config does not point IIS to CTSHIPDashboard.exe."
+          }
+
+          Write-Host "Publish output contains CTSHIPDashboard.exe and a valid Azure web.config."
 
       - name: Package Azure deployment
         shell: pwsh
@@ -59,7 +71,7 @@ jobs:
       - name: Upload deployment artifact
         uses: actions/upload-artifact@v4
         with:
-          name: .net-app
+          name: ctship-app
           path: ${{ runner.temp }}/ctship-app.zip
 
   deploy:
@@ -75,7 +87,7 @@ jobs:
       - name: Download deployment artifact
         uses: actions/download-artifact@v4
         with:
-          name: .net-app
+          name: ctship-app
           path: deployment
 
       - name: Login to Azure
@@ -83,7 +95,7 @@ jobs:
         with:
           creds: ${{ secrets.CTSHIPDASHBOARD_SPN }}
 
-      - name: Configure Azure SQL and migration settings
+      - name: Configure Azure Web App
         shell: pwsh
         env:
           AZURE_SQL_CONNECTION_STRING: ${{ secrets.AZURE_SQL_CONNECTION_STRING }}
@@ -97,10 +109,37 @@ jobs:
             throw "Azure Web App '$env:WEB_APP_NAME' was not found."
           }
 
-          az webapp config set --resource-group $resourceGroup --name $env:WEB_APP_NAME --always-on true --http20-enabled true --output none
-          az webapp update --resource-group $resourceGroup --name $env:WEB_APP_NAME --https-only true --output none
-          az webapp config connection-string set --resource-group $resourceGroup --name $env:WEB_APP_NAME --connection-string-type SQLAzure --settings "DefaultConnection=$env:AZURE_SQL_CONNECTION_STRING" --output none
-          az webapp config appsettings set --resource-group $resourceGroup --name $env:WEB_APP_NAME --settings "ASPNETCORE_ENVIRONMENT=Production" "Database__ApplyMigrationsOnStartup=true" "ASPNETCORE_FORWARDEDHEADERS_ENABLED=true" --output none
+          az webapp config set `
+            --resource-group $resourceGroup `
+            --name $env:WEB_APP_NAME `
+            --net-framework-version "v9.0" `
+            --always-on true `
+            --http20-enabled true `
+            --output none
+
+          az webapp update `
+            --resource-group $resourceGroup `
+            --name $env:WEB_APP_NAME `
+            --https-only true `
+            --output none
+
+          az webapp config connection-string set `
+            --resource-group $resourceGroup `
+            --name $env:WEB_APP_NAME `
+            --connection-string-type SQLAzure `
+            --settings "DefaultConnection=$env:AZURE_SQL_CONNECTION_STRING" `
+            --output none
+
+          az webapp config appsettings set `
+            --resource-group $resourceGroup `
+            --name $env:WEB_APP_NAME `
+            --settings `
+              "ASPNETCORE_ENVIRONMENT=Production" `
+              "ASPNETCORE_FORWARDEDHEADERS_ENABLED=true" `
+              "Database__ApplyMigrationsOnStartup=true" `
+              "SCM_DO_BUILD_DURING_DEPLOYMENT=false" `
+              "WEBSITE_RUN_FROM_PACKAGE=1" `
+            --output none
 
           $defaultHostName = (az webapp show --resource-group $resourceGroup --name $env:WEB_APP_NAME --query defaultHostName --output tsv).Trim()
           if ([string]::IsNullOrWhiteSpace($defaultHostName)) {
@@ -122,102 +161,69 @@ jobs:
         shell: pwsh
         run: az webapp restart --resource-group $env:WEB_APP_RESOURCE_GROUP --name $env:WEB_APP_NAME
 
-      - name: Verify application and database health
+      - name: Verify deployed ASP.NET Core app
         shell: pwsh
         run: |
           $aliveUrl = "https://$env:WEB_APP_HOSTNAME/alive"
           $healthUrl = "https://$env:WEB_APP_HOSTNAME/health"
           $loginUrl = "https://$env:WEB_APP_HOSTNAME/Identity/Account/Login"
 
-          Write-Host "Waiting for Azure App Service startup..."
+          Write-Host "Waiting for Azure App Service restart..."
           Start-Sleep -Seconds 45
 
           for ($attempt = 1; $attempt -le 30; $attempt++) {
-
             Write-Host ""
             Write-Host "Verification attempt $attempt of 30"
 
             try {
-              $aliveResponse = Invoke-WebRequest `
-                -Uri $aliveUrl `
-                -UseBasicParsing `
-                -TimeoutSec 45
+              $aliveResponse = Invoke-WebRequest -Uri $aliveUrl -UseBasicParsing -TimeoutSec 45
+              Write-Host "Alive: HTTP $($aliveResponse.StatusCode), bytes=$($aliveResponse.RawContentLength), body='$($aliveResponse.Content)'"
 
-              Write-Host "Alive: HTTP $($aliveResponse.StatusCode)"
-              Write-Host "Alive body: '$($aliveResponse.Content)'"
-
-              if ($aliveResponse.StatusCode -ne 200) {
+              if ($aliveResponse.StatusCode -ne 200 -or $aliveResponse.Content -notmatch '"status"\s*:\s*"alive"') {
                 Start-Sleep -Seconds 10
                 continue
               }
 
-              $healthResponse = Invoke-WebRequest `
-                -Uri $healthUrl `
-                -UseBasicParsing `
-                -TimeoutSec 45
-
-              Write-Host "Health: HTTP $($healthResponse.StatusCode)"
-              Write-Host "Health body: '$($healthResponse.Content)'"
-
-              if ($healthResponse.StatusCode -ne 200) {
-                Start-Sleep -Seconds 10
-                continue
+              try {
+                $healthResponse = Invoke-WebRequest -Uri $healthUrl -UseBasicParsing -TimeoutSec 45
+                Write-Host "Health: HTTP $($healthResponse.StatusCode), bytes=$($healthResponse.RawContentLength), body='$($healthResponse.Content)'"
               }
-
-              $loginResponse = Invoke-WebRequest `
-                -Uri $loginUrl `
-                -UseBasicParsing `
-                -TimeoutSec 45
-
-              Write-Host "Login: HTTP $($loginResponse.StatusCode)"
-
-              if ($loginResponse.StatusCode -ne 200) {
-                Start-Sleep -Seconds 10
-                continue
-              }
-
-              Write-Host ""
-              Write-Host "======================================"
-              Write-Host "CTSHIP deployment verification PASSED"
-              Write-Host "Alive endpoint: 200"
-              Write-Host "Database health: 200"
-              Write-Host "Login page: 200"
-              Write-Host "======================================"
-
-              exit 0
-            }
-            catch {
-              $statusCode = "unavailable"
-
-              if ($null -ne $_.Exception.Response) {
-                try {
-                  $statusCode = [int]$_.Exception.Response.StatusCode
-                }
-                catch {
-                  $statusCode = "unavailable"
-                }
-              }
-<<<<<<< HEAD
-              $responseBody = ""
-              if ($null -ne $_.Exception.Response) {
-                try {
-                  $stream = $_.Exception.Response.GetResponseStream()
-                  if ($null -ne $stream) {
-                    $reader = [System.IO.StreamReader]::new($stream)
-                    $responseBody = $reader.ReadToEnd()
+              catch {
+                $healthStatus = if ($null -ne $_.Exception.Response) { [int]$_.Exception.Response.StatusCode } else { "unavailable" }
+                $healthBody = ""
+                if ($null -ne $_.Exception.Response) {
+                  try {
+                    $stream = $_.Exception.Response.GetResponseStream()
+                    if ($null -ne $stream) {
+                      $reader = [System.IO.StreamReader]::new($stream)
+                      $healthBody = $reader.ReadToEnd()
+                    }
+                  }
+                  catch {
+                    $healthBody = "<failed to read response body>"
                   }
                 }
-                catch {
-                  $responseBody = "<failed to read response body>"
-                }
-              }
-              Write-Host "Readiness check attempt $attempt failed for $healthUrl (HTTP $statusCode): $($_.Exception.Message); body=$responseBody"
-=======
 
-              Write-Host "Attempt $attempt failed."
-              Write-Host "HTTP: $statusCode"
-              Write-Host "Message: $($_.Exception.Message)"
->>>>>>> c7f3fe27cacf041342044bed11cd58fce92466a9
+                Write-Host "Health: HTTP $healthStatus, body='$healthBody'"
+                throw
+              }
+
+              $loginResponse = Invoke-WebRequest -Uri $loginUrl -UseBasicParsing -TimeoutSec 45
+              Write-Host "Login: HTTP $($loginResponse.StatusCode), bytes=$($loginResponse.RawContentLength)"
+
+              if ($loginResponse.StatusCode -eq 200) {
+                Write-Host "CTSHIP deployment verification PASSED."
+                exit 0
+              }
+            }
+            catch {
+              $statusCode = if ($null -ne $_.Exception.Response) {
+                try { [int]$_.Exception.Response.StatusCode } catch { "unavailable" }
+              } else {
+                "unavailable"
+              }
+
+              Write-Host "Attempt $attempt failed. HTTP: $statusCode. Message: $($_.Exception.Message)"
             }
 
             Start-Sleep -Seconds 10

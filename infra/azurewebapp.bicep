@@ -36,7 +36,7 @@ resource webApp 'Microsoft.Web/sites@2022-03-01' = {
     httpsOnly: true
     serverFarmId: appServicePlan.id
     siteConfig: {
-      netFrameworkVersion: 'v4.0'
+      netFrameworkVersion: 'v9.0'
       scmType: 'None'
       alwaysOn: true
       http20Enabled: true
@@ -51,6 +51,24 @@ resource webApp 'Microsoft.Web/sites@2022-03-01' = {
         {
           name: 'Database__ApplyMigrationsOnStartup'
           value: 'true'
+        }
+        {
+          name: 'ASPNETCORE_FORWARDEDHEADERS_ENABLED'
+          value: 'true'
+        }
+        {
+          name: 'SCM_DO_BUILD_DURING_DEPLOYMENT'
+          value: 'false'
+        }
+        {
+          name: 'WEBSITE_RUN_FROM_PACKAGE'
+          value: '1'
+        }
+      ]
+      metadata: [
+        {
+          name: 'CURRENT_STACK'
+          value: 'dotnet'
         }
       ]
       connectionStrings: [
