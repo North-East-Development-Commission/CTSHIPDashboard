@@ -190,7 +190,7 @@ app.MapGet("/", context =>
         return Task.CompletedTask;
     }
 
-    context.Response.Redirect("/Analytics/Index");
+    context.Response.Redirect("/Identity/Account/Login");
     return Task.CompletedTask;
 });
 
