@@ -18,12 +18,15 @@ builder.Logging.AddDebug();
 
 var connectionString =
     builder.Configuration.GetConnectionString("DefaultConnection")
-    ?? throw new InvalidOperationException(
-        "Connection string 'DefaultConnection' not found.");
+    ?? Environment.GetEnvironmentVariable("SQLCONNSTR_DefaultConnection")
+    ?? Environment.GetEnvironmentVariable("ConnectionStrings__DefaultConnection");
+var hasConnectionString = !string.IsNullOrWhiteSpace(connectionString);
+var missingConnectionString =
+    "Server=localhost;Database=MissingDefaultConnection;User Id=missing;Password=missing;Encrypt=True;TrustServerCertificate=True;Connection Timeout=1;";
 
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(
-        connectionString,
+        hasConnectionString ? connectionString : missingConnectionString,
         sqlServerOptions =>
         {
             sqlServerOptions.EnableRetryOnFailure(
@@ -109,6 +112,12 @@ app.UseForwardedHeaders(forwardedHeadersOptions);
 
 OfficeOpenXml.ExcelPackage.License.SetNonCommercialPersonal("CTSHIP NEDC Project");
 
+if (!hasConnectionString)
+{
+    app.Logger.LogError("Connection string 'DefaultConnection' was not found. The web host will start, but database readiness will fail.");
+}
+else
+{
 try
 {
     using var scope = app.Services.CreateScope();
@@ -174,6 +183,7 @@ catch (Exception exception)
         Console.Error.WriteLine(
             $"Startup data initialization failed: {exception.Message}");
     }
+}
 }
 
 
@@ -245,6 +255,13 @@ app.MapGet("/health", async (
     ApplicationDbContext context,
     CancellationToken cancellationToken) =>
 {
+    if (!hasConnectionString)
+    {
+        return Results.Json(
+            new { status = "unhealthy", reason = "missing_connection_string" },
+            statusCode: StatusCodes.Status503ServiceUnavailable);
+    }
+
     using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
     timeout.CancelAfter(TimeSpan.FromSeconds(10));
     context.Database.SetCommandTimeout(TimeSpan.FromSeconds(5));

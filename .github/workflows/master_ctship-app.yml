@@ -228,7 +228,20 @@ jobs:
                 "unavailable"
               }
 
-              Write-Host "Attempt $attempt failed. HTTP: $statusCode. Message: $($_.Exception.Message)"
+              $failureBody = ""
+              if ($null -ne $_.Exception.Response) {
+                try {
+                  $stream = $_.Exception.Response.GetResponseStream()
+                  if ($null -ne $stream) {
+                    $reader = [System.IO.StreamReader]::new($stream)
+                    $failureBody = $reader.ReadToEnd()
+                  }
+                }
+                catch {
+                  $failureBody = "<failed to read response body>"
+                }
+              }
+              Write-Host "Attempt $attempt failed. HTTP: $statusCode. Message: $($_.Exception.Message). Body: $failureBody"
             }
 
             Start-Sleep -Seconds 10
