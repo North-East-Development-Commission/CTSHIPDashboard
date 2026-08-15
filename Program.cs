@@ -91,16 +91,24 @@ builder.Services.AddScoped<IAuditService, AuditService>();
 
 var app = builder.Build();
 
-app.UseForwardedHeaders(new ForwardedHeadersOptions
+var forwardedHeadersOptions = new ForwardedHeadersOptions
 {
     ForwardedHeaders =
         ForwardedHeaders.XForwardedFor |
         ForwardedHeaders.XForwardedProto
-});
+};
+
+if (isAzureAppService)
+{
+    forwardedHeadersOptions.KnownNetworks.Clear();
+    forwardedHeadersOptions.KnownProxies.Clear();
+}
+
+app.UseForwardedHeaders(forwardedHeadersOptions);
 
 OfficeOpenXml.ExcelPackage.License.SetNonCommercialPersonal("CTSHIP NEDC Project");
 
-/*** try
+try
 {
     using var scope = app.Services.CreateScope();
     ApplicationDbContext context =
@@ -166,7 +174,7 @@ catch (Exception exception)
             $"Startup data initialization failed: {exception.Message}");
     }
 }
-***/
+
 
 // Friendly handling is enabled in every environment so users never receive
 // raw framework exception pages.

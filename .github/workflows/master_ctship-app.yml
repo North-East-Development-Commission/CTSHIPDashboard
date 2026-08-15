@@ -33,11 +33,15 @@ jobs:
       - name: Publish
         run: dotnet publish --configuration Release --no-build --output "${{ runner.temp }}/publish"
 
+      - name: Package Azure deployment
+        shell: pwsh
+        run: Compress-Archive -Path "${{ runner.temp }}/publish/*" -DestinationPath "${{ runner.temp }}/ctship-app.zip" -Force
+
       - name: Upload deployment artifact
         uses: actions/upload-artifact@v4
         with:
           name: .net-app
-          path: ${{ runner.temp }}/publish
+          path: ${{ runner.temp }}/ctship-app.zip
 
   deploy:
     runs-on: windows-latest
@@ -53,7 +57,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: .net-app
-          path: publish
+          path: deployment
 
       - name: Login to Azure
         uses: azure/login@v2
@@ -74,8 +78,10 @@ jobs:
             throw "Azure Web App '$env:WEB_APP_NAME' was not found."
           }
 
+          az webapp config set --resource-group $resourceGroup --name $env:WEB_APP_NAME --net-framework-version "v9.0" --always-on true --http20-enabled true --output none
+          az webapp update --resource-group $resourceGroup --name $env:WEB_APP_NAME --https-only true --output none
           az webapp config connection-string set --resource-group $resourceGroup --name $env:WEB_APP_NAME --connection-string-type SQLAzure --settings "DefaultConnection=$env:AZURE_SQL_CONNECTION_STRING" --output none
-          az webapp config appsettings set --resource-group $resourceGroup --name $env:WEB_APP_NAME --settings "ASPNETCORE_ENVIRONMENT=Production" "Database__ApplyMigrationsOnStartup=true" --output none
+          az webapp config appsettings set --resource-group $resourceGroup --name $env:WEB_APP_NAME --settings "ASPNETCORE_ENVIRONMENT=Production" "Database__ApplyMigrationsOnStartup=true" "ASPNETCORE_FORWARDEDHEADERS_ENABLED=true" --output none
 
           $defaultHostName = (az webapp show --resource-group $resourceGroup --name $env:WEB_APP_NAME --query defaultHostName --output tsv).Trim()
           if ([string]::IsNullOrWhiteSpace($defaultHostName)) {
@@ -90,7 +96,7 @@ jobs:
         with:
           app-name: ${{ env.WEB_APP_NAME }}
           slot-name: Production
-          package: publish
+          package: deployment/ctship-app.zip
 
       - name: Verify application and database health
         shell: pwsh
@@ -99,10 +105,21 @@ jobs:
           for ($attempt = 1; $attempt -le 12; $attempt++) {
             try {
               $response = Invoke-WebRequest -Uri $healthUrl -UseBasicParsing -TimeoutSec 30
-              if ($response.StatusCode -eq 200) {
-                Write-Host "Application and Azure SQL are healthy."
-                exit 0
+              $hasHealthyPayload = $response.Content -match '"status"\s*:\s*"healthy"'
+              if ($response.StatusCode -eq 200 -and $hasHealthyPayload) {
+                $loginUrl = "https://$env:WEB_APP_HOSTNAME/Identity/Account/Login"
+                $loginResponse = Invoke-WebRequest -Uri $loginUrl -UseBasicParsing -TimeoutSec 30
+                $hasLoginPage = $loginResponse.Content -match '<form'
+
+                if ($loginResponse.StatusCode -eq 200 -and $hasLoginPage) {
+                  Write-Host "Application, Azure SQL, and login page are healthy."
+                  exit 0
+                }
+
+                Write-Host "Login page validation failed (HTTP $($loginResponse.StatusCode), bytes=$($loginResponse.RawContentLength))."
               }
+
+              Write-Host "Health endpoint returned HTTP $($response.StatusCode), bytes=$($response.RawContentLength), body=$($response.Content)"
             }
             catch {
               $statusCode = if ($null -ne $_.Exception.Response) {
