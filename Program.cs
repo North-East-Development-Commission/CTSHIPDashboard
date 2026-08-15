@@ -177,14 +177,13 @@ if (!app.Environment.IsDevelopment())
     app.UseHsts();
 }
 
-app.UseForwardedHeaders();
 app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.UseRouting();
 app.UseCookiePolicy();
 app.UseAuthentication();
 app.UseAuthorization();
-app.UseMiddleware<CTSHIPDashboard.Middleware.UserActivityMiddleware>();
+//app.UseMiddleware<CTSHIPDashboard.Middleware.UserActivityMiddleware>();
 
 app.MapStaticAssets();
 
