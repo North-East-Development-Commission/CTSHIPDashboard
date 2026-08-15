@@ -252,7 +252,7 @@ app.MapHub<AnalyticsHub>("/analyticsHub");
 app.MapGet("/alive", () => Results.Ok(new { status = "alive", application = "CTSHIPDashboard", version = "2026-08-15-01" }))
     .AllowAnonymous();
 app.MapGet("/health", async (
-    ApplicationDbContext context,
+    IServiceProvider services,
     CancellationToken cancellationToken) =>
 {
     if (!hasConnectionString)
@@ -262,12 +262,16 @@ app.MapGet("/health", async (
             statusCode: StatusCodes.Status503ServiceUnavailable);
     }
 
-    using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-    timeout.CancelAfter(TimeSpan.FromSeconds(10));
-    context.Database.SetCommandTimeout(TimeSpan.FromSeconds(5));
-
     try
     {
+        using var scope = services.CreateScope();
+        ApplicationDbContext context =
+            scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeout.CancelAfter(TimeSpan.FromSeconds(10));
+        context.Database.SetCommandTimeout(TimeSpan.FromSeconds(5));
+
         if (!await context.Database.CanConnectAsync(timeout.Token))
         {
             return Results.Json(

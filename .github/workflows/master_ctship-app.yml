@@ -180,68 +180,28 @@ jobs:
             Write-Host ""
             Write-Host "Verification attempt $attempt of 30"
 
-            try {
-              $aliveResponse = Invoke-WebRequest -Uri $aliveUrl -UseBasicParsing -TimeoutSec 45
-              Write-Host "Alive: HTTP $($aliveResponse.StatusCode), bytes=$($aliveResponse.RawContentLength), body='$($aliveResponse.Content)'"
+            $aliveResponse = Invoke-WebRequest -Uri $aliveUrl -UseBasicParsing -TimeoutSec 45 -SkipHttpErrorCheck
+            Write-Host "Alive: HTTP $($aliveResponse.StatusCode), bytes=$($aliveResponse.RawContentLength), body='$($aliveResponse.Content)'"
 
-              if ($aliveResponse.StatusCode -ne 200 -or $aliveResponse.Content -notmatch '"status"\s*:\s*"alive"') {
-                Start-Sleep -Seconds 10
-                continue
-              }
-
-              try {
-                $healthResponse = Invoke-WebRequest -Uri $healthUrl -UseBasicParsing -TimeoutSec 45
-                Write-Host "Health: HTTP $($healthResponse.StatusCode), bytes=$($healthResponse.RawContentLength), body='$($healthResponse.Content)'"
-              }
-              catch {
-                $healthStatus = if ($null -ne $_.Exception.Response) { [int]$_.Exception.Response.StatusCode } else { "unavailable" }
-                $healthBody = ""
-                if ($null -ne $_.Exception.Response) {
-                  try {
-                    $stream = $_.Exception.Response.GetResponseStream()
-                    if ($null -ne $stream) {
-                      $reader = [System.IO.StreamReader]::new($stream)
-                      $healthBody = $reader.ReadToEnd()
-                    }
-                  }
-                  catch {
-                    $healthBody = "<failed to read response body>"
-                  }
-                }
-
-                Write-Host "Health: HTTP $healthStatus, body='$healthBody'"
-                throw
-              }
-
-              $loginResponse = Invoke-WebRequest -Uri $loginUrl -UseBasicParsing -TimeoutSec 45
-              Write-Host "Login: HTTP $($loginResponse.StatusCode), bytes=$($loginResponse.RawContentLength)"
-
-              if ($loginResponse.StatusCode -eq 200) {
-                Write-Host "CTSHIP deployment verification PASSED."
-                exit 0
-              }
+            if ($aliveResponse.StatusCode -ne 200 -or $aliveResponse.Content -notmatch '"status"\s*:\s*"alive"') {
+              Start-Sleep -Seconds 10
+              continue
             }
-            catch {
-              $statusCode = if ($null -ne $_.Exception.Response) {
-                try { [int]$_.Exception.Response.StatusCode } catch { "unavailable" }
-              } else {
-                "unavailable"
-              }
 
-              $failureBody = ""
-              if ($null -ne $_.Exception.Response) {
-                try {
-                  $stream = $_.Exception.Response.GetResponseStream()
-                  if ($null -ne $stream) {
-                    $reader = [System.IO.StreamReader]::new($stream)
-                    $failureBody = $reader.ReadToEnd()
-                  }
-                }
-                catch {
-                  $failureBody = "<failed to read response body>"
-                }
-              }
-              Write-Host "Attempt $attempt failed. HTTP: $statusCode. Message: $($_.Exception.Message). Body: $failureBody"
+            $healthResponse = Invoke-WebRequest -Uri $healthUrl -UseBasicParsing -TimeoutSec 45 -SkipHttpErrorCheck
+            Write-Host "Health: HTTP $($healthResponse.StatusCode), bytes=$($healthResponse.RawContentLength), body='$($healthResponse.Content)'"
+
+            if ($healthResponse.StatusCode -ne 200) {
+              Start-Sleep -Seconds 10
+              continue
+            }
+
+            $loginResponse = Invoke-WebRequest -Uri $loginUrl -UseBasicParsing -TimeoutSec 45 -SkipHttpErrorCheck
+            Write-Host "Login: HTTP $($loginResponse.StatusCode), bytes=$($loginResponse.RawContentLength), body='$($loginResponse.Content)'"
+
+            if ($loginResponse.StatusCode -eq 200) {
+              Write-Host "CTSHIP deployment verification PASSED."
+              exit 0
             }
 
             Start-Sleep -Seconds 10
