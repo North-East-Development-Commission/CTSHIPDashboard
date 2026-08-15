@@ -104,6 +104,10 @@ jobs:
             throw "Repository secret AZURE_SQL_CONNECTION_STRING is required."
           }
 
+          $effectiveConnectionString = $env:AZURE_SQL_CONNECTION_STRING.Trim()
+          $effectiveConnectionString = $effectiveConnectionString.Replace('Authentication="Active Directory Default"', 'Authentication=Active Directory Managed Identity')
+          $effectiveConnectionString = $effectiveConnectionString.Replace('Authentication=Active Directory Default', 'Authentication=Active Directory Managed Identity')
+          $effectiveConnectionString = $effectiveConnectionString.Replace('Authentication="Active Directory Managed Identity"', 'Authentication=Active Directory Managed Identity')
           $resourceGroup = az webapp list --query "[?name=='$env:WEB_APP_NAME'].resourceGroup | [0]" --output tsv
           if ([string]::IsNullOrWhiteSpace($resourceGroup)) {
             throw "Azure Web App '$env:WEB_APP_NAME' was not found."
@@ -127,7 +131,7 @@ jobs:
             --resource-group $resourceGroup `
             --name $env:WEB_APP_NAME `
             --connection-string-type SQLAzure `
-            --settings "DefaultConnection=$env:AZURE_SQL_CONNECTION_STRING" `
+            --settings "DefaultConnection=$effectiveConnectionString" `
             --output none
 
           az webapp config appsettings set `
@@ -136,6 +140,7 @@ jobs:
             --settings `
               "ASPNETCORE_ENVIRONMENT=Production" `
               "ASPNETCORE_FORWARDEDHEADERS_ENABLED=true" `
+              "ConnectionStrings__DefaultConnection=$effectiveConnectionString" `
               "Database__ApplyMigrationsOnStartup=true" `
               "SCM_DO_BUILD_DURING_DEPLOYMENT=false" `
               "WEBSITE_RUN_FROM_PACKAGE=1" `
@@ -230,3 +235,4 @@ jobs:
           }
 
           throw "Application did not become healthy after deployment."
+

@@ -53,6 +53,10 @@ resource webApp 'Microsoft.Web/sites@2022-03-01' = {
           value: 'true'
         }
         {
+          name: 'ConnectionStrings__DefaultConnection'
+          value: sqlConnectionString
+        }
+        {
           name: 'ASPNETCORE_FORWARDEDHEADERS_ENABLED'
           value: 'true'
         }
