@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -238,7 +239,7 @@ app.MapControllerRoute(
     pattern: "{controller=Analytics}/{action=Index}/{id?}");
 
 app.MapHub<AnalyticsHub>("/analyticsHub");
-app.MapGet("/alive", () => Results.Ok(new { status = "alive" }))
+app.MapGet("/alive", () => Results.Ok(new { status = "alive", application = "CTSHIPDashboard", version = "2026-08-15-01" }))
     .AllowAnonymous();
 app.MapGet("/health", async (
     ApplicationDbContext context,
@@ -275,6 +276,20 @@ app.MapGet("/health", async (
     {
         return Results.Json(
             new { status = "unhealthy", reason = "database_probe_timeout" },
+            statusCode: StatusCodes.Status503ServiceUnavailable);
+    }
+    catch (SqlException exception)
+    {
+        return Results.Json(
+            new
+            {
+                status = "unhealthy",
+                reason = "sql_probe_failed",
+                error = exception.GetType().Name,
+                sqlNumber = exception.Number,
+                sqlState = exception.State,
+                sqlClass = exception.Class
+            },
             statusCode: StatusCodes.Status503ServiceUnavailable);
     }
     catch (Exception exception)

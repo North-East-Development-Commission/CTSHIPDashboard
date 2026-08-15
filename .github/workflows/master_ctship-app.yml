@@ -197,10 +197,27 @@ jobs:
                   $statusCode = "unavailable"
                 }
               }
+<<<<<<< HEAD
+              $responseBody = ""
+              if ($null -ne $_.Exception.Response) {
+                try {
+                  $stream = $_.Exception.Response.GetResponseStream()
+                  if ($null -ne $stream) {
+                    $reader = [System.IO.StreamReader]::new($stream)
+                    $responseBody = $reader.ReadToEnd()
+                  }
+                }
+                catch {
+                  $responseBody = "<failed to read response body>"
+                }
+              }
+              Write-Host "Readiness check attempt $attempt failed for $healthUrl (HTTP $statusCode): $($_.Exception.Message); body=$responseBody"
+=======
 
               Write-Host "Attempt $attempt failed."
               Write-Host "HTTP: $statusCode"
               Write-Host "Message: $($_.Exception.Message)"
+>>>>>>> c7f3fe27cacf041342044bed11cd58fce92466a9
             }
 
             Start-Sleep -Seconds 10
