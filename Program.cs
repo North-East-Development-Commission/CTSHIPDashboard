@@ -178,7 +178,6 @@ if (!app.Environment.IsDevelopment())
 }
 
 app.UseForwardedHeaders();
-app.UseStaticFiles();
 app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.UseRouting();
