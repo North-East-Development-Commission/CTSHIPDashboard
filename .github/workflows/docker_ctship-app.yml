@@ -1,0 +1,235 @@
+name: Build and deploy CTSHIPDashboard Docker image
+
+on:
+  workflow_dispatch:
+    inputs:
+      apply_migrations:
+        description: 'Run EF Core migrations against Azure SQL before deploying the container'
+        required: true
+        type: boolean
+        default: false
+  push:
+    branches:
+      - master
+    paths:
+      - Dockerfile
+      - .dockerignore
+      - '**/*.cs'
+      - '**/*.cshtml'
+      - '**/*.json'
+      - '**/*.csproj'
+      - wwwroot/**
+      - .github/workflows/docker_ctship-app.yml
+
+env:
+  DOTNET_VERSION: '9.0.x'
+  WEB_APP_NAME: ctship-app
+  ACR_NAME: ${{ vars.ACR_NAME || 'ctshipacr' }}
+  IMAGE_NAME: ctshipdashboard
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.CTSHIPDASHBOARD_SPN }}
+
+      - name: Resolve Azure resources
+        id: azure
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          RESOURCE_GROUP=$(az webapp list \
+            --query "[?name=='${WEB_APP_NAME}'].resourceGroup | [0]" \
+            --output tsv)
+
+          if [ -z "$RESOURCE_GROUP" ]; then
+            echo "Azure Web App '${WEB_APP_NAME}' was not found."
+            exit 1
+          fi
+
+          ACR_LOGIN_SERVER=$(az acr show \
+            --name "$ACR_NAME" \
+            --query loginServer \
+            --output tsv)
+
+          if [ -z "$ACR_LOGIN_SERVER" ]; then
+            echo "Azure Container Registry '${ACR_NAME}' was not found."
+            exit 1
+          fi
+
+          echo "resource_group=$RESOURCE_GROUP" >> "$GITHUB_OUTPUT"
+          echo "acr_login_server=$ACR_LOGIN_SERVER" >> "$GITHUB_OUTPUT"
+          echo "image_tag=$ACR_LOGIN_SERVER/${IMAGE_NAME}:${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+          echo "latest_tag=$ACR_LOGIN_SERVER/${IMAGE_NAME}:latest" >> "$GITHUB_OUTPUT"
+
+      - name: Login to Azure Container Registry
+        shell: bash
+        run: az acr login --name "$ACR_NAME"
+
+      - name: Build Docker image
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker build \
+            --tag "${{ steps.azure.outputs.image_tag }}" \
+            --tag "${{ steps.azure.outputs.latest_tag }}" \
+            .
+
+      - name: Push Docker image
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker push "${{ steps.azure.outputs.image_tag }}"
+          docker push "${{ steps.azure.outputs.latest_tag }}"
+
+      - name: Configure App Service identity and ACR pull
+        shell: bash
+        run: |
+          set -euo pipefail
+          RESOURCE_GROUP="${{ steps.azure.outputs.resource_group }}"
+
+          PRINCIPAL_ID=$(az webapp identity assign \
+            --resource-group "$RESOURCE_GROUP" \
+            --name "$WEB_APP_NAME" \
+            --query principalId \
+            --output tsv)
+
+          ACR_ID=$(az acr show \
+            --name "$ACR_NAME" \
+            --query id \
+            --output tsv)
+
+          az role assignment create \
+            --assignee "$PRINCIPAL_ID" \
+            --scope "$ACR_ID" \
+            --role AcrPull \
+            --only-show-errors || true
+
+          az webapp config set \
+            --resource-group "$RESOURCE_GROUP" \
+            --name "$WEB_APP_NAME" \
+            --generic-configurations '{"acrUseManagedIdentityCreds": true}' \
+            --output none
+
+      - name: Configure App Service settings
+        shell: bash
+        env:
+          AZURE_SQL_CONNECTION_STRING: ${{ secrets.AZURE_SQL_CONNECTION_STRING }}
+        run: |
+          set -euo pipefail
+          RESOURCE_GROUP="${{ steps.azure.outputs.resource_group }}"
+
+          if [ -z "${AZURE_SQL_CONNECTION_STRING:-}" ]; then
+            echo "Repository secret AZURE_SQL_CONNECTION_STRING is required."
+            exit 1
+          fi
+
+          EFFECTIVE_CONNECTION_STRING="$AZURE_SQL_CONNECTION_STRING"
+          EFFECTIVE_CONNECTION_STRING="${EFFECTIVE_CONNECTION_STRING/Authentication=\"Active Directory Default\"/Authentication=Active Directory Managed Identity}"
+          EFFECTIVE_CONNECTION_STRING="${EFFECTIVE_CONNECTION_STRING/Authentication=Active Directory Default/Authentication=Active Directory Managed Identity}"
+          EFFECTIVE_CONNECTION_STRING="${EFFECTIVE_CONNECTION_STRING/Authentication=\"Active Directory Managed Identity\"/Authentication=Active Directory Managed Identity}"
+
+          az webapp config appsettings set \
+            --resource-group "$RESOURCE_GROUP" \
+            --name "$WEB_APP_NAME" \
+            --settings \
+              WEBSITES_PORT=8080 \
+              ASPNETCORE_URLS=http://+:8080 \
+              ASPNETCORE_ENVIRONMENT=Production \
+              ASPNETCORE_FORWARDEDHEADERS_ENABLED=true \
+              Database__ApplyMigrationsOnStartup=false \
+              "ConnectionStrings__DefaultConnection=$EFFECTIVE_CONNECTION_STRING" \
+            --output none
+
+          az webapp config connection-string set \
+            --resource-group "$RESOURCE_GROUP" \
+            --name "$WEB_APP_NAME" \
+            --connection-string-type SQLAzure \
+            --settings "DefaultConnection=$EFFECTIVE_CONNECTION_STRING" \
+            --output none
+
+      - name: Set up .NET for EF migrations
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.apply_migrations }}
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Apply EF Core migrations to Azure SQL
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.apply_migrations }}
+        shell: bash
+        env:
+          AZURE_SQL_CONNECTION_STRING: ${{ secrets.AZURE_SQL_CONNECTION_STRING }}
+        run: |
+          set -euo pipefail
+
+          MIGRATION_CONNECTION_STRING="$AZURE_SQL_CONNECTION_STRING"
+          MIGRATION_CONNECTION_STRING="${MIGRATION_CONNECTION_STRING/Authentication=\"Active Directory Managed Identity\"/Authentication=Active Directory Default}"
+          MIGRATION_CONNECTION_STRING="${MIGRATION_CONNECTION_STRING/Authentication=Active Directory Managed Identity/Authentication=Active Directory Default}"
+          MIGRATION_CONNECTION_STRING="${MIGRATION_CONNECTION_STRING/Authentication=\"Active Directory Default\"/Authentication=Active Directory Default}"
+
+          export ConnectionStrings__DefaultConnection="$MIGRATION_CONNECTION_STRING"
+          export Database__ApplyMigrationsOnStartup=false
+          export PATH="$PATH:$HOME/.dotnet/tools"
+
+          dotnet restore CTSHIPDashboard.csproj
+          dotnet tool install --global dotnet-ef --version 9.*
+          dotnet ef database update \
+            --project CTSHIPDashboard.csproj \
+            --startup-project CTSHIPDashboard.csproj \
+            --connection "$MIGRATION_CONNECTION_STRING" \
+            --verbose
+
+      - name: Point App Service to new container image
+        shell: bash
+        run: |
+          set -euo pipefail
+          RESOURCE_GROUP="${{ steps.azure.outputs.resource_group }}"
+
+          az webapp config container set \
+            --resource-group "$RESOURCE_GROUP" \
+            --name "$WEB_APP_NAME" \
+            --container-image-name "${{ steps.azure.outputs.image_tag }}" \
+            --container-registry-url "https://${{ steps.azure.outputs.acr_login_server }}" \
+            --output none
+
+          az webapp restart \
+            --resource-group "$RESOURCE_GROUP" \
+            --name "$WEB_APP_NAME" \
+            --output none
+
+      - name: Verify deployment
+        shell: bash
+        run: |
+          set -euo pipefail
+          RESOURCE_GROUP="${{ steps.azure.outputs.resource_group }}"
+          HOSTNAME=$(az webapp show \
+            --resource-group "$RESOURCE_GROUP" \
+            --name "$WEB_APP_NAME" \
+            --query defaultHostName \
+            --output tsv)
+
+          for attempt in {1..30}; do
+            echo "Verification attempt $attempt of 30"
+            BODY=$(curl -fsS "https://$HOSTNAME/alive" || true)
+            echo "Alive body: $BODY"
+
+            if echo "$BODY" | grep -q '"status"[[:space:]]*:[[:space:]]*"alive"'; then
+              echo "CTSHIP container deployment verified: https://$HOSTNAME"
+              exit 0
+            fi
+
+            sleep 10
+          done
+
+          echo "Container did not become healthy after deployment."
+          exit 1

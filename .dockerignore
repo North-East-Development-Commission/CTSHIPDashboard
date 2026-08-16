@@ -1,0 +1,24 @@
+# Build outputs
+bin/
+obj/
+artifacts/
+
+# Local IDE/runtime state
+.git/
+.github/
+.vs/
+.agents/
+.codex/
+logs/
+codex-devserver*.log
+*.user
+*.suo
+
+# Local app/runtime data that should not be baked into the image
+App_Data/DataProtectionKeys/
+wwwroot/uploads/
+
+# Misc
+Dockerfile*
+.dockerignore
+README.md
