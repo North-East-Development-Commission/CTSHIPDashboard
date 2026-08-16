@@ -1,0 +1,38 @@
+services:
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: ctship-sqlserver
+    environment:
+      ACCEPT_EULA: Y
+      SA_PASSWORD: "YourPassword123!"
+      MSSQL_PID: Developer
+    ports:
+      - "1433:1433"
+    volumes:
+      - sqlserver_data:/var/opt/mssql
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P YourPassword123! -Q 'SELECT 1'"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+
+  ctship-dashboard:
+    image: ctshipdashboard:latest
+    container_name: ctship-dashboard
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__DefaultConnection: "Server=sqlserver,1433;Database=CTSHIPDashboard;User Id=sa;Password=YourPassword123!;MultipleActiveResultSets=true;TrustServerCertificate=True;Encrypt=False;"
+    volumes:
+      - ./App_Data:/app/App_Data
+    restart: unless-stopped
+
+volumes:
+  sqlserver_data:
