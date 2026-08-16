@@ -98,15 +98,15 @@ builder.Services.AddScoped<IAuditService, AuditService>();
 
 var app = builder.Build();
 
+// Configure ForwardedHeaders for Azure and proxies
 var forwardedHeadersOptions = new ForwardedHeadersOptions
 {
-    ForwardedHeaders =
-        ForwardedHeaders.XForwardedFor |
-        ForwardedHeaders.XForwardedProto
+    ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
 };
 
 if (isAzureAppService)
 {
+    // Azure App Service: Allow all known proxies
     forwardedHeadersOptions.KnownNetworks.Clear();
     forwardedHeadersOptions.KnownProxies.Clear();
 }
