@@ -1,0 +1,7 @@
+SET QUOTED_IDENTIFIER ON;
+SET ANSI_NULLS ON;
+
+UPDATE AspNetUsers SET PasswordHash = N'AQAAAAIAAYagAAAAENR42a+LIZtFj2XT5CY0M3g/eFD8vdHx1N2L3qR4pZ1/R9j0RBMQi8CnlU7X1zqfxQ==' 
+WHERE Email = N'as.maiwada@nedc.gov.ng';
+
+SELECT Email, PasswordHash FROM AspNetUsers;
