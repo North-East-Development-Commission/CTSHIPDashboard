@@ -15,7 +15,6 @@ var cookieSecurePolicy = requireHttps
     ? CookieSecurePolicy.Always
     : CookieSecurePolicy.SameAsRequest;
 
-// Use providers that work consistently in IIS, local development, and restricted hosts.
 builder.Logging.ClearProviders();
 builder.Logging.AddConsole();
 builder.Logging.AddDebug();
@@ -122,77 +121,75 @@ if (!hasConnectionString)
 }
 else
 {
-try
-{
-    using var scope = app.Services.CreateScope();
-    ApplicationDbContext context =
-        scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-    RoleManager<IdentityRole> roleManager =
-        scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
-    IServiceProvider services = scope.ServiceProvider;
-
-    if (builder.Configuration.GetValue<bool>("Database:ApplyMigrationsOnStartup"))
-    {
-        app.Logger.LogInformation("Applying pending database migrations.");
-        await context.Database.MigrateAsync();
-        app.Logger.LogInformation("Database migrations completed.");
-    }
-
-    foreach (string requiredRole in new[] { "HmoEnrollmentOfficer", "IHSA" })
-    {
-        if (!await roleManager.RoleExistsAsync(requiredRole))
-        {
-            await roleManager.CreateAsync(new IdentityRole(requiredRole));
-        }
-    }
-
-    var legacyTarget = context.ProgramMonitoringTargets
-        .FirstOrDefault(target => target.Scope == "North East");
-    var ctsTarget = context.ProgramMonitoringTargets
-        .FirstOrDefault(target => target.Scope == "CTSHIP");
-
-    if (legacyTarget != null)
-    {
-        if (ctsTarget == null)
-        {
-            legacyTarget.Scope = "CTSHIP";
-        }
-        else
-        {
-            if (ctsTarget.TargetEnrollees <= 0)
-            {
-                ctsTarget.TargetEnrollees = legacyTarget.TargetEnrollees;
-            }
-
-            context.ProgramMonitoringTargets.Remove(legacyTarget);
-        }
-
-        context.SaveChanges();
-    }
-
-    app.Logger.LogInformation("CTSHIP startup data initialization completed.");
-}
-catch (Exception exception)
-{
-    // Startup data problems must not terminate the web host. Requests that
-    // depend on the database will be handled by the friendly error boundary.
     try
     {
-        app.Logger.LogError(
-            exception,
-            "Startup data initialization failed. The web host will continue running.");
+        using var scope = app.Services.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var roleManager = scope.ServiceProvider.GetRequiredService<RoleManager<IdentityRole>>();
+        var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+
+        if (builder.Configuration.GetValue<bool>("Database:ApplyMigrationsOnStartup"))
+        {
+            app.Logger.LogInformation("Applying pending database migrations.");
+            await context.Database.MigrateAsync();
+            app.Logger.LogInformation("Database migrations completed.");
+        }
+
+        // CREATE ROLES
+        string[] requiredRoles = { "Admin", "CTSHIPAdmin", "HmoEnrollmentOfficer", "IHSA", "HMO", "Provider", "StateOffice", "NHIA" };
+        foreach (var roleName in requiredRoles)
+        {
+            if (!await roleManager.RoleExistsAsync(roleName))
+            {
+                await roleManager.CreateAsync(new IdentityRole(roleName));
+                app.Logger.LogInformation($"Role created: {roleName}");
+            }
+        }
+
+        // CREATE ADMIN USER
+        string adminEmail = "as.maiwada@nedc.gov.ng";
+        var adminUser = await userManager.FindByEmailAsync(adminEmail);
+        if (adminUser == null)
+        {
+            adminUser = new ApplicationUser
+            {
+                UserName = adminEmail,
+                Email = adminEmail,
+                EmailConfirmed = true,
+                FullName = "CTSHIP Admin",
+                State = "Borno"
+            };
+            var result = await userManager.CreateAsync(adminUser, "Admin@2025");
+            if (result.Succeeded)
+            {
+                await userManager.AddToRoleAsync(adminUser, "Admin");
+                await userManager.AddToRoleAsync(adminUser, "CTSHIPAdmin");
+                app.Logger.LogInformation($"Admin user created: {adminEmail} | Password: Admin@2025");
+            }
+            else
+            {
+                app.Logger.LogError($"Failed to create admin user: {string.Join(", ", result.Errors.Select(e => e.Description))}");
+            }
+        }
+
+        // Ensure ProgramMonitoringTargets data
+        var legacyTarget = context.ProgramMonitoringTargets.FirstOrDefault(t => t.Scope == "North East");
+        var ctsTarget = context.ProgramMonitoringTargets.FirstOrDefault(t => t.Scope == "CTSHIP");
+
+        if (legacyTarget != null && ctsTarget == null)
+        {
+            legacyTarget.Scope = "CTSHIP";
+            context.SaveChanges();
+        }
+
+        app.Logger.LogInformation("Startup initialization completed successfully.");
     }
-    catch
+    catch (Exception ex)
     {
-        Console.Error.WriteLine(
-            $"Startup data initialization failed: {exception.Message}");
+        app.Logger.LogError($"Startup initialization error: {ex.Message}");
     }
 }
-}
 
-
-// Friendly handling is enabled in every environment so users never receive
-// raw framework exception pages.
 app.UseExceptionHandler("/Error");
 app.UseStatusCodePagesWithReExecute("/Error/{0}");
 
@@ -205,12 +202,12 @@ if (requireHttps)
 {
     app.UseHttpsRedirection();
 }
+
 app.UseStaticFiles();
 app.UseRouting();
 app.UseCookiePolicy();
 app.UseAuthentication();
 app.UseAuthorization();
-//app.UseMiddleware<CTSHIPDashboard.Middleware.UserActivityMiddleware>();
 
 app.MapStaticAssets();
 
@@ -219,125 +216,52 @@ app.MapGet("/", context =>
     if (context.User.Identity?.IsAuthenticated == true)
     {
         string dashboardPath =
-            context.User.IsInRole("Admin")
-                ? "/Analytics/Index"
-                : context.User.IsInRole("HmoEnrollmentOfficer")
-                    ? "/Enrollees/Dashboard"
-                : context.User.IsInRole("HMO")
-                    ? "/Hmo/Dashboard"
-                    : context.User.IsInRole("ReferralPro")
-                        ? "/ReferralPro/Dashboard"
-                    : context.User.IsInRole("Provider")
-                        ? "/Providers/Dashboard"
-                        : context.User.IsInRole("Finance")
-                            ? "/Finance/Dashboard"
-                            : context.User.IsInRole("StateOffice")
-                                ? "/StateOffice/Index"
-                                : context.User.IsInRole("NHIA")
-                                    ? "/NHIA/Dashboard"
-                                    : context.User.IsInRole("SSHIA")
-                                        ? "/SSHIA/Dashboard"
-                                        : context.User.IsInRole("IHSA") || context.User.IsInRole("NEDCAdmin")
-                                            ? "/IHSA/Dashboard"
-                                            : context.User.IsInRole("Monitoring")
-                                                ? "/Monitoring/Index"
-                                                : "/Home/Index";
-
+            context.User.IsInRole("Admin") ? "/Analytics/Index"
+            : context.User.IsInRole("HmoEnrollmentOfficer") ? "/Enrollees/Dashboard"
+            : context.User.IsInRole("HMO") ? "/Hmo/Dashboard"
+            : context.User.IsInRole("ReferralPro") ? "/ReferralPro/Dashboard"
+            : context.User.IsInRole("Provider") ? "/Providers/Dashboard"
+            : context.User.IsInRole("Finance") ? "/Finance/Dashboard"
+            : context.User.IsInRole("StateOffice") ? "/StateOffice/Index"
+            : context.User.IsInRole("NHIA") ? "/NHIA/Dashboard"
+            : context.User.IsInRole("SSHIA") ? "/SSHIA/Dashboard"
+            : context.User.IsInRole("IHSA") || context.User.IsInRole("NEDCAdmin") ? "/IHSA/Dashboard"
+            : context.User.IsInRole("Monitoring") ? "/Monitoring/Index"
+            : "/Home/Index";
         context.Response.Redirect(dashboardPath);
         return Task.CompletedTask;
     }
-
     context.Response.Redirect("/Identity/Account/Login");
     return Task.CompletedTask;
 });
 
-app.MapControllerRoute(
-    name: "default",
-    pattern: "{controller=Analytics}/{action=Index}/{id?}");
-
+app.MapControllerRoute(name: "default", pattern: "{controller=Analytics}/{action=Index}/{id?}");
 app.MapHub<AnalyticsHub>("/analyticsHub");
-app.MapGet("/alive", () => Results.Ok(new { status = "alive", application = "CTSHIPDashboard", version = "2026-08-15-01" }))
-    .AllowAnonymous();
-app.MapGet("/health", async (
-    IServiceProvider services,
-    CancellationToken cancellationToken) =>
+app.MapGet("/alive", () => Results.Ok(new { status = "alive", application = "CTSHIPDashboard", version = "2026-08-15-01" })).AllowAnonymous();
+app.MapGet("/health", async (IServiceProvider services, CancellationToken cancellationToken) =>
 {
     if (!hasConnectionString)
     {
-        return Results.Json(
-            new { status = "unhealthy", reason = "missing_connection_string" },
-            statusCode: StatusCodes.Status503ServiceUnavailable);
+        return Results.Json(new { status = "unhealthy", reason = "missing_connection_string" }, statusCode: StatusCodes.Status503ServiceUnavailable);
     }
-
     try
     {
         using var scope = services.CreateScope();
-        ApplicationDbContext context =
-            scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-
+        var healthContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         timeout.CancelAfter(TimeSpan.FromSeconds(10));
-        context.Database.SetCommandTimeout(TimeSpan.FromSeconds(5));
-
-        if (!await context.Database.CanConnectAsync(timeout.Token))
+        if (!await healthContext.Database.CanConnectAsync(timeout.Token))
         {
-            return Results.Json(
-                new { status = "unhealthy", reason = "database_unreachable" },
-                statusCode: StatusCodes.Status503ServiceUnavailable);
+            return Results.Json(new { status = "unhealthy", reason = "database_unreachable" }, statusCode: StatusCodes.Status503ServiceUnavailable);
         }
-
-        var pendingMigrations = await context.Database
-            .GetPendingMigrationsAsync(timeout.Token);
-
-        return pendingMigrations.Any()
-            ? Results.Json(
-                new
-                {
-                    status = "unhealthy",
-                    reason = "pending_migrations",
-                    pendingMigrations = pendingMigrations.ToArray()
-                },
-                statusCode: StatusCodes.Status503ServiceUnavailable)
-            : Results.Ok(new { status = "healthy" });
+        var pendingMigrations = await healthContext.Database.GetPendingMigrationsAsync(timeout.Token);
+        return pendingMigrations.Any() ? Results.Json(new { status = "unhealthy", reason = "pending_migrations", pendingMigrations = pendingMigrations.ToArray() }, statusCode: StatusCodes.Status503ServiceUnavailable) : Results.Ok(new { status = "healthy" });
     }
-    catch (OperationCanceledException)
+    catch (Exception ex)
     {
-        return Results.Json(
-            new { status = "unhealthy", reason = "database_probe_timeout" },
-            statusCode: StatusCodes.Status503ServiceUnavailable);
-    }
-    catch (SqlException exception)
-    {
-        return Results.Json(
-            new
-            {
-                status = "unhealthy",
-                reason = "sql_probe_failed",
-                error = exception.GetType().Name,
-                sqlNumber = exception.Number,
-                sqlState = exception.State,
-                sqlClass = exception.Class
-            },
-            statusCode: StatusCodes.Status503ServiceUnavailable);
-    }
-    catch (Exception exception)
-    {
-        return Results.Json(
-            new
-            {
-                status = "unhealthy",
-                reason = "database_probe_failed",
-                error = exception.GetType().Name
-            },
-            statusCode: StatusCodes.Status503ServiceUnavailable);
+        return Results.Json(new { status = "unhealthy", reason = "database_probe_failed", error = ex.GetType().Name }, statusCode: StatusCodes.Status503ServiceUnavailable);
     }
 }).AllowAnonymous();
-app.MapRazorPages()
-    .WithStaticAssets();
 
+app.MapRazorPages().WithStaticAssets();
 app.Run();
-//#FE9031 
-//#FE9031
-
-
-
