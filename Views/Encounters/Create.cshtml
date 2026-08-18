@@ -1031,7 +1031,7 @@
 
         function syncConditionalEncounterSections() {
             const labRequired = hasSelectedService('Laboratory Services', ['laboratory', 'lab']);
-            const prescriptionRequired = hasSelectedService('Pharmacy and Medicines Dispensing Service');
+            const prescriptionRequired = hasSelectedService('Pharmacy and Medicines Dispensing Service', ['pharmacy', 'medicine', 'medicines', 'dispensing', 'dispensary']);
             const laboratorySection = document.getElementById('laboratorySection');
             const prescriptionSection = document.getElementById('prescriptionSection');
             const preventiveRequired = hasSelectedService('Preventive Services', ['preventive']);
@@ -1185,7 +1185,7 @@
             }
 
             const labRequired = hasSelectedService('Laboratory Services', ['laboratory', 'lab']);
-            const prescriptionRequired = hasSelectedService('Pharmacy and Medicines Dispensing Service');
+            const prescriptionRequired = hasSelectedService('Pharmacy and Medicines Dispensing Service', ['pharmacy', 'medicine', 'medicines', 'dispensing', 'dispensary']);
             const selectedPrescriptionCount = Array.from(document.querySelectorAll('.drug-catalog-select')).filter(select => select.value).length;
             if (prescriptionRequired && selectedPrescriptionCount === 0) {
                 addValidationError(errors, '.drug-catalog-select', 'Select at least one drug or remove Pharmacy and Medicines Dispensing Service.');

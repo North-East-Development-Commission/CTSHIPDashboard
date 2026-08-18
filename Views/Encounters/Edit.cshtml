@@ -211,11 +211,12 @@
                 .trim();
         }
 
-        function selectedHas(selectId, value) {
+        function selectedHas(selectId, value, fallbackTokens) {
             const select = document.getElementById(selectId);
             if (!select) return false;
 
             const expected = normalizeLabel(value);
+            const tokens = (fallbackTokens || []).map(normalizeLabel).filter(Boolean);
             const nativeValues = Array.from(select.selectedOptions || [])
                 .map(option => (option.value || '') + ' ' + (option.textContent || ''));
             const select2Values = window.jQuery && $(select).data('select2')
@@ -224,7 +225,7 @@
 
             return nativeValues.concat(select2Values)
                 .map(normalizeLabel)
-                .some(selected => selected === expected || selected.includes(expected));
+                .some(selected => selected === expected || selected.includes(expected) || tokens.some(token => selected.includes(token)));
         }
 
         function syncServiceDropdown(selectFirstIfEmpty) {
@@ -299,8 +300,8 @@
         }
 
         function syncEditClinicalSections() {
-            const hasPharmacy = selectedHas('selectedServices', 'Pharmacy and Medicines Dispensing Service');
-            const hasPreventive = selectedHas('selectedServices', 'Preventive Services');
+            const hasPharmacy = selectedHas('selectedServices', 'Pharmacy and Medicines Dispensing Service', ['pharmacy', 'medicine', 'medicines', 'dispensing', 'dispensary']);
+            const hasPreventive = selectedHas('selectedServices', 'Preventive Services', ['preventive']);
             const prescription = document.getElementById('prescriptionSection');
             const preventive = document.getElementById('preventiveSection');
             const immunization = document.getElementById('immunizationSection');
