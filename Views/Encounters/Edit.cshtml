@@ -106,6 +106,31 @@
                                 <span asp-validation-for="TreatmentGiven" class="text-danger"></span>
                             </div>
 
+                            <div class="col-12" id="laboratorySection" style="display:none;">
+                                <div class="border rounded-4 p-3 bg-light">
+                                    <h5 class="text-success fw-bold mb-3">Laboratory Tests</h5>
+                                    @{ var labCatalog = ViewBag.LaboratoryCatalog as List<SelectListItem> ?? new List<SelectListItem>(); }
+                                    <select id="selectedLaboratoryTests" name="SelectedLaboratoryTests" class="form-select select2" multiple data-placeholder="Select laboratory tests">
+                                        @foreach (var item in labCatalog)
+                                        {
+                                            if (item.Selected)
+                                            {
+                                                <option value="@item.Value" selected="selected">@item.Text</option>
+                                            }
+                                            else
+                                            {
+                                                <option value="@item.Value">@item.Text</option>
+                                            }
+                                        }
+                                    </select>
+                                    <div id="laboratoryOtherRow" class="mt-3" style="display:none;">
+                                        <label asp-for="LaboratoryOther" class="form-label">Other laboratory service</label>
+                                        <input asp-for="LaboratoryOther" class="form-control" placeholder="Specify the other laboratory service" />
+                                    </div>
+                                    <div id="laboratoryInvestigationsContainer" class="mt-3"></div>
+                                </div>
+                            </div>
+
                             <div class="col-12" id="prescriptionSection" style="display:none;">
                                 <div class="border rounded-4 p-3 bg-light">
                                     <h5 class="text-success fw-bold mb-3">Medicines Dispensed</h5>

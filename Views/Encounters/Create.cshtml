@@ -969,7 +969,7 @@
             });
 
             if (window.jQuery && $(laboratorySelect).data('select2')) {
-                $(laboratorySelect).trigger('change.select2');
+                if (window.jQuery && $(laboratorySelect).data('select2')) $(laboratorySelect).trigger('change.select2');
             }
             buildLabRowsFromSelection();
         }
@@ -996,8 +996,13 @@
             const select2Labels = window.jQuery && $(select).data('select2')
                 ? ($(select).select2('data') || []).map(item => `${item.id || ''} ${item.text || ''}`)
                 : [];
+            const jqueryValues = window.jQuery
+                ? (Array.isArray($(select).val()) ? $(select).val() : [$(select).val()])
+                    .filter(Boolean)
+                    .map(value => `${value}`)
+                : [];
 
-            return [...nativeLabels, ...select2Labels]
+            return [...nativeLabels, ...select2Labels, ...jqueryValues]
                 .map(normalizeServiceLabel)
                 .filter(Boolean);
         }
@@ -1024,7 +1029,8 @@
                 if (drug) drug.value = '';
                 if (other) other.value = '';
                 if (dosage) dosage.value = '';
-                if (quantity) quantity.value = 1;`r`n                if (stockStatus) stockStatus.value = 'Instock';
+                if (quantity) quantity.value = 1;
+                if (stockStatus) stockStatus.value = 'Instock';
             }
             reindexPrescriptionRows();
         }
@@ -1041,7 +1047,7 @@
             if (laboratorySection) laboratorySection.style.display = labRequired ? 'block' : 'none';
             if (!labRequired && laboratorySelect) {
                 Array.from(laboratorySelect.options).forEach(option => option.selected = false);
-                $(laboratorySelect).trigger('change.select2');
+                if (window.jQuery && $(laboratorySelect).data('select2')) $(laboratorySelect).trigger('change.select2');
                 const labContainer = document.getElementById('laboratoryInvestigationsContainer');
                 if (labContainer) labContainer.innerHTML = '';
             } else if (labRequired) {
@@ -1125,7 +1131,7 @@
             }
         }
         document.getElementById('selectedServices')?.addEventListener('change', syncReferralFields);
-        if (window.jQuery) jQuery('#selectedServices').on('select2:select select2:unselect', syncReferralFields);
+        if (window.jQuery) jQuery('#selectedServices').on('change select2:select select2:unselect select2:clear', syncReferralFields);
         syncReferralFields();
         syncConditionalEncounterSections();
 
@@ -1250,8 +1256,13 @@
             const select2Values = window.jQuery && $(select).data('select2')
                 ? ($(select).select2('data') || []).map(item => (item.id || '') + ' ' + (item.text || ''))
                 : [];
+            const jqueryValues = window.jQuery
+                ? (Array.isArray($(select).val()) ? $(select).val() : [$(select).val()])
+                    .filter(Boolean)
+                    .map(value => value.toString())
+                : [];
 
-            return nativeValues.concat(select2Values)
+            return nativeValues.concat(select2Values, jqueryValues)
                 .map(normalizeServiceLabel)
                 .some(selected => selected === expected || selected.includes(expected));
         }
