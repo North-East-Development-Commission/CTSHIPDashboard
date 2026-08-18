@@ -30,7 +30,7 @@ namespace CTSHIPDashboard.Services
         {
             "General Outpatient Consultation", "Laboratory Services", "Counseling", "Malaria Diagnosis and Treatment",
             "Mental Health Screening and Basic Care", "Adolescent Health Services", "Emergency First Aid and Stabilization",
-            "Referral Services", "Basic Dental Care", "Preventive Services", "ANC", "Delivery",
+            "Referral Services", "Basic Dental Care", "Preventive Services", "Delivery",
             "Minor Surgical Procedures and Wound Care", "Pharmacy and Medicines Dispensing Service", "Others"
         };
 
@@ -96,4 +96,5 @@ namespace CTSHIPDashboard.Services
         public static readonly List<string> SexOptions = new() { "Male", "Female", "Other" };
     }
 }
+
 

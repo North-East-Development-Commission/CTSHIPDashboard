@@ -371,14 +371,7 @@
 
                                         <partial name="_ServiceSelection" model="Model" />
 
-                                        <div class="col-md-4">
-                                            <label asp-for="PatientOutcome" class="form-label">Patient Outcome</label>
-                                            <select asp-for="PatientOutcome" class="form-select form-select-lg" asp-items="ViewBag.PatientOutcomes">
-                                                <option value="">Select patient outcome</option>
-                                            </select>
-                                            <span asp-validation-for="PatientOutcome" class="text-danger"></span>
-                                            <small class="text-muted">Capture the outcome for every patient.</small>
-                                        </div>
+
                                         <div class="col-md-4">
                                             <label asp-for="ProviderId" class="form-label fs-5">Facility</label>
                                             <select asp-for="ProviderId" class="form-select form-select-lg w-100" asp-items="ViewBag.Providers">
@@ -574,6 +567,27 @@
                                         </div>
                                         <partial name="_PreventiveServiceFields" model="Model" />
                                         <partial name="_ReferralFields" model="Model.Referral" />
+                                    </div>
+                                </div>
+                            </section>
+                            <section class="encounter-section-card">
+                                <div class="encounter-section-header">
+                                    <span class="encounter-step">5</span>
+                                    <div>
+                                        <h2>Encounter Outcome</h2>
+                                        <p>Confirm the patient outcome after all selected service details are captured.</p>
+                                    </div>
+                                </div>
+                                <div class="encounter-section-body">
+                                    <div class="row g-4">
+                                        <div class="col-md-4">
+                                            <label asp-for="PatientOutcome" class="form-label">Patient Outcome</label>
+                                            <select asp-for="PatientOutcome" class="form-select form-select-lg" asp-items="ViewBag.PatientOutcomes">
+                                                <option value="">Select patient outcome</option>
+                                            </select>
+                                            <span asp-validation-for="PatientOutcome" class="text-danger"></span>
+                                            <small class="text-muted">Capture the outcome for every patient.</small>
+                                        </div>
                                     </div>
                                 </div>
                             </section>
@@ -1299,6 +1313,7 @@
     </script>
 
 }
+
 
 
 
