@@ -69,8 +69,8 @@ namespace CTSHIPDashboard.Services
 
         public static readonly List<string> PreventiveServices = new()
         {
-            "Antenatal Care (ANC)", "Postnatal Care (PNC)", "Immunization", "Health education", "Family Planning", "Nutrition Assessment and Counselling",
-            "Growth Monitoring and Promotion", "Screening Test", "Others"
+            "Immunization", "Health education", "Family Planning", "Nutrition Assessment and Counselling",
+            "Growth Monitoring and Promotion", "Screening Test", "Antenatal Care (ANC)", "Postnatal Care (PNC)", "Others"
         };
 
         public static readonly List<string> Immunizations = new()
