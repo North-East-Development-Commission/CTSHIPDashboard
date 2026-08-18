@@ -549,9 +549,16 @@
                                                                     <input type="text" name="SelectedPrescriptions[@i].OtherDrugName" value="@prescriptionRows[i].OtherDrugName" class="form-control prescription-other-drug" placeholder="Enter other medicine" />
                                                                 </div>
                                                             </div>
-                                                            <div class="col-md-4">
+                                                            <div class="col-md-3">
                                                                 <label class="form-label small fw-bold">Dosage</label>
                                                                 <input type="text" name="SelectedPrescriptions[@i].Strength" value="@prescriptionRows[i].Strength" class="form-control prescription-dosage" placeholder="e.g., 500mg tablet, 5ml syrup" />
+                                                            </div>
+                                                            <div class="col-md-2">
+                                                                <label class="form-label small fw-bold">Stock Status</label>
+                                                                <select name="SelectedPrescriptions[@i].StockStatus" class="form-select prescription-stock-status">
+                                                                    <option value="Instock" selected="@(prescriptionRows[i].StockStatus != "OutOfStock")">Instock</option>
+                                                                    <option value="OutOfStock" selected="@(prescriptionRows[i].StockStatus == "OutOfStock")">OutOfStock</option>
+                                                                </select>
                                                             </div>
                                                             <div class="col-md-2">
                                                                 <label class="form-label small fw-bold">Quantity</label>
@@ -870,14 +877,16 @@
                 const other = row.querySelector('.prescription-other-drug');
                 const dosage = row.querySelector('.prescription-dosage');
                 const quantity = row.querySelector('.prescription-quantity');
+                const stockStatus = row.querySelector('.prescription-stock-status');
                 if (select) select.name = `SelectedPrescriptions[${index}].DrugName`;
                 if (other) other.name = `SelectedPrescriptions[${index}].OtherDrugName`;
                 if (dosage) dosage.name = `SelectedPrescriptions[${index}].Strength`;
                 if (quantity) quantity.name = `SelectedPrescriptions[${index}].QuantityDispensed`;
+                if (stockStatus) stockStatus.name = `SelectedPrescriptions[${index}].StockStatus`;
             });
         }
 
-        function addPrescriptionRow(selectedDrugName = '', dosage = '', quantity = 1, otherDrugName = '') {
+        function addPrescriptionRow(selectedDrugName = '', dosage = '', quantity = 1, otherDrugName = '', stockStatus = 'Instock') {
             const container = document.getElementById('prescriptionRows');
             if (!container) return;
 
@@ -892,9 +901,16 @@
                         <input type="text" class="form-control prescription-other-drug" placeholder="Enter other medicine" />
                     </div>
                 </div>
-                <div class="col-md-4">
+                <div class="col-md-3">
                     <label class="form-label small fw-bold">Dosage</label>
                     <input type="text" class="form-control prescription-dosage" placeholder="e.g., 500mg tablet, 5ml syrup" />
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small fw-bold">Stock Status</label>
+                    <select class="form-select prescription-stock-status">
+                        <option value="Instock">Instock</option>
+                        <option value="OutOfStock">OutOfStock</option>
+                    </select>
                 </div>
                 <div class="col-md-2">
                     <label class="form-label small fw-bold">Quantity</label>
@@ -907,6 +923,7 @@
             renderDrugOptions(row.querySelector('.drug-catalog-select'), selectedDrugName);
             row.querySelector('.prescription-dosage').value = dosage || '';
             row.querySelector('.prescription-other-drug').value = otherDrugName || '';
+            row.querySelector('.prescription-stock-status').value = stockStatus === 'OutOfStock' ? 'OutOfStock' : 'Instock';
             reindexPrescriptionRows();
             syncPrescriptionOtherRows();
         }
@@ -989,10 +1006,11 @@
                 const other = firstRow.querySelector('.prescription-other-drug');
                 const dosage = firstRow.querySelector('.prescription-dosage');
                 const quantity = firstRow.querySelector('.prescription-quantity');
+                const stockStatus = firstRow.querySelector('.prescription-stock-status');
                 if (drug) drug.value = '';
                 if (other) other.value = '';
                 if (dosage) dosage.value = '';
-                if (quantity) quantity.value = 1;
+                if (quantity) quantity.value = 1;`r`n                if (stockStatus) stockStatus.value = 'Instock';
             }
             reindexPrescriptionRows();
         }
@@ -1281,3 +1299,7 @@
     </script>
 
 }
+
+
+
+

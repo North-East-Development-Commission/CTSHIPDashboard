@@ -487,17 +487,27 @@ public class HmoController : Controller
     }
 
     [Authorize(Roles = "HMO")]
-    public async Task<IActionResult> Capitation(string? reportingMonth = null, decimal? capitationPerEnrollee = null)
+    public async Task<IActionResult> Capitation(int? hmoId = null, string? reportingMonth = null, decimal? capitationPerEnrollee = null)
     {
         ApplicationUser? currentUser = await _userManager.GetUserAsync(User);
-        if (currentUser?.HmoId == null)
+        int? selectedHmoId = User.IsInRole("HMO") ? currentUser?.HmoId : hmoId;
+        if (!selectedHmoId.HasValue)
         {
-            TempData["Error"] = "Your account is not linked to any HMO.";
+            selectedHmoId = await _context.Hmos
+                .AsNoTracking()
+                .OrderBy(x => x.Name)
+                .Select(x => (int?)x.Id)
+                .FirstOrDefaultAsync();
+        }
+
+        if (!selectedHmoId.HasValue)
+        {
+            TempData["Error"] = "No HMO records are available.";
             return RedirectToAction("Index", "Home");
         }
 
-        int hmoId = currentUser.HmoId.Value;
-        Hmo? hmo = await _context.Hmos.AsNoTracking().FirstOrDefaultAsync(x => x.Id == hmoId);
+        int selectedHmo = selectedHmoId.Value;
+        Hmo? hmo = await _context.Hmos.AsNoTracking().FirstOrDefaultAsync(x => x.Id == selectedHmo);
         if (hmo == null)
         {
             TempData["Error"] = "HMO not found.";
@@ -510,7 +520,7 @@ public class HmoController : Controller
 
         List<Provider> providers = await _context.Providers
             .AsNoTracking()
-            .Where(provider => provider.HmoId == hmoId
+            .Where(provider => provider.HmoId == selectedHmo
                 && provider.IsActive
                 && provider.Level == "Primary")
             .OrderBy(provider => provider.Name)
@@ -525,7 +535,7 @@ public class HmoController : Controller
         {
             enrolleeCounts = await _context.Enrollees
                 .AsNoTracking()
-                .Where(enrollee => enrollee.HmoId == hmoId
+                .Where(enrollee => enrollee.HmoId == selectedHmo
                     && enrollee.ProviderId.HasValue
                     && providerIds.Contains(enrollee.ProviderId.Value)
                     && enrollee.Status == "Active")
@@ -537,7 +547,7 @@ public class HmoController : Controller
                 .AsNoTracking()
                 .Where(encounter => providerIds.Contains(encounter.ProviderId)
                     && encounter.Enrollee != null
-                    && encounter.Enrollee.HmoId == hmoId
+                    && encounter.Enrollee.HmoId == selectedHmo
                     && encounter.VisitDate >= month
                     && encounter.VisitDate < nextMonth)
                 .Select(encounter => new { encounter.ProviderId, encounter.EnrolleeId })
@@ -548,11 +558,15 @@ public class HmoController : Controller
 
             payments = await _context.CapitationPayments
                 .AsNoTracking()
-                .Where(payment => payment.HmoId == hmoId
+                .Where(payment => payment.HmoId == selectedHmo
                     && providerIds.Contains(payment.ProviderId)
                     && payment.ReportingMonth == month)
                 .ToDictionaryAsync(payment => payment.ProviderId);
         }
+
+        ViewBag.AvailableHmos = await _context.Hmos.AsNoTracking().OrderBy(x => x.Name).ToListAsync();
+        ViewBag.SelectedHmoId = selectedHmo;
+        ViewBag.CanUpdateCapitation = User.IsInRole("HMO");
 
         var model = new CapitationIndexViewModel
         {
@@ -2335,6 +2349,11 @@ public class HmoController : Controller
                     $"HMO_Claims_{currentUser.hmo?.Name ?? "All"}_{DateTime.Now:yyyyMMdd_HHmm}.xlsx");
     }
 }
+
+
+
+
+
 
 
 

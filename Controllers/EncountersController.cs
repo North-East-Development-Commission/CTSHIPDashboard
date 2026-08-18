@@ -356,7 +356,8 @@ namespace CTSHIPDashboard.Controllers
                     DrugInventoryItemId = prescription.DrugInventoryItemId,
                     DrugName = prescription.DrugName,
                     Strength = prescription.Strength,
-                    QuantityDispensed = prescription.QuantityDispensed
+                    QuantityDispensed = prescription.QuantityDispensed,
+                    StockStatus = NormalizePrescriptionStockStatus(prescription.StockStatus)
                 })
                 .ToList();
             await PrepareEncounterFormAsync(encounter);
@@ -1197,7 +1198,8 @@ namespace CTSHIPDashboard.Controllers
                     DrugName = finalDrugName,
                     OtherDrugName = isOtherMedicine ? finalDrugName : null,
                     Strength = dosage,
-                    QuantityDispensed = prescription.QuantityDispensed
+                    QuantityDispensed = prescription.QuantityDispensed,
+                    StockStatus = NormalizePrescriptionStockStatus(prescription.StockStatus)
                 });
             }
 
@@ -1205,13 +1207,15 @@ namespace CTSHIPDashboard.Controllers
                 .GroupBy(prescription => new
                 {
                     DrugName = prescription.DrugName ?? string.Empty,
-                    Strength = prescription.Strength ?? string.Empty
+                    Strength = prescription.Strength ?? string.Empty,
+                    StockStatus = prescription.StockStatus ?? string.Empty
                 })
                 .Select(group => new EncounterPrescriptionInputViewModel
                 {
                     DrugName = group.Key.DrugName,
                     Strength = group.Key.Strength,
-                    QuantityDispensed = group.Sum(item => item.QuantityDispensed)
+                    QuantityDispensed = group.Sum(item => item.QuantityDispensed),
+                    StockStatus = NormalizePrescriptionStockStatus(group.Key.StockStatus)
                 })
                 .ToList();
         }
@@ -1539,6 +1543,12 @@ namespace CTSHIPDashboard.Controllers
             return Task.FromResult(true);
         }
 
+        private static string NormalizePrescriptionStockStatus(string? stockStatus)
+        {
+            return string.Equals(stockStatus, "OutOfStock", StringComparison.OrdinalIgnoreCase)
+                ? "OutOfStock"
+                : "Instock";
+        }
         private static void SetEncounterPrescriptions(Encounter encounter)
         {
             encounter.Prescriptions.Clear();
@@ -1558,6 +1568,7 @@ namespace CTSHIPDashboard.Controllers
                     DosageForm = null,
                     UnitOfMeasure = "Unit",
                     QuantityDispensed = prescription.QuantityDispensed,
+                    StockStatus = NormalizePrescriptionStockStatus(prescription.StockStatus),
                     UnitCost = 0m,
                     InventoryDeducted = true,
                     DispensedAt = DateTime.UtcNow
@@ -1681,3 +1692,6 @@ namespace CTSHIPDashboard.Controllers
         }
     }
 }
+
+
+

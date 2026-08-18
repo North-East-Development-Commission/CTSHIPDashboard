@@ -1,4 +1,4 @@
-﻿using CTSHIPDashboard.Data;
+using CTSHIPDashboard.Data;
 using CTSHIPDashboard.Models;
 using CTSHIPDashboard.Models.ViewModels;
 using CTSHIPDashboard.Services;
@@ -838,16 +838,17 @@ public class EnrolleesController : Controller
             BulkEnrolleeColumn column = BulkEnrolleeUploadSchema.Columns[index];
             int row = index + 4;
             guide.Cells[row, 1].Value = column.Header;
-            guide.Cells[row, 2].Value = column.Description;
+            guide.Cells[row, 2].Value = (column.Required ? "Required. " : "Optional. ") + column.Description;
             guide.Cells[row, 3].Value = column.Example;
         }
 
-        guide.Cells["A14"].Value =
+        int guideNoteStartRow = BulkEnrolleeUploadSchema.Columns.Count + 5;
+        guide.Cells[guideNoteStartRow, 1].Value =
             "Choose the HMO and Provider on the upload page. Do not add them as spreadsheet columns.";
-        guide.Cells["A14:C14"].Merge = true;
-        guide.Cells["A15"].Value =
+        guide.Cells[guideNoteStartRow, 1, guideNoteStartRow, 3].Merge = true;
+        guide.Cells[guideNoteStartRow + 1, 1].Value =
             "Row 2 is an example only. Replace it with real enrollee data or delete it before uploading.";
-        guide.Cells["A15:C15"].Merge = true;
+        guide.Cells[guideNoteStartRow + 1, 1, guideNoteStartRow + 1, 3].Merge = true;
         guide.Cells["A3:C3"].Style.Font.Bold = true;
         guide.Cells["A3:C3"].Style.Font.Color.SetColor(Color.White);
         guide.Cells["A3:C3"].Style.Fill.PatternType = OfficeOpenXml.Style.ExcelFillStyle.Solid;
@@ -953,6 +954,12 @@ public class EnrolleesController : Controller
             int Column(string header) =>
                 headerMap[BulkEnrolleeUploadSchema.NormalizeHeader(header)];
 
+            bool HasColumn(string header) =>
+                headerMap.ContainsKey(BulkEnrolleeUploadSchema.NormalizeHeader(header));
+
+            string OptionalCellText(int row, string header) =>
+                HasColumn(header) ? worksheet.Cells[row, Column(header)].Text.Trim() : string.Empty;
+
             HashSet<long> knownNins = await _context.Enrollees
                 .AsNoTracking()
                 .Select(enrollee => enrollee.NIN)
@@ -984,6 +991,8 @@ public class EnrolleesController : Controller
                     string lga = worksheet.Cells[rowNumber, Column("LGA")].Text.Trim();
                     string ward = worksheet.Cells[rowNumber, Column("Ward")].Text.Trim();
                     string address = worksheet.Cells[rowNumber, Column("Address")].Text.Trim();
+                    string vulnerabilityCategory = OptionalCellText(rowNumber, "VulnerabilityCategory");
+                    string otherVulnerableCategory = OptionalCellText(rowNumber, "OtherVulnerableCategory");
 
                     if (new[] { fullName, genderValue, phone, ninValue, stateValue, lga, ward, address }
                         .All(string.IsNullOrWhiteSpace)
@@ -1066,6 +1075,51 @@ public class EnrolleesController : Controller
                         continue;
                     }
 
+                    bool isPregnant = false;
+                    bool hasDisability = false;
+                    bool isIdp = false;
+                    string? normalizedOtherVulnerableCategory = null;
+                    string normalizedVulnerability = BulkEnrolleeUploadSchema.NormalizeHeader(vulnerabilityCategory);
+                    if (!string.IsNullOrWhiteSpace(normalizedVulnerability))
+                    {
+                        switch (normalizedVulnerability)
+                        {
+                            case "PREGNANT":
+                            case "PREGNANTWOMAN":
+                                isPregnant = true;
+                                break;
+                            case "PLWD":
+                            case "DISABILITY":
+                            case "PERSONLIVINGWITHDISABILITY":
+                                hasDisability = true;
+                                break;
+                            case "IDP":
+                            case "INTERNALLYDISPLACEDPERSON":
+                                isIdp = true;
+                                break;
+                            case "OTHER":
+                            case "OTHERS":
+                                if (string.IsNullOrWhiteSpace(otherVulnerableCategory))
+                                {
+                                    errors.Add($"Row {rowNumber}: OtherVulnerableCategory is required when VulnerabilityCategory is Others.");
+                                    continue;
+                                }
+                                normalizedOtherVulnerableCategory = otherVulnerableCategory.Trim();
+                                break;
+                            case "NONE":
+                            case "NOTAPPLICABLE":
+                            case "NA":
+                                break;
+                            default:
+                                errors.Add($"Row {rowNumber}: VulnerabilityCategory must be Pregnant Woman, PLWD, IDP, Others, or blank.");
+                                continue;
+                        }
+                    }
+                    else if (!string.IsNullOrWhiteSpace(otherVulnerableCategory))
+                    {
+                        normalizedOtherVulnerableCategory = otherVulnerableCategory.Trim();
+                    }
+
                     if (!knownNins.Add(nin))
                     {
                         errors.Add(
@@ -1087,6 +1141,10 @@ public class EnrolleesController : Controller
                         ProviderId = providerId,
                         NIN = nin,
                         Status = "Active",
+                        IsPregnant = isPregnant,
+                        HasDisability = hasDisability,
+                        IsIdp = isIdp,
+                        OtherVulnerableCategory = normalizedOtherVulnerableCategory,
                         IsActive = true,
                         DateRegistered = DateTime.Now,
                         RegisteredBy = User.Identity?.Name ?? "Bulk Upload"
@@ -1296,5 +1354,11 @@ public class EnrolleesController : Controller
         return View(enrollees);
     }
 }
+
+
+
+
+
+
 
 

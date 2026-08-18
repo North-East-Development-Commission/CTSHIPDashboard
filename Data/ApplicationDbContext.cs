@@ -342,6 +342,7 @@ namespace CTSHIPDashboard.Data
                 entity.Property(x => x.Strength).HasMaxLength(100);
                 entity.Property(x => x.DosageForm).HasMaxLength(100);
                 entity.Property(x => x.UnitOfMeasure).IsRequired().HasMaxLength(50);
+                entity.Property(x => x.StockStatus).IsRequired().HasMaxLength(20).HasDefaultValue("Instock");
                 entity.Property(x => x.UnitCost).HasColumnType("decimal(18,2)");
                 entity.HasIndex(x => x.EncounterId);
                 entity.HasIndex(x => x.DrugInventoryItemId);
@@ -632,6 +633,9 @@ namespace CTSHIPDashboard.Data
         }
     }
 }
+
+
+
 
 
 

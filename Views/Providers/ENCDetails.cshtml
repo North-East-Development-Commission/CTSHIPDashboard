@@ -1,4 +1,4 @@
-﻿@model CTSHIPDashboard.Models.Encounter
+@model CTSHIPDashboard.Models.Encounter
 
 @functions {
     private static List<string> SplitClinicalData(string? value)
@@ -251,6 +251,7 @@
                                                     <tr>
                                                         <th>Title</th>
                                                         <th>Dosage</th>
+                                                        <th>Stock Status</th>
                                                         <th class="text-end">Quantity</th>
                                                     </tr>
                                                 </thead>
@@ -262,6 +263,7 @@
                                                         <tr>
                                                             <td>@prescription.DrugName</td>
                                                             <td>@(string.IsNullOrWhiteSpace(dosage) ? "Not recorded" : dosage)</td>
+                                                            <td><span class="badge @(prescription.StockStatus == "OutOfStock" ? "bg-danger" : "bg-success")">@prescription.StockStatus</span></td>
                                                             <td class="text-end">@prescription.QuantityDispensed.ToString("N0")</td>
                                                         </tr>
                                                     }

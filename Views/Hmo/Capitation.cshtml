@@ -2,6 +2,9 @@
 
 @{
     ViewData["Title"] = "Capitation";
+    var availableHmos = ViewBag.AvailableHmos as List<Hmo> ?? new List<Hmo>();
+    int? selectedHmoId = ViewBag.SelectedHmoId as int?;
+    bool canUpdateCapitation = ViewBag.CanUpdateCapitation as bool? ?? User.IsInRole("HMO");
 }
 
 <div class="container-fluid py-5">
@@ -104,7 +107,10 @@
                             <th>Utilization Rate</th>
                             <th>Payment Status</th>
                             <th>Payment Reference / Proof of Payment</th>
-                            <th>Update</th>
+                            @if (canUpdateCapitation)
+                            {
+                                <th>Update</th>
+                            }
                         </tr>
                     </thead>
                     <tbody>
@@ -208,3 +214,5 @@
         </div>
     </div>
 </div>
+
+

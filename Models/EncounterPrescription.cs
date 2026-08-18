@@ -31,6 +31,10 @@ namespace CTSHIPDashboard.Models
         [Range(1, int.MaxValue)]
         public int QuantityDispensed { get; set; }
 
+        [Required]
+        [StringLength(20)]
+        public string StockStatus { get; set; } = "Instock";
+
         [Range(typeof(decimal), "0", "9999999999999999")]
         public decimal UnitCost { get; set; }
 
@@ -41,3 +45,4 @@ namespace CTSHIPDashboard.Models
         public decimal TotalCost => UnitCost * QuantityDispensed;
     }
 }
+

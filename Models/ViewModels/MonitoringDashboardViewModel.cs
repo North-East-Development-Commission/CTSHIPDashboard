@@ -59,6 +59,7 @@ namespace CTSHIPDashboard.Models.ViewModels
         public int ReferralProviders { get; set; }
         public int TotalHmos { get; set; }
         public int TotalEncounters { get; set; }
+        public int TotalVisits { get; set; }
         public decimal EncounterRatePerThousand { get; set; }
         public int TotalClaims { get; set; }
         public int PaidClaims { get; set; }
@@ -183,6 +184,8 @@ namespace CTSHIPDashboard.Models.ViewModels
         public int TargetEnrollees { get; set; }
     }
 }
+
+
 
 
 

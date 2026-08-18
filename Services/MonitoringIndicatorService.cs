@@ -257,6 +257,10 @@ namespace CTSHIPDashboard.Services
             int rejectedClaims = claims.Count(x =>
                 string.Equals(x.Status, "Rejected", StringComparison.OrdinalIgnoreCase));
             int totalEncounters = await encounterQuery.CountAsync(cancellationToken);
+            int totalVisits = await encounterQuery
+                .Select(x => new { x.EnrolleeId, VisitDay = x.VisitDate.Date })
+                .Distinct()
+                .CountAsync(cancellationToken);
             int uniqueServiceUsers = await encounterQuery
                 .Select(x => x.EnrolleeId)
                 .Distinct()
@@ -413,6 +417,7 @@ namespace CTSHIPDashboard.Services
                 ReferralProviders = referralProviders,
                 TotalHmos = totalHmos,
                 TotalEncounters = totalEncounters,
+                TotalVisits = totalVisits,
                 EncounterRatePerThousand = RatePerThousand(totalEncounters, active),
                 TotalClaims = claims.Count,
                 PaidClaims = paidClaims,
@@ -939,6 +944,8 @@ namespace CTSHIPDashboard.Services
         }
     }
 }
+
+
 
 
 

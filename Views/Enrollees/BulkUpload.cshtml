@@ -46,7 +46,7 @@
                                 <input type="file" name="excelFile" accept=".xlsx"
                                        class="form-control form-control-lg" required />
                                 <small class="text-muted">
-                                    Use the downloadable template. Header order may vary, but every required header must be present.
+                                    Use the downloadable template. Header order may vary. Required headers must be present; optional vulnerability headers can be omitted.
                                 </small>
                             </div>
 
@@ -104,6 +104,7 @@
                                     <tr>
                                         <th>#</th>
                                         <th>Column Header</th>
+                                        <th>Requirement</th>
                                         <th>Description</th>
                                         <th>Example</th>
                                     </tr>
@@ -115,6 +116,7 @@
                                         <tr>
                                             <td>@(index + 1)</td>
                                             <td><code>@column.Header</code></td>
+                                            <td><span class="badge @(column.Required ? "bg-danger" : "bg-secondary")">@(column.Required ? "Required" : "Optional")</span></td>
                                             <td>@column.Description</td>
                                             <td>@column.Example</td>
                                         </tr>
@@ -139,3 +141,4 @@
         </div>
     </div>
 </div>
+

@@ -99,5 +99,9 @@ namespace CTSHIPDashboard.Models.ViewModels
 
         [Range(1, int.MaxValue, ErrorMessage = "Enter a quantity greater than zero.")]
         public int QuantityDispensed { get; set; } = 1;
+
+        [StringLength(20)]
+        public string StockStatus { get; set; } = "Instock";
     }
 }
+

@@ -6,7 +6,7 @@ namespace CTSHIPDashboard.Services
     {
         public static readonly List<string> TypesOfVisit = new()
         {
-            "New visit", "Follow-up visit", "Emergency", "Preventive visit", "Referral visit"
+            "New visit", "Follow-up visit", "Emergency"
         };
 
         public static readonly List<string> PresentingComplaints = new()
@@ -69,7 +69,7 @@ namespace CTSHIPDashboard.Services
 
         public static readonly List<string> PreventiveServices = new()
         {
-            "Immunization", "Health education", "Family Planning", "Nutrition Assessment and Counselling",
+            "Antenatal Care (ANC)", "Postnatal Care (PNC)", "Immunization", "Health education", "Family Planning", "Nutrition Assessment and Counselling",
             "Growth Monitoring and Promotion", "Screening Test", "Others"
         };
 
@@ -96,3 +96,4 @@ namespace CTSHIPDashboard.Services
         public static readonly List<string> SexOptions = new() { "Male", "Female", "Other" };
     }
 }
+

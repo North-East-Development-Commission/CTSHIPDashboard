@@ -118,7 +118,7 @@
                                         <div class="table-responsive">
                                             <table class="table table-sm align-middle mb-0">
                                                 <thead>
-                                                    <tr><th>Drug Title</th><th>Dosage</th><th>Quantity</th></tr>
+                                                    <tr><th>Drug Title</th><th>Dosage</th><th>Stock Status</th><th>Quantity</th></tr>
                                                 </thead>
                                                 <tbody>
                                                     @for (int i = 0; i < Model.SelectedPrescriptions.Count; i++)
@@ -127,12 +127,14 @@
                                                         <input type="hidden" name="SelectedPrescriptions[@i].DrugName" value="@Model.SelectedPrescriptions[i].DrugName" />
                                                         <input type="hidden" name="SelectedPrescriptions[@i].Strength" value="@Model.SelectedPrescriptions[i].Strength" />
                                                         <input type="hidden" name="SelectedPrescriptions[@i].QuantityDispensed" value="@Model.SelectedPrescriptions[i].QuantityDispensed" />
+                                                        <input type="hidden" name="SelectedPrescriptions[@i].StockStatus" value="@Model.SelectedPrescriptions[i].StockStatus" />
                                                     }
                                                     @foreach (var prescription in Model.Prescriptions)
                                                     {
                                                         <tr>
                                                             <td>@prescription.DrugName</td>
                                                             <td>@string.Join(" ", new[] { prescription.Strength, prescription.DosageForm }.Where(value => !string.IsNullOrWhiteSpace(value)))</td>
+                                                            <td><span class="badge @(prescription.StockStatus == "OutOfStock" ? "bg-danger" : "bg-success")">@prescription.StockStatus</span></td>
                                                             <td>@prescription.QuantityDispensed.ToString("N0") @prescription.UnitOfMeasure</td>
                                                         </tr>
                                                     }
@@ -433,3 +435,4 @@
         syncEditClinicalSections();
     </script>
 }
+

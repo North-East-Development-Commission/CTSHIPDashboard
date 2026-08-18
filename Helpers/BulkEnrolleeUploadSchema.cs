@@ -3,7 +3,8 @@ namespace CTSHIPDashboard.Helpers
     public sealed record BulkEnrolleeColumn(
         string Header,
         string Description,
-        string Example);
+        string Example,
+        bool Required = true);
 
     public static class BulkEnrolleeUploadSchema
     {
@@ -18,11 +19,13 @@ namespace CTSHIPDashboard.Helpers
                 new("State", "Required. Adamawa, Bauchi, Borno, Gombe, Taraba, or Yobe.", "Borno"),
                 new("LGA", "Required. Local Government Area.", "Maiduguri Metropolitan"),
                 new("Ward", "Required. Enrollee's ward.", "Shehuri North"),
-                new("Address", "Required. Residential address.", "12 Example Street, Maiduguri")
+                new("Address", "Required. Residential address.", "12 Example Street, Maiduguri"),
+                new("VulnerabilityCategory", "Optional. Use Pregnant Woman, PLWD, IDP, Others, or leave blank.", "IDP", false),
+                new("OtherVulnerableCategory", "Optional. Required only when VulnerabilityCategory is Others.", "Conflict-affected person", false)
             };
 
         public static IReadOnlyList<string> RequiredHeaders { get; } =
-            Columns.Select(column => column.Header).ToList();
+            Columns.Where(column => column.Required).Select(column => column.Header).ToList();
 
         public static string NormalizeHeader(string? value) =>
             new string((value ?? string.Empty)
@@ -31,3 +34,4 @@ namespace CTSHIPDashboard.Helpers
                 .ToArray());
     }
 }
+
