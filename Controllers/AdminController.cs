@@ -523,7 +523,7 @@ namespace CTSHIPDashboard.Controllers
         [Authorize(Roles = "CTSHIPAdmin,Admin")]
         public async Task<IActionResult> DeleteUser(string id)
         {
-            if (string.IsNullOrEmpty(id) || confirmDelete != "true") return NotFound();
+            if (string.IsNullOrEmpty(id)) return NotFound();
 
             var user = await _userManager.FindByIdAsync(id);
             if (user == null) return NotFound();
