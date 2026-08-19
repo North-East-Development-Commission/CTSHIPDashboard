@@ -1,4 +1,4 @@
-﻿using CTSHIPDashboard.Data;
+using CTSHIPDashboard.Data;
 using CTSHIPDashboard.Models;
 using CTSHIPDashboard.Helpers;
 using CTSHIPDashboard.Models.ViewModels;
@@ -425,7 +425,7 @@ namespace CTSHIPDashboard.Controllers
                     catch { }
 
                     TempData["Success"] = $"User '{model.FullName}' created successfully!";
-                    return RedirectToAction("Users", "Admin");
+                    return RedirectToAction(nameof(Users));
                 }
 
                 foreach (var error in result.Errors)
@@ -523,7 +523,7 @@ namespace CTSHIPDashboard.Controllers
         [Authorize(Roles = "CTSHIPAdmin,Admin")]
         public async Task<IActionResult> DeleteUser(string id)
         {
-            if (string.IsNullOrEmpty(id)) return NotFound();
+            if (string.IsNullOrEmpty(id) || confirmDelete != "true") return NotFound();
 
             var user = await _userManager.FindByIdAsync(id);
             if (user == null) return NotFound();
@@ -533,18 +533,18 @@ namespace CTSHIPDashboard.Controllers
         }
 
         // POST: Admin/DeleteUser/5
-        [HttpPost, ActionName("DeleteUserConfirmed")]
+        [HttpPost]
         [ValidateAntiForgeryToken]
         [Authorize(Roles = "CTSHIPAdmin,Admin")]
-        public async Task<IActionResult> DeleteUserConfirmed(string id)
+        public async Task<IActionResult> DeleteUser(string id, string confirmDelete)
         {
-            if (string.IsNullOrEmpty(id)) return NotFound();
+            if (string.IsNullOrEmpty(id) || confirmDelete != "true") return NotFound();
 
             var user = await _userManager.FindByIdAsync(id);
             if (user == null)
             {
                 TempData["Error"] = "User not found.";
-                return RedirectToAction("Users");
+                return RedirectToAction(nameof(Users));
             }
 
             await using var transaction = await _context.Database.BeginTransactionAsync();
@@ -559,7 +559,7 @@ namespace CTSHIPDashboard.Controllers
                     {
                         await transaction.RollbackAsync();
                         TempData["Error"] = "Failed to remove user roles: " + string.Join(", ", removeRolesResult.Errors.Select(e => e.Description));
-                        return RedirectToAction("Users");
+                        return RedirectToAction(nameof(Users));
                     }
                 }
 
@@ -580,7 +580,7 @@ namespace CTSHIPDashboard.Controllers
                 {
                     await transaction.RollbackAsync();
                     TempData["Error"] = "Failed to delete user: " + string.Join(", ", deleteResult.Errors.Select(e => e.Description));
-                    return RedirectToAction("Users");
+                    return RedirectToAction(nameof(Users));
                 }
 
                 await transaction.CommitAsync();
@@ -598,7 +598,7 @@ namespace CTSHIPDashboard.Controllers
                 TempData["Error"] = "Failed to delete user because linked records still exist: " + exception.GetBaseException().Message;
             }
 
-            return RedirectToAction("Users");
+            return RedirectToAction(nameof(Users));
         }
 
         // HELPER METHOD — POPULATE BOTH DROPDOWNS
