@@ -62,6 +62,7 @@ namespace CTSHIPDashboard.Controllers
             vm.ProviderActivityRate = CalculateRate(vm.ProvidersWithEncounters, vm.TotalProviders);
 
             vm.TotalEncounters = await _context.Encounters.CountAsync();
+            vm.TotalVisits = vm.TotalEncounters;
             vm.UniqueServiceUsers = await _context.Encounters
                 .Select(e => e.EnrolleeId)
                 .Distinct()

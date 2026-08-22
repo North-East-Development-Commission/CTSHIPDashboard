@@ -445,6 +445,7 @@ public class HmoController : Controller
         ViewBag.EnrolleeCount = hmo.Enrollees?.Count ?? 0;
         ViewBag.ClaimCount = hmo.Claims?.Count ?? 0;
         ViewBag.ProviderCount = hmo.Providers?.Count ?? 0;
+        ViewBag.TotalVisits = await _context.Encounters.CountAsync(encounter => encounter.Enrollee != null && encounter.Enrollee.HmoId == hmo.Id);
 
         ViewBag.PendingClaims = hmo.Claims?.Count(c => c.Status == "Submitted") ?? 0;
         ViewBag.PaidClaims = hmo.Claims?.Count(c => c.Status == "Paid") ?? 0;
@@ -2198,7 +2199,8 @@ public class HmoController : Controller
         ViewBag.TotalEncounters = await _context.Enrollees
             .Where(e => e.HmoId == currentUser.HmoId)
             .SumAsync(e => e.Encounters.Count);
-        ViewBag.TotalClaims = await _context.Enrollees
+                ViewBag.TotalVisits = ViewBag.TotalEncounters;
+ViewBag.TotalClaims = await _context.Enrollees
             .Where(e => e.HmoId == currentUser.HmoId)
             .SumAsync(e => e.Claims.Count);
 

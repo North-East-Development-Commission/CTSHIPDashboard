@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity;
 using System.ComponentModel.DataAnnotations.Schema;
 
 namespace CTSHIPDashboard.Models
@@ -15,6 +15,11 @@ namespace CTSHIPDashboard.Models
         [ForeignKey("ProviderId")]
         public virtual Provider? Provider { get; set; }
         public int? OrganizationId { get; set; }
+        public bool IsDeleted { get; set; }
+        public DateTime? DeletedAt { get; set; }
+        public string? DeletedByUserId { get; set; }
+        public string? DeletedByName { get; set; }
+        public string? DeletionReason { get; set; }
         [ForeignKey("OrganizationId")] // This tells EF which ID to use for this object
         public virtual Organization? Organizations { get; set; }
     }

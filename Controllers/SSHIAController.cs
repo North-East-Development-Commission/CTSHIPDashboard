@@ -59,6 +59,7 @@ namespace CTSHIPDashboard.Controllers
                     .Distinct()
                     .CountAsync(cancellationToken),
                 TotalEncounters = await stateEncounters.CountAsync(cancellationToken),
+                TotalVisits = await stateEncounters.CountAsync(cancellationToken),
                 UniqueServiceUsers = await stateEncounters
                     .Select(encounter => encounter.EnrolleeId)
                     .Distinct()

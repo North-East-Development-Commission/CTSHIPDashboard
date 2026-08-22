@@ -1342,7 +1342,8 @@ public class EnrolleesController : Controller
             .CountAsync(e => e.HmoId == currentHmoId && e.Status == "Active");
         ViewBag.TotalEncounters = await _context.Encounters
             .CountAsync(e => e.Enrollee != null && e.Enrollee.HmoId == currentHmoId);
-        ViewBag.TotalClaims = await _context.Claims
+                ViewBag.TotalVisits = ViewBag.TotalEncounters;
+ViewBag.TotalClaims = await _context.Claims
             .CountAsync(e => e.HmoId == currentHmoId);
 
         ViewBag.Search = search;

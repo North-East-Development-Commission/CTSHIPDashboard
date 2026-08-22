@@ -172,6 +172,7 @@ namespace CTSHIPDashboard.Controllers
         {
             // Use .Include to eager-load navigation properties
             var query = _userManager.Users
+                .Where(u => !u.IsDeleted)
                 .Include(u => u.Organizations)
                 .Include(u => u.Provider)
                 .Include(u => u.hmo)
@@ -196,9 +197,7 @@ namespace CTSHIPDashboard.Controllers
                     Id = user.Id,
                     FullName = user.FullName ?? "Not Set",
                     Email = user.Email!,
-                    // FIX: Removed the '?' and correctly mapped the ID
                     OrganizationId = user.OrganizationId ?? 0,
-                    // Pass the loaded object to the viewmodel
                     organization = user.Organizations,
                     ProviderId = user.ProviderId,
                     Provider = user.Provider,
@@ -208,7 +207,11 @@ namespace CTSHIPDashboard.Controllers
                     State = user.State,
                     ContactInfo = user.ContactInfo,
                     EmailConfirmed = user.EmailConfirmed,
-                    IsLocked = await _userManager.IsLockedOutAsync(user)
+                    IsLocked = await _userManager.IsLockedOutAsync(user),
+                    IsDeleted = user.IsDeleted,
+                    DeletedAt = user.DeletedAt,
+                    DeletedByName = user.DeletedByName,
+                    DeletionReason = user.DeletionReason
                 });
             }
 
@@ -224,7 +227,7 @@ namespace CTSHIPDashboard.Controllers
                 .Include(u => u.Organizations)
                 .Include(u => u.Provider)
                 .Include(u => u.hmo)
-                .FirstOrDefaultAsync(u => u.Id == id);
+                .FirstOrDefaultAsync(u => u.Id == id && !u.IsDeleted);
 
             if (user == null) return NotFound();
 
@@ -245,7 +248,11 @@ namespace CTSHIPDashboard.Controllers
                 State = user.State,
                 ContactInfo = user.ContactInfo,
                 EmailConfirmed = user.EmailConfirmed,
-                IsLocked = await _userManager.IsLockedOutAsync(user)
+                IsLocked = await _userManager.IsLockedOutAsync(user),
+                IsDeleted = user.IsDeleted,
+                DeletedAt = user.DeletedAt,
+                DeletedByName = user.DeletedByName,
+                DeletionReason = user.DeletionReason
             };
 
             return View(model);
@@ -308,7 +315,7 @@ namespace CTSHIPDashboard.Controllers
         public async Task<IActionResult> AssignRole(string id)
         {
             var user = await _userManager.FindByIdAsync(id);
-            if (user == null) return NotFound();
+            if (user == null || user.IsDeleted) return NotFound();
 
             var userRoles = await _userManager.GetRolesAsync(user);
             var allRoles = await _roleManager.Roles.Select(r => r.Name!).ToListAsync();
@@ -331,7 +338,7 @@ namespace CTSHIPDashboard.Controllers
         public async Task<IActionResult> AssignRole(AssignRoleViewModel model)
         {
             var user = await _userManager.FindByIdAsync(model.UserId);
-            if (user == null) return NotFound();
+            if (user == null || user.IsDeleted) return NotFound();
 
             var currentRoles = await _userManager.GetRolesAsync(user);
 
@@ -392,7 +399,75 @@ namespace CTSHIPDashboard.Controllers
 
             if (ModelState.IsValid)
             {
+                                string normalizedEmail = _userManager.NormalizeEmail(model.Email!);
+                ApplicationUser? deletedUser = await _userManager.Users
+                    .FirstOrDefaultAsync(user => user.NormalizedEmail == normalizedEmail && user.IsDeleted);
+
+                if (deletedUser != null)
+                {
+                    deletedUser.UserName = model.Email;
+                    deletedUser.NormalizedUserName = _userManager.NormalizeName(model.Email!);
+                    deletedUser.Email = model.Email;
+                    deletedUser.NormalizedEmail = normalizedEmail;
+                    deletedUser.FullName = model.FullName;
+                    deletedUser.State = model.State;
+                    deletedUser.ContactInfo = model.ContactInfo;
+                    deletedUser.EmailConfirmed = true;
+                    deletedUser.OrganizationId = model.OrganizationId;
+                    deletedUser.ProviderId = model.ProviderId;
+                    deletedUser.HmoId = model.HmoId;
+                    deletedUser.IsDeleted = false;
+                    deletedUser.DeletedAt = null;
+                    deletedUser.DeletedByUserId = null;
+                    deletedUser.DeletedByName = null;
+                    deletedUser.DeletionReason = null;
+                    deletedUser.LockoutEnd = null;
+                    deletedUser.LockoutEnabled = true;
+
+                    var passwordToken = await _userManager.GeneratePasswordResetTokenAsync(deletedUser);
+                    var passwordResult = await _userManager.ResetPasswordAsync(deletedUser, passwordToken, model.Password!);
+                    if (!passwordResult.Succeeded)
+                    {
+                        foreach (var error in passwordResult.Errors)
+                        {
+                            ModelState.AddModelError(string.Empty, error.Description);
+                        }
+
+                        await PopulateDropdownsAsync();
+                        return View(model);
+                    }
+
+                    var updateResult = await _userManager.UpdateAsync(deletedUser);
+                    if (!updateResult.Succeeded)
+                    {
+                        foreach (var error in updateResult.Errors)
+                        {
+                            ModelState.AddModelError(string.Empty, error.Description);
+                        }
+
+                        await PopulateDropdownsAsync();
+                        return View(model);
+                    }
+
+                    var currentRoles = await _userManager.GetRolesAsync(deletedUser);
+                    if (currentRoles.Any())
+                    {
+                        await _userManager.RemoveFromRolesAsync(deletedUser, currentRoles);
+                    }
+
+                    if (model.SelectedRoles != null && model.SelectedRoles.Any())
+                    {
+                        await _userManager.AddToRolesAsync(deletedUser, model.SelectedRoles);
+                    }
+
+                    await _userManager.UpdateSecurityStampAsync(deletedUser);
+                    await LogAuditAsync("UserRestored", deletedUser.Email, $"Restored safe-deleted user: {model.FullName}; Roles: {string.Join(',', model.SelectedRoles ?? new List<string>())}");
+                    TempData["Success"] = $"User '{model.FullName}' has been re-added successfully.";
+                    return RedirectToAction(nameof(Users));
+                }
+
                 var user = new ApplicationUser
+
                 {
                     UserName = model.Email,
                     Email = model.Email,
@@ -445,7 +520,7 @@ namespace CTSHIPDashboard.Controllers
             await PopulateDropdownsAsync();
 
             var user = await _userManager.FindByIdAsync(id);
-            if (user == null) return NotFound();
+            if (user == null || user.IsDeleted) return NotFound();
 
             var userRoles = await _userManager.GetRolesAsync(user);
 
@@ -476,7 +551,7 @@ namespace CTSHIPDashboard.Controllers
         public async Task<IActionResult> EditUser(EditUserViewModel model)
         {
             var user = await _userManager.FindByIdAsync(model.Id);
-            if (user == null) return NotFound();
+            if (user == null || user.IsDeleted) return NotFound();
 
             await ValidateAndNormalizeOrganizationLinksAsync(
                 model.OrganizationId,
@@ -526,7 +601,7 @@ namespace CTSHIPDashboard.Controllers
             if (string.IsNullOrEmpty(id)) return NotFound();
 
             var user = await _userManager.FindByIdAsync(id);
-            if (user == null) return NotFound();
+            if (user == null || user.IsDeleted) return NotFound();
 
             ViewBag.UserName = user.FullName ?? user.Email;
             return View(user);
@@ -536,71 +611,48 @@ namespace CTSHIPDashboard.Controllers
         [HttpPost]
         [ValidateAntiForgeryToken]
         [Authorize(Roles = "CTSHIPAdmin,Admin")]
-        public async Task<IActionResult> DeleteUser(string id, string confirmDelete)
+        public async Task<IActionResult> DeleteUser(string id, string confirmDelete, string? deletionReason)
         {
             if (string.IsNullOrEmpty(id) || confirmDelete != "true") return NotFound();
 
             var user = await _userManager.FindByIdAsync(id);
-            if (user == null)
+            if (user == null || user.IsDeleted)
             {
                 TempData["Error"] = "User not found.";
                 return RedirectToAction(nameof(Users));
             }
 
-            await using var transaction = await _context.Database.BeginTransactionAsync();
-            try
+            ApplicationUser? currentUser = await _userManager.GetUserAsync(User);
+            if (currentUser?.Id == user.Id)
             {
-                // Remove dependent Identity rows because this app uses Restrict delete behavior.
-                var userRoles = await _userManager.GetRolesAsync(user);
-                if (userRoles.Any())
-                {
-                    var removeRolesResult = await _userManager.RemoveFromRolesAsync(user, userRoles);
-                    if (!removeRolesResult.Succeeded)
-                    {
-                        await transaction.RollbackAsync();
-                        TempData["Error"] = "Failed to remove user roles: " + string.Join(", ", removeRolesResult.Errors.Select(e => e.Description));
-                        return RedirectToAction(nameof(Users));
-                    }
-                }
-
-                _context.Set<IdentityUserClaim<string>>()
-                    .RemoveRange(_context.Set<IdentityUserClaim<string>>().Where(claim => claim.UserId == id));
-                _context.Set<IdentityUserLogin<string>>()
-                    .RemoveRange(_context.Set<IdentityUserLogin<string>>().Where(login => login.UserId == id));
-                _context.Set<IdentityUserToken<string>>()
-                    .RemoveRange(_context.Set<IdentityUserToken<string>>().Where(token => token.UserId == id));
-                _context.UserActivities.RemoveRange(_context.UserActivities.Where(activity => activity.UserId == id));
-
-                user.ProviderId = null;
-                user.OrganizationId = null;
-                user.HmoId = null;
-
-                var deleteResult = await _userManager.DeleteAsync(user);
-                if (!deleteResult.Succeeded)
-                {
-                    await transaction.RollbackAsync();
-                    TempData["Error"] = "Failed to delete user: " + string.Join(", ", deleteResult.Errors.Select(e => e.Description));
-                    return RedirectToAction(nameof(Users));
-                }
-
-                await transaction.CommitAsync();
-
-                try
-                {
-                    await LogAuditAsync("UserDeleted", user.Email, $"Deleted user: {user.FullName ?? user.Email}");
-                }
-                catch { }
-                TempData["Success"] = $"User '{user.FullName ?? user.Email}' has been deleted successfully.";
-            }
-            catch (DbUpdateException exception)
-            {
-                await transaction.RollbackAsync();
-                TempData["Error"] = "Failed to delete user because linked records still exist: " + exception.GetBaseException().Message;
+                TempData["Error"] = "You cannot safe-delete your own active account.";
+                return RedirectToAction(nameof(Users));
             }
 
+            user.IsDeleted = true;
+            user.DeletedAt = DateTime.UtcNow;
+            user.DeletedByUserId = currentUser?.Id;
+            user.DeletedByName = currentUser?.FullName ?? User.Identity?.Name;
+            user.DeletionReason = string.IsNullOrWhiteSpace(deletionReason) ? null : deletionReason.Trim();
+            user.LockoutEnabled = true;
+            user.LockoutEnd = DateTimeOffset.MaxValue;
+
+            var updateResult = await _userManager.UpdateAsync(user);
+            if (!updateResult.Succeeded)
+            {
+                TempData["Error"] = "Failed to safe-delete user: " + string.Join(", ", updateResult.Errors.Select(e => e.Description));
+                return RedirectToAction(nameof(Users));
+            }
+
+            await _userManager.UpdateSecurityStampAsync(user);
+            await LogAuditAsync(
+                "UserSafeDeleted",
+                user.Email,
+                $"Safe-deleted user: {user.FullName ?? user.Email}. Activity and audit history retained. Reason: {user.DeletionReason ?? "Not supplied"}");
+
+            TempData["Success"] = $"User '{user.FullName ?? user.Email}' has been safe-deleted. Activity history was retained.";
             return RedirectToAction(nameof(Users));
         }
-
         // HELPER METHOD — POPULATE BOTH DROPDOWNS
         private async Task PopulateDropdownsAsync()
         {

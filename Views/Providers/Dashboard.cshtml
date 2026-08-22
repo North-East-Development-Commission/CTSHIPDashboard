@@ -154,7 +154,7 @@
     <div class="provider-hero text-center mb-4">
         <h1 class="display-4 fw-bold mb-3">@Model.ProviderName</h1>
         <p class="facility-code lead fw-bold fs-5 mb-3">Facility Code: <strong>@Model.ProviderCode</strong></p>
-        <p class="fs-5 fw-bold mb-0">@Model.Level • @Model.State</p>
+        <p class="fs-5 fw-bold mb-0">@Model.Level ï¿½ @Model.State</p>
     </div>
 
     <div class="d-flex flex-wrap justify-content-center gap-2 mb-5">
@@ -194,6 +194,15 @@
         </div>
         <div class="col-xl-3 col-md-6">
             <div class="dashboard-card kpi-card" style="--bg-start:#FE9031; --bg-end:#3B703B;">
+                <div class="kpi-icon">
+                    <i class="bi bi-calendar2-check"></i>
+                </div>
+                <h5>Total Visits</h5>
+                <h2 class="display-5 fw-bold mb-0">@Model.TotalVisits</h2>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="dashboard-card kpi-card" style="--bg-start:#3B703B; --bg-end:#FE9031;">
                 <div class="kpi-icon">
                     <i class="bi bi-journal-medical"></i>
                 </div>
@@ -411,7 +420,7 @@
                                                 <small class="text-muted">@e.Enrollee?.EnrollmentNumber</small>
                                             </td>
                                             <td>
-                                                <strong>@(e.Doctor?.FullName ?? (string.IsNullOrEmpty(e.SeenBy) ? "—" : e.SeenBy))</strong>
+                                                <strong>@(e.Doctor?.FullName ?? (string.IsNullOrEmpty(e.SeenBy) ? "ï¿½" : e.SeenBy))</strong>
                                             </td>
                                             <td class="fw-bold text-success">NGN @((int)e.TotalAmount)</td>
                                             <td>
@@ -457,6 +466,6 @@
     <!-- Footer -->
     <div class="footer-brand">
         <p class="display-6 fw-bold mb-3">Excellence in Healthcare Delivery</p>
-        <p class="lead mb-0">CTSHIP — Partnering with Providers for Universal Coverage</p>
+        <p class="lead mb-0">CTSHIP ï¿½ Partnering with Providers for Universal Coverage</p>
     </div>
 </div>

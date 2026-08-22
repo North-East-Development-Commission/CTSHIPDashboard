@@ -83,5 +83,19 @@ namespace CTSHIPDashboard.Models
 
         [StringLength(1000)]
         public string? AuditNote { get; set; }
+
+        [Required, StringLength(50)]
+        public string NedcAuditStatus { get; set; } = "Pending";
+
+        [StringLength(450)]
+        public string? NedcAuditedByUserId { get; set; }
+
+        [StringLength(200)]
+        public string? NedcAuditedByName { get; set; }
+
+        public DateTime? NedcAuditedAt { get; set; }
+
+        [StringLength(1000)]
+        public string? NedcAuditNote { get; set; }
     }
 }

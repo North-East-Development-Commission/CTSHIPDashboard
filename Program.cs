@@ -692,9 +692,14 @@ app.MapGet("/", context =>
         }
         else if (
             context.User.IsInRole(
-                "IHSA") ||
-            context.User.IsInRole(
                 "NEDCAdmin"))
+        {
+            dashboardPath =
+                "/NEDCAdmin/Dashboard";
+        }
+        else if (
+            context.User.IsInRole(
+                "IHSA"))
         {
             dashboardPath =
                 "/IHSA/Dashboard";

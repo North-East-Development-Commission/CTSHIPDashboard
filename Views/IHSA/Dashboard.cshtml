@@ -1,18 +1,23 @@
 @model CTSHIPDashboard.Models.ViewModels.MonitoringDashboardViewModel
 
 @{
-    ViewData["Title"] = "IHSA Dashboard";
+    string dashboardTitle = ViewBag.DashboardTitle as string ?? "IHSA Dashboard";
+    string dashboardHeading = ViewBag.DashboardHeading as string ?? "IHSA Programme Oversight";
+    string dashboardDescription = ViewBag.DashboardDescription as string ?? "All-state CTSHIP monitoring, report audit, and decision intelligence.";
+    string dashboardViewLabel = ViewBag.DashboardViewLabel as string ?? "Consultant monitoring view";
+    bool isNedcDashboard = ViewBag.IsNedcDashboard as bool? == true;
+    ViewData["Title"] = dashboardTitle;
     var availableHmos = ViewBag.AvailableHmos as List<Hmo> ?? new List<Hmo>();
 }
 
 <div class="ct-page">
     <div class="ct-page-header d-flex flex-wrap justify-content-between align-items-center gap-3">
         <div>
-            <h1 class="mb-1">IHSA Programme Oversight</h1>
-            <p class="mb-0">All-state CTSHIP monitoring, report audit, and decision intelligence.</p>
+            <h1 class="mb-1">@dashboardHeading</h1>
+            <p class="mb-0">@dashboardDescription</p>
         </div>
         <div class="text-end">
-            <div class="fw-bold">Consultant monitoring view</div>
+            <div class="fw-bold">@dashboardViewLabel</div>
             <small>@DateTime.Now.ToString("dd MMM yyyy, h:mm tt")</small>
         </div>
     </div>
@@ -86,7 +91,7 @@
 
     <div class="row g-3 mb-4">
         <div class="col-xl-3 col-md-6"><div class="card bg-success text-white h-100"><div class="card-body"><div>Service Utilization</div><div class="display-6 fw-bold">@Model.ServiceUtilizationRate%</div><small>@Model.UniqueServiceUsers.ToString("N0") unique users</small></div></div></div>
-        <div class="col-xl-3 col-md-6"><div class="card bg-primary text-white h-100"><div class="card-body"><div>Reports Pending Audit</div><div class="display-6 fw-bold">@Model.PendingReports.ToString("N0")</div><small>@Model.AuditedReports.ToString("N0") audited</small></div></div></div>
+        <div class="col-xl-3 col-md-6"><div class="card bg-primary text-white h-100"><div class="card-body"><div>@(isNedcDashboard ? "IHSA Reports Awaiting HQ Audit" : "Reports Pending Audit")</div><div class="display-6 fw-bold">@((isNedcDashboard ? (int)ViewBag.NedcPendingReports : Model.PendingReports).ToString("N0"))</div><small>@(isNedcDashboard ? $"{((int)ViewBag.NedcCompletedReports):N0} HQ decisions recorded" : $"{Model.AuditedReports:N0} audited")</small></div></div></div>
         <div class="col-xl-3 col-md-6"><div class="card bg-success text-white h-100"><div class="card-body"><div>Capitation Paid</div><div class="h3 fw-bold">NGN @Model.Capitation.PaidAmount.ToString("N2")</div><small>@Model.Capitation.PaidPayments of @Model.Capitation.TotalPayments payments</small></div></div></div>
         <div class="col-xl-3 col-md-6"><div class="card bg-primary text-white h-100"><div class="card-body"><div>Active Users</div><div class="display-6 fw-bold">@Model.ActiveUsersLast30Days.ToString("N0")</div><small>Last 30 days</small></div></div></div>
     </div>

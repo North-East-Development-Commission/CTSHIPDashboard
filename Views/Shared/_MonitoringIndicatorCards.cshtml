@@ -58,6 +58,15 @@
     <div class="col-xl-3 col-md-6">
         <div class="card ct-kpi ct-kpi-green-gold h-100">
             <div class="card-body">
+                <div class="text-muted">Number of Visits</div>
+                <div class="display-6 fw-bold">@Model.TotalVisits.ToString("N0")</div>
+                <small>@Model.TotalEncounters.ToString("N0") encounters recorded</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-xl-3 col-md-6">
+        <div class="card ct-kpi ct-kpi-green-gold h-100">
+            <div class="card-body">
                 <div class="text-muted">Number of Referrals</div>
                 <div class="display-6 fw-bold">@Model.TotalReferrals.ToString("N0")</div>
                 <small>@Model.CompletedReferrals.ToString("N0") completed</small>

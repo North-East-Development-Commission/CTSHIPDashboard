@@ -213,6 +213,13 @@ namespace CTSHIPDashboard.Data
         {
             ConfigureDeathRegisterEntities(modelBuilder);
             ConfigureReferralEntities(modelBuilder);
+            modelBuilder.Entity<ApplicationUser>(entity =>
+            {
+                entity.Property(x => x.DeletedByUserId).HasMaxLength(450);
+                entity.Property(x => x.DeletedByName).HasMaxLength(200);
+                entity.Property(x => x.DeletionReason).HasMaxLength(1000);
+                entity.HasIndex(x => x.IsDeleted);
+            });
 
 
             modelBuilder.Entity<AppNotification>(entity =>
@@ -265,10 +272,15 @@ namespace CTSHIPDashboard.Data
                 entity.Property(x => x.AuditedByUserId).HasMaxLength(450);
                 entity.Property(x => x.AuditedByName).HasMaxLength(200);
                 entity.Property(x => x.AuditNote).HasMaxLength(1000);
+                entity.Property(x => x.NedcAuditStatus).IsRequired().HasMaxLength(50).HasDefaultValue("Pending");
+                entity.Property(x => x.NedcAuditedByUserId).HasMaxLength(450);
+                entity.Property(x => x.NedcAuditedByName).HasMaxLength(200);
+                entity.Property(x => x.NedcAuditNote).HasMaxLength(1000);
                 entity.HasIndex(x => x.ReportingMonth);
                 entity.HasIndex(x => x.State);
                 entity.HasIndex(x => x.ProviderId);
                 entity.HasIndex(x => x.AuditStatus);
+                entity.HasIndex(x => x.NedcAuditStatus);
             });
 
             modelBuilder.Entity<ProgramMonitoringTarget>(entity =>

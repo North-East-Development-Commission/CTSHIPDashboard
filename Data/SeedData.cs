@@ -1,4 +1,4 @@
-﻿// Data/SeedData.cs
+// Data/SeedData.cs
 using Bogus;
 using CTSHIPDashboard.Models;
 using Microsoft.AspNetCore.Identity;
@@ -18,7 +18,7 @@ namespace CTSHIPDashboard.Data
             context.Database.EnsureCreated();
 
             // ROLES
-            string[] roles = { "Admin", "CTSHIPAdmin", "HMO", "HmoEnrollmentOfficer", "Provider", "SSHIA", "IHSA", "Monitoring" };
+            string[] roles = { "Admin", "CTSHIPAdmin", "HMO", "HmoEnrollmentOfficer", "Provider", "SSHIA", "IHSA", "NEDCAdmin", "Monitoring" };
             foreach (var role in roles)
             {
                 if (!await roleManager.RoleExistsAsync(role))
@@ -454,7 +454,7 @@ namespace CTSHIPDashboard.Data
             var userManager = serviceProvider.GetRequiredService<UserManager<ApplicationUser>>();
 
             // Ensure roles exist (including NHIA and StateOffice)
-            string[] roles = { "Admin", "CTSHIPAdmin", "HMO", "HmoEnrollmentOfficer", "Provider", "Auditor", "Finance", "Reviewer", "StateOffice", "NHIA", "SSHIA", "IHSA", "Monitoring" };
+            string[] roles = { "Admin", "CTSHIPAdmin", "HMO", "HmoEnrollmentOfficer", "Provider", "Auditor", "Finance", "Reviewer", "StateOffice", "NHIA", "SSHIA", "IHSA", "NEDCAdmin", "Monitoring" };
 
             foreach (var role in roles)
             {

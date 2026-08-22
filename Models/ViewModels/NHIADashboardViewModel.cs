@@ -27,6 +27,7 @@ namespace CTSHIPDashboard.Models.ViewModels
         public decimal ProviderActivityRate { get; set; }
 
         public int TotalEncounters { get; set; }
+        public int TotalVisits { get; set; }
         public int UniqueServiceUsers { get; set; }
         public int EncounterServicesRecorded { get; set; }
         public decimal ServiceUtilizationRate { get; set; }

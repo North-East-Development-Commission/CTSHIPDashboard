@@ -17,6 +17,7 @@ namespace CTSHIPDashboard.ViewModels
         public int? TotalUniqueEnrollees { get; set; }
         public int TotalDoctors { get; set; }
         public int TotalEncounters { get; set; }
+        public int TotalVisits { get; set; }
         public int TotalClaims { get; set; }
         public decimal TotalClaimAmount { get; set; }
         public int PendingClaims { get; set; }

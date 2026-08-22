@@ -1,4 +1,4 @@
-﻿using CTSHIPDashboard.Models;
+using CTSHIPDashboard.Models;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
@@ -18,6 +18,10 @@ public class UserViewModel
     public string? ContactInfo { get; set; }
     public bool EmailConfirmed { get; set; }
     public bool IsLocked { get; set; }
+    public bool IsDeleted { get; set; }
+    public DateTime? DeletedAt { get; set; }
+    public string? DeletedByName { get; set; }
+    public string? DeletionReason { get; set; }
 }
 
 public class CreateUserViewModel

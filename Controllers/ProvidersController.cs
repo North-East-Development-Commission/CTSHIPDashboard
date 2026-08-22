@@ -1,4 +1,4 @@
-﻿using AspNetCoreGeneratedDocument;
+using AspNetCoreGeneratedDocument;
 using CTSHIPDashboard.Data;
 using CTSHIPDashboard.Helpers;
 using CTSHIPDashboard.Enums;
@@ -815,6 +815,7 @@ public class ProvidersController : Controller
             TotalUniqueEnrollees = enrollees.Count,
             TotalDoctors = provider.Doctors?.Count(doctor => doctor.IsActive) ?? 0,
             TotalEncounters = provider.Encounters?.Count ?? 0,
+            TotalVisits = provider.Encounters?.Count ?? 0,
             TotalClaims = provider.Claims?.Count ?? 0,
             TotalClaimAmount = provider.Claims?.Sum(c => c.Amount) ?? 0,
             PendingClaims = provider.Claims?.Count(c => c.Status == "Submitted" || c.Status == "Approved") ?? 0,

@@ -15,6 +15,7 @@ namespace CTSHIPDashboard.Models.ViewModels
         public int PrimaryProviders { get; set; }
         public int TotalHMOs { get; set; }
         public int TotalEncounters { get; set; }
+        public int TotalVisits { get; set; }
         public int UniqueServiceUsers { get; set; }
         public int EncounterServicesRecorded { get; set; }
         public decimal ServiceUtilizationRate { get; set; }

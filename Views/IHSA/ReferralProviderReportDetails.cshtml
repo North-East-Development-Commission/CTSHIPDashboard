@@ -48,7 +48,11 @@
                         <dt class="col-md-4">Submitted</dt><dd class="col-md-8">@Model.DateSubmitted.ToLocalTime().ToString("dd MMMM yyyy HH:mm")</dd>
                         <dt class="col-md-4">Audited By</dt><dd class="col-md-8">@Model.AuditedByName</dd>
                         <dt class="col-md-4">Audited At</dt><dd class="col-md-8">@(Model.AuditedAt.HasValue ? Model.AuditedAt.Value.ToLocalTime().ToString("dd MMMM yyyy HH:mm") : "Not audited")</dd>
-                        <dt class="col-md-4">Audit Note</dt><dd class="col-md-8">@Model.AuditNote</dd>
+                        <dt class="col-md-4">IHSA Audit Note</dt><dd class="col-md-8">@(Model.AuditNote ?? "No note supplied")</dd>
+                        <dt class="col-md-4">NEDC HQ Status</dt><dd class="col-md-8"><span class="badge @(Model.NedcAuditStatus == "Approved" ? "bg-success" : Model.NedcAuditStatus == "Returned" ? "bg-danger" : "bg-warning text-dark")">@Model.NedcAuditStatus</span></dd>
+                        <dt class="col-md-4">NEDC Decision By</dt><dd class="col-md-8">@(Model.NedcAuditedByName ?? "Awaiting HQ review")</dd>
+                        <dt class="col-md-4">NEDC Decision At</dt><dd class="col-md-8">@(Model.NedcAuditedAt?.ToLocalTime().ToString("dd MMMM yyyy HH:mm") ?? "Not decided")</dd>
+                        <dt class="col-md-4">NEDC HQ Note</dt><dd class="col-md-8">@(Model.NedcAuditNote ?? "No HQ note supplied")</dd>
                     </dl>
                 </div>
             </div>
@@ -71,7 +75,7 @@
                             <label class="form-label">Audit Note</label>
                             <textarea name="auditNote" class="form-control" rows="5">@Model.AuditNote</textarea>
                         </div>
-                        <button type="submit" class="btn btn-success w-100">Send Audit to Admin</button>
+                        <button type="submit" class="btn btn-success w-100">Submit Audit to NEDC HQ</button>
                     </form>
                 </div>
             </div>

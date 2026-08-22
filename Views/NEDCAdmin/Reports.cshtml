@@ -1,0 +1,86 @@
+@model IEnumerable<CTSHIPDashboard.Models.StateOfficeMonthlyReport>
+
+@{
+    bool isReferral = ViewBag.IsReferralProviderReport as bool? == true;
+    string listAction = isReferral ? "ReferralProviderReports" : "MonthlyReports";
+    string detailsAction = isReferral ? "ReferralProviderReportDetails" : "MonthlyReportDetails";
+    string reportLabel = isReferral ? "Referral Provider" : "Provider";
+    var availableStates = ViewBag.AvailableStates as List<string> ?? new();
+    string selectedState = ViewBag.State as string ?? string.Empty;
+    string selectedStatus = ViewBag.NedcStatus as string ?? "All";
+    ViewData["Title"] = $"NEDC HQ {reportLabel} Report Audit";
+}
+
+<div class="ct-page">
+    <div class="ct-page-header d-flex flex-wrap justify-content-between align-items-center gap-3">
+        <div>
+            <div class="text-uppercase small fw-semibold opacity-75">IHSA to NEDC HQ</div>
+            <h2 class="mb-1">@reportLabel Report Audit Queue</h2>
+            <p class="mb-0">Only reports cleared by IHSA are presented for final NEDC oversight.</p>
+        </div>
+        <a asp-action="Dashboard" class="btn btn-light"><i class="bi bi-speedometer2"></i> HQ Dashboard</a>
+    </div>
+
+    <div class="row g-3 mb-3">
+        <div class="col-md-3"><div class="card h-100"><div class="card-body"><div class="small text-muted">Received from IHSA</div><div class="fs-3 fw-bold text-primary">@Model.Count()</div></div></div></div>
+        <div class="col-md-3"><div class="card h-100"><div class="card-body"><div class="small text-muted">Awaiting HQ Audit</div><div class="fs-3 fw-bold text-warning">@Model.Count(x => x.NedcAuditStatus == "Pending")</div></div></div></div>
+        <div class="col-md-3"><div class="card h-100"><div class="card-body"><div class="small text-muted">Approved</div><div class="fs-3 fw-bold text-success">@Model.Count(x => x.NedcAuditStatus == "Approved")</div></div></div></div>
+        <div class="col-md-3"><div class="card h-100"><div class="card-body"><div class="small text-muted">Returned to IHSA</div><div class="fs-3 fw-bold text-danger">@Model.Count(x => x.NedcAuditStatus == "Returned")</div></div></div></div>
+    </div>
+
+    <form asp-action="@listAction" method="get" class="card card-body mb-3">
+        <div class="row g-2 align-items-end">
+            <div class="col-md-3"><label class="form-label">Reporting Month</label><input type="month" name="reportingPeriod" value="@ViewBag.ReportingPeriod" class="form-control" /></div>
+            <div class="col-md-3">
+                <label class="form-label">State</label>
+                <select name="state" class="form-select">
+                    <option value="">All states</option>
+                    @foreach (string state in availableStates)
+                    {
+                        <option value="@state" selected="@(state == selectedState)">@state</option>
+                    }
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">HQ Decision</label>
+                <select name="nedcStatus" class="form-select">
+                    @foreach (string status in new[] { "All", "Pending", "Approved", "Returned" })
+                    {
+                        <option value="@status" selected="@(status == selectedStatus)">@status</option>
+                    }
+                </select>
+            </div>
+            <div class="col-md-3 d-flex gap-2">
+                <button type="submit" class="btn btn-success flex-fill">Filter</button>
+                <a asp-action="@listAction" class="btn btn-outline-secondary">Clear</a>
+            </div>
+        </div>
+    </form>
+
+    <div class="card shadow-sm">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0 ct-wide-table">
+                <thead class="table-light"><tr><th>Month</th><th>State / LGA</th><th>Facility</th><th>Activity</th><th>IHSA Review</th><th>NEDC HQ</th><th></th></tr></thead>
+                <tbody>
+                @foreach (var report in Model)
+                {
+                    string statusClass = report.NedcAuditStatus == "Approved" ? "bg-success" : report.NedcAuditStatus == "Returned" ? "bg-danger" : "bg-warning text-dark";
+                    <tr>
+                        <td>@report.ReportingMonth.ToString("MMMM yyyy")</td>
+                        <td><strong>@report.State</strong><div class="small text-muted">@report.Lga</div></td>
+                        <td><strong>@report.FacilityName</strong><div class="small text-muted">@report.FacilityCode</div></td>
+                        <td>@report.TotalEncounters.ToString("N0") encounters<div class="small text-muted">@report.TotalClaims.ToString("N0") claims</div></td>
+                        <td><span class="badge bg-success">Audited</span><div class="small text-muted">@report.AuditedByName</div></td>
+                        <td><span class="badge @statusClass">@report.NedcAuditStatus</span></td>
+                        <td class="text-end"><a asp-action="@detailsAction" asp-route-id="@report.Id" class="btn btn-sm btn-outline-primary">Review</a></td>
+                    </tr>
+                }
+                @if (!Model.Any())
+                {
+                    <tr><td colspan="7" class="text-center text-muted py-5">No IHSA-audited reports match this filter.</td></tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>

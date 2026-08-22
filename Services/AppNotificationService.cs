@@ -575,6 +575,7 @@ public class AppNotificationService : IAppNotificationService
 
             await SendNotificationAsync(NotificationGroups.Role("Admin"), "MonthlyReportAudited", payload, cancellationToken);
             await SendNotificationAsync(NotificationGroups.Role("CTSHIPAdmin"), "MonthlyReportAudited", payload, cancellationToken);
+            await SendNotificationAsync(NotificationGroups.Role("NEDCAdmin"), "MonthlyReportAudited", payload, cancellationToken);
         }
         catch (Exception exception)
         {
@@ -582,7 +583,64 @@ public class AppNotificationService : IAppNotificationService
         }
     }
 
-    private async Task<string?> ResolveHmoGroupAsync(
+
+    public async Task NotifyMonthlyReportNedcAuditedAsync(
+        int reportId,
+        bool isReferralProviderReport = false,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var report = await _context.StateOfficeMonthlyReports
+                .AsNoTracking()
+                .Where(x => x.Id == reportId)
+                .Select(x => new
+                {
+                    x.Id,
+                    x.State,
+                    x.FacilityName,
+                    x.FacilityCode,
+                    x.ReportingMonth,
+                    x.NedcAuditStatus,
+                    x.NedcAuditedByName
+                })
+                .FirstOrDefaultAsync(cancellationToken);
+
+            if (report == null)
+            {
+                return;
+            }
+
+            string reportType = isReferralProviderReport ? "referral provider report" : "provider monthly report";
+            string url = isReferralProviderReport
+                ? $"/IHSA/ReferralProviderReportDetails/{report.Id}"
+                : $"/IHSA/MonthlyReportDetails/{report.Id}";
+            var payload = new
+            {
+                Type = "MonthlyReportNedcAudited",
+                Title = "NEDC HQ decision recorded",
+                Message = $"NEDC HQ marked {report.FacilityName} {reportType} as {report.NedcAuditStatus}.",
+                Url = url,
+                Icon = report.NedcAuditStatus == "Approved" ? "success" : "warning",
+                report.Id,
+                report.State,
+                report.FacilityName,
+                report.FacilityCode,
+                report.ReportingMonth,
+                report.NedcAuditStatus,
+                report.NedcAuditedByName,
+                IsReferralProviderReport = isReferralProviderReport
+            };
+
+            await SendNotificationAsync(NotificationGroups.Role("IHSA"), "MonthlyReportNedcAudited", payload, cancellationToken);
+            await SendNotificationAsync(NotificationGroups.Role("Admin"), "MonthlyReportNedcAudited", payload, cancellationToken);
+            await SendNotificationAsync(NotificationGroups.Role("CTSHIPAdmin"), "MonthlyReportNedcAudited", payload, cancellationToken);
+        }
+        catch (Exception exception)
+        {
+            _logger.LogWarning(exception, "Could not send NEDC monthly report audit notification for report {ReportId}.", reportId);
+        }
+    }    private async Task<string?> ResolveHmoGroupAsync(
         string? hmoCode,
         CancellationToken cancellationToken)
     {

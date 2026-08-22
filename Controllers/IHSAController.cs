@@ -180,6 +180,12 @@ public class IHSAController : Controller
         report.AuditedByUserId = user.Id;
         report.AuditedByName = user.FullName ?? user.UserName;
 
+        // A fresh IHSA decision invalidates any earlier HQ decision.
+        report.NedcAuditStatus = "Pending";
+        report.NedcAuditNote = null;
+        report.NedcAuditedAt = null;
+        report.NedcAuditedByUserId = null;
+        report.NedcAuditedByName = null;
         await _context.SaveChangesAsync(cancellationToken);
         await _notificationService.NotifyMonthlyReportAuditedAsync(report.Id, isReferralProviderReport, cancellationToken);
         await _auditService.LogAsync(

@@ -1,6 +1,6 @@
-﻿@model ApplicationUser
+@model ApplicationUser
 @{
-    ViewData["Title"] = "Delete User";
+    ViewData["Title"] = "Safe Delete User";
 }
 
 <div class="container-fluid py-5">
@@ -8,18 +8,23 @@
         <div class="col-12 col-lg-8 col-xl-6">
             <div class="card border-0 shadow-lg rounded-4">
                 <div class="card-header bg-danger text-white text-center py-4">
-                    <h3><i class="bi bi-exclamation-triangle"></i> Confirm Delete</h3>
+                    <h3><i class="bi bi-exclamation-triangle"></i> Confirm Safe Delete</h3>
                 </div>
                 <div class="card-body p-5 text-center">
-                    <p class="lead">Are you sure you want to <strong>permanently delete</strong> this user?</p>
+                    <p class="lead">Are you sure you want to <strong>safe-delete</strong> this user?</p>
                     <h5 class="text-danger fw-bold">@(Model.FullName ?? Model.Email)</h5>
-                    <p class="text-muted">This action cannot be undone.</p>
+                    <p class="text-muted">This locks the account and hides it from active user lists, but preserves activity and audit history.</p>
 
-                    <form asp-action="DeleteUserConfirmed" method="post" class="d-inline">
+                    <form asp-action="DeleteUser" method="post" class="d-inline">
                         @Html.AntiForgeryToken()
                         <input type="hidden" name="id" value="@Model.Id" />
+                        <input type="hidden" name="confirmDelete" value="true" />
+                        <div class="mb-3 text-start">
+                            <label class="form-label">Reason / note</label>
+                            <textarea name="deletionReason" class="form-control" rows="3" maxlength="1000" placeholder="Optional reason for safe delete"></textarea>
+                        </div>
                         <button type="submit" class="btn btn-danger btn-lg px-5 shadow">
-                            <i class="bi bi-trash"></i> Yes, Delete User
+                            <i class="bi bi-trash"></i> Safe Delete User
                         </button>
                     </form>
                     <a asp-action="Users" class="btn btn-secondary btn-lg px-5 ms-3">

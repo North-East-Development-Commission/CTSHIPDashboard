@@ -1,4 +1,4 @@
-﻿namespace CTSHIPDashboard.Services;
+namespace CTSHIPDashboard.Services;
 
 public interface IAppNotificationService
 {
@@ -12,5 +12,8 @@ public interface IAppNotificationService
 
     Task NotifyMonthlyReportSubmittedAsync(int reportId, bool isReferralProviderReport = false, CancellationToken cancellationToken = default);
 
-    Task NotifyMonthlyReportAuditedAsync(int reportId, bool isReferralProviderReport = false, CancellationToken cancellationToken = default);}
+    Task NotifyMonthlyReportAuditedAsync(int reportId, bool isReferralProviderReport = false, CancellationToken cancellationToken = default);
+
+    Task NotifyMonthlyReportNedcAuditedAsync(int reportId, bool isReferralProviderReport = false, CancellationToken cancellationToken = default);
+}
 
