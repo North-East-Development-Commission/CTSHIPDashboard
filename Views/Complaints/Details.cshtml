@@ -28,11 +28,24 @@
                     <p style="white-space:pre-wrap;">@Model.Description</p>
                 </div>
             </div>
-            <div class="card border-0 shadow-sm">
-                <div class="card-header bg-success text-white fw-bold">Resolution</div>
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-header bg-success text-white fw-bold">Management Trail</div>
                 <div class="card-body">
-                    <p><strong>Assigned To:</strong> @(Model.AssignedToName ?? "Not assigned")</p>
-                    <p class="mb-0" style="white-space:pre-wrap;">@(Model.ResolutionNote ?? "No resolution note yet.")</p>
+                    <p><strong>Responsible Organisation:</strong> @(Model.ResponsibleOrganization ?? "Not assigned")</p>
+                    <p><strong>Responsible Officer:</strong> @(Model.AssignedToName ?? "Not assigned")</p>
+                    <p><strong>Action Taken:</strong></p>
+                    <p style="white-space:pre-wrap;">@(Model.ActionTaken ?? "No action recorded yet.")</p>
+                    <p><strong>Escalation:</strong></p>
+                    <p style="white-space:pre-wrap;">@(Model.EscalationDetails ?? "No escalation recorded.")</p>
+                </div>
+            </div>
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-success text-white fw-bold">Resolution and Feedback</div>
+                <div class="card-body">
+                    <p><strong>Resolution:</strong></p>
+                    <p style="white-space:pre-wrap;">@(Model.ResolutionNote ?? "No resolution note yet.")</p>
+                    <p><strong>Complainant Feedback:</strong></p>
+                    <p class="mb-0" style="white-space:pre-wrap;">@(Model.ComplainantFeedback ?? "No feedback recorded yet.")</p>
                 </div>
             </div>
         </div>
@@ -43,15 +56,21 @@
                         <dt>Status</dt><dd>@Model.Status</dd>
                         <dt>Priority</dt><dd>@Model.Priority</dd>
                         <dt>Category</dt><dd>@Model.Category</dd>
-                        <dt>State</dt><dd>@Model.State</dd>
-                        <dt>HMO</dt><dd>@(Model.Hmo?.Name ?? "—")</dd>
-                        <dt>Provider</dt><dd>@(Model.Provider?.Name ?? "—")</dd>
-                        <dt>Enrollee</dt><dd>@(Model.Enrollee?.FullName ?? "—")</dd>
+                        <dt>Complainant</dt><dd>@Model.ComplainantCategory</dd>
+                        <dt>Channel</dt><dd>@Model.CommunicationChannel</dd>
+                        <dt>State / LGA</dt><dd>@Model.State @(string.IsNullOrWhiteSpace(Model.Lga) ? string.Empty : $"/ {Model.Lga}")</dd>
+                        <dt>HMO</dt><dd>@(Model.Hmo?.Name ?? "-")</dd>
+                        <dt>Facility</dt><dd>@(Model.Provider?.Name ?? "-")</dd>
+                        <dt>Enrollee</dt><dd>@(Model.Enrollee?.FullName ?? "-")</dd>
                         <dt>Submitted By</dt><dd>@Model.SubmittedByName</dd>
                         <dt>Role</dt><dd>@Model.SubmittedByRole</dd>
+                        <dt>Date Received</dt><dd>@Model.DateReceived.ToLocalTime().ToString("dd MMM yyyy HH:mm")</dd>
+                        <dt>Agreed Due</dt><dd>@(Model.AgreedResolutionDueAt?.ToLocalTime().ToString("dd MMM yyyy HH:mm") ?? "-")</dd>
                         <dt>Submitted</dt><dd>@Model.CreatedAt.ToLocalTime().ToString("dd MMM yyyy HH:mm")</dd>
                         <dt>Last Updated</dt><dd>@Model.UpdatedAt.ToLocalTime().ToString("dd MMM yyyy HH:mm")</dd>
-                        <dt>Resolved</dt><dd>@(Model.ResolvedAt?.ToLocalTime().ToString("dd MMM yyyy HH:mm") ?? "—")</dd>
+                        <dt>Resolved</dt><dd>@(Model.ResolvedAt?.ToLocalTime().ToString("dd MMM yyyy HH:mm") ?? "-")</dd>
+                        <dt>Resolution Time</dt><dd>@(Model.ResolutionTimeDays.HasValue ? $"{Model.ResolutionTimeDays.Value} day(s)" : "-")</dd>
+                        <dt>Within Timeframe</dt><dd>@(Model.ResolvedWithinAgreedTime.HasValue ? (Model.ResolvedWithinAgreedTime.Value ? "Yes" : "No") : "-")</dd>
                     </dl>
                 </div>
             </div>

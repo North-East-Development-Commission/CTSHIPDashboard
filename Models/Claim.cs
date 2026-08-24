@@ -1,5 +1,4 @@
-﻿// Models/Claim.cs
-using CTSHIPDashboard.Models;
+// Models/Claim.cs
 using System.ComponentModel.DataAnnotations;
 
 namespace CTSHIPDashboard.Models
@@ -22,21 +21,33 @@ namespace CTSHIPDashboard.Models
         public int ProviderId { get; set; }
         public Provider? Provider { get; set; }
 
+        public int? EncounterId { get; set; }
+
         [Required]
         public decimal Amount { get; set; }
 
         public string Diagnosis { get; set; } = string.Empty;
         public string Treatment { get; set; } = string.Empty;
 
+        public DateTime? DateOfService { get; set; }
+        public string? ServiceCategory { get; set; }
+        public string? ReferralFacility { get; set; }
+        public string? AuthorizationNumber { get; set; }
+        public string? ServiceProcedure { get; set; }
+        public decimal ApprovedTariff { get; set; }
+        public decimal AmountApproved { get; set; }
+        public decimal DeductionAmount { get; set; }
+        public string? DeductionReason { get; set; }
+        public decimal AmountPaid { get; set; }
+
         public DateTime DateSubmitted { get; set; } = DateTime.Now;
         public DateTime? DateProcessed { get; set; }
 
         [Required]
-        public string Status { get; set; } = "Submitted"; // Pending, Paid, Rejected
+        public string Status { get; set; } = "Submitted";
 
         public string SubmittedBy { get; set; } = string.Empty;
 
-        // NEW WORKFLOW FIELDS
         public string? ReviewedBy { get; set; }
         public DateTime? DateReviewed { get; set; }
         public string? ReviewNotes { get; set; }
@@ -69,10 +80,10 @@ namespace CTSHIPDashboard.Models
 
         public string? OriginalProviderDataJson { get; set; }
 
+        public decimal OutstandingAmount => Math.Max(AmountApproved - AmountPaid, 0m);
+
         public ICollection<ClaimSupportingDocument> SupportingDocuments { get; set; } = new List<ClaimSupportingDocument>();
         public ICollection<ClaimQuery> Queries { get; set; } = new List<ClaimQuery>();
         public ICollection<ClaimAuditTrail> AuditTrails { get; set; } = new List<ClaimAuditTrail>();
     }
 }
-
-

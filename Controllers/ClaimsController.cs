@@ -1,4 +1,4 @@
-﻿using CTSHIPDashboard.Data;
+using CTSHIPDashboard.Data;
 using CTSHIPDashboard.Helpers;
 using CTSHIPDashboard.Hubs;
 using CTSHIPDashboard.Models;
@@ -70,7 +70,9 @@ namespace CTSHIPDashboard.Controllers
 
             // FILTER
             if (status != "All")
-                query = query.Where(c => c.Status == status);
+                query = string.Equals(status, "Queried", StringComparison.OrdinalIgnoreCase)
+                    ? query.Where(c => c.Status == "Queried" || c.Status == "Query Raised")
+                    : query.Where(c => c.Status == status);
 
             // PAGINATION
             var total = await query.CountAsync();
@@ -189,7 +191,7 @@ namespace CTSHIPDashboard.Controllers
             var claim = await _context.Claims
                 .Include(c => c.Enrollee)
                 .Include(c => c.Provider)
-                .FirstOrDefaultAsync(c => c.Id == id && c.Status == "Submitted");
+                .FirstOrDefaultAsync(c => c.Id == id && (c.Status == "Submitted" || c.Status == "Under Review"));
 
             if (claim == null)
             {
@@ -310,7 +312,7 @@ namespace CTSHIPDashboard.Controllers
                 .Include(c => c.Enrollee).ThenInclude(e => e!.Hmo)
                 .Include(c => c.Provider)
                 .Include(c => c.SupportingDocuments)
-                .FirstOrDefaultAsync(c => c.Id == id && c.Status == "Submitted");
+                .FirstOrDefaultAsync(c => c.Id == id && (c.Status == "Submitted" || c.Status == "Under Review"));
 
             if (claim == null) return NotFound();
             if (!ProviderClaimAccessHelper.CanUseClaims(claim.Provider)) return NotFound();
@@ -321,10 +323,10 @@ namespace CTSHIPDashboard.Controllers
         [HttpPost]
         [ValidateAntiForgeryToken]
         [Authorize(Roles = "Reviewer")]
-        public async Task<IActionResult> Review(int id, string action, string notes)
+        public async Task<IActionResult> Review(int id, string action, string notes, decimal? approvedAmount = null, string? deductionReason = null)
         {
             var claim = await _context.Claims.FindAsync(id);
-            if (claim == null || claim.Status != "Submitted") return NotFound();
+            if (claim == null || (claim.Status != "Submitted" && claim.Status != "Under Review")) return NotFound();
             if (!await _context.Claims.WhereProviderCanUseClaims().AnyAsync(x => x.Id == id)) return NotFound();
             if (!await CanAccessHmoScopedClaimAsync(claim)) return Forbid();
 
@@ -333,10 +335,22 @@ namespace CTSHIPDashboard.Controllers
 
             if (action == "approve")
             {
-                claim.Status = "Approved";
+                decimal validatedApprovedAmount = approvedAmount.GetValueOrDefault(claim.Amount);
+                if (validatedApprovedAmount < 0)
+                {
+                    validatedApprovedAmount = 0;
+                }
+
+                claim.AmountApproved = validatedApprovedAmount;
+                claim.DeductionAmount = Math.Max(claim.Amount - validatedApprovedAmount, 0m);
+                claim.DeductionReason = string.IsNullOrWhiteSpace(deductionReason) ? null : deductionReason.Trim();
+                claim.Status = validatedApprovedAmount < claim.Amount ? "Partially Approved" : "Approved";
                 claim.ReviewedBy = actorName;
                 claim.DateReviewed = DateTime.Now;
                 claim.ReviewNotes = notes;
+                claim.ApprovedBy = actorName;
+                claim.DateApproved = DateTime.Now;
+                claim.ApprovalNotes = notes;
             }
             else if (action == "reject")
             {
@@ -347,7 +361,7 @@ namespace CTSHIPDashboard.Controllers
             }
             else if (action == "query")
             {
-                claim.Status = "Query Raised";
+                claim.Status = "Queried";
                 claim.ReturnedForClarificationAt = DateTime.UtcNow;
                 claim.ReturnedForClarificationBy = actorName;
                 claim.ClarificationNote = notes?.Trim();
@@ -367,7 +381,7 @@ namespace CTSHIPDashboard.Controllers
             _context.ClaimAuditTrails.Add(new ClaimAuditTrail
             {
                 ClaimId = claim.Id,
-                Action = action == "query" ? "HMO.QueryRaised" : action == "reject" ? "HMO.Rejected" : "HMO.ReviewApproved",
+                Action = action == "query" ? "HMO.Queried" : action == "reject" ? "HMO.Rejected" : "HMO.ReviewApproved",
                 PerformedByName = actorName,
                 PerformedAt = DateTime.UtcNow,
                 Summary = $"HMO review action '{action}' recorded. Notes: {notes}"
@@ -394,7 +408,7 @@ namespace CTSHIPDashboard.Controllers
                 .Include(c => c.Enrollee)
                 .Include(c => c.Provider)
                 .Include(c => c.SupportingDocuments)
-                .FirstOrDefaultAsync(c => c.Id == id && c.Status == "Approved");
+                .FirstOrDefaultAsync(c => c.Id == id && (c.Status == "Approved" || c.Status == "Partially Approved"));
 
             if (claim == null) return NotFound();
             if (!ProviderClaimAccessHelper.CanUseClaims(claim.Provider)) return NotFound();
@@ -405,10 +419,10 @@ namespace CTSHIPDashboard.Controllers
         [HttpPost]
         [ValidateAntiForgeryToken]
         [Authorize(Roles = "Reviewer")]
-        public async Task<IActionResult> Approve(int id, string action, string paymentRef = "", string? notes = null)
+        public async Task<IActionResult> Approve(int id, string action, string paymentRef = "", string? notes = null, decimal? amountPaid = null)
         {
             var claim = await _context.Claims.FindAsync(id);
-            if (claim == null || claim.Status != "Approved") return NotFound();
+            if (claim == null || (claim.Status != "Approved" && claim.Status != "Partially Approved")) return NotFound();
             if (!await _context.Claims.WhereProviderCanUseClaims().AnyAsync(x => x.Id == id)) return NotFound();
             if (!await CanAccessHmoScopedClaimAsync(claim)) return Forbid();
 
@@ -416,7 +430,9 @@ namespace CTSHIPDashboard.Controllers
 
             if (action == "pay")
             {
-                claim.Status = "Paid";
+                decimal payableAmount = claim.AmountApproved > 0 ? claim.AmountApproved : claim.Amount;
+                claim.AmountPaid = Math.Max(amountPaid.GetValueOrDefault(payableAmount), 0m);
+                claim.Status = claim.AmountPaid >= payableAmount ? "Paid" : "Partially Approved";
                 claim.PaidBy = user?.FullName ?? user?.Email ?? "Reviewer";
                 claim.DatePaid = DateTime.Now;
                 claim.DateProcessed = DateTime.Now;
@@ -492,7 +508,9 @@ namespace CTSHIPDashboard.Controllers
 
             if (!string.Equals(status, "All", StringComparison.OrdinalIgnoreCase))
             {
-                query = query.Where(c => c.Status == status);
+                query = string.Equals(status, "Queried", StringComparison.OrdinalIgnoreCase)
+                    ? query.Where(c => c.Status == "Queried" || c.Status == "Query Raised")
+                    : query.Where(c => c.Status == status);
             }
 
             if (fromDate.HasValue)
@@ -519,14 +537,17 @@ namespace CTSHIPDashboard.Controllers
                 ToDate = toDate,
                 TotalClaims = claims.Count,
                 SubmittedClaims = claims.Count(c => c.Status == "Submitted"),
-                QueryClaims = claims.Count(c => c.Status == "Query Raised" || c.Queries.Any(q => q.Status != "Closed")),
+                QueryClaims = claims.Count(c => c.Status == "Queried" || c.Status == "Query Raised" || c.Queries.Any(q => q.Status != "Closed")),
                 ApprovedClaims = claims.Count(c => c.Status == "Approved"),
+                PartiallyApprovedClaims = claims.Count(c => c.Status == "Partially Approved"),
                 PaidClaims = claims.Count(c => c.Status == "Paid"),
                 RejectedClaims = claims.Count(c => c.Status == "Rejected"),
                 CertifiedClaims = claims.Count(c => c.HmoCertificationStatus == "Certified"),
                 IhsaVerifiedClaims = claims.Count(c => c.IhsaVerificationStatus == "Verified"),
                 TotalClaimAmount = claims.Sum(c => c.Amount),
-                PaidClaimAmount = claims.Where(c => c.Status == "Paid").Sum(c => c.Amount),
+                ApprovedClaimAmount = claims.Sum(c => c.AmountApproved > 0 ? c.AmountApproved : c.Amount),
+                PaidClaimAmount = claims.Sum(c => c.AmountPaid),
+                OutstandingClaimAmount = claims.Sum(c => Math.Max((c.AmountApproved > 0 ? c.AmountApproved : c.Amount) - c.AmountPaid, 0m)),
                 Claims = claims.Select(c => new SecondaryProviderClaimRowViewModel
                 {
                     Id = c.Id,
@@ -536,7 +557,20 @@ namespace CTSHIPDashboard.Controllers
                     ProviderName = c.Provider?.Name ?? "N/A",
                     HmoName = c.Enrollee?.Hmo?.Name ?? "N/A",
                     State = c.Provider?.State ?? c.Enrollee?.State ?? "N/A",
+                    DateOfService = c.DateOfService,
+                    ServiceCategory = c.ServiceCategory ?? "N/A",
+                    ReferralFacility = c.ReferralFacility ?? "N/A",
+                    AuthorizationNumber = c.AuthorizationNumber ?? "N/A",
+                    ServiceProcedure = c.ServiceProcedure ?? c.Treatment,
+                    ApprovedTariff = c.ApprovedTariff,
                     Amount = c.Amount,
+                    AmountApproved = c.AmountApproved > 0 ? c.AmountApproved : c.Amount,
+                    DeductionAmount = c.DeductionAmount,
+                    DeductionReason = c.DeductionReason ?? string.Empty,
+                    AmountPaid = c.AmountPaid,
+                    OutstandingAmount = Math.Max((c.AmountApproved > 0 ? c.AmountApproved : c.Amount) - c.AmountPaid, 0m),
+                    PaymentDate = c.DatePaid,
+                    PaymentReference = c.PaymentReference ?? string.Empty,
                     Status = c.Status,
                     HmoCertificationStatus = c.HmoCertificationStatus,
                     IhsaVerificationStatus = c.IhsaVerificationStatus,
@@ -723,7 +757,9 @@ namespace CTSHIPDashboard.Controllers
 
             // FILTER BY STATUS
             if (status != "All")
-                query = query.Where(c => c.Status == status);
+                query = string.Equals(status, "Queried", StringComparison.OrdinalIgnoreCase)
+                    ? query.Where(c => c.Status == "Queried" || c.Status == "Query Raised")
+                    : query.Where(c => c.Status == status);
 
             // TOTAL COUNT
             var totalItems = await query.CountAsync();

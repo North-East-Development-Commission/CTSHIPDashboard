@@ -1,4 +1,4 @@
-﻿@model CTSHIPDashboard.Models.Claim
+@model CTSHIPDashboard.Models.Claim
 
 <div class="container-fluid py-5">
     <div class="row justify-content-center">
@@ -6,7 +6,7 @@
             <div class="card border-0 shadow-lg rounded-4 overflow-hidden">
                 <div class="bg-primary text-white text-center py-5">
                     <h1 class="display-5 fw-bold mb-3">HMO CLAIM REVIEW</h1>
-                    <p class="lead mb-0">Claim #: <strong>@Model.ClaimNumber</strong> • Amount: ₦@((int)Model.Amount)</p>
+                    <p class="lead mb-0">Claim #: <strong>@Model.ClaimNumber</strong> | Claimed: NGN @Model.Amount.ToString("N2")</p>
                 </div>
 
                 <div class="card-body p-5">
@@ -25,29 +25,30 @@
                             <div class="card border-info shadow-sm">
                                 <div class="card-body">
                                     <h5 class="text-info fw-bold">Provider</h5>
-                                    <p class="mb-0">@Model.Provider?.Name - @Model.Provider?.State</p>
+                                    <p class="mb-1">@Model.Provider?.Name - @Model.Provider?.State</p>
+                                    <p class="mb-0"><strong>Date of Service:</strong> @(Model.DateOfService?.ToString("dd MMM yyyy") ?? "-")</p>
                                 </div>
                             </div>
                         </div>
                     </div>
 
+                    <div class="card shadow-sm mb-5">
+                        <div class="card-header bg-success text-white fw-bold">FFS Service Pathway</div>
+                        <div class="card-body">
+                            <div class="row g-3">
+                                <div class="col-md-6"><strong>Service Category:</strong><br />@(Model.ServiceCategory ?? "-")</div>
+                                <div class="col-md-6"><strong>Service / Procedure:</strong><br />@(Model.ServiceProcedure ?? Model.Treatment)</div>
+                                <div class="col-md-6"><strong>Referral Facility:</strong><br />@(Model.ReferralFacility ?? "-")</div>
+                                <div class="col-md-6"><strong>Authorization Number:</strong><br />@(Model.AuthorizationNumber ?? "-")</div>
+                                <div class="col-md-6"><strong>Approved Tariff:</strong><br />NGN @Model.ApprovedTariff.ToString("N2")</div>
+                                <div class="col-md-6"><strong>Claim Amount:</strong><br />NGN @Model.Amount.ToString("N2")</div>
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="row g-4 mb-5">
-                        <div class="col-12">
-                            <div class="card shadow-sm">
-                                <div class="card-body">
-                                    <h5 class="text-success fw-bold">Diagnosis</h5>
-                                    <p class="fs-5">@Model.Diagnosis</p>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-12">
-                            <div class="card shadow-sm">
-                                <div class="card-body">
-                                    <h5 class="text-success fw-bold">Treatment Given</h5>
-                                    <p class="fs-5">@Model.Treatment</p>
-                                </div>
-                            </div>
-                        </div>
+                        <div class="col-12"><div class="card shadow-sm"><div class="card-body"><h5 class="text-success fw-bold">Diagnosis</h5><p class="fs-5">@Model.Diagnosis</p></div></div></div>
+                        <div class="col-12"><div class="card shadow-sm"><div class="card-body"><h5 class="text-success fw-bold">Treatment Given</h5><p class="fs-5">@Model.Treatment</p></div></div></div>
                         <div class="col-12">
                             <div class="card shadow-sm">
                                 <div class="card-body">
@@ -62,10 +63,7 @@
                                             @foreach (var document in Model.SupportingDocuments.OrderBy(x => x.DocumentType).ThenBy(x => x.OriginalFileName))
                                             {
                                                 <a href="@document.FilePath" target="_blank" rel="noopener" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center gap-3">
-                                                    <span>
-                                                        <strong>@document.DocumentType</strong><br />
-                                                        <span class="text-muted">@document.OriginalFileName</span>
-                                                    </span>
+                                                    <span><strong>@document.DocumentType</strong><br /><span class="text-muted">@document.OriginalFileName</span></span>
                                                     <i class="bi bi-box-arrow-up-right"></i>
                                                 </a>
                                             }
@@ -80,29 +78,26 @@
                         @Html.AntiForgeryToken()
                         <input type="hidden" asp-for="Id" />
 
-                        <div class="mb-4">
-                            <label class="form-label text-success fw-bold fs-5">Review Notes <span class="text-danger">*</span></label>
-                            <textarea name="notes" class="form-control form-control-lg" rows="5"
-                                      placeholder="Enter your review comments..." required></textarea>
+                        <div class="row g-4 mb-4">
+                            <div class="col-md-6">
+                                <label class="form-label text-success fw-bold fs-5">Amount Approved</label>
+                                <input name="approvedAmount" type="number" min="0" step="0.01" value="@(Model.AmountApproved > 0 ? Model.AmountApproved : Model.Amount)" class="form-control form-control-lg" />
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label text-success fw-bold fs-5">Deduction / Rejection Reason</label>
+                                <input name="deductionReason" value="@Model.DeductionReason" class="form-control form-control-lg" placeholder="Required for deductions or rejection" />
+                            </div>
+                            <div class="col-12">
+                                <label class="form-label text-success fw-bold fs-5">Review Notes <span class="text-danger">*</span></label>
+                                <textarea name="notes" class="form-control form-control-lg" rows="5" placeholder="Enter review comments, validation notes, or query details" required></textarea>
+                            </div>
                         </div>
 
                         <div class="text-center">
-                            <button name="action" value="approve" class="btn btn-success btn-lg px-6 shadow-lg fw-bold">
-                                APPROVE FOR PAYMENT
-                            </button>
-                            <button name="action" value="query" class="btn btn-warning btn-lg px-6 shadow-lg fw-bold ms-3">
-                                RETURN QUERY
-                            </button>
-                            <button name="action" value="reject" class="btn btn-danger btn-lg px-6 shadow-lg fw-bold ms-3">
-                                REJECT CLAIM
-                            </button>
-
-                            @if (User.IsInRole("Reviewer") || User.IsInRole("HMO"))
-                            {
-                                <a asp-action="Dashboard" class="btn btn-secondary btn-lg px-6 ms-3">
-                                    Cancel
-                                </a>
-                            }
+                            <button name="action" value="approve" class="btn btn-success btn-lg px-6 shadow-lg fw-bold">APPROVE / PARTIALLY APPROVE</button>
+                            <button name="action" value="query" class="btn btn-warning btn-lg px-6 shadow-lg fw-bold ms-3">QUERY CLAIM</button>
+                            <button name="action" value="reject" class="btn btn-danger btn-lg px-6 shadow-lg fw-bold ms-3">REJECT CLAIM</button>
+                            <a asp-action="Dashboard" class="btn btn-secondary btn-lg px-6 ms-3">Cancel</a>
                         </div>
                     </form>
                 </div>

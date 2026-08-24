@@ -21,8 +21,27 @@ namespace CTSHIPDashboard.Models.ViewModels
         public ComplaintPriority Priority { get; set; } = ComplaintPriority.Medium;
 
         [Required]
+        [StringLength(50)]
+        [Display(Name = "Complainant Category")]
+        public string ComplainantCategory { get; set; } = "Enrollee";
+
+        [Required]
+        [StringLength(80)]
+        [Display(Name = "Communication Channel")]
+        public string CommunicationChannel { get; set; } = "In person";
+
+        [Required]
+        [DataType(DataType.DateTime)]
+        [Display(Name = "Date Received")]
+        public DateTime DateReceived { get; set; } = DateTime.UtcNow;
+
+        [Required]
         [StringLength(100)]
         public string State { get; set; } = string.Empty;
+
+        [StringLength(100)]
+        [Display(Name = "LGA")]
+        public string? Lga { get; set; }
 
         [Display(Name = "HMO")]
         public int? HmoId { get; set; }
@@ -40,6 +59,8 @@ namespace CTSHIPDashboard.Models.ViewModels
         public List<SelectListItem> Hmos { get; set; } = new();
         public List<SelectListItem> Providers { get; set; } = new();
         public List<SelectListItem> Enrollees { get; set; } = new();
+        public List<SelectListItem> ComplainantCategories { get; set; } = new();
+        public List<SelectListItem> CommunicationChannels { get; set; } = new();
     }
 
     public class ComplaintUpdateViewModel
@@ -54,13 +75,33 @@ namespace CTSHIPDashboard.Models.ViewModels
         [Required]
         public ComplaintPriority Priority { get; set; }
 
-        [Display(Name = "Assigned To")]
+        [Display(Name = "Responsible Officer")]
         [StringLength(200)]
         public string? AssignedToName { get; set; }
+
+        [Display(Name = "Responsible Organisation")]
+        [StringLength(200)]
+        public string? ResponsibleOrganization { get; set; }
+
+        [Display(Name = "Action Taken")]
+        [StringLength(2000)]
+        public string? ActionTaken { get; set; }
+
+        [Display(Name = "Escalation")]
+        [StringLength(2000)]
+        public string? EscalationDetails { get; set; }
 
         [Display(Name = "Resolution / Management Note")]
         [StringLength(2000)]
         public string? ResolutionNote { get; set; }
+
+        [Display(Name = "Agreed Resolution Due Date")]
+        [DataType(DataType.DateTime)]
+        public DateTime? AgreedResolutionDueAt { get; set; }
+
+        [Display(Name = "Complainant Feedback")]
+        [StringLength(1000)]
+        public string? ComplainantFeedback { get; set; }
     }
 
     public class ComplaintMetricsViewModel
@@ -70,6 +111,10 @@ namespace CTSHIPDashboard.Models.ViewModels
         public int InProgressComplaints { get; set; }
         public int ResolvedComplaints { get; set; }
         public int CriticalComplaints { get; set; }
+        public int UnresolvedComplaints { get; set; }
+        public int RecurrentFacilityComplaints { get; set; }
+        public int RecurrentHmoComplaints { get; set; }
         public decimal ResolutionRate { get; set; }
+        public decimal ResolvedWithinAgreedTimeRate { get; set; }
     }
 }

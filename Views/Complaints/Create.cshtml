@@ -1,14 +1,14 @@
-﻿@model CTSHIPDashboard.Models.ViewModels.ComplaintCreateViewModel
+@model CTSHIPDashboard.Models.ViewModels.ComplaintCreateViewModel
 @using CTSHIPDashboard.Models.Enums
 @{
     ViewData["Title"] = "Submit Complaint";
 }
 
 <div class="container py-5">
-    <div class="card border-0 shadow-lg mx-auto" style="max-width:950px;">
+    <div class="card border-0 shadow-lg mx-auto" style="max-width:1050px;">
         <div class="card-header bg-success text-white p-4">
             <h2 class="mb-1">Submit a Complaint</h2>
-            <p class="mb-0 text-white">Provide enough detail for investigation and resolution.</p>
+            <p class="mb-0 text-white">Capture enough detail to trace receipt, responsibility, action, and resolution.</p>
         </div>
         <div class="card-body p-4 p-lg-5">
             <form asp-action="Create" method="post">
@@ -21,6 +21,21 @@
                         <span asp-validation-for="Subject" class="text-danger"></span>
                     </div>
                     <div class="col-md-4">
+                        <label asp-for="DateReceived" class="form-label fw-bold"></label>
+                        <input asp-for="DateReceived" type="datetime-local" class="form-control form-control-lg" />
+                        <span asp-validation-for="DateReceived" class="text-danger"></span>
+                    </div>
+                    <div class="col-md-4">
+                        <label asp-for="ComplainantCategory" class="form-label fw-bold"></label>
+                        <select asp-for="ComplainantCategory" asp-items="Model.ComplainantCategories" class="form-select form-select-lg"></select>
+                        <span asp-validation-for="ComplainantCategory" class="text-danger"></span>
+                    </div>
+                    <div class="col-md-4">
+                        <label asp-for="CommunicationChannel" class="form-label fw-bold"></label>
+                        <select asp-for="CommunicationChannel" asp-items="Model.CommunicationChannels" class="form-select form-select-lg"></select>
+                        <span asp-validation-for="CommunicationChannel" class="text-danger"></span>
+                    </div>
+                    <div class="col-md-4">
                         <label asp-for="Priority" class="form-label fw-bold"></label>
                         <select asp-for="Priority" asp-items="Html.GetEnumSelectList<ComplaintPriority>()" class="form-select form-select-lg"></select>
                     </div>
@@ -30,47 +45,34 @@
                     </div>
                     <div class="col-md-4">
                         <label asp-for="State" class="form-label fw-bold"></label>
-                        <select asp-for="State" asp-items="Model.States" class="form-select form-select-lg" disabled="@Model.StateLocked">
-                            <option value="">Select State</option>
-                        </select>
-                        @if (Model.StateLocked)
-                        {
-                            <input asp-for="State" type="hidden" />
-                        }
+                        <select asp-for="State" asp-items="Model.States" class="form-select form-select-lg" disabled="@Model.StateLocked"><option value="">Select State</option></select>
+                        @if (Model.StateLocked) { <input asp-for="State" type="hidden" /> }
                         <span asp-validation-for="State" class="text-danger"></span>
                     </div>
                     <div class="col-md-4">
+                        <label asp-for="Lga" class="form-label fw-bold"></label>
+                        <input asp-for="Lga" class="form-control form-control-lg" />
+                        <span asp-validation-for="Lga" class="text-danger"></span>
+                    </div>
+                    <div class="col-md-6">
                         <label asp-for="HmoId" class="form-label fw-bold"></label>
-                        <select asp-for="HmoId" asp-items="Model.Hmos" class="form-select form-select-lg" disabled="@Model.HmoLocked">
-                            <option value="">Programme / Admin</option>
-                        </select>
-                        @if (Model.HmoLocked)
-                        {
-                            <input asp-for="HmoId" type="hidden" />
-                        }
+                        <select asp-for="HmoId" asp-items="Model.Hmos" class="form-select form-select-lg" disabled="@Model.HmoLocked"><option value="">Programme / Admin</option></select>
+                        @if (Model.HmoLocked) { <input asp-for="HmoId" type="hidden" /> }
                     </div>
                     <div class="col-md-6">
                         <label asp-for="ProviderId" class="form-label fw-bold"></label>
-                        <select asp-for="ProviderId" asp-items="Model.Providers" class="form-select form-select-lg" disabled="@Model.ProviderLocked">
-                            <option value="">No specific provider / Admin</option>
-                        </select>
-                        @if (Model.ProviderLocked)
-                        {
-                            <input asp-for="ProviderId" type="hidden" />
-                        }
+                        <select asp-for="ProviderId" asp-items="Model.Providers" class="form-select form-select-lg" disabled="@Model.ProviderLocked"><option value="">No specific provider / Admin</option></select>
+                        @if (Model.ProviderLocked) { <input asp-for="ProviderId" type="hidden" /> }
                         <span asp-validation-for="ProviderId" class="text-danger"></span>
                     </div>
-                    <div class="col-md-6">
+                    <div class="col-12">
                         <label asp-for="EnrolleeId" class="form-label fw-bold"></label>
-                        <select asp-for="EnrolleeId" asp-items="Model.Enrollees" class="form-select form-select-lg select2">
-                            <option value="">Not linked to an enrollee</option>
-                        </select>
+                        <select asp-for="EnrolleeId" asp-items="Model.Enrollees" class="form-select form-select-lg select2"><option value="">Not linked to an enrollee</option></select>
                         <span asp-validation-for="EnrolleeId" class="text-danger"></span>
                     </div>
                     <div class="col-12">
                         <label asp-for="Description" class="form-label fw-bold"></label>
-                        <textarea asp-for="Description" class="form-control" rows="7"
-                                  placeholder="Explain what happened, when it occurred, and the expected resolution."></textarea>
+                        <textarea asp-for="Description" class="form-control" rows="7" placeholder="Explain what happened, when it occurred, organisations involved, and expected resolution."></textarea>
                         <span asp-validation-for="Description" class="text-danger"></span>
                     </div>
                 </div>
@@ -87,4 +89,3 @@
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
 }
-

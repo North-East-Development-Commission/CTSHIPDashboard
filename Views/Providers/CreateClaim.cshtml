@@ -9,12 +9,12 @@
         <div class="col-12 col-xl-10">
             <div class="card border-0 shadow-lg rounded-4 overflow-hidden">
                 <div class="bg-success text-white text-center py-5">
-                    <h1 class="display-5 fw-bold mb-2">SUBMIT CLAIM</h1>
+                    <h1 class="display-5 fw-bold mb-2">SUBMIT FFS CLAIM</h1>
                     <p class="lead mb-0">@Model.EncounterNumber</p>
                 </div>
 
                 <div class="card-body p-4 p-md-5">
-                    <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+                    <div asp-validation-summary="ModelOnly" class="alert alert-danger"></div>
 
                     <div class="row g-4 mb-4">
                         <div class="col-lg-5">
@@ -24,7 +24,7 @@
                                     <p class="mb-2"><strong>Name:</strong> @Model.EnrolleeName</p>
                                     <p class="mb-2"><strong>Enrollment:</strong> @Model.EnrollmentNumber</p>
                                     <p class="mb-2"><strong>HMO:</strong> @Model.HmoName</p>
-                                    <p class="mb-0"><strong>Visit Date:</strong> @Model.VisitDate.ToString("dd MMM yyyy")</p>
+                                    <p class="mb-0"><strong>Date of Service:</strong> @Model.VisitDate.ToString("dd MMM yyyy")</p>
                                 </div>
                             </div>
                         </div>
@@ -32,14 +32,14 @@
                         <div class="col-lg-7">
                             <div class="card border-info shadow-sm h-100">
                                 <div class="card-body p-4">
-                                    <h5 class="text-info fw-bold mb-3">Claim Summary</h5>
+                                    <h5 class="text-info fw-bold mb-3">Encounter Summary</h5>
                                     <p class="mb-2"><strong>Provider:</strong> @Model.ProviderName</p>
                                     <p class="mb-2"><strong>Provider Level:</strong> @Model.ProviderLevel</p>
                                     <p class="mb-2"><strong>Diagnosis:</strong> @Model.Diagnosis</p>
                                     <p class="mb-2"><strong>Treatment:</strong> @Model.Treatment</p>
                                     <div class="bg-success text-white rounded-3 p-3 mt-3">
                                         <div class="small text-uppercase fw-semibold opacity-75">Claim Amount</div>
-                                        <div class="display-6 fw-bold">&#8358;@Model.Amount.ToString("N0")</div>
+                                        <div class="display-6 fw-bold">NGN @Model.Amount.ToString("N2")</div>
                                     </div>
                                 </div>
                             </div>
@@ -50,18 +50,45 @@
                         @Html.AntiForgeryToken()
                         <input asp-for="EncounterId" type="hidden" />
 
+                        <div class="card border-success shadow-sm mb-4">
+                            <div class="card-header bg-success text-white fw-bold">Service, Referral, and Tariff Details</div>
+                            <div class="card-body p-4">
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <label asp-for="ServiceCategory" class="form-label fw-bold"></label>
+                                        <input asp-for="ServiceCategory" class="form-control form-control-lg" />
+                                        <span asp-validation-for="ServiceCategory" class="text-danger"></span>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label asp-for="ApprovedTariff" class="form-label fw-bold"></label>
+                                        <input asp-for="ApprovedTariff" type="number" min="0" step="0.01" class="form-control form-control-lg" />
+                                        <span asp-validation-for="ApprovedTariff" class="text-danger"></span>
+                                    </div>
+                                    <div class="col-12">
+                                        <label asp-for="ServiceProcedure" class="form-label fw-bold"></label>
+                                        <textarea asp-for="ServiceProcedure" class="form-control" rows="3"></textarea>
+                                        <span asp-validation-for="ServiceProcedure" class="text-danger"></span>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label asp-for="ReferralFacility" class="form-label fw-bold"></label>
+                                        <input asp-for="ReferralFacility" class="form-control form-control-lg" />
+                                        <span asp-validation-for="ReferralFacility" class="text-danger"></span>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label asp-for="AuthorizationNumber" class="form-label fw-bold"></label>
+                                        <input asp-for="AuthorizationNumber" class="form-control form-control-lg" />
+                                        <span asp-validation-for="AuthorizationNumber" class="text-danger"></span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
                         <div class="card border-warning shadow-sm mb-4">
                             <div class="card-body p-4">
                                 <label asp-for="EvidenceFiles" class="form-label text-success fw-bold fs-5"></label>
-                                <input asp-for="EvidenceFiles"
-                                       type="file"
-                                       multiple
-                                       accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
-                                       class="form-control form-control-lg" />
+                                <input asp-for="EvidenceFiles" type="file" multiple accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" class="form-control form-control-lg" />
                                 <span asp-validation-for="EvidenceFiles" class="text-danger"></span>
-                                <div class="form-text">
-                                    Upload PDF, JPG, PNG, DOC, or DOCX files. Maximum 10 files, 10MB each.
-                                </div>
+                                <div class="form-text">Upload PDF, JPG, PNG, DOC, or DOCX files. Maximum 10 files, 10MB each.</div>
                                 <ul id="selectedEvidenceFiles" class="list-group list-group-flush mt-3"></ul>
                             </div>
                         </div>
@@ -70,9 +97,7 @@
                             <button type="submit" class="btn btn-success btn-lg px-5 shadow fw-bold">
                                 <i class="bi bi-send-fill me-2"></i> Submit Claim
                             </button>
-                            <a asp-action="ENCDetails" asp-route-id="@Model.EncounterId" class="btn btn-outline-secondary btn-lg px-5">
-                                Cancel
-                            </a>
+                            <a asp-action="ENCDetails" asp-route-id="@Model.EncounterId" class="btn btn-outline-secondary btn-lg px-5">Cancel</a>
                         </div>
                     </form>
                 </div>
@@ -82,9 +107,7 @@
 </div>
 
 @section Scripts {
-    @{
-        await Html.RenderPartialAsync("_ValidationScriptsPartial");
-    }
+    @{ await Html.RenderPartialAsync("_ValidationScriptsPartial"); }
 
     <script>
         (() => {

@@ -1316,10 +1316,44 @@ public class ProvidersController : Controller
             return RedirectToAction(nameof(ENCDetails), new { id = encounter.Id });
         }
 
+        if (!string.Equals(encounter.Enrollee.Status, "Active", StringComparison.OrdinalIgnoreCase))
+        {
+            TempData["Error"] = "Claims cannot be submitted for inactive enrollees.";
+            return RedirectToAction(nameof(ENCDetails), new { id = encounter.Id });
+        }
+
         ValidateClaimEvidenceFiles(model);
         if (!ModelState.IsValid)
         {
             ProviderClaimSubmissionViewModel viewModel = BuildClaimSubmissionModel(encounter);
+            viewModel.ServiceCategory = model.ServiceCategory;
+            viewModel.ServiceProcedure = model.ServiceProcedure;
+            viewModel.ReferralFacility = model.ReferralFacility;
+            viewModel.AuthorizationNumber = model.AuthorizationNumber;
+            viewModel.ApprovedTariff = model.ApprovedTariff;
+            return View(viewModel);
+        }
+
+        string serviceProcedure = model.ServiceProcedure.Trim();
+        DateTime serviceDate = encounter.VisitDate.Date;
+        DateTime nextServiceDate = serviceDate.AddDays(1);
+        bool duplicateClaimExists = await _context.Claims.AnyAsync(claim =>
+            claim.EnrolleeId == encounter.EnrolleeId
+            && claim.DateOfService >= serviceDate
+            && claim.DateOfService < nextServiceDate
+            && claim.ServiceProcedure == serviceProcedure
+            && claim.Status != "Rejected",
+            cancellationToken);
+
+        if (duplicateClaimExists)
+        {
+            ModelState.AddModelError(string.Empty, "A similar claim already exists for this enrollee, service date, and procedure.");
+            ProviderClaimSubmissionViewModel viewModel = BuildClaimSubmissionModel(encounter);
+            viewModel.ServiceCategory = model.ServiceCategory;
+            viewModel.ServiceProcedure = model.ServiceProcedure;
+            viewModel.ReferralFacility = model.ReferralFacility;
+            viewModel.AuthorizationNumber = model.AuthorizationNumber;
+            viewModel.ApprovedTariff = model.ApprovedTariff;
             return View(viewModel);
         }
 
@@ -1331,9 +1365,16 @@ public class ProvidersController : Controller
             EnrolleeId = encounter.EnrolleeId,
             ProviderId = encounter.ProviderId,
             HmoId = encounter.Enrollee.HmoId,
+            EncounterId = encounter.Id,
             Amount = encounter.TotalAmount,
             Diagnosis = encounter.Diagnosis ?? encounter.ChiefComplaint ?? "Clinical encounter",
             Treatment = encounter.TreatmentGiven ?? "Medical consultation and care",
+            DateOfService = encounter.VisitDate,
+            ServiceCategory = model.ServiceCategory.Trim(),
+            ReferralFacility = string.IsNullOrWhiteSpace(model.ReferralFacility) ? null : model.ReferralFacility.Trim(),
+            AuthorizationNumber = string.IsNullOrWhiteSpace(model.AuthorizationNumber) ? null : model.AuthorizationNumber.Trim(),
+            ServiceProcedure = serviceProcedure,
+            ApprovedTariff = model.ApprovedTariff > 0 ? model.ApprovedTariff : encounter.TotalAmount,
             DateSubmitted = DateTime.Now,
             Status = "Submitted",
             SubmittedBy = actorName,
@@ -1348,6 +1389,13 @@ public class ProvidersController : Controller
                 ProviderName = encounter.Provider.Name,
                 ProviderLevel = encounter.Provider.Level,
                 HmoId = encounter.Enrollee.HmoId,
+                EncounterId = encounter.Id,
+                DateOfService = encounter.VisitDate,
+                ServiceCategory = model.ServiceCategory.Trim(),
+                ReferralFacility = string.IsNullOrWhiteSpace(model.ReferralFacility) ? null : model.ReferralFacility.Trim(),
+                AuthorizationNumber = string.IsNullOrWhiteSpace(model.AuthorizationNumber) ? null : model.AuthorizationNumber.Trim(),
+                ServiceProcedure = serviceProcedure,
+                ApprovedTariff = model.ApprovedTariff > 0 ? model.ApprovedTariff : encounter.TotalAmount,
                 Amount = encounter.TotalAmount,
                 Diagnosis = encounter.Diagnosis ?? encounter.ChiefComplaint ?? "Clinical encounter",
                 Treatment = encounter.TreatmentGiven ?? "Medical consultation and care",
@@ -1418,6 +1466,7 @@ public class ProvidersController : Controller
             .Include(e => e.Enrollee!)
                 .ThenInclude(e => e.Hmo!)
             .Include(e => e.Provider!)
+            .Include(e => e.Services)
             .FirstOrDefaultAsync(e => e.Id == id && e.ClaimId == null, cancellationToken);
     }
 
@@ -1435,7 +1484,12 @@ public class ProvidersController : Controller
             ProviderLevel = encounter.Provider?.Level ?? "N/A",
             Amount = encounter.TotalAmount,
             Diagnosis = encounter.Diagnosis ?? encounter.ChiefComplaint ?? "Clinical encounter",
-            Treatment = encounter.TreatmentGiven ?? "Medical consultation and care"
+            Treatment = encounter.TreatmentGiven ?? "Medical consultation and care",
+            ServiceCategory = encounter.ReasonForEncounter,
+            ServiceProcedure = encounter.Services.Any()
+                ? string.Join(", ", encounter.Services.Select(service => service.ServiceName))
+                : encounter.TreatmentGiven ?? encounter.ReasonForEncounter,
+            ApprovedTariff = encounter.TotalAmount
         };
     }
 

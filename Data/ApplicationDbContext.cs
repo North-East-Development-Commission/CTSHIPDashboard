@@ -373,6 +373,10 @@ namespace CTSHIPDashboard.Data
                 entity.ToTable("CapitationPayments");
                 entity.HasKey(x => x.Id);
                 entity.Property(x => x.ReportingMonth).HasColumnType("date");
+                entity.Property(x => x.PaymentPeriod).IsRequired().HasMaxLength(20).HasDefaultValue("Monthly");
+                entity.Property(x => x.DueDate).HasColumnType("date");
+                entity.Property(x => x.ActualPaymentMade).HasColumnType("decimal(18,2)");
+                entity.Property(x => x.ProviderPaymentReceivedDate).HasColumnType("date");
                 entity.Property(x => x.CapitationPerEnrollee).HasColumnType("decimal(18,2)");
                 entity.Property(x => x.UtilizationRate).HasColumnType("decimal(18,2)");
                 entity.Property(x => x.PaymentStatus).IsRequired().HasMaxLength(50).HasDefaultValue("Pending");
@@ -380,6 +384,8 @@ namespace CTSHIPDashboard.Data
                 entity.Property(x => x.ProofOfPaymentPath).HasMaxLength(500);
                 entity.HasIndex(x => x.HmoId);
                 entity.HasIndex(x => x.ProviderId);
+                entity.HasIndex(x => x.PaymentStatus);
+                entity.HasIndex(x => x.ProviderPaymentReceivedDate);
                 entity.HasIndex(x => new { x.HmoId, x.ProviderId, x.ReportingMonth }).IsUnique();
                 entity.HasOne(x => x.Hmo)
                     .WithMany()
@@ -394,6 +400,15 @@ namespace CTSHIPDashboard.Data
             modelBuilder.Entity<Claim>(entity =>
             {
                 entity.Property(x => x.Amount).HasColumnType("decimal(18,2)");
+                entity.Property(x => x.ServiceCategory).HasMaxLength(150);
+                entity.Property(x => x.ReferralFacility).HasMaxLength(200);
+                entity.Property(x => x.AuthorizationNumber).HasMaxLength(100);
+                entity.Property(x => x.ServiceProcedure).HasMaxLength(500);
+                entity.Property(x => x.ApprovedTariff).HasColumnType("decimal(18,2)");
+                entity.Property(x => x.AmountApproved).HasColumnType("decimal(18,2)");
+                entity.Property(x => x.DeductionAmount).HasColumnType("decimal(18,2)");
+                entity.Property(x => x.DeductionReason).HasMaxLength(1000);
+                entity.Property(x => x.AmountPaid).HasColumnType("decimal(18,2)");
                 entity.Property(x => x.HmoCertificationStatus).IsRequired().HasMaxLength(50).HasDefaultValue("Not Certified");
                 entity.Property(x => x.HmoCertifiedBy).HasMaxLength(200);
                 entity.Property(x => x.HmoCertificationNote).HasMaxLength(1000);
@@ -404,6 +419,9 @@ namespace CTSHIPDashboard.Data
                 entity.Property(x => x.ClarificationNote).HasMaxLength(1000);
                 entity.HasIndex(x => x.HmoCertificationStatus);
                 entity.HasIndex(x => x.IhsaVerificationStatus);
+                entity.HasIndex(x => x.EncounterId);
+                entity.HasIndex(x => x.AuthorizationNumber);
+                entity.HasIndex(x => new { x.EnrolleeId, x.DateOfService, x.ServiceProcedure });
             });
 
             modelBuilder.Entity<ClaimQuery>(entity =>
@@ -482,6 +500,12 @@ namespace CTSHIPDashboard.Data
                 entity.Property(x => x.ClarificationNote).HasMaxLength(1000);
                 entity.HasIndex(x => x.HmoVerificationStatus);
                 entity.HasIndex(x => x.IhsaVerificationStatus);
+                entity.HasIndex(x => x.ClaimId);
+                entity.HasOne(x => x.Claim)
+                    .WithMany()
+                    .HasForeignKey(x => x.ClaimId)
+                    .OnDelete(DeleteBehavior.Restrict)
+                    .IsRequired(false);
             });
 
             modelBuilder.Entity<EncounterQuery>(entity =>
@@ -547,15 +571,25 @@ namespace CTSHIPDashboard.Data
                 entity.Property(x => x.Subject).IsRequired().HasMaxLength(200);
                 entity.Property(x => x.Description).IsRequired().HasMaxLength(3000);
                 entity.Property(x => x.State).IsRequired().HasMaxLength(100);
+                entity.Property(x => x.Lga).HasMaxLength(100);
+                entity.Property(x => x.ComplainantCategory).IsRequired().HasMaxLength(50).HasDefaultValue("Enrollee");
+                entity.Property(x => x.CommunicationChannel).IsRequired().HasMaxLength(80).HasDefaultValue("In person");
                 entity.Property(x => x.SubmittedByUserId).HasMaxLength(450);
                 entity.Property(x => x.SubmittedByName).HasMaxLength(200);
                 entity.Property(x => x.SubmittedByRole).HasMaxLength(100);
                 entity.Property(x => x.AssignedToUserId).HasMaxLength(450);
                 entity.Property(x => x.AssignedToName).HasMaxLength(200);
+                entity.Property(x => x.ResponsibleOrganization).HasMaxLength(200);
+                entity.Property(x => x.ActionTaken).HasMaxLength(2000);
+                entity.Property(x => x.EscalationDetails).HasMaxLength(2000);
                 entity.Property(x => x.ResolutionNote).HasMaxLength(2000);
+                entity.Property(x => x.ComplainantFeedback).HasMaxLength(1000);
                 entity.HasIndex(x => x.ReferenceNumber).IsUnique();
                 entity.HasIndex(x => x.Status);
                 entity.HasIndex(x => x.Priority);
+                entity.HasIndex(x => x.Category);
+                entity.HasIndex(x => x.DateReceived);
+                entity.HasIndex(x => x.ResolvedAt);
                 entity.HasIndex(x => x.State);
                 entity.HasIndex(x => x.HmoId);
                 entity.HasIndex(x => x.ProviderId);

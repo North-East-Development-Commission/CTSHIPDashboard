@@ -16,6 +16,9 @@ public class CapitationPayment
     [DataType(DataType.Date)]
     public DateTime ReportingMonth { get; set; }
 
+    [StringLength(20)]
+    public string PaymentPeriod { get; set; } = "Monthly";
+
     public int EnrolleeCount { get; set; }
 
     [Range(typeof(decimal), "0", "9999999999999999")]
@@ -23,6 +26,15 @@ public class CapitationPayment
 
     [Range(typeof(decimal), "0", "100")]
     public decimal UtilizationRate { get; set; }
+
+    [DataType(DataType.Date)]
+    public DateTime? DueDate { get; set; }
+
+    [Range(typeof(decimal), "0", "9999999999999999")]
+    public decimal ActualPaymentMade { get; set; }
+
+    [DataType(DataType.Date)]
+    public DateTime? ProviderPaymentReceivedDate { get; set; }
 
     [StringLength(50)]
     public string PaymentStatus { get; set; } = "Pending";
@@ -38,4 +50,12 @@ public class CapitationPayment
 
     [NotMapped]
     public decimal TotalAmount => EnrolleeCount * CapitationPerEnrollee;
+
+    [NotMapped]
+    public decimal OutstandingAmount => Math.Max(TotalAmount - ActualPaymentMade, 0m);
+
+    [NotMapped]
+    public int? PaymentTimelinessDays => DueDate.HasValue && ProviderPaymentReceivedDate.HasValue
+        ? (ProviderPaymentReceivedDate.Value.Date - DueDate.Value.Date).Days
+        : null;
 }

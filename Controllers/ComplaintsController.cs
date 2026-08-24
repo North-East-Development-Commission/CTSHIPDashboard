@@ -1,4 +1,4 @@
-﻿using CTSHIPDashboard.Data;
+using CTSHIPDashboard.Data;
 using CTSHIPDashboard.Helpers;
 using CTSHIPDashboard.Models;
 using CTSHIPDashboard.Models.Enums;
@@ -125,6 +125,10 @@ namespace CTSHIPDashboard.Controllers
                 Subject = model.Subject.Trim(),
                 Description = model.Description.Trim(),
                 Category = model.Category,
+                ComplainantCategory = model.ComplainantCategory.Trim(),
+                CommunicationChannel = model.CommunicationChannel.Trim(),
+                DateReceived = model.DateReceived,
+                Lga = Normalize(model.Lga),
                 Priority = model.Priority,
                 Status = ComplaintStatus.Open,
                 State = model.State.Trim(),
@@ -194,7 +198,12 @@ namespace CTSHIPDashboard.Controllers
                 Status = complaint.Status,
                 Priority = complaint.Priority,
                 AssignedToName = complaint.AssignedToName,
-                ResolutionNote = complaint.ResolutionNote
+                ResponsibleOrganization = complaint.ResponsibleOrganization,
+                ActionTaken = complaint.ActionTaken,
+                EscalationDetails = complaint.EscalationDetails,
+                ResolutionNote = complaint.ResolutionNote,
+                AgreedResolutionDueAt = complaint.AgreedResolutionDueAt,
+                ComplainantFeedback = complaint.ComplainantFeedback
             });
         }
 
@@ -232,7 +241,12 @@ namespace CTSHIPDashboard.Controllers
             complaint.Status = model.Status;
             complaint.Priority = model.Priority;
             complaint.AssignedToName = Normalize(model.AssignedToName);
+            complaint.ResponsibleOrganization = Normalize(model.ResponsibleOrganization);
+            complaint.ActionTaken = Normalize(model.ActionTaken);
+            complaint.EscalationDetails = Normalize(model.EscalationDetails);
             complaint.ResolutionNote = Normalize(model.ResolutionNote);
+            complaint.AgreedResolutionDueAt = model.AgreedResolutionDueAt;
+            complaint.ComplainantFeedback = Normalize(model.ComplainantFeedback);
             complaint.UpdatedAt = DateTime.UtcNow;
             complaint.ResolvedAt =
                 model.Status is ComplaintStatus.Resolved or ComplaintStatus.Closed
@@ -248,6 +262,9 @@ namespace CTSHIPDashboard.Controllers
                     $"Status:{complaint.Status}",
                     $"Priority:{complaint.Priority}",
                     $"AssignedTo:{complaint.AssignedToName}",
+                    $"ResponsibleOrg:{complaint.ResponsibleOrganization}",
+                    $"Action:{complaint.ActionTaken}",
+                    $"Escalation:{complaint.EscalationDetails}",
                     $"Resolution:{complaint.ResolutionNote}"),
                 HttpContext.RequestAborted);
             TempData["Success"] = $"Complaint {complaint.ReferenceNumber} was updated.";
@@ -452,6 +469,8 @@ namespace CTSHIPDashboard.Controllers
             }
 
             model.States = StateSelectListHelper.NorthEastStates(model.State);
+            model.ComplainantCategories = BuildSelectList(new[] { "Enrollee", "Provider", "Other" }, model.ComplainantCategory);
+            model.CommunicationChannels = BuildSelectList(new[] { "In person", "Phone", "SMS", "Email", "Web portal", "Letter", "WhatsApp", "Other" }, model.CommunicationChannel);
             model.Hmos = await hmos.OrderBy(item => item.Name)
                 .Select(item => new SelectListItem(item.Name, item.Id.ToString(), item.Id == model.HmoId))
                 .ToListAsync();
@@ -467,6 +486,10 @@ namespace CTSHIPDashboard.Controllers
                 .ToListAsync();
         }
 
+
+        private static List<SelectListItem> BuildSelectList(IEnumerable<string> values, string? selectedValue) =>
+            values.Select(value => new SelectListItem(value, value, string.Equals(value, selectedValue, StringComparison.OrdinalIgnoreCase)))
+                .ToList();
         private bool CanManageComplaints() =>
             User.IsInRole("CTSHIPAdmin")
             || User.IsInRole("HMO")

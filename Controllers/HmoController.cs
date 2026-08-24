@@ -591,11 +591,19 @@ public class HmoController : Controller
                     ProviderName = provider.Name,
                     ProviderCode = provider.Code,
                     ProviderLevel = provider.Level,
+                    PaymentPeriod = payment?.PaymentPeriod ?? "Monthly",
                     EnrolleeCount = enrolleeCount,
                     CapitationPerEnrollee = payment?.CapitationPerEnrollee > 0
                         ? payment.CapitationPerEnrollee
                         : defaultCapitationPerEnrollee,
                     UtilizationRate = utilizationRate,
+                    DueDate = payment?.DueDate ?? month.AddMonths(1).AddDays(-1),
+                    ActualPaymentMade = payment?.ActualPaymentMade > 0
+                        ? payment.ActualPaymentMade
+                        : string.Equals(payment?.PaymentStatus, "Paid", StringComparison.OrdinalIgnoreCase)
+                            ? enrolleeCount * (payment.CapitationPerEnrollee > 0 ? payment.CapitationPerEnrollee : defaultCapitationPerEnrollee)
+                            : 0m,
+                    ProviderPaymentReceivedDate = payment?.ProviderPaymentReceivedDate,
                     PaymentStatus = payment?.PaymentStatus ?? "Pending",
                     PaymentReference = payment?.PaymentReference,
                     ProofOfPaymentPath = payment?.ProofOfPaymentPath
@@ -654,7 +662,27 @@ public class HmoController : Controller
             && x.ProviderId == model.ProviderId
             && x.ReportingMonth == month);
 
-        if (paymentStatus == "Paid"
+        if (paymentStatus == "Paid" && model.ActualPaymentMade <= 0)
+        {
+            TempData["Error"] = "Enter the actual payment amount made to the provider.";
+            return RedirectToAction(nameof(Capitation), new
+            {
+                reportingMonth = month.ToString("yyyy-MM"),
+                capitationPerEnrollee = model.CapitationPerEnrollee
+            });
+        }
+
+        if (paymentStatus == "Paid" && !model.ProviderPaymentReceivedDate.HasValue)
+        {
+            TempData["Error"] = "Enter the date the provider received payment.";
+            return RedirectToAction(nameof(Capitation), new
+            {
+                reportingMonth = month.ToString("yyyy-MM"),
+                capitationPerEnrollee = model.CapitationPerEnrollee
+            });
+        }
+
+        if ((paymentStatus == "Paid" || paymentStatus == "Partially Paid")
             && string.IsNullOrWhiteSpace(model.PaymentReference)
             && proofOfPayment is not { Length: > 0 }
             && string.IsNullOrWhiteSpace(payment?.ProofOfPaymentPath))
@@ -705,7 +733,11 @@ public class HmoController : Controller
 
         payment.EnrolleeCount = enrolleeCount;
         payment.UtilizationRate = utilizationRate;
+        payment.PaymentPeriod = string.IsNullOrWhiteSpace(model.PaymentPeriod) ? "Monthly" : model.PaymentPeriod.Trim();
         payment.CapitationPerEnrollee = model.CapitationPerEnrollee;
+        payment.DueDate = model.DueDate ?? month.AddMonths(1).AddDays(-1);
+        payment.ActualPaymentMade = model.ActualPaymentMade;
+        payment.ProviderPaymentReceivedDate = model.ProviderPaymentReceivedDate;
         payment.PaymentStatus = paymentStatus;
         payment.PaymentReference = string.IsNullOrWhiteSpace(model.PaymentReference)
             ? null
@@ -728,6 +760,9 @@ public class HmoController : Controller
                 $"CapitationPerEnrollee:NGN {payment.CapitationPerEnrollee:N2}",
                 $"Enrollees:{payment.EnrolleeCount}",
                 $"Utilization:{payment.UtilizationRate:N2}%",
+                $"ActualPaid:NGN {payment.ActualPaymentMade:N2}",
+                $"Outstanding:NGN {payment.OutstandingAmount:N2}",
+                payment.PaymentTimelinessDays.HasValue ? $"TimelinessDays:{payment.PaymentTimelinessDays.Value}" : null,
                 string.IsNullOrWhiteSpace(payment.PaymentReference) ? null : $"PaymentRef:{payment.PaymentReference}",
                 string.IsNullOrWhiteSpace(proofPath) ? null : "Proof:Uploaded"),
             HttpContext.RequestAborted);
@@ -858,7 +893,7 @@ public class HmoController : Controller
     private static string NormalizeCapitationPaymentStatus(string? status)
     {
         string normalizedStatus = status?.Trim() ?? string.Empty;
-        string[] allowedStatuses = { "Pending", "Paid" };
+        string[] allowedStatuses = { "Pending", "Partially Paid", "Paid" };
 
         return allowedStatuses.FirstOrDefault(candidate =>
             string.Equals(candidate, normalizedStatus, StringComparison.OrdinalIgnoreCase)) ?? "Pending";

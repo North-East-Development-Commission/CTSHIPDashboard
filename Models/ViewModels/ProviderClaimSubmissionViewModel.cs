@@ -27,6 +27,28 @@ public class ProviderClaimSubmissionViewModel
 
     public string Treatment { get; set; } = string.Empty;
 
+    [Required]
+    [StringLength(150)]
+    [Display(Name = "Diagnosis / Service Category")]
+    public string ServiceCategory { get; set; } = string.Empty;
+
+    [Required]
+    [StringLength(500)]
+    [Display(Name = "Specific Service / Procedure Provided")]
+    public string ServiceProcedure { get; set; } = string.Empty;
+
+    [StringLength(200)]
+    [Display(Name = "Referral Facility")]
+    public string? ReferralFacility { get; set; }
+
+    [StringLength(100)]
+    [Display(Name = "Authorization Number")]
+    public string? AuthorizationNumber { get; set; }
+
+    [Range(typeof(decimal), "0", "9999999999999999")]
+    [Display(Name = "Approved Tariff")]
+    public decimal ApprovedTariff { get; set; }
+
     [Display(Name = "Claim Evidence")]
     public List<IFormFile> EvidenceFiles { get; set; } = new();
 }

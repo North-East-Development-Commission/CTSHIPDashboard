@@ -1,4 +1,4 @@
-﻿@model CTSHIPDashboard.Models.Claim
+@model CTSHIPDashboard.Models.Claim
 @{
     ViewData["Title"] = "Claim Details - " + Model.ClaimNumber;
     bool canReviewClaims = User.IsInRole("Reviewer");
@@ -122,7 +122,9 @@
                                     <strong>Payment Completed</strong><br>
                                     Paid By: @Model.PaidBy<br>
                                     Date Paid: @Model.DatePaid?.ToString("dd MMMM yyyy")<br>
-                                    Reference: @Model.PaymentReference
+                                    Reference: @Model.PaymentReference<br>
+                                    Amount Paid: NGN @Model.AmountPaid.ToString("N2")<br>
+                                    Outstanding: NGN @Model.OutstandingAmount.ToString("N2")
                                 </div>
                             }
 
@@ -149,6 +151,26 @@
                                         <div class="col-md-4"><strong>Original Provider Data:</strong><br /><span class="text-muted">Preserved @(!string.IsNullOrWhiteSpace(Model.OriginalProviderDataJson) ? "Yes" : "Pending")</span></div>
                                     </div>
 
+
+                                    <div class="card border-0 bg-light mb-4">
+                                        <div class="card-body">
+                                            <h6 class="fw-bold text-success">FFS Traceability Pathway</h6>
+                                            <div class="row g-3">
+                                                <div class="col-md-4"><strong>Encounter ID:</strong><br />@(Model.EncounterId?.ToString() ?? "-")</div>
+                                                <div class="col-md-4"><strong>Date of Service:</strong><br />@(Model.DateOfService?.ToString("dd MMM yyyy") ?? "-")</div>
+                                                <div class="col-md-4"><strong>Service Category:</strong><br />@(Model.ServiceCategory ?? "-")</div>
+                                                <div class="col-md-4"><strong>Referral Facility:</strong><br />@(Model.ReferralFacility ?? "-")</div>
+                                                <div class="col-md-4"><strong>Authorization Number:</strong><br />@(Model.AuthorizationNumber ?? "-")</div>
+                                                <div class="col-md-4"><strong>Service / Procedure:</strong><br />@(Model.ServiceProcedure ?? Model.Treatment)</div>
+                                                <div class="col-md-3"><strong>Approved Tariff:</strong><br />NGN @Model.ApprovedTariff.ToString("N2")</div>
+                                                <div class="col-md-3"><strong>Claim Amount:</strong><br />NGN @Model.Amount.ToString("N2")</div>
+                                                <div class="col-md-3"><strong>Approved Amount:</strong><br />NGN @((Model.AmountApproved > 0 ? Model.AmountApproved : Model.Amount).ToString("N2"))</div>
+                                                <div class="col-md-3"><strong>Amount Paid:</strong><br />NGN @Model.AmountPaid.ToString("N2")</div>
+                                                <div class="col-md-6"><strong>Deduction / Rejection Reason:</strong><br />@(Model.DeductionReason ?? Model.RejectionReason ?? "-")</div>
+                                                <div class="col-md-6"><strong>Outstanding Amount:</strong><br />NGN @Model.OutstandingAmount.ToString("N2")</div>
+                                            </div>
+                                        </div>
+                                    </div>
                                     <h6 class="fw-bold text-success">Query Cycle</h6>
                                     @if (Model.Queries.Count == 0)
                                     {
