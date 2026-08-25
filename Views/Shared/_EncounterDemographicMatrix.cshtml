@@ -16,7 +16,6 @@
         <table class="table table-striped table-hover mb-0 align-middle ct-wide-table">
             <thead class="table-light">
                 <tr>
-                    <th>Dimension</th>
                     <th>Demographic</th>
                     <th>Enrollees</th>
                     <th>Care Users</th>
@@ -30,7 +29,7 @@
                 @if (Model.Rows.Count == 0)
                 {
                     <tr>
-                        <td colspan="8" class="text-center text-muted py-4">No demographic encounter data is available yet.</td>
+                        <td colspan="7" class="text-center text-muted py-4">No demographic encounter data is available yet.</td>
                     </tr>
                 }
                 else
@@ -38,7 +37,6 @@
                     @foreach (var row in Model.Rows)
                     {
                         <tr>
-                            <td class="fw-bold">@row.Dimension</td>
                             <td>@row.Category</td>
                             <td>@row.Enrollees.ToString("N0")</td>
                             <td>@row.EnrolleesWithEncounters.ToString("N0")</td>

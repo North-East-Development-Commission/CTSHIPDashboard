@@ -954,15 +954,25 @@ public class ReferralProController : Controller
             .ThenBy(item => item.Title)
             .ToListAsync(cancellationToken);
 
-        model.PrescriptionCatalog = BuildCatalogItems(
+        List<ReferralEncounterClaimCatalogItem> prescriptionCatalog = BuildCatalogItems(
             catalogItems,
             ReferralEncounterClaimCatalog.PrescriptionService);
-        model.LaboratoryCatalog = BuildCatalogItems(
+        List<ReferralEncounterClaimCatalogItem> laboratoryCatalog = BuildCatalogItems(
             catalogItems,
             ReferralEncounterClaimCatalog.LaboratoryService);
-        model.SurgeryCatalog = BuildCatalogItems(
+        List<ReferralEncounterClaimCatalogItem> surgeryCatalog = BuildCatalogItems(
             catalogItems,
             ReferralEncounterClaimCatalog.SurgeryService);
+
+        model.PrescriptionCatalog = prescriptionCatalog.Count > 0
+            ? prescriptionCatalog
+            : NhiaPriceCatalog.LoadMedicineCatalog(_environment.ContentRootPath);
+        model.LaboratoryCatalog = laboratoryCatalog.Count > 0
+            ? laboratoryCatalog
+            : NhiaPriceCatalog.LoadLaboratoryCatalog(_environment.ContentRootPath);
+        model.SurgeryCatalog = surgeryCatalog.Count > 0
+            ? surgeryCatalog
+            : NhiaPriceCatalog.LoadSurgeryCatalog(_environment.ContentRootPath);
     }
 
     private static List<ReferralEncounterClaimCatalogItem> BuildCatalogItems(

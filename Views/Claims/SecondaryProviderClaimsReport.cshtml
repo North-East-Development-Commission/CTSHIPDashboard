@@ -6,66 +6,195 @@
 <div class="container-fluid py-5">
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
         <div>
-            <h1 class="display-5 fw-bold text-success mb-1">Secondary Provider FFS Claims Report</h1>
-            <p class="lead text-muted mb-0">Traceable pathway: enrollee to encounter, authorization, service, validation, and payment.</p>
+            <h1 class="display-5 fw-bold text-success mb-1">
+                Secondary Provider FFS Claims Report
+            </h1>
+            <p class="lead text-muted mb-0">
+                Traceable pathway: enrollee to encounter, authorization, service,
+                validation, and payment.
+            </p>
         </div>
-        <a asp-action="Dashboard" class="btn btn-outline-primary btn-lg"><i class="bi bi-arrow-left me-1"></i> Claims Dashboard</a>
+        <a asp-action="Dashboard" class="btn btn-outline-primary btn-lg">
+            <i class="bi bi-arrow-left me-1"></i> Claims Dashboard
+        </a>
     </div>
 
-    <form asp-action="SecondaryProviderClaimsReport" method="get" class="card border-0 shadow-sm mb-4">
+    <form asp-action="SecondaryProviderClaimsReport" method="get"
+          class="card border-0 shadow-sm mb-4">
         <div class="card-body">
             <div class="row g-3 align-items-end">
                 <div class="col-md-4">
                     <label class="form-label fw-bold text-success">Search</label>
-                    <input name="search" value="@Model.Search" class="form-control form-control-lg" placeholder="Claim, enrollee, provider, authorization" />
+                    <input name="search" value="@Model.Search"
+                           class="form-control form-control-lg"
+                           placeholder="Claim, enrollee, provider, HMO, authorization" />
                 </div>
                 <div class="col-md-2">
                     <label class="form-label fw-bold text-success">Status</label>
                     <select name="status" class="form-select form-select-lg">
                         <option value="All" selected="@(Model.Status == "All")">All</option>
-                        <option value="Submitted" selected="@(Model.Status == "Submitted")">Submitted</option>
-                        <option value="Under Review" selected="@(Model.Status == "Under Review")">Under Review</option>
-                        <option value="Queried" selected="@(Model.Status == "Queried")">Queried</option>
-                        <option value="Approved" selected="@(Model.Status == "Approved")">Approved</option>
-                        <option value="Partially Approved" selected="@(Model.Status == "Partially Approved")">Partially Approved</option>
-                        <option value="Rejected" selected="@(Model.Status == "Rejected")">Rejected</option>
+                        <option value="Submitted"
+                                selected="@(Model.Status == "Submitted")">Submitted</option>
+                        <option value="Under Review"
+                                selected="@(Model.Status == "Under Review")">Under Review</option>
+                        <option value="Queried"
+                                selected="@(Model.Status == "Queried")">Queried</option>
+                        <option value="Approved"
+                                selected="@(Model.Status == "Approved")">Approved</option>
+                        <option value="Partially Approved"
+                                selected="@(Model.Status == "Partially Approved")">Partially Approved</option>
+                        <option value="Rejected"
+                                selected="@(Model.Status == "Rejected")">Rejected</option>
                         <option value="Paid" selected="@(Model.Status == "Paid")">Paid</option>
                     </select>
                 </div>
-                <div class="col-md-2"><label class="form-label fw-bold text-success">From</label><input type="date" name="fromDate" value="@Model.FromDate?.ToString("yyyy-MM-dd")" class="form-control form-control-lg" /></div>
-                <div class="col-md-2"><label class="form-label fw-bold text-success">To</label><input type="date" name="toDate" value="@Model.ToDate?.ToString("yyyy-MM-dd")" class="form-control form-control-lg" /></div>
-                <div class="col-md-2 d-grid"><button class="btn btn-success btn-lg">Filter</button></div>
+                <div class="col-md-2">
+                    <label class="form-label fw-bold text-success">From</label>
+                    <input type="date" name="fromDate"
+                           value="@Model.FromDate?.ToString("yyyy-MM-dd")"
+                           class="form-control form-control-lg" />
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label fw-bold text-success">To</label>
+                    <input type="date" name="toDate"
+                           value="@Model.ToDate?.ToString("yyyy-MM-dd")"
+                           class="form-control form-control-lg" />
+                </div>
+                <div class="col-md-2 d-grid">
+                    <button class="btn btn-success btn-lg">Filter</button>
+                </div>
             </div>
         </div>
     </form>
 
     <div class="row g-4 mb-4 text-center">
-        <div class="col-xl-2 col-md-4 col-6"><div class="card bg-primary text-white shadow h-100"><div class="card-body"><div>Total Claims</div><h2 class="fw-bold">@Model.TotalClaims</h2></div></div></div>
-        <div class="col-xl-2 col-md-4 col-6"><div class="card bg-warning text-dark shadow h-100"><div class="card-body"><div>Queries</div><h2 class="fw-bold">@Model.QueryClaims</h2></div></div></div>
-        <div class="col-xl-2 col-md-4 col-6"><div class="card bg-info text-dark shadow h-100"><div class="card-body"><div>Partial</div><h2 class="fw-bold">@Model.PartiallyApprovedClaims</h2></div></div></div>
-        <div class="col-xl-2 col-md-4 col-6"><div class="card bg-success text-white shadow h-100"><div class="card-body"><div>Paid</div><h2 class="fw-bold">@Model.PaidClaims</h2></div></div></div>
-        <div class="col-xl-2 col-md-4 col-6"><div class="card bg-danger text-white shadow h-100"><div class="card-body"><div>Rejected</div><h2 class="fw-bold">@Model.RejectedClaims</h2></div></div></div>
-        <div class="col-xl-2 col-md-4 col-6"><div class="card bg-dark text-white shadow h-100"><div class="card-body"><div>IHSA Verified</div><h2 class="fw-bold">@Model.IhsaVerifiedClaims</h2></div></div></div>
-        <div class="col-xl-3 col-md-6"><div class="card border-success shadow h-100"><div class="card-body"><div class="text-muted">Claim Amount</div><h3 class="fw-bold text-success">NGN @Model.TotalClaimAmount.ToString("N2")</h3></div></div></div>
-        <div class="col-xl-3 col-md-6"><div class="card border-success shadow h-100"><div class="card-body"><div class="text-muted">Approved</div><h3 class="fw-bold text-success">NGN @Model.ApprovedClaimAmount.ToString("N2")</h3></div></div></div>
-        <div class="col-xl-3 col-md-6"><div class="card border-success shadow h-100"><div class="card-body"><div class="text-muted">Paid</div><h3 class="fw-bold text-success">NGN @Model.PaidClaimAmount.ToString("N2")</h3></div></div></div>
-        <div class="col-xl-3 col-md-6"><div class="card border-danger shadow h-100"><div class="card-body"><div class="text-muted">Outstanding</div><h3 class="fw-bold text-danger">NGN @Model.OutstandingClaimAmount.ToString("N2")</h3></div></div></div>
+        <div class="col-xl-2 col-md-4 col-6">
+            <div class="card bg-primary text-white shadow h-100">
+                <div class="card-body">
+                    <div>Total Claims Submitted</div>
+                    <h2 class="fw-bold">@Model.TotalClaims</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-2 col-md-4 col-6">
+            <div class="card bg-warning text-dark shadow h-100">
+                <div class="card-body">
+                    <div>Queries</div>
+                    <h2 class="fw-bold">@Model.QueryClaims</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-2 col-md-4 col-6">
+            <div class="card bg-info text-dark shadow h-100">
+                <div class="card-body">
+                    <div>Claims Validated</div>
+                    <h2 class="fw-bold">@Model.ClaimsValidated</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-2 col-md-4 col-6">
+            <div class="card bg-success text-white shadow h-100">
+                <div class="card-body">
+                    <div>Paid</div>
+                    <h2 class="fw-bold">@Model.PaidClaims</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-2 col-md-4 col-6">
+            <div class="card bg-danger text-white shadow h-100">
+                <div class="card-body">
+                    <div>Rejected</div>
+                    <h2 class="fw-bold">@Model.RejectedClaims</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-2 col-md-4 col-6">
+            <div class="card bg-dark text-white shadow h-100">
+                <div class="card-body">
+                    <div>Avg Processing Days</div>
+                    <h2 class="fw-bold">@Model.AverageProcessingDays.ToString("N1")</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4 mb-4 text-center">
+        <div class="col-xl-3 col-md-6">
+            <div class="card border-success shadow h-100">
+                <div class="card-body">
+                    <div class="text-muted">Amount Claimed</div>
+                    <h3 class="fw-bold text-success">
+                        NGN @Model.TotalClaimAmount.ToString("N2")
+                    </h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="card border-success shadow h-100">
+                <div class="card-body">
+                    <div class="text-muted">Amount Approved</div>
+                    <h3 class="fw-bold text-success">
+                        NGN @Model.ApprovedClaimAmount.ToString("N2")
+                    </h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="card border-success shadow h-100">
+                <div class="card-body">
+                    <div class="text-muted">Amount Paid</div>
+                    <h3 class="fw-bold text-success">
+                        NGN @Model.PaidClaimAmount.ToString("N2")
+                    </h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="card border-danger shadow h-100">
+                <div class="card-body">
+                    <div class="text-muted">Outstanding Claims</div>
+                    <h3 class="fw-bold text-danger">
+                        NGN @Model.OutstandingClaimAmount.ToString("N2")
+                    </h3>
+                </div>
+            </div>
+        </div>
     </div>
 
     <div class="row g-4 mb-4">
         <div class="col-lg-7">
             <div class="card border-0 shadow h-100">
-                <div class="card-header bg-success text-white fw-bold">Provider Summary</div>
+                <div class="card-header bg-success text-white fw-bold">
+                    Provider Summary
+                </div>
                 <div class="table-responsive">
                     <table class="table table-hover mb-0 align-middle">
-                        <thead><tr><th>Provider</th><th>State</th><th>Claims</th><th>Queries</th><th>Paid</th><th>Approved</th><th>Outstanding</th></tr></thead>
+                        <thead>
+                            <tr>
+                                <th>Provider</th>
+                                <th>State</th>
+                                <th>Claims</th>
+                                <th>Queries</th>
+                                <th>Paid</th>
+                                <th>Approved</th>
+                                <th>Outstanding</th>
+                            </tr>
+                        </thead>
                         <tbody>
                             @foreach (var provider in Model.ProviderSummaries)
                             {
                                 <tr>
-                                    <td class="fw-bold">@provider.ProviderName</td><td>@provider.State</td><td>@provider.Claims</td><td>@provider.QueryClaims</td><td>@provider.PaidClaims</td>
-                                    <td class="fw-bold text-success">NGN @provider.ApprovedAmount.ToString("N2")</td>
-                                    <td class="fw-bold text-danger">NGN @provider.OutstandingAmount.ToString("N2")</td>
+                                    <td class="fw-bold">@provider.ProviderName</td>
+                                    <td>@provider.State</td>
+                                    <td>@provider.Claims</td>
+                                    <td>@provider.QueryClaims</td>
+                                    <td>@provider.PaidClaims</td>
+                                    <td class="fw-bold text-success">
+                                        NGN @provider.ApprovedAmount.ToString("N2")
+                                    </td>
+                                    <td class="fw-bold text-danger">
+                                        NGN @provider.OutstandingAmount.ToString("N2")
+                                    </td>
                                 </tr>
                             }
                         </tbody>
@@ -75,14 +204,20 @@
         </div>
         <div class="col-lg-5">
             <div class="card border-0 shadow h-100">
-                <div class="card-header bg-primary text-white fw-bold">Status Summary</div>
+                <div class="card-header bg-primary text-white fw-bold">
+                    Status Summary
+                </div>
                 <div class="table-responsive">
                     <table class="table table-hover mb-0 align-middle">
                         <thead><tr><th>Status</th><th>Claims</th><th>Amount</th></tr></thead>
                         <tbody>
                             @foreach (var status in Model.StatusSummaries)
                             {
-                                <tr><td><span class="badge bg-secondary">@status.Status</span></td><td>@status.Claims</td><td class="fw-bold">NGN @status.Amount.ToString("N2")</td></tr>
+                                <tr>
+                                    <td><span class="badge bg-secondary">@status.Status</span></td>
+                                    <td>@status.Claims</td>
+                                    <td class="fw-bold">NGN @status.Amount.ToString("N2")</td>
+                                </tr>
                             }
                         </tbody>
                     </table>
@@ -97,29 +232,99 @@
             <table class="table table-hover mb-0 align-middle">
                 <thead class="table-light">
                     <tr>
-                        <th>Claim</th><th>Enrollee</th><th>Facility</th><th>Service / Authorization</th><th>Claimed</th><th>Approved</th><th>Paid</th><th>Outstanding</th><th>Status</th><th></th>
+                        <th>Claim / Month</th>
+                        <th>Enrollee ID</th>
+                        <th>Facility / HMO</th>
+                        <th>Service / Diagnosis</th>
+                        <th>Payment Type / Claimed</th>
+                        <th>Validation / Approved</th>
+                        <th>Payment / Paid</th>
+                        <th>Processing</th>
+                        <th>Remarks</th>
+                        <th></th>
                     </tr>
                 </thead>
                 <tbody>
                     @if (Model.Claims.Count == 0)
                     {
-                        <tr><td colspan="10" class="text-center py-5 text-muted">No secondary-provider claims found.</td></tr>
+                        <tr>
+                            <td colspan="10" class="text-center py-5 text-muted">
+                                No secondary-provider claims found.
+                            </td>
+                        </tr>
                     }
                     else
                     {
                         @foreach (var claim in Model.Claims)
                         {
                             <tr>
-                                <td><strong class="text-primary">@claim.ClaimNumber</strong><br /><small>Submitted @claim.DateSubmitted.ToString("dd MMM yyyy")</small><br /><small>Service @(claim.DateOfService?.ToString("dd MMM yyyy") ?? "-")</small></td>
-                                <td>@claim.EnrolleeName<br /><small class="text-muted">@claim.EnrollmentNumber</small></td>
-                                <td>@claim.ProviderName<br /><small class="text-muted">@claim.State</small></td>
-                                <td><strong>@claim.ServiceCategory</strong><br />@claim.ServiceProcedure<br /><small class="text-muted">Referral: @claim.ReferralFacility | Auth: @claim.AuthorizationNumber</small></td>
-                                <td class="fw-bold">NGN @claim.Amount.ToString("N2")</td>
-                                <td class="fw-bold text-success">NGN @claim.AmountApproved.ToString("N2")<br /><small class="text-danger">Deducted NGN @claim.DeductionAmount.ToString("N2")</small></td>
-                                <td>NGN @claim.AmountPaid.ToString("N2")<br /><small class="text-muted">@claim.PaymentDate?.ToString("dd MMM yyyy") @claim.PaymentReference</small></td>
-                                <td class="fw-bold @(claim.OutstandingAmount > 0 ? "text-danger" : "text-success")">NGN @claim.OutstandingAmount.ToString("N2")</td>
-                                <td><span class="badge bg-secondary">@claim.Status</span><br /><small>@claim.OpenQueries open query</small></td>
-                                <td><a asp-action="Details" asp-route-id="@claim.Id" class="btn btn-sm btn-outline-primary">View</a></td>
+                                <td>
+                                    <strong class="text-primary">@claim.ClaimNumber</strong><br />
+                                    <small>Month: @claim.ReportingMonth</small><br />
+                                    <small>Submitted @claim.DateSubmitted.ToString("dd MMM yyyy")</small><br />
+                                    <small>
+                                        Service @(claim.DateOfService?.ToString("dd MMM yyyy") ?? "-")
+                                    </small>
+                                </td>
+                                <td>
+                                    @claim.EnrolleeName<br />
+                                    <small class="text-muted">@claim.EnrollmentNumber</small>
+                                </td>
+                                <td>
+                                    @claim.ProviderName<br />
+                                    <small class="text-muted">@claim.State</small><br />
+                                    <small class="text-muted">@claim.HmoName</small>
+                                </td>
+                                <td>
+                                    <strong>@claim.ServiceCategory</strong><br />
+                                    @claim.ServiceProcedure<br />
+                                    <small class="text-muted">Diagnosis: @claim.Diagnosis</small><br />
+                                    <small class="text-muted">
+                                        Referral: @claim.ReferralFacility / Auth: @claim.AuthorizationNumber
+                                    </small>
+                                </td>
+                                <td>
+                                    <span class="badge bg-light text-dark">@claim.PaymentType</span><br />
+                                    <strong>NGN @claim.Amount.ToString("N2")</strong>
+                                </td>
+                                <td>
+                                    <span class="badge bg-secondary">@claim.ValidationStatus</span><br />
+                                    <strong class="text-success">
+                                        NGN @claim.AmountApproved.ToString("N2")
+                                    </strong><br />
+                                    <small class="text-danger">
+                                        Adjustment NGN @claim.AdjustmentAmount.ToString("N2")
+                                    </small><br />
+                                    <small class="text-muted">@claim.AdjustmentReason</small>
+                                </td>
+                                <td>
+                                    <span class="badge bg-success">@claim.PaymentStatus</span><br />
+                                    <strong>NGN @claim.AmountPaid.ToString("N2")</strong><br />
+                                    <small class="text-muted">
+                                        @claim.PaymentDate?.ToString("dd MMM yyyy")
+                                        @claim.PaymentReference
+                                    </small>
+                                </td>
+                                <td>
+                                    <span class="fw-bold @(claim.OutstandingAmount > 0
+                                        ? "text-danger"
+                                        : "text-success")">
+                                        NGN @claim.OutstandingAmount.ToString("N2")
+                                    </span><br />
+                                    <small>@claim.ProcessingDays day(s)</small><br />
+                                    <small class="text-muted">
+                                        Approved @claim.ApprovalDate?.ToString("dd MMM yyyy")
+                                    </small>
+                                </td>
+                                <td>
+                                    <span class="badge bg-secondary">@claim.Status</span><br />
+                                    <small>@claim.OpenQueries open query</small><br />
+                                    <small class="text-muted">@claim.Remarks</small>
+                                </td>
+                                <td>
+                                    <a asp-action="Details" asp-route-id="@claim.Id"
+                                       class="btn btn-sm btn-outline-primary">View</a>
+                                </td>
                             </tr>
                         }
                     }

@@ -1,423 +1,423 @@
-@model CTSHIPDashboard.Models.ViewModels.NHIADashboardViewModel
-
-@{
-    ViewData["Title"] = "NHIA Program Oversight";
-}
-
-<style>
-    .nhia-dashboard {
-        color: #1f2933;
-    }
-
-    .nhia-dashboard .page-kicker {
-        color: #3B703B;
-        font-size: .8rem;
-        font-weight: 700;
-        letter-spacing: 0;
-        text-transform: uppercase;
-    }
-
-    .nhia-dashboard .metric-card,
-    .nhia-dashboard .section-panel,
-    .nhia-dashboard .signal-card {
-        border: 1px solid rgba(59, 112, 59, .18);
-        border-radius: 8px;
-        background: #fff;
-        box-shadow: 0 10px 26px rgba(31, 41, 51, .08);
-    }
-
-    .nhia-dashboard a.metric-card {
-        color: inherit;
-        text-decoration: none;
-        transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
-    }
-
-    .nhia-dashboard a.metric-card:hover {
-        border-color: rgba(254, 144, 49, .72);
-        box-shadow: 0 14px 30px rgba(31, 41, 51, .12);
-        transform: translateY(-2px);
-    }
-
-    .nhia-dashboard .metric-card,
-    .nhia-dashboard .signal-card {
-        min-height: 156px;
-        padding: 1.25rem;
-    }
-
-    .nhia-dashboard .metric-icon,
-    .nhia-dashboard .signal-icon {
-        width: 42px;
-        height: 42px;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        border-radius: 8px;
-        background: rgba(59, 112, 59, .1);
-        color: #2B572F;
-        font-size: 1.35rem;
-    }
-
-    .nhia-dashboard .metric-value {
-        font-size: 2.1rem;
-        line-height: 1.05;
-        font-weight: 800;
-    }
-
-    .nhia-dashboard .metric-label,
-    .nhia-dashboard .section-label {
-        color: #5f6b76;
-        font-size: .84rem;
-        font-weight: 700;
-        text-transform: uppercase;
-        letter-spacing: 0;
-    }
-
-    .nhia-dashboard .section-panel {
-        overflow: hidden;
-    }
-
-    .nhia-dashboard .section-header {
-        padding: 1rem 1.25rem;
-        border-bottom: 1px solid rgba(59, 112, 59, .16);
-        background: #f7faf7;
-    }
-
-    .nhia-dashboard .table th {
-        color: #43505c;
-        font-size: .78rem;
-        letter-spacing: 0;
-        text-transform: uppercase;
-        white-space: nowrap;
-    }
-
-    .nhia-dashboard .table td {
-        vertical-align: middle;
-    }
-
-    .nhia-dashboard .service-bar {
-        height: 8px;
-        border-radius: 999px;
-        background: #edf2ed;
-        overflow: hidden;
-    }
-
-    .nhia-dashboard .service-bar span {
-        display: block;
-        height: 100%;
-        background: #3B703B;
-    }
-
-    .nhia-dashboard .quick-link {
-        border-radius: 8px;
-        font-weight: 700;
-        white-space: nowrap;
-    }
-</style>
-
-<div class="nhia-dashboard py-4">
-    <div class="d-flex flex-column flex-xl-row justify-content-between gap-3 mb-4">
-        <div>
-            <div class="page-kicker mb-1">NHIA national oversight</div>
-            <h1 class="display-6 fw-bold text-success mb-2">CTSHIP Program Dashboard</h1>
-            <p class="text-muted mb-0">Enrollment, claims, provider, HMO, complaint, and encounter utilization view across the program.</p>
-        </div>
-        <div class="d-flex flex-wrap gap-2 align-items-start">
-            <a asp-controller="Enrollees" asp-action="Index" class="btn btn-success quick-link">
-                <i class="bi bi-people-fill me-1"></i> Enrollment List
-            </a>
-            <a asp-controller="Claims" asp-action="Index" class="btn btn-outline-success quick-link">
-                <i class="bi bi-file-medical-fill me-1"></i> Claims
-            </a>
-            <a asp-controller="Providers" asp-action="Index" class="btn btn-outline-success quick-link">
-                <i class="bi bi-hospital-fill me-1"></i> Providers
-            </a>
-        </div>
-    </div>
-
-    <div class="row g-3 mb-4">
-        <div class="col-xl-4 col-md-6">
-            <a asp-controller="Enrollees" asp-action="Index" class="metric-card h-100 d-block">
-                <div class="d-flex justify-content-between gap-3 mb-3">
-                    <div class="metric-label">Enrollment</div>
-                    <div class="metric-icon"><i class="bi bi-people-fill"></i></div>
-                </div>
-                <div class="metric-value text-success">@Model.TotalEnrollees.ToString("N0")</div>
-                <div class="text-muted mt-2">@Model.ActiveEnrollees.ToString("N0") active (@Model.ActiveEnrolleeRate.ToString("N1")%) | @Model.NewEnrollmentsThisMonth.ToString("N0") this month</div>
-            </a>
-        </div>
-        <div class="col-xl-4 col-md-6">
-            <a asp-controller="Claims" asp-action="Index" class="metric-card h-100 d-block">
-                <div class="d-flex justify-content-between gap-3 mb-3">
-                    <div class="metric-label">Claims</div>
-                    <div class="metric-icon"><i class="bi bi-file-medical-fill"></i></div>
-                </div>
-                <div class="metric-value text-primary">@Model.TotalClaims.ToString("N0")</div>
-                <div class="text-muted mt-2">@Model.PaidClaims.ToString("N0") paid | @((Model.PendingClaims + Model.ApprovedClaims).ToString("N0")) awaiting closure</div>
-            </a>
-        </div>
-        <div class="col-xl-4 col-md-6">
-            <a asp-controller="Providers" asp-action="Index" class="metric-card h-100 d-block">
-                <div class="d-flex justify-content-between gap-3 mb-3">
-                    <div class="metric-label">Providers</div>
-                    <div class="metric-icon"><i class="bi bi-hospital-fill"></i></div>
-                </div>
-                <div class="metric-value text-success">@Model.TotalProviders.ToString("N0")</div>
-                <div class="text-muted mt-2">@Model.ActiveProviders.ToString("N0") active | @Model.ProvidersWithEncounters.ToString("N0") with encounters</div>
-            </a>
-        </div>
-        <div class="col-xl-4 col-md-6">
-            <div class="metric-card h-100">
-                <div class="d-flex justify-content-between gap-3 mb-3">
-                    <div class="metric-label">HMOs</div>
-                    <div class="metric-icon"><i class="bi bi-building-fill-check"></i></div>
-                </div>
-                <div class="metric-value" style="color: #7a4d14;">@Model.TotalHMOs.ToString("N0")</div>
-                <div class="text-muted mt-2">@Model.ActiveHMOs.ToString("N0") active | @Model.HmosWithProviders.ToString("N0") linked to providers</div>
-            </div>
-        </div>
-        <div class="col-xl-4 col-md-6">
-            <a asp-controller="Complaints" asp-action="Index" class="metric-card h-100 d-block">
-                <div class="d-flex justify-content-between gap-3 mb-3">
-                    <div class="metric-label">Complaints</div>
-                    <div class="metric-icon"><i class="bi bi-chat-square-text-fill"></i></div>
-                </div>
-                <div class="metric-value text-danger">@Model.ComplaintMetrics.TotalComplaints.ToString("N0")</div>
-                <div class="text-muted mt-2">@Model.ComplaintMetrics.OpenComplaints.ToString("N0") open | @Model.ComplaintMetrics.CriticalComplaints.ToString("N0") critical</div>
-            </a>
-        </div>
-        <div class="col-xl-4 col-md-6">
-            <a asp-controller="Monitoring" asp-action="Index" class="metric-card h-100 d-block">
-                <div class="d-flex justify-content-between gap-3 mb-3">
-                    <div class="metric-label">Service Utilization</div>
-                    <div class="metric-icon"><i class="bi bi-activity"></i></div>
-                </div>
-                <div class="metric-value text-info">@Model.ServiceUtilizationRate.ToString("N1")%</div>
-                <div class="text-muted mt-2">@Model.TotalVisits.ToString("N0") visits | @Model.UniqueServiceUsers.ToString("N0") users | @Model.EncounterRatePerThousand.ToString("N1") encounters per 1,000</div>
-            </a>
-        </div>
-    </div>
-
-    <div class="row g-3 mb-4">
-        @foreach (var signal in Model.OversightSignals)
-        {
-            <div class="col-xl-3 col-md-6">
-                <div class="signal-card h-100">
-                    <div class="d-flex align-items-start gap-3">
-                        <div class="signal-icon"><i class="bi @signal.IconCss"></i></div>
-                        <div>
-                            <div class="section-label">@signal.Title</div>
-                            <div class="h3 fw-bold mb-1 @signal.ToneCss">@signal.Value</div>
-                            <div class="text-muted small">@signal.Detail</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        }
-    </div>
-
-    <partial name="_EncounterDemographicMatrix" model="Model.EncounterDemographicMatrix" />
-
-    <div class="row g-4 mb-4">
-        <div class="col-12">
-            <div class="section-panel">
-                <div class="section-header d-flex flex-column flex-md-row justify-content-between gap-2">
-                    <div>
-                        <div class="section-label">State oversight</div>
-                        <h2 class="h5 fw-bold mb-0">Program Performance By State</h2>
-                    </div>
-                 
-                </div>
-                <div class="table-responsive">
-                    <table class="table table-hover mb-0 align-middle">
-                        <thead class="table-light">
-                            <tr>
-                                <th>State</th>
-                                <th>Enrollees</th>
-                                <th>Active</th>
-                                <th>Utilization</th>
-                                <th>Encounters</th>
-                                <th>Claims</th>
-                                <th>Claim Amount</th>
-                                <th>Providers</th>
-                                <th>HMOs</th>
-                                <th>Complaints</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @if (Model.StateSummaries.Count == 0)
-                            {
-                                <tr>
-                                    <td colspan="10" class="text-center text-muted py-4">No state-level program data is available yet.</td>
-                                </tr>
-                            }
-                            else
-                            {
-                                @foreach (var summary in Model.StateSummaries)
-                                {
-                                    <tr>
-                                        <td class="fw-bold">@summary.StateName</td>
-                                        <td>@summary.Enrollees.ToString("N0")</td>
-                                        <td>@summary.ActiveEnrollees.ToString("N0")</td>
-                                        <td>@summary.UtilizationRate.ToString("N1")%</td>
-                                        <td>@summary.Encounters.ToString("N0")</td>
-                                        <td>@summary.Claims.ToString("N0")</td>
-                                        <td class="fw-bold text-success">?@summary.ClaimAmount.ToString("N0")</td>
-                                        <td>@summary.Providers.ToString("N0")</td>
-                                        <td>@summary.Hmos.ToString("N0")</td>
-                                        <td>@summary.Complaints.ToString("N0")</td>
-                                    </tr>
-                                }
-                            }
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="row g-4 mb-4">
-        <div class="col-xl-5">
-            <div class="section-panel h-100">
-                <div class="section-header">
-                    <div class="section-label">Encounter utilization</div>
-                    <h2 class="h5 fw-bold mb-0">Most Used Services</h2>
-                </div>
-                <div class="p-3">
-                    @if (Model.TopServices.Count == 0)
-                    {
-                        <div class="text-center text-muted py-4">No service utilization records are available yet.</div>
-                    }
-                    else
-                    {
-                        @foreach (var service in Model.TopServices)
-                        {
-                            string serviceWidth = Math.Min(service.PercentageOfRecordedServices, 100).ToString("N1");
-
-                            <div class="mb-3">
-                                <div class="d-flex justify-content-between gap-3 mb-1">
-                                    <div>
-                                        <div class="fw-bold">@service.ServiceName</div>
-                                        <div class="text-muted small">@service.ServiceSetting</div>
-                                    </div>
-                                    <div class="fw-bold text-success">@service.Frequency.ToString("N0")</div>
-                                </div>
-                                <div class="service-bar" aria-hidden="true">
-                                    <span style="width:@serviceWidth%"></span>
-                                </div>
-                                <div class="text-muted small mt-1">@service.PercentageOfRecordedServices.ToString("N1")% of recorded services</div>
-                            </div>
-                        }
-                    }
-                </div>
-            </div>
-        </div>
-
-        <div class="col-xl-7">
-            <div class="section-panel h-100">
-                <div class="section-header d-flex justify-content-between gap-2">
-                    <div>
-                        <div class="section-label">Claims oversight</div>
-                        <h2 class="h5 fw-bold mb-0">Recent Claims</h2>
-                    </div>
-                    <a asp-controller="Claims" asp-action="Index" class="btn btn-sm btn-outline-success align-self-center">View All</a>
-                </div>
-                <div class="table-responsive">
-                    <table class="table table-hover mb-0 align-middle">
-                        <thead class="table-light">
-                            <tr>
-                                <th>Claim</th>
-                                <th>Enrollee</th>
-                                <th>Provider</th>
-                                <th>Amount</th>
-                                <th>Status</th>
-                                <th>Submitted</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @if (Model.RecentClaims.Count == 0)
-                            {
-                                <tr>
-                                    <td colspan="6" class="text-center text-muted py-4">No claim records are available yet.</td>
-                                </tr>
-                            }
-                            else
-                            {
-                                @foreach (var claim in Model.RecentClaims)
-                                {
-                                    <tr>
-                                        <td class="fw-bold text-primary">@claim.ClaimNumber</td>
-                                        <td>@claim.EnrolleeName</td>
-                                        <td>@claim.ProviderName</td>
-                                        <td class="fw-bold">?@claim.Amount.ToString("N0")</td>
-                                        <td><span class="badge @ClaimStatusBadge(claim.Status)">@claim.Status</span></td>
-                                        <td>@claim.DateSubmitted.ToString("dd MMM yyyy")</td>
-                                    </tr>
-                                }
-                            }
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="section-panel">
-        <div class="section-header d-flex justify-content-between gap-2">
-            <div>
-                <div class="section-label">Enrollment activity</div>
-                <h2 class="h5 fw-bold mb-0">Recent CTSHIP Enrollments</h2>
-            </div>
-            <a asp-controller="Enrollees" asp-action="Index" class="btn btn-sm btn-outline-success align-self-center">View All</a>
-        </div>
-        <div class="table-responsive">
-            <table class="table table-hover mb-0 align-middle">
-                <thead class="table-light">
-                    <tr>
-                        <th>Enrollment #</th>
-                        <th>Name</th>
-                        <th>State</th>
-                        <th>HMO</th>
-                        <th>Date</th>
-                        <th>Status</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @if (Model.RecentEnrollees.Count == 0)
-                    {
-                        <tr>
-                            <td colspan="6" class="text-center text-muted py-4">No enrollment records are available yet.</td>
-                        </tr>
-                    }
-                    else
-                    {
-                        @foreach (var enrollee in Model.RecentEnrollees)
-                        {
-                            <tr>
-                                <td class="fw-bold text-primary">@enrollee.EnrollmentNumber</td>
-                                <td>@enrollee.FullName</td>
-                                <td>@enrollee.State</td>
-                                <td>@enrollee.HmoName</td>
-                                <td>@enrollee.DateRegistered.ToString("dd MMM yyyy")</td>
-                                <td><span class="badge bg-success">@enrollee.Status</span></td>
-                            </tr>
-                        }
-                    }
-                </tbody>
-            </table>
-        </div>
-    </div>
-</div>
-
-@functions {
-    private static string ClaimStatusBadge(string status)
-    {
-        return status switch
-        {
-            "Paid" => "bg-success",
-            "Approved" => "bg-info text-dark",
-            "Submitted" => "bg-warning text-dark",
-            "Rejected" => "bg-danger",
-            _ => "bg-secondary"
-        };
-    }
-}
+@model CTSHIPDashboard.Models.ViewModels.NHIADashboardViewModel
+
+@{
+    ViewData["Title"] = "NHIA Program Oversight";
+}
+
+<style>
+    .nhia-dashboard {
+        color: #1f2933;
+    }
+
+    .nhia-dashboard .page-kicker {
+        color: #3B703B;
+        font-size: .8rem;
+        font-weight: 700;
+        letter-spacing: 0;
+        text-transform: uppercase;
+    }
+
+    .nhia-dashboard .metric-card,
+    .nhia-dashboard .section-panel,
+    .nhia-dashboard .signal-card {
+        border: 1px solid rgba(59, 112, 59, .18);
+        border-radius: 8px;
+        background: #fff;
+        box-shadow: 0 10px 26px rgba(31, 41, 51, .08);
+    }
+
+    .nhia-dashboard a.metric-card {
+        color: inherit;
+        text-decoration: none;
+        transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+    }
+
+    .nhia-dashboard a.metric-card:hover {
+        border-color: rgba(254, 144, 49, .72);
+        box-shadow: 0 14px 30px rgba(31, 41, 51, .12);
+        transform: translateY(-2px);
+    }
+
+    .nhia-dashboard .metric-card,
+    .nhia-dashboard .signal-card {
+        min-height: 156px;
+        padding: 1.25rem;
+    }
+
+    .nhia-dashboard .metric-icon,
+    .nhia-dashboard .signal-icon {
+        width: 42px;
+        height: 42px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 8px;
+        background: rgba(59, 112, 59, .1);
+        color: #2B572F;
+        font-size: 1.35rem;
+    }
+
+    .nhia-dashboard .metric-value {
+        font-size: 2.1rem;
+        line-height: 1.05;
+        font-weight: 800;
+    }
+
+    .nhia-dashboard .metric-label,
+    .nhia-dashboard .section-label {
+        color: #5f6b76;
+        font-size: .84rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0;
+    }
+
+    .nhia-dashboard .section-panel {
+        overflow: hidden;
+    }
+
+    .nhia-dashboard .section-header {
+        padding: 1rem 1.25rem;
+        border-bottom: 1px solid rgba(59, 112, 59, .16);
+        background: #f7faf7;
+    }
+
+    .nhia-dashboard .table th {
+        color: #43505c;
+        font-size: .78rem;
+        letter-spacing: 0;
+        text-transform: uppercase;
+        white-space: nowrap;
+    }
+
+    .nhia-dashboard .table td {
+        vertical-align: middle;
+    }
+
+    .nhia-dashboard .service-bar {
+        height: 8px;
+        border-radius: 999px;
+        background: #edf2ed;
+        overflow: hidden;
+    }
+
+    .nhia-dashboard .service-bar span {
+        display: block;
+        height: 100%;
+        background: #3B703B;
+    }
+
+    .nhia-dashboard .quick-link {
+        border-radius: 8px;
+        font-weight: 700;
+        white-space: nowrap;
+    }
+</style>
+
+<div class="nhia-dashboard py-4">
+    <div class="d-flex flex-column flex-xl-row justify-content-between gap-3 mb-4">
+        <div>
+            <div class="page-kicker mb-1">NHIA national oversight</div>
+            <h1 class="display-6 fw-bold text-success mb-2">CTSHIP Program Dashboard</h1>
+            <p class="text-muted mb-0">Enrollment, claims, provider, HMO, complaint, and encounter utilization view across the program.</p>
+        </div>
+        <div class="d-flex flex-wrap gap-2 align-items-start">
+            <a asp-controller="Enrollees" asp-action="Index" class="btn btn-success quick-link">
+                <i class="bi bi-people-fill me-1"></i> Enrollment List
+            </a>
+            <a asp-controller="Claims" asp-action="Index" class="btn btn-outline-success quick-link">
+                <i class="bi bi-file-medical-fill me-1"></i> Claims
+            </a>
+            <a asp-controller="Providers" asp-action="Index" class="btn btn-outline-success quick-link">
+                <i class="bi bi-hospital-fill me-1"></i> Providers
+            </a>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-xl-4 col-md-6">
+            <a asp-controller="Enrollees" asp-action="Index" class="metric-card h-100 d-block">
+                <div class="d-flex justify-content-between gap-3 mb-3">
+                    <div class="metric-label">Enrollment</div>
+                    <div class="metric-icon"><i class="bi bi-people-fill"></i></div>
+                </div>
+                <div class="metric-value text-success">@Model.TotalEnrollees.ToString("N0")</div>
+                <div class="text-muted mt-2">@Model.ActiveEnrollees.ToString("N0") active (@Model.ActiveEnrolleeRate.ToString("N1")%) | @Model.NewEnrollmentsThisMonth.ToString("N0") this month</div>
+            </a>
+        </div>
+        <div class="col-xl-4 col-md-6">
+            <a asp-controller="Claims" asp-action="Index" class="metric-card h-100 d-block">
+                <div class="d-flex justify-content-between gap-3 mb-3">
+                    <div class="metric-label">Claims</div>
+                    <div class="metric-icon"><i class="bi bi-file-medical-fill"></i></div>
+                </div>
+                <div class="metric-value text-primary">@Model.TotalClaims.ToString("N0")</div>
+                <div class="text-muted mt-2">@Model.PaidClaims.ToString("N0") paid | @((Model.PendingClaims + Model.ApprovedClaims).ToString("N0")) awaiting closure</div>
+            </a>
+        </div>
+        <div class="col-xl-4 col-md-6">
+            <a asp-controller="Providers" asp-action="Index" class="metric-card h-100 d-block">
+                <div class="d-flex justify-content-between gap-3 mb-3">
+                    <div class="metric-label">Providers</div>
+                    <div class="metric-icon"><i class="bi bi-hospital-fill"></i></div>
+                </div>
+                <div class="metric-value text-success">@Model.TotalProviders.ToString("N0")</div>
+                <div class="text-muted mt-2">@Model.ActiveProviders.ToString("N0") active | @Model.ProvidersWithEncounters.ToString("N0") with encounters</div>
+            </a>
+        </div>
+        <div class="col-xl-4 col-md-6">
+            <div class="metric-card h-100">
+                <div class="d-flex justify-content-between gap-3 mb-3">
+                    <div class="metric-label">HMOs</div>
+                    <div class="metric-icon"><i class="bi bi-building-fill-check"></i></div>
+                </div>
+                <div class="metric-value" style="color: #7a4d14;">@Model.TotalHMOs.ToString("N0")</div>
+                <div class="text-muted mt-2">@Model.ActiveHMOs.ToString("N0") active | @Model.HmosWithProviders.ToString("N0") linked to providers</div>
+            </div>
+        </div>
+        <div class="col-xl-4 col-md-6">
+            <a asp-controller="Complaints" asp-action="Index" class="metric-card h-100 d-block">
+                <div class="d-flex justify-content-between gap-3 mb-3">
+                    <div class="metric-label">Complaints</div>
+                    <div class="metric-icon"><i class="bi bi-chat-square-text-fill"></i></div>
+                </div>
+                <div class="metric-value text-danger">@Model.ComplaintMetrics.TotalComplaints.ToString("N0")</div>
+                <div class="text-muted mt-2">@Model.ComplaintMetrics.OpenComplaints.ToString("N0") open | @Model.ComplaintMetrics.CriticalComplaints.ToString("N0") critical</div>
+            </a>
+        </div>
+        <div class="col-xl-4 col-md-6">
+            <a asp-controller="Monitoring" asp-action="Index" class="metric-card h-100 d-block">
+                <div class="d-flex justify-content-between gap-3 mb-3">
+                    <div class="metric-label">Service Utilization</div>
+                    <div class="metric-icon"><i class="bi bi-activity"></i></div>
+                </div>
+                <div class="metric-value text-info">@Model.ServiceUtilizationRate.ToString("N1")%</div>
+                <div class="text-muted mt-2">@Model.TotalVisits.ToString("N0") visits | @Model.UniqueServiceUsers.ToString("N0") users | @Model.EncounterRatePerThousand.ToString("N1") encounters per 1,000</div>
+            </a>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        @foreach (var signal in Model.OversightSignals)
+        {
+            <div class="col-xl-3 col-md-6">
+                <div class="signal-card h-100">
+                    <div class="d-flex align-items-start gap-3">
+                        <div class="signal-icon"><i class="bi @signal.IconCss"></i></div>
+                        <div>
+                            <div class="section-label">@signal.Title</div>
+                            <div class="h3 fw-bold mb-1 @signal.ToneCss">@signal.Value</div>
+                            <div class="text-muted small">@signal.Detail</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+
+    <partial name="_EncounterDemographicMatrix" model="Model.EncounterDemographicMatrix" />
+
+    <div class="row g-4 mb-4">
+        <div class="col-12">
+            <div class="section-panel">
+                <div class="section-header d-flex flex-column flex-md-row justify-content-between gap-2">
+                    <div>
+                        <div class="section-label">State oversight</div>
+                        <h2 class="h5 fw-bold mb-0">Program Performance By State</h2>
+                    </div>
+                 
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0 align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th>State</th>
+                                <th>Enrollees</th>
+                                <th>Active</th>
+                                <th>Utilization</th>
+                                <th>Encounters</th>
+                                <th>Claims</th>
+                                <th>Claim Amount</th>
+                                <th>Providers</th>
+                                <th>HMOs</th>
+                                <th>Complaints</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (Model.StateSummaries.Count == 0)
+                            {
+                                <tr>
+                                    <td colspan="16" class="text-center text-muted py-4">No state-level program data is available yet.</td>
+                                </tr>
+                            }
+                            else
+                            {
+                                @foreach (var summary in Model.StateSummaries)
+                                {
+                                    <tr>
+                                        <td class="fw-bold">@summary.StateName</td>
+                                        <td>@summary.Enrollees.ToString("N0")</td>
+                                        <td>@summary.ActiveEnrollees.ToString("N0")</td>
+                                        <td>@summary.UtilizationRate.ToString("N1")%</td>
+                                        <td>@summary.Encounters.ToString("N0")</td>
+                                        <td>@summary.Claims.ToString("N0")</td>
+                                        <td class="fw-bold text-success">&#8358;@summary.ClaimAmount.ToString("N0")</td>
+                                        <td>@summary.Providers.ToString("N0")</td>
+                                        <td>@summary.Hmos.ToString("N0")</td>
+                                        <td>@summary.Complaints.ToString("N0")</td>
+                                    </tr>
+                                }
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4 mb-4">
+        <div class="col-xl-5">
+            <div class="section-panel h-100">
+                <div class="section-header">
+                    <div class="section-label">Encounter utilization</div>
+                    <h2 class="h5 fw-bold mb-0">Most Used Services</h2>
+                </div>
+                <div class="p-3">
+                    @if (Model.TopServices.Count == 0)
+                    {
+                        <div class="text-center text-muted py-4">No service utilization records are available yet.</div>
+                    }
+                    else
+                    {
+                        @foreach (var service in Model.TopServices)
+                        {
+                            string serviceWidth = Math.Min(service.PercentageOfRecordedServices, 100).ToString("N1");
+
+                            <div class="mb-3">
+                                <div class="d-flex justify-content-between gap-3 mb-1">
+                                    <div>
+                                        <div class="fw-bold">@service.ServiceName</div>
+                                        <div class="text-muted small">@service.ServiceSetting</div>
+                                    </div>
+                                    <div class="fw-bold text-success">@service.Frequency.ToString("N0")</div>
+                                </div>
+                                <div class="service-bar" aria-hidden="true">
+                                    <span style="width:@serviceWidth%"></span>
+                                </div>
+                                <div class="text-muted small mt-1">@service.PercentageOfRecordedServices.ToString("N1")% of recorded services</div>
+                            </div>
+                        }
+                    }
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-7">
+            <div class="section-panel h-100">
+                <div class="section-header d-flex justify-content-between gap-2">
+                    <div>
+                        <div class="section-label">Claims oversight</div>
+                        <h2 class="h5 fw-bold mb-0">Recent Claims</h2>
+                    </div>
+                    <a asp-controller="Claims" asp-action="Index" class="btn btn-sm btn-outline-success align-self-center">View All</a>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0 align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Claim</th>
+                                <th>Enrollee</th>
+                                <th>Provider</th>
+                                <th>Amount</th>
+                                <th>Status</th>
+                                <th>Submitted</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (Model.RecentClaims.Count == 0)
+                            {
+                                <tr>
+                                    <td colspan="6" class="text-center text-muted py-4">No claim records are available yet.</td>
+                                </tr>
+                            }
+                            else
+                            {
+                                @foreach (var claim in Model.RecentClaims)
+                                {
+                                    <tr>
+                                        <td class="fw-bold text-primary">@claim.ClaimNumber</td>
+                                        <td>@claim.EnrolleeName</td>
+                                        <td>@claim.ProviderName</td>
+                                        <td class="fw-bold">&#8358;@claim.Amount.ToString("N0")</td>
+                                        <td><span class="badge @ClaimStatusBadge(claim.Status)">@claim.Status</span></td>
+                                        <td>@claim.DateSubmitted.ToString("dd MMM yyyy")</td>
+                                    </tr>
+                                }
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="section-panel">
+        <div class="section-header d-flex justify-content-between gap-2">
+            <div>
+                <div class="section-label">Enrollment activity</div>
+                <h2 class="h5 fw-bold mb-0">Recent CTSHIP Enrollments</h2>
+            </div>
+            <a asp-controller="Enrollees" asp-action="Index" class="btn btn-sm btn-outline-success align-self-center">View All</a>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover mb-0 align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>Enrollment #</th>
+                        <th>Name</th>
+                        <th>State</th>
+                        <th>HMO</th>
+                        <th>Date</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (Model.RecentEnrollees.Count == 0)
+                    {
+                        <tr>
+                            <td colspan="6" class="text-center text-muted py-4">No enrollment records are available yet.</td>
+                        </tr>
+                    }
+                    else
+                    {
+                        @foreach (var enrollee in Model.RecentEnrollees)
+                        {
+                            <tr>
+                                <td class="fw-bold text-primary">@enrollee.EnrollmentNumber</td>
+                                <td>@enrollee.FullName</td>
+                                <td>@enrollee.State</td>
+                                <td>@enrollee.HmoName</td>
+                                <td>@enrollee.DateRegistered.ToString("dd MMM yyyy")</td>
+                                <td><span class="badge bg-success">@enrollee.Status</span></td>
+                            </tr>
+                        }
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+@functions {
+    private static string ClaimStatusBadge(string status)
+    {
+        return status switch
+        {
+            "Paid" => "bg-success",
+            "Approved" => "bg-info text-dark",
+            "Submitted" => "bg-warning text-dark",
+            "Rejected" => "bg-danger",
+            _ => "bg-secondary"
+        };
+    }
+}

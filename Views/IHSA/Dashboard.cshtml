@@ -87,6 +87,57 @@
 
     <partial name="_MonitoringIndicatorCards" model="Model" />
 
+    <div class="row g-3 mb-4 text-center">
+        <div class="col-xl-3 col-md-6">
+            <div class="card shadow-sm h-100"><div class="card-body">
+                <div class="text-muted">Total Claims Submitted</div>
+                <div class="h3 fw-bold text-primary">@Model.TotalClaims.ToString("N0")</div>
+            </div></div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="card shadow-sm h-100"><div class="card-body">
+                <div class="text-muted">Amount Claimed</div>
+                <div class="h3 fw-bold text-success">NGN @Model.TotalClaimValue.ToString("N0")</div>
+            </div></div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="card shadow-sm h-100"><div class="card-body">
+                <div class="text-muted">Claims Validated</div>
+                <div class="h3 fw-bold text-success">@Model.ClaimsValidated.ToString("N0")</div>
+            </div></div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="card shadow-sm h-100"><div class="card-body">
+                <div class="text-muted">Claims Rejected</div>
+                <div class="h3 fw-bold text-danger">@Model.RejectedClaims.ToString("N0")</div>
+            </div></div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="card shadow-sm h-100"><div class="card-body">
+                <div class="text-muted">Amount Approved</div>
+                <div class="h3 fw-bold text-info">NGN @Model.ApprovedClaimValue.ToString("N0")</div>
+            </div></div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="card shadow-sm h-100"><div class="card-body">
+                <div class="text-muted">Amount Paid</div>
+                <div class="h3 fw-bold text-success">NGN @Model.PaidClaimValue.ToString("N0")</div>
+            </div></div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="card shadow-sm h-100"><div class="card-body">
+                <div class="text-muted">Outstanding Claims</div>
+                <div class="h3 fw-bold text-warning">@Model.OutstandingClaims.ToString("N0")</div>
+                <small class="text-muted">NGN @Model.OutstandingClaimValue.ToString("N0") outstanding</small>
+            </div></div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="card shadow-sm h-100"><div class="card-body">
+                <div class="text-muted">Average Processing Time</div>
+                <div class="h3 fw-bold text-dark">@Model.AverageProcessingDays.ToString("N1") days</div>
+            </div></div>
+        </div>
+    </div>
     <partial name="_EncounterDemographicMatrix" model="Model.EncounterDemographicMatrix" />
 
     <div class="row g-3 mb-4">
@@ -167,15 +218,38 @@
             <div class="card h-100 shadow-sm">
                 <div class="card-header fw-bold">State Scorecard</div>
                 <div class="table-responsive">
-                    <table class="table table-hover mb-0"><thead><tr><th>State</th><th>Active</th><th>Providers</th><th>Encounters</th><th>Referrals</th></tr></thead><tbody>
-                    @foreach (var state in Model.StateIndicators)
-                    {
-                        <tr><td class="fw-bold">@state.State</td><td>@state.ActiveEnrollees.ToString("N0")</td><td>@state.Providers.ToString("N0")</td><td>@state.Encounters.ToString("N0")</td><td>@state.Referrals.ToString("N0")</td></tr>
-                    }
-                    </tbody></table>
+                    <table class="table table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th>State</th>
+                                <th>Active</th>
+                                <th>Claims</th>
+                                <th>Validated</th>
+                                <th>Rejected</th>
+                                <th>Paid</th>
+                                <th>Outstanding</th>
+                                <th>Avg Days</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                        @foreach (var state in Model.StateIndicators)
+                        {
+                            <tr>
+                                <td class="fw-bold">@state.State</td>
+                                <td>@state.ActiveEnrollees.ToString("N0")</td>
+                                <td>@state.Claims.ToString("N0")</td>
+                                <td>@state.ClaimsValidated.ToString("N0")</td>
+                                <td>@state.RejectedClaims.ToString("N0")</td>
+                                <td>NGN @state.PaidClaimValue.ToString("N0")</td>
+                                <td>@state.OutstandingClaims.ToString("N0") / NGN @state.OutstandingClaimValue.ToString("N0")</td>
+                                <td>@state.AverageProcessingDays.ToString("N1")</td>
+                            </tr>
+                        }
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>
     </div>
-</div>
-
+</div>
+

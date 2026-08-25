@@ -1,4 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 
 namespace CTSHIPDashboard.Models.ViewModels
 {
@@ -8,7 +8,17 @@ namespace CTSHIPDashboard.Models.ViewModels
         public int TotalEnrollees { get; set; }
         public int ActiveEnrollees { get; set; }
         public int TotalClaims { get; set; }
+        public int SubmittedClaims { get; set; }
+        public int ClaimsValidated { get; set; }
+        public int QueryClaims { get; set; }
         public int PaidClaims { get; set; }
+        public int RejectedClaims { get; set; }
+        public int OutstandingClaims { get; set; }
+        public decimal TotalClaimValue { get; set; }
+        public decimal ApprovedClaimValue { get; set; }
+        public decimal PaidClaimValue { get; set; }
+        public decimal OutstandingClaimValue { get; set; }
+        public double AverageProcessingDays { get; set; }
         public int HmoCount { get; set; }
         public List<EnrolleeSummaryViewModel> RecentEnrollees { get; set; } = new();
         public int TotalProviders { get; internal set; }
@@ -36,13 +46,20 @@ namespace CTSHIPDashboard.Models.ViewModels
         public int PageSize { get; set; } = 20;
         public int TotalFilteredClaims { get; set; }
         public int TotalClaims { get; set; }
+        public int SubmittedClaims { get; set; }
         public int PendingClaims { get; set; }
+        public int ClaimsValidated { get; set; }
+        public int QueryClaims { get; set; }
         public int ApprovedClaims { get; set; }
         public int PaidClaims { get; set; }
         public int RejectedClaims { get; set; }
+        public int OutstandingClaims { get; set; }
         public decimal TotalClaimValue { get; set; }
+        public decimal ApprovedClaimValue { get; set; }
         public decimal PendingClaimValue { get; set; }
         public decimal PaidClaimValue { get; set; }
+        public decimal OutstandingClaimValue { get; set; }
+        public double AverageProcessingDays { get; set; }
         public List<string> AvailableStates { get; set; } = new();
         public List<StateOfficeClaimRowViewModel> Claims { get; set; } = new();
     }

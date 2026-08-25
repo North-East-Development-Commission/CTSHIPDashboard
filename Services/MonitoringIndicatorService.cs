@@ -247,19 +247,14 @@ namespace CTSHIPDashboard.Services
                 }
             }
 
-            List<Claim> claims = await claimQuery.ToListAsync(cancellationToken);
-            int paidClaims = claims.Count(x =>
-                string.Equals(x.Status, "Paid", StringComparison.OrdinalIgnoreCase));
-            int pendingClaims = claims.Count(x =>
-                string.Equals(x.Status, "Submitted", StringComparison.OrdinalIgnoreCase)
-                || string.Equals(x.Status, "Approved", StringComparison.OrdinalIgnoreCase)
-                || string.Equals(x.Status, "Review Approved", StringComparison.OrdinalIgnoreCase));
-            int rejectedClaims = claims.Count(x =>
-                string.Equals(x.Status, "Rejected", StringComparison.OrdinalIgnoreCase));
-            int totalEncounters = await encounterQuery.CountAsync(cancellationToken);
-            int totalVisits = await encounterQuery
-                .Select(x => new { x.EnrolleeId, VisitDay = x.VisitDate.Date })
-                .Distinct()
+            List<Claim> claims = await claimQuery
+                .Include(x => x.Queries)
+                .ToListAsync(cancellationToken);
+            ClaimMatrixViewModel claimMatrix = ClaimMetricsService.Build(claims);
+            int totalEncounters = await encounterQuery.CountAsync(cancellationToken);
+            int totalVisits = await encounterQuery
+                .Select(x => new { x.EnrolleeId, VisitDay = x.VisitDate.Date })
+                .Distinct()
                 .CountAsync(cancellationToken);
             int uniqueServiceUsers = await encounterQuery
                 .Select(x => x.EnrolleeId)
@@ -373,7 +368,7 @@ namespace CTSHIPDashboard.Services
                 Scope = scope,
                 ScopeDisplay = BuildScopeDisplay(scope, selectedLga, selectedHmoName),
                 SelectedState = scope == CtsTargetScope ? string.Empty : scope,
-                SelectedLga = selectedLga,
+                SelectedLga = selectedLga,
                 SelectedHmoId = selectedHmoId,
                 AvailableStates = availableStates,
                 AvailableLgas = await GetAvailableLgasAsync(scope, cancellationToken),
@@ -416,18 +411,23 @@ namespace CTSHIPDashboard.Services
                 SecondaryProviders = secondaryProviders,
                 ReferralProviders = referralProviders,
                 TotalHmos = totalHmos,
-                TotalEncounters = totalEncounters,
+                TotalEncounters = totalEncounters,
                 TotalVisits = totalVisits,
                 EncounterRatePerThousand = RatePerThousand(totalEncounters, active),
-                TotalClaims = claims.Count,
-                PaidClaims = paidClaims,
-                PendingClaims = pendingClaims,
-                RejectedClaims = rejectedClaims,
-                ClaimApprovalRate = Percentage(paidClaims, claims.Count),
-                TotalClaimValue = claims.Sum(x => x.Amount),
-                PaidClaimValue = claims
-                    .Where(x => string.Equals(x.Status, "Paid", StringComparison.OrdinalIgnoreCase))
-                    .Sum(x => x.Amount),
+                TotalClaims = claimMatrix.TotalClaims,
+                SubmittedClaims = claimMatrix.SubmittedClaims,
+                ClaimsValidated = claimMatrix.ClaimsValidated,
+                QueryClaims = claimMatrix.QueryClaims,
+                PaidClaims = claimMatrix.PaidClaims,
+                PendingClaims = claimMatrix.SubmittedClaims,
+                RejectedClaims = claimMatrix.RejectedClaims,
+                OutstandingClaims = claimMatrix.OutstandingClaims,
+                ClaimApprovalRate = Percentage(claimMatrix.PaidClaims, claimMatrix.TotalClaims),
+                TotalClaimValue = claimMatrix.TotalClaimAmount,
+                ApprovedClaimValue = claimMatrix.ApprovedClaimAmount,
+                PaidClaimValue = claimMatrix.PaidClaimAmount,
+                OutstandingClaimValue = claimMatrix.OutstandingClaimAmount,
+                AverageProcessingDays = claimMatrix.AverageProcessingDays,
                 AuditedDeaths = await deathQuery.CountAsync(cancellationToken),
                 DeathRatePerThousand = RatePerThousand(
                     await deathQuery.CountAsync(cancellationToken),
@@ -448,7 +448,7 @@ namespace CTSHIPDashboard.Services
                 HmoOversight = hmoOversight,
                 ProviderLevelMetrics = providerLevelMetrics,
                 DiseaseTrends = diseaseTrends,
-                StateIndicators = stateIndicators,
+                StateIndicators = stateIndicators,
                 EncounterDemographicMatrix = encounterDemographicMatrix,
                 MostUsedServices = recordedServices
                     .GroupBy(x => new { x.ServiceName, x.ServiceSetting })
@@ -707,7 +707,7 @@ namespace CTSHIPDashboard.Services
                 new() { Area = "Primary Provider", Indicator = "Primary facility network", Count = dashboard.PrimaryProviders, Rate = Percentage(dashboard.PrimaryProviders, dashboard.TotalProviders), DecisionSignal = "Primary care delivery capacity" },
                 new() { Area = "Secondary Provider", Indicator = "Secondary facility network", Count = dashboard.SecondaryProviders, Rate = Percentage(dashboard.SecondaryProviders, dashboard.TotalProviders), DecisionSignal = "Referral and escalation capacity" },
                 new() { Area = "Encounter", Indicator = "Service utilization", Count = dashboard.TotalEncounters, Rate = dashboard.ServiceUtilizationRate, DecisionSignal = $"{dashboard.UniqueServiceUsers:N0} unique users accessed care" },
-                new() { Area = "Claims", Indicator = "Paid claim rate", Count = dashboard.TotalClaims, Rate = dashboard.ClaimApprovalRate, DecisionSignal = $"NGN {dashboard.TotalClaimValue:N2} submitted claim value" },
+                new() { Area = "Claims", Indicator = "Paid claim rate", Count = dashboard.TotalClaims, Rate = dashboard.ClaimApprovalRate, DecisionSignal = $"NGN {dashboard.TotalClaimValue:N2} claimed; NGN {dashboard.OutstandingClaimValue:N2} outstanding" },
                 new() { Area = "Complaints", Indicator = "Complaint resolution", Count = dashboard.ComplaintMetrics.TotalComplaints, Rate = dashboard.ComplaintMetrics.ResolutionRate, DecisionSignal = $"{dashboard.ComplaintMetrics.CriticalComplaints:N0} critical open complaints" },
                 new() { Area = "Referral", Indicator = "Referral completion", Count = dashboard.TotalReferrals, Rate = dashboard.ReferralCompletionRate, DecisionSignal = $"{dashboard.PendingReferrals:N0} pending referrals" },
                 new() { Area = "Capitation", Indicator = "Paid capitation", Count = dashboard.Capitation.TotalPayments, Rate = Percentage(dashboard.Capitation.PaidPayments, dashboard.Capitation.TotalPayments), DecisionSignal = $"NGN {dashboard.Capitation.PaidAmount:N2} paid" },
@@ -794,14 +794,20 @@ namespace CTSHIPDashboard.Services
                 row.Providers = await providerQuery.CountAsync(cancellationToken);
                 row.Encounters = await encounterQuery.CountAsync(cancellationToken);
 
-                List<Claim> stateClaims = await claimQuery.ToListAsync(cancellationToken);
-                row.Claims = stateClaims.Count;
-                row.PaidClaims = stateClaims.Count(x =>
-                    string.Equals(x.Status, "Paid", StringComparison.OrdinalIgnoreCase));
-                row.ClaimValue = stateClaims.Sum(x => x.Amount);
-                row.PaidClaimValue = stateClaims
-                    .Where(x => string.Equals(x.Status, "Paid", StringComparison.OrdinalIgnoreCase))
-                    .Sum(x => x.Amount);
+                List<Claim> stateClaims = await claimQuery
+                    .Include(x => x.Queries)
+                    .ToListAsync(cancellationToken);
+                ClaimMatrixViewModel stateClaimMatrix = ClaimMetricsService.Build(stateClaims);
+                row.Claims = stateClaimMatrix.TotalClaims;
+                row.ClaimsValidated = stateClaimMatrix.ClaimsValidated;
+                row.PaidClaims = stateClaimMatrix.PaidClaims;
+                row.RejectedClaims = stateClaimMatrix.RejectedClaims;
+                row.OutstandingClaims = stateClaimMatrix.OutstandingClaims;
+                row.ClaimValue = stateClaimMatrix.TotalClaimAmount;
+                row.ApprovedClaimValue = stateClaimMatrix.ApprovedClaimAmount;
+                row.PaidClaimValue = stateClaimMatrix.PaidClaimAmount;
+                row.OutstandingClaimValue = stateClaimMatrix.OutstandingClaimAmount;
+                row.AverageProcessingDays = stateClaimMatrix.AverageProcessingDays;
                 List<string> providerCodes = await providerQuery
                     .Select(x => x.Code)
                     .ToListAsync(cancellationToken);
@@ -944,11 +950,11 @@ namespace CTSHIPDashboard.Services
         }
     }
 }
-
-
-
-
-
-
-
-
+
+
+
+
+
+
+
+

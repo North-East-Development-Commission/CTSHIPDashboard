@@ -8,7 +8,7 @@ namespace CTSHIPDashboard.Models.ViewModels
         public string ScopeDisplay { get; set; } = "CTSHIP";
         public string SelectedState { get; set; } = string.Empty;
         public string SelectedLga { get; set; } = string.Empty;
-        public int? SelectedHmoId { get; set; }
+        public int? SelectedHmoId { get; set; }
         public List<string> AvailableStates { get; set; } = new();
         public List<string> AvailableLgas { get; set; } = new();
 
@@ -58,16 +58,23 @@ namespace CTSHIPDashboard.Models.ViewModels
         public int SecondaryProviders { get; set; }
         public int ReferralProviders { get; set; }
         public int TotalHmos { get; set; }
-        public int TotalEncounters { get; set; }
+        public int TotalEncounters { get; set; }
         public int TotalVisits { get; set; }
         public decimal EncounterRatePerThousand { get; set; }
         public int TotalClaims { get; set; }
+        public int SubmittedClaims { get; set; }
+        public int ClaimsValidated { get; set; }
+        public int QueryClaims { get; set; }
         public int PaidClaims { get; set; }
         public int PendingClaims { get; set; }
         public int RejectedClaims { get; set; }
+        public int OutstandingClaims { get; set; }
         public decimal ClaimApprovalRate { get; set; }
         public decimal TotalClaimValue { get; set; }
+        public decimal ApprovedClaimValue { get; set; }
         public decimal PaidClaimValue { get; set; }
+        public decimal OutstandingClaimValue { get; set; }
+        public double AverageProcessingDays { get; set; }
         public int AuditedDeaths { get; set; }
         public decimal DeathRatePerThousand { get; set; }
         public int TotalReferrals { get; set; }
@@ -87,7 +94,7 @@ namespace CTSHIPDashboard.Models.ViewModels
         public List<HmoOversightRowViewModel> HmoOversight { get; set; } = new();
         public List<ProviderLevelMetricViewModel> ProviderLevelMetrics { get; set; } = new();
         public List<DiseaseTrendViewModel> DiseaseTrends { get; set; } = new();
-        public List<StateMonitoringViewModel> StateIndicators { get; set; } = new();
+        public List<StateMonitoringViewModel> StateIndicators { get; set; } = new();
         public EncounterDemographicMatrixViewModel EncounterDemographicMatrix { get; set; } = new();
     }
 
@@ -114,9 +121,15 @@ namespace CTSHIPDashboard.Models.ViewModels
         public int Providers { get; set; }
         public int Encounters { get; set; }
         public int Claims { get; set; }
+        public int ClaimsValidated { get; set; }
         public int PaidClaims { get; set; }
+        public int RejectedClaims { get; set; }
+        public int OutstandingClaims { get; set; }
         public decimal ClaimValue { get; set; }
+        public decimal ApprovedClaimValue { get; set; }
         public decimal PaidClaimValue { get; set; }
+        public decimal OutstandingClaimValue { get; set; }
+        public double AverageProcessingDays { get; set; }
         public int Referrals { get; set; }
         public int CompletedReferrals { get; set; }
         public decimal ReferralCompletionRate { get; set; }
@@ -171,7 +184,7 @@ namespace CTSHIPDashboard.Models.ViewModels
         public decimal TotalAmount { get; set; }
         public decimal PaidAmount { get; set; }
         public decimal AverageUtilizationRate { get; set; }
-    }
+    }
     public class MonitoringTargetViewModel
     {
         [Required]
@@ -184,11 +197,11 @@ namespace CTSHIPDashboard.Models.ViewModels
         public int TargetEnrollees { get; set; }
     }
 }
-
-
-
-
-
-
-
-
+
+
+
+
+
+
+
+

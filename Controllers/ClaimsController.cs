@@ -52,10 +52,9 @@ namespace CTSHIPDashboard.Controllers
 
             query = await ScopeClaimsToCurrentUserAsync(query);
 
-            ViewBag.TotalClaims = await query.CountAsync();
-            ViewBag.PendingClaims = await query.CountAsync(c => c.Status == "Submitted" || c.Status == "Approved");
-            ViewBag.PaidClaims = await query.CountAsync(c => c.Status == "Paid");
-            ViewBag.RejectedClaims = await query.CountAsync(c => c.Status == "Rejected");
+            ClaimMatrixViewModel matrix = ClaimMetricsService.Build(
+                await query.Include(c => c.Queries).ToListAsync());
+            PopulateClaimMatrixViewBag(matrix);
 
             // SEARCH
             if (!string.IsNullOrWhiteSpace(search))
@@ -529,6 +528,11 @@ namespace CTSHIPDashboard.Controllers
                 .Take(500)
                 .ToListAsync(cancellationToken);
 
+            DateTime today = DateTime.Today;
+            List<Claim> closedClaims = claims
+                .Where(c => c.DatePaid.HasValue || c.DateProcessed.HasValue || c.DateApproved.HasValue || c.DateRejected.HasValue)
+                .ToList();
+
             var model = new SecondaryProviderClaimsReportViewModel
             {
                 Search = search,
@@ -537,6 +541,7 @@ namespace CTSHIPDashboard.Controllers
                 ToDate = toDate,
                 TotalClaims = claims.Count,
                 SubmittedClaims = claims.Count(c => c.Status == "Submitted"),
+                ClaimsValidated = claims.Count(c => c.Status == "Approved" || c.Status == "Partially Approved" || c.Status == "Paid"),
                 QueryClaims = claims.Count(c => c.Status == "Queried" || c.Status == "Query Raised" || c.Queries.Any(q => q.Status != "Closed")),
                 ApprovedClaims = claims.Count(c => c.Status == "Approved"),
                 PartiallyApprovedClaims = claims.Count(c => c.Status == "Partially Approved"),
@@ -548,33 +553,56 @@ namespace CTSHIPDashboard.Controllers
                 ApprovedClaimAmount = claims.Sum(c => c.AmountApproved > 0 ? c.AmountApproved : c.Amount),
                 PaidClaimAmount = claims.Sum(c => c.AmountPaid),
                 OutstandingClaimAmount = claims.Sum(c => Math.Max((c.AmountApproved > 0 ? c.AmountApproved : c.Amount) - c.AmountPaid, 0m)),
+                AverageProcessingDays = closedClaims.Count > 0
+                    ? Math.Round(closedClaims.Average(c => ((c.DatePaid ?? c.DateProcessed ?? c.DateApproved ?? c.DateRejected)!.Value.Date - c.DateSubmitted.Date).TotalDays), 1)
+                    : 0,
                 Claims = claims.Select(c => new SecondaryProviderClaimRowViewModel
                 {
                     Id = c.Id,
                     ClaimNumber = c.ClaimNumber,
+                    ReportingMonth = (c.DateOfService ?? c.DateSubmitted).ToString("MMM yyyy"),
                     EnrolleeName = c.Enrollee?.FullName ?? "N/A",
                     EnrollmentNumber = c.Enrollee?.EnrollmentNumber ?? "N/A",
                     ProviderName = c.Provider?.Name ?? "N/A",
                     HmoName = c.Enrollee?.Hmo?.Name ?? "N/A",
                     State = c.Provider?.State ?? c.Enrollee?.State ?? "N/A",
                     DateOfService = c.DateOfService,
+                    Diagnosis = c.Diagnosis,
                     ServiceCategory = c.ServiceCategory ?? "N/A",
                     ReferralFacility = c.ReferralFacility ?? "N/A",
                     AuthorizationNumber = c.AuthorizationNumber ?? "N/A",
                     ServiceProcedure = c.ServiceProcedure ?? c.Treatment,
+                    PaymentType = "Fee-for-Service",
                     ApprovedTariff = c.ApprovedTariff,
                     Amount = c.Amount,
                     AmountApproved = c.AmountApproved > 0 ? c.AmountApproved : c.Amount,
                     DeductionAmount = c.DeductionAmount,
                     DeductionReason = c.DeductionReason ?? string.Empty,
+                    AdjustmentAmount = c.DeductionAmount > 0 ? c.DeductionAmount : Math.Max(c.Amount - (c.AmountApproved > 0 ? c.AmountApproved : c.Amount), 0m),
+                    AdjustmentReason = c.DeductionReason ?? c.RejectionReason ?? string.Empty,
                     AmountPaid = c.AmountPaid,
                     OutstandingAmount = Math.Max((c.AmountApproved > 0 ? c.AmountApproved : c.Amount) - c.AmountPaid, 0m),
+                    ApprovalDate = c.DateApproved,
                     PaymentDate = c.DatePaid,
                     PaymentReference = c.PaymentReference ?? string.Empty,
                     Status = c.Status,
+                    ValidationStatus = c.Status == "Rejected"
+                        ? "Rejected"
+                        : c.Status == "Queried" || c.Status == "Query Raised" || c.Queries.Any(q => q.Status != "Closed")
+                            ? "Queried"
+                            : c.Status == "Approved" || c.Status == "Partially Approved" || c.Status == "Paid"
+                                ? "Validated"
+                                : "Pending",
+                    PaymentStatus = c.Status == "Paid"
+                        ? "Paid"
+                        : c.Status == "Approved" || c.Status == "Partially Approved"
+                            ? "Approved"
+                            : "Pending",
                     HmoCertificationStatus = c.HmoCertificationStatus,
                     IhsaVerificationStatus = c.IhsaVerificationStatus,
                     OpenQueries = c.Queries.Count(q => q.Status != "Closed"),
+                    ProcessingDays = (int)Math.Max(((c.DatePaid ?? c.DateProcessed ?? c.DateApproved ?? c.DateRejected ?? today).Date - c.DateSubmitted.Date).TotalDays, 0),
+                    Remarks = c.ReviewNotes ?? c.ApprovalNotes ?? c.ClarificationNote ?? c.RejectionReason ?? string.Empty,
                     DateSubmitted = c.DateSubmitted
                 }).ToList(),
                 ProviderSummaries = claims
@@ -585,7 +613,10 @@ namespace CTSHIPDashboard.Controllers
                         State = g.Key.State,
                         Claims = g.Count(),
                         Amount = g.Sum(c => c.Amount),
-                        QueryClaims = g.Count(c => c.Status == "Query Raised" || c.Queries.Any(q => q.Status != "Closed")),
+                        ApprovedAmount = g.Sum(c => c.AmountApproved > 0 ? c.AmountApproved : c.Amount),
+                        PaidAmount = g.Sum(c => c.AmountPaid),
+                        OutstandingAmount = g.Sum(c => Math.Max((c.AmountApproved > 0 ? c.AmountApproved : c.Amount) - c.AmountPaid, 0m)),
+                        QueryClaims = g.Count(c => c.Status == "Queried" || c.Status == "Query Raised" || c.Queries.Any(q => q.Status != "Closed")),
                         PaidClaims = g.Count(c => c.Status == "Paid")
                     })
                     .OrderByDescending(x => x.Amount)
@@ -774,13 +805,11 @@ namespace CTSHIPDashboard.Controllers
             // STATS
             var hmoName = claims.FirstOrDefault()?.Enrollee?.Hmo?.Name ?? "Your HMO";
 
+            ClaimMatrixViewModel matrix = ClaimMetricsService.Build(
+                await baseQuery.Include(c => c.Queries).ToListAsync());
+
             ViewBag.HmoName = hmoName;
-            ViewBag.TotalClaims = totalItems;
-            ViewBag.PendingClaims = await baseQuery.CountAsync(c => c.Status == "Submitted");
-            ViewBag.ApprovedClaims = await baseQuery.CountAsync(c => c.Status == "Approved");
-            ViewBag.PaidClaims = await baseQuery.CountAsync(c => c.Status == "Paid");
-            ViewBag.RejectedClaims = await baseQuery.CountAsync(c => c.Status == "Rejected");
-            ViewBag.TotalAmount = await baseQuery.SumAsync(c => c.Amount);
+            PopulateClaimMatrixViewBag(matrix);
 
             // FILTER VALUES
             ViewBag.Search = search;
@@ -789,6 +818,25 @@ namespace CTSHIPDashboard.Controllers
             ViewBag.TotalPages = (int)Math.Ceiling(totalItems / (double)pageSize);
 
             return View(claims);
+        }
+
+        private void PopulateClaimMatrixViewBag(ClaimMatrixViewModel matrix)
+        {
+            ViewBag.TotalClaims = matrix.TotalClaims;
+            ViewBag.SubmittedClaims = matrix.SubmittedClaims;
+            ViewBag.PendingClaims = matrix.SubmittedClaims;
+            ViewBag.ClaimsValidated = matrix.ClaimsValidated;
+            ViewBag.QueryClaims = matrix.QueryClaims;
+            ViewBag.ApprovedClaims = matrix.ApprovedClaims;
+            ViewBag.PaidClaims = matrix.PaidClaims;
+            ViewBag.RejectedClaims = matrix.RejectedClaims;
+            ViewBag.OutstandingClaims = matrix.OutstandingClaims;
+            ViewBag.TotalAmount = matrix.TotalClaimAmount;
+            ViewBag.AmountClaimed = matrix.TotalClaimAmount;
+            ViewBag.AmountApproved = matrix.ApprovedClaimAmount;
+            ViewBag.AmountPaid = matrix.PaidClaimAmount;
+            ViewBag.OutstandingAmount = matrix.OutstandingClaimAmount;
+            ViewBag.AverageProcessingDays = matrix.AverageProcessingDays;
         }
 
         private async Task<IQueryable<Claim>> ScopeClaimsToCurrentUserAsync(IQueryable<Claim> query)

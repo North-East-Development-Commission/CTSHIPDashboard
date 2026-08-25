@@ -1,11 +1,11 @@
-@model CTSHIPDashboard.Models.ViewModels.StateOfficeDashboardViewModel
-
-<div class="container-fluid py-5">
-    <div class="text-center mb-5">
+@model CTSHIPDashboard.Models.ViewModels.StateOfficeDashboardViewModel
+
+<div class="container-fluid py-5">
+    <div class="text-center mb-5">
         <h1 class="display-4 fw-bold text-success mb-2">
             @Model.StateName State Dashboard
         </h1>
-        <p class="lead text-muted">Community Targeted Social Health Insurance Program (CTSHIP) • Real-time Overview</p>
+        <p class="lead text-muted">Community Targeted Social Health Insurance Program (CTSHIP) â€¢ Real-time Overview</p>
         <div class="d-flex flex-wrap justify-content-center gap-2 mt-3">
             <a asp-controller="StateOffice" asp-action="Claims" class="btn btn-success btn-lg">
                 <i class="bi bi-file-medical-fill me-1"></i> Manage State Claims
@@ -14,8 +14,8 @@
     </div>
 
     <h3 class="fw-bold mb-3">Monitoring Indicators</h3>
-    <partial name="_MonitoringIndicatorCards" model="Model.Monitoring" />
-
+    <partial name="_MonitoringIndicatorCards" model="Model.Monitoring" />
+
     <partial name="_EncounterDemographicMatrix" model="Model.Monitoring.EncounterDemographicMatrix" />
 
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
@@ -51,91 +51,142 @@
     </div>
 
    
-    <!-- KPI Cards -->
-    <div class="row g-4 mb-5">
-        <div class="col-xl-3 col-md-6">
-            <div class="card dashboard-card shadow-lg h-100" style="background: linear-gradient(135deg, #3B703B, #2B572F); color: white;">
-                <div class="card-body text-center py-5">
-                    <i class="bi bi-people fs-1 mb-3"></i>
-                    <h5>Total Enrollees</h5>
-                    <h3>@Model.TotalEnrollees</h3>
-                    <small>Active: @Model.ActiveEnrollees</small>
-                </div>
-            </div>
-        </div>
-        <div class="col-xl-3 col-md-6">
-            <div class="card dashboard-card shadow-lg h-100" style="background: linear-gradient(135deg, #3B703B, #2B572F); color: white;">
-                <div class="card-body text-center py-5">
-                    <i class="bi bi-people fs-1 mb-3"></i>
-                    <h5>Total Claims</h5>
-                    <h3>@Model.TotalClaims</h3>
-                    <small>Paid: @Model.PaidClaims</small>
-                </div>
-            </div>
-        </div>
-        <div class="col-xl-3 col-md-6">
-            <div class="card dashboard-card shadow-lg h-100" style="background: linear-gradient(135deg, #3B703B, #2B572F); color: white;">
-                <div class="card-body text-center py-5">
-                    <i class="bi bi-building fs-1 mb-3"></i>
-                    <h5>HMOs Covering State</h5>
-                    <h3>@Model.HmoCount</h3>
-                    <small>Distinct HMOs with enrollees here</small>
-                </div>
-            </div>
-        </div>
-        <div class="col-xl-3 col-md-6">
-            <div class="card dashboard-card shadow-lg h-100" style="background: linear-gradient(135deg, #3B703B, #2B572F); color: white;">
-                <div class="card-body text-center py-5">
-                    <i class="bi bi-hospital fs-1 mb-3"></i>
-                    <h5>Providers In The State</h5>
-                    <h3>@Model.TotalProviders</h3>
-                    <small>Accredited Providers</small>
-                </div>
-            </div>
-        </div>
-
-        <!-- Other KPI cards remain the same -->
-    </div>
-
-    <!-- Export Button -->
-    <div class="text-end mb-4">
-        <a asp-action="ExportStateEnrollees" asp-route-state="@Model.StateName" 
-           class="btn btn-success btn-lg shadow-lg px-5">
-            <i class="bi bi-file-earmark-excel me-2"></i> Export Enrollees to Excel
-        </a>
-    </div>
-
-    <!-- Recent Enrollees Table -->
-    <div class="card border-0 shadow-lg rounded-4">
-        <div class="card-header bg-success text-white py-4">
-            <h4 class="fw-bold mb-0">Recent Enrollees in @Model.StateName</h4>
-        </div>
-        <div class="card-body p-0">
-            <div class="table-responsive">
-                <table class="table table-hover mb-0">
-                    <thead class="bg-light">
-                        <tr>
-                            <th>Enrollment #</th>
-                            <th>Name</th>
-                            <th>HMO</th>
-                            <th>Registered</th>
-                            <th>Status</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach (var e in Model.RecentEnrollees)
-                        {
-                            <tr>
-                                <td>@e.EnrollmentNumber</td>
-                                <td>@e.FullName</td>
-                                <td>@e.HmoName</td>
-                                <td>@e.DateRegistered.ToString("yyyy-MM-dd")</td>
-                                <td>@e.Status</td>
-                            </tr>
-                        }
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
+    <!-- KPI Cards -->
+    <div class="row g-4 mb-4">
+        <div class="col-xl-3 col-md-6">
+            <div class="card dashboard-card shadow-lg h-100" style="background: linear-gradient(135deg, #3B703B, #2B572F); color: white;">
+                <div class="card-body text-center py-5">
+                    <i class="bi bi-people fs-1 mb-3"></i>
+                    <h5>Total Enrollees</h5>
+                    <h3>@Model.TotalEnrollees</h3>
+                    <small>Active: @Model.ActiveEnrollees</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="card dashboard-card shadow-lg h-100" style="background: linear-gradient(135deg, #3B703B, #2B572F); color: white;">
+                <div class="card-body text-center py-5">
+                    <i class="bi bi-file-medical fs-1 mb-3"></i>
+                    <h5>Total Claims Submitted</h5>
+                    <h3>@Model.TotalClaims</h3>
+                    <small>@Model.ClaimsValidated validated</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="card dashboard-card shadow-lg h-100" style="background: linear-gradient(135deg, #3B703B, #2B572F); color: white;">
+                <div class="card-body text-center py-5">
+                    <i class="bi bi-building fs-1 mb-3"></i>
+                    <h5>HMOs Covering State</h5>
+                    <h3>@Model.HmoCount</h3>
+                    <small>Distinct HMOs with enrollees here</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="card dashboard-card shadow-lg h-100" style="background: linear-gradient(135deg, #3B703B, #2B572F); color: white;">
+                <div class="card-body text-center py-5">
+                    <i class="bi bi-hospital fs-1 mb-3"></i>
+                    <h5>Providers In The State</h5>
+                    <h3>@Model.TotalProviders</h3>
+                    <small>Accredited Providers</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <h3 class="fw-bold mb-3">Claim Matrix</h3>
+    <div class="row g-3 mb-5 text-center">
+        <div class="col-xl-3 col-md-6">
+            <div class="card border-0 shadow-sm h-100"><div class="card-body">
+                <h6 class="text-muted">Total Claims Submitted</h6>
+                <h3>@Model.TotalClaims.ToString("N0")</h3>
+            </div></div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="card border-0 shadow-sm h-100"><div class="card-body">
+                <h6 class="text-muted">Amount Claimed</h6>
+                <h3>&#8358;@Model.TotalClaimValue.ToString("N0")</h3>
+            </div></div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="card border-0 shadow-sm h-100"><div class="card-body">
+                <h6 class="text-muted">Claims Validated</h6>
+                <h3>@Model.ClaimsValidated.ToString("N0")</h3>
+            </div></div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="card border-0 shadow-sm h-100"><div class="card-body">
+                <h6 class="text-muted">Claims Rejected</h6>
+                <h3>@Model.RejectedClaims.ToString("N0")</h3>
+            </div></div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="card border-0 shadow-sm h-100"><div class="card-body">
+                <h6 class="text-muted">Amount Approved</h6>
+                <h3>&#8358;@Model.ApprovedClaimValue.ToString("N0")</h3>
+            </div></div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="card border-0 shadow-sm h-100"><div class="card-body">
+                <h6 class="text-muted">Amount Paid</h6>
+                <h3>&#8358;@Model.PaidClaimValue.ToString("N0")</h3>
+            </div></div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="card border-0 shadow-sm h-100"><div class="card-body">
+                <h6 class="text-muted">Outstanding Claims</h6>
+                <h3>@Model.OutstandingClaims.ToString("N0")</h3>
+                <small class="text-muted">&#8358;@Model.OutstandingClaimValue.ToString("N0") outstanding</small>
+            </div></div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="card border-0 shadow-sm h-100"><div class="card-body">
+                <h6 class="text-muted">Average Processing Time</h6>
+                <h3>@Model.AverageProcessingDays.ToString("N1") days</h3>
+            </div></div>
+        </div>
+    </div>
+
+    <!-- Export Button -->
+    <div class="text-end mb-4">
+        <a asp-action="ExportStateEnrollees" asp-route-state="@Model.StateName" 
+           class="btn btn-success btn-lg shadow-lg px-5">
+            <i class="bi bi-file-earmark-excel me-2"></i> Export Enrollees to Excel
+        </a>
+    </div>
+
+    <!-- Recent Enrollees Table -->
+    <div class="card border-0 shadow-lg rounded-4">
+        <div class="card-header bg-success text-white py-4">
+            <h4 class="fw-bold mb-0">Recent Enrollees in @Model.StateName</h4>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="bg-light">
+                        <tr>
+                            <th>Enrollment #</th>
+                            <th>Name</th>
+                            <th>HMO</th>
+                            <th>Registered</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var e in Model.RecentEnrollees)
+                        {
+                            <tr>
+                                <td>@e.EnrollmentNumber</td>
+                                <td>@e.FullName</td>
+                                <td>@e.HmoName</td>
+                                <td>@e.DateRegistered.ToString("yyyy-MM-dd")</td>
+                                <td>@e.Status</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
 </div>

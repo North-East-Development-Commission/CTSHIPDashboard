@@ -32,6 +32,19 @@ public class ProvidersController : Controller
         ".docx"
     };
 
+    private static readonly IReadOnlyList<string> ClaimServiceCategories = new[]
+    {
+        "Consultation",
+        "Procedure",
+        ReferralEncounterClaimCatalog.PrescriptionService,
+        ReferralEncounterClaimCatalog.LaboratoryService,
+        ReferralEncounterClaimCatalog.SurgeryService,
+        "Investigation",
+        "Drug",
+        "Referral",
+        "Other"
+    };
+
     private readonly ApplicationDbContext _context;
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly IAppNotificationService _notificationService;
@@ -1269,7 +1282,9 @@ public class ProvidersController : Controller
             return RedirectToAction(nameof(ENCDetails), new { id });
         }
 
-        return View(BuildClaimSubmissionModel(encounter));
+        ProviderClaimSubmissionViewModel model = BuildClaimSubmissionModel(encounter);
+        await PopulateClaimSubmissionDropdownsAsync(model, encounter, cancellationToken);
+        return View(model);
     }
 
     [HttpPost]
@@ -1322,19 +1337,19 @@ public class ProvidersController : Controller
             return RedirectToAction(nameof(ENCDetails), new { id = encounter.Id });
         }
 
+        await PopulateClaimSubmissionDropdownsAsync(model, encounter, cancellationToken);
+        ApplyClaimSubmissionSelections(model);
         ValidateClaimEvidenceFiles(model);
         if (!ModelState.IsValid)
         {
             ProviderClaimSubmissionViewModel viewModel = BuildClaimSubmissionModel(encounter);
-            viewModel.ServiceCategory = model.ServiceCategory;
-            viewModel.ServiceProcedure = model.ServiceProcedure;
-            viewModel.ReferralFacility = model.ReferralFacility;
-            viewModel.AuthorizationNumber = model.AuthorizationNumber;
-            viewModel.ApprovedTariff = model.ApprovedTariff;
+            CopyClaimPostValues(viewModel, model);
+            await PopulateClaimSubmissionDropdownsAsync(viewModel, encounter, cancellationToken);
             return View(viewModel);
         }
 
         string serviceProcedure = model.ServiceProcedure.Trim();
+        decimal claimAmount = CalculateClaimAmount(model, encounter);
         DateTime serviceDate = encounter.VisitDate.Date;
         DateTime nextServiceDate = serviceDate.AddDays(1);
         bool duplicateClaimExists = await _context.Claims.AnyAsync(claim =>
@@ -1349,11 +1364,8 @@ public class ProvidersController : Controller
         {
             ModelState.AddModelError(string.Empty, "A similar claim already exists for this enrollee, service date, and procedure.");
             ProviderClaimSubmissionViewModel viewModel = BuildClaimSubmissionModel(encounter);
-            viewModel.ServiceCategory = model.ServiceCategory;
-            viewModel.ServiceProcedure = model.ServiceProcedure;
-            viewModel.ReferralFacility = model.ReferralFacility;
-            viewModel.AuthorizationNumber = model.AuthorizationNumber;
-            viewModel.ApprovedTariff = model.ApprovedTariff;
+            CopyClaimPostValues(viewModel, model);
+            await PopulateClaimSubmissionDropdownsAsync(viewModel, encounter, cancellationToken);
             return View(viewModel);
         }
 
@@ -1366,15 +1378,15 @@ public class ProvidersController : Controller
             ProviderId = encounter.ProviderId,
             HmoId = encounter.Enrollee.HmoId,
             EncounterId = encounter.Id,
-            Amount = encounter.TotalAmount,
-            Diagnosis = encounter.Diagnosis ?? encounter.ChiefComplaint ?? "Clinical encounter",
+            Amount = claimAmount,
+            Diagnosis = model.Diagnosis,
             Treatment = encounter.TreatmentGiven ?? "Medical consultation and care",
             DateOfService = encounter.VisitDate,
             ServiceCategory = model.ServiceCategory.Trim(),
             ReferralFacility = string.IsNullOrWhiteSpace(model.ReferralFacility) ? null : model.ReferralFacility.Trim(),
             AuthorizationNumber = string.IsNullOrWhiteSpace(model.AuthorizationNumber) ? null : model.AuthorizationNumber.Trim(),
             ServiceProcedure = serviceProcedure,
-            ApprovedTariff = model.ApprovedTariff > 0 ? model.ApprovedTariff : encounter.TotalAmount,
+            ApprovedTariff = model.ApprovedTariff > 0 ? model.ApprovedTariff : claimAmount,
             DateSubmitted = DateTime.Now,
             Status = "Submitted",
             SubmittedBy = actorName,
@@ -1395,9 +1407,9 @@ public class ProvidersController : Controller
                 ReferralFacility = string.IsNullOrWhiteSpace(model.ReferralFacility) ? null : model.ReferralFacility.Trim(),
                 AuthorizationNumber = string.IsNullOrWhiteSpace(model.AuthorizationNumber) ? null : model.AuthorizationNumber.Trim(),
                 ServiceProcedure = serviceProcedure,
-                ApprovedTariff = model.ApprovedTariff > 0 ? model.ApprovedTariff : encounter.TotalAmount,
-                Amount = encounter.TotalAmount,
-                Diagnosis = encounter.Diagnosis ?? encounter.ChiefComplaint ?? "Clinical encounter",
+                ApprovedTariff = model.ApprovedTariff > 0 ? model.ApprovedTariff : claimAmount,
+                Amount = claimAmount,
+                Diagnosis = model.Diagnosis,
                 Treatment = encounter.TreatmentGiven ?? "Medical consultation and care",
                 SubmittedBy = actorName,
                 SubmittedAt = DateTime.UtcNow
@@ -1440,7 +1452,10 @@ public class ProvidersController : Controller
             await transaction.RollbackAsync(cancellationToken);
             DeleteSavedClaimEvidenceFiles(savedEvidencePaths);
             ModelState.AddModelError(string.Empty, "Claim submission failed. Please try again.");
-            return View(BuildClaimSubmissionModel(encounter));
+            ProviderClaimSubmissionViewModel viewModel = BuildClaimSubmissionModel(encounter);
+            CopyClaimPostValues(viewModel, model);
+            await PopulateClaimSubmissionDropdownsAsync(viewModel, encounter, cancellationToken);
+            return View(viewModel);
         }
 
         await _notificationService.NotifyClaimSubmittedAsync(claim.Id);
@@ -1472,6 +1487,8 @@ public class ProvidersController : Controller
 
     private static ProviderClaimSubmissionViewModel BuildClaimSubmissionModel(Encounter encounter)
     {
+        string defaultServiceCategory = ResolveDefaultClaimServiceCategory(encounter);
+
         return new ProviderClaimSubmissionViewModel
         {
             EncounterId = encounter.Id,
@@ -1482,15 +1499,253 @@ public class ProvidersController : Controller
             HmoName = encounter.Enrollee?.Hmo?.Name ?? "N/A",
             ProviderName = encounter.Provider?.Name ?? "N/A",
             ProviderLevel = encounter.Provider?.Level ?? "N/A",
+            CatalogState = encounter.Provider?.State ?? string.Empty,
             Amount = encounter.TotalAmount,
             Diagnosis = encounter.Diagnosis ?? encounter.ChiefComplaint ?? "Clinical encounter",
+            SelectedDiagnoses = CleanClaimSelection(SplitClaimSelection(encounter.Diagnosis ?? encounter.ChiefComplaint), EncounterLookups.Diagnoses),
             Treatment = encounter.TreatmentGiven ?? "Medical consultation and care",
-            ServiceCategory = encounter.ReasonForEncounter,
+            ServiceCategory = defaultServiceCategory,
             ServiceProcedure = encounter.Services.Any()
                 ? string.Join(", ", encounter.Services.Select(service => service.ServiceName))
                 : encounter.TreatmentGiven ?? encounter.ReasonForEncounter,
             ApprovedTariff = encounter.TotalAmount
         };
+    }
+
+    private static void CopyClaimPostValues(ProviderClaimSubmissionViewModel target, ProviderClaimSubmissionViewModel source)
+    {
+        target.ServiceCategory = source.ServiceCategory;
+        target.OtherServiceCategory = source.OtherServiceCategory;
+        target.ServiceProcedure = source.ServiceProcedure;
+        target.ReferralFacility = source.ReferralFacility;
+        target.AuthorizationNumber = source.AuthorizationNumber;
+        target.ApprovedTariff = source.ApprovedTariff;
+        target.Diagnosis = source.Diagnosis;
+        target.SelectedDiagnoses = source.SelectedDiagnoses;
+        target.DiagnosisOther = source.DiagnosisOther;
+        target.SelectedPrescriptions = source.SelectedPrescriptions;
+        target.SelectedLaboratoryTests = source.SelectedLaboratoryTests;
+        target.SelectedSurgeries = source.SelectedSurgeries;
+    }
+
+    private void ApplyClaimSubmissionSelections(ProviderClaimSubmissionViewModel model)
+    {
+        NormalizeClaimCatalogState(model);
+        ApplyDiagnosisSelection(model);
+        string selectedCategory = model.ServiceCategory?.Trim() ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(selectedCategory) || !ClaimServiceCategories.Contains(selectedCategory, StringComparer.OrdinalIgnoreCase))
+        {
+            ModelState.AddModelError(nameof(model.ServiceCategory), "Select a valid service category.");
+            return;
+        }
+
+        model.ServiceCategory = selectedCategory;
+        if (TryApplyCatalogServiceProcedure(model))
+        {
+            return;
+        }
+
+        if (string.Equals(selectedCategory, "Other", StringComparison.OrdinalIgnoreCase))
+        {
+            if (string.IsNullOrWhiteSpace(model.OtherServiceCategory))
+            {
+                ModelState.AddModelError(nameof(model.OtherServiceCategory), "Specify the other service category.");
+            }
+            else
+            {
+                model.ServiceCategory = model.OtherServiceCategory.Trim();
+            }
+        }
+
+        model.ServiceProcedure = model.ServiceProcedure?.Trim() ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(model.ServiceProcedure))
+        {
+            ModelState.AddModelError(nameof(model.ServiceProcedure), "Enter the specific service or procedure provided.");
+        }
+    }
+
+    private void ApplyDiagnosisSelection(ProviderClaimSubmissionViewModel model)
+    {
+        model.SelectedDiagnoses = CleanClaimSelection(model.SelectedDiagnoses, EncounterLookups.Diagnoses);
+        if (model.SelectedDiagnoses.Contains("Other", StringComparer.OrdinalIgnoreCase))
+        {
+            if (string.IsNullOrWhiteSpace(model.DiagnosisOther))
+            {
+                ModelState.AddModelError(nameof(model.DiagnosisOther), "Specify the other diagnosis.");
+            }
+            else
+            {
+                model.SelectedDiagnoses = model.SelectedDiagnoses
+                    .Where(diagnosis => !string.Equals(diagnosis, "Other", StringComparison.OrdinalIgnoreCase))
+                    .Append(model.DiagnosisOther.Trim())
+                    .ToList();
+            }
+        }
+
+        if (model.SelectedDiagnoses.Count == 0)
+        {
+            ModelState.AddModelError(nameof(model.SelectedDiagnoses), "Select at least one diagnosis.");
+        }
+        else
+        {
+            model.Diagnosis = string.Join(" | ", model.SelectedDiagnoses);
+        }
+    }
+
+    private bool TryApplyCatalogServiceProcedure(ProviderClaimSubmissionViewModel model)
+    {
+        if (string.Equals(model.ServiceCategory, ReferralEncounterClaimCatalog.PrescriptionService, StringComparison.OrdinalIgnoreCase))
+        {
+            return ApplyCatalogSelection(model, model.SelectedPrescriptions, model.PrescriptionCatalog, ReferralEncounterClaimCatalog.PrescriptionService, nameof(model.SelectedPrescriptions));
+        }
+
+        if (string.Equals(model.ServiceCategory, ReferralEncounterClaimCatalog.LaboratoryService, StringComparison.OrdinalIgnoreCase))
+        {
+            return ApplyCatalogSelection(model, model.SelectedLaboratoryTests, model.LaboratoryCatalog, ReferralEncounterClaimCatalog.LaboratoryService, nameof(model.SelectedLaboratoryTests));
+        }
+
+        if (string.Equals(model.ServiceCategory, ReferralEncounterClaimCatalog.SurgeryService, StringComparison.OrdinalIgnoreCase))
+        {
+            return ApplyCatalogSelection(model, model.SelectedSurgeries, model.SurgeryCatalog, ReferralEncounterClaimCatalog.SurgeryService, nameof(model.SelectedSurgeries));
+        }
+
+        return false;
+    }
+
+    private bool ApplyCatalogSelection(ProviderClaimSubmissionViewModel model, List<string> selectedItems, List<ReferralEncounterClaimCatalogItem> catalog, string label, string modelStateKey)
+    {
+        if (catalog.Count == 0)
+        {
+            ModelState.AddModelError(modelStateKey, $"No active {label.ToLowerInvariant()} price catalog is configured.");
+            return true;
+        }
+
+        if (selectedItems.Count == 0)
+        {
+            ModelState.AddModelError(modelStateKey, $"Select at least one {label.ToLowerInvariant()} item.");
+            return true;
+        }
+
+        model.ServiceProcedure = ReferralEncounterClaimCatalog.DescribeSelected(label, selectedItems, catalog);
+        decimal catalogAmount = ReferralEncounterClaimCatalog.SumSelected(selectedItems, catalog);
+        model.Amount = catalogAmount;
+        model.ApprovedTariff = catalogAmount;
+        ModelState.Remove(nameof(model.ServiceProcedure));
+        ModelState.Remove(nameof(model.ApprovedTariff));
+        return true;
+    }
+
+    private async Task PopulateClaimSubmissionDropdownsAsync(ProviderClaimSubmissionViewModel model, Encounter encounter, CancellationToken cancellationToken)
+    {
+        ViewBag.Diagnoses = EncounterLookups.Diagnoses;
+        ViewBag.ServiceCategories = ClaimServiceCategories
+            .Select(service => new SelectListItem
+            {
+                Value = service,
+                Text = service,
+                Selected = string.Equals(service, model.ServiceCategory, StringComparison.OrdinalIgnoreCase)
+                    || (string.Equals(service, "Other", StringComparison.OrdinalIgnoreCase)
+                        && !string.IsNullOrWhiteSpace(model.ServiceCategory)
+                        && !ClaimServiceCategories.Contains(model.ServiceCategory, StringComparer.OrdinalIgnoreCase))
+            })
+            .ToList();
+
+        model.CatalogState = NormalizeReferralCatalogState(encounter.Provider?.State ?? model.CatalogState)
+            ?? encounter.Provider?.State
+            ?? model.CatalogState
+            ?? string.Empty;
+
+        List<ReferralPriceCatalogItem> catalogItems = new();
+        string? catalogState = NormalizeReferralCatalogState(model.CatalogState);
+        if (catalogState != null)
+        {
+            catalogItems = await _context.ReferralPriceCatalogItems
+                .AsNoTracking()
+                .Where(item => item.IsActive && item.State == catalogState)
+                .OrderBy(item => item.Category)
+                .ThenBy(item => item.Title)
+                .ToListAsync(cancellationToken);
+        }
+
+        List<ReferralEncounterClaimCatalogItem> prescriptionCatalog = BuildClaimCatalogItems(catalogItems, ReferralEncounterClaimCatalog.PrescriptionService);
+        List<ReferralEncounterClaimCatalogItem> laboratoryCatalog = BuildClaimCatalogItems(catalogItems, ReferralEncounterClaimCatalog.LaboratoryService);
+        List<ReferralEncounterClaimCatalogItem> surgeryCatalog = BuildClaimCatalogItems(catalogItems, ReferralEncounterClaimCatalog.SurgeryService);
+        model.PrescriptionCatalog = prescriptionCatalog.Count > 0 ? prescriptionCatalog : NhiaPriceCatalog.LoadMedicineCatalog(_environment.ContentRootPath);
+        model.LaboratoryCatalog = laboratoryCatalog.Count > 0 ? laboratoryCatalog : NhiaPriceCatalog.LoadLaboratoryCatalog(_environment.ContentRootPath);
+        model.SurgeryCatalog = surgeryCatalog.Count > 0 ? surgeryCatalog : NhiaPriceCatalog.LoadSurgeryCatalog(_environment.ContentRootPath);
+        NormalizeClaimCatalogState(model);
+    }
+
+    private static List<ReferralEncounterClaimCatalogItem> BuildClaimCatalogItems(IEnumerable<ReferralPriceCatalogItem> catalogItems, string category)
+    {
+        return catalogItems
+            .Where(item => string.Equals(item.Category, category, StringComparison.OrdinalIgnoreCase))
+            .Select(item => new ReferralEncounterClaimCatalogItem(item.Title, item.Price))
+            .ToList();
+    }
+
+    private static void NormalizeClaimCatalogState(ProviderClaimSubmissionViewModel model)
+    {
+        model.SelectedPrescriptions = ReferralEncounterClaimCatalog.NormalizeSelection(model.SelectedPrescriptions, model.PrescriptionCatalog);
+        model.SelectedLaboratoryTests = ReferralEncounterClaimCatalog.NormalizeSelection(model.SelectedLaboratoryTests, model.LaboratoryCatalog);
+        model.SelectedSurgeries = ReferralEncounterClaimCatalog.NormalizeSelection(model.SelectedSurgeries, model.SurgeryCatalog);
+    }
+
+    private static decimal CalculateClaimAmount(ProviderClaimSubmissionViewModel model, Encounter encounter)
+    {
+        decimal selectedCatalogAmount = model.ServiceCategory switch
+        {
+            var category when string.Equals(category, ReferralEncounterClaimCatalog.PrescriptionService, StringComparison.OrdinalIgnoreCase) => ReferralEncounterClaimCatalog.SumSelected(model.SelectedPrescriptions, model.PrescriptionCatalog),
+            var category when string.Equals(category, ReferralEncounterClaimCatalog.LaboratoryService, StringComparison.OrdinalIgnoreCase) => ReferralEncounterClaimCatalog.SumSelected(model.SelectedLaboratoryTests, model.LaboratoryCatalog),
+            var category when string.Equals(category, ReferralEncounterClaimCatalog.SurgeryService, StringComparison.OrdinalIgnoreCase) => ReferralEncounterClaimCatalog.SumSelected(model.SelectedSurgeries, model.SurgeryCatalog),
+            _ => 0m
+        };
+        return selectedCatalogAmount > 0m ? selectedCatalogAmount : encounter.TotalAmount;
+    }
+
+    private static string ResolveDefaultClaimServiceCategory(Encounter encounter)
+    {
+        IEnumerable<string> candidates = encounter.Services.Select(service => service.ServiceName).Concat(new[] { encounter.ReasonForEncounter ?? string.Empty });
+        if (candidates.Any(candidate => candidate.Contains("prescription", StringComparison.OrdinalIgnoreCase) || candidate.Contains("drug", StringComparison.OrdinalIgnoreCase) || candidate.Contains("medicine", StringComparison.OrdinalIgnoreCase)))
+        {
+            return ReferralEncounterClaimCatalog.PrescriptionService;
+        }
+        if (candidates.Any(candidate => candidate.Contains("laboratory", StringComparison.OrdinalIgnoreCase) || candidate.Contains("lab", StringComparison.OrdinalIgnoreCase) || candidate.Contains("investigation", StringComparison.OrdinalIgnoreCase)))
+        {
+            return ReferralEncounterClaimCatalog.LaboratoryService;
+        }
+        if (candidates.Any(candidate => candidate.Contains("surgery", StringComparison.OrdinalIgnoreCase) || candidate.Contains("surgical", StringComparison.OrdinalIgnoreCase) || candidate.Contains("procedure", StringComparison.OrdinalIgnoreCase)))
+        {
+            return ReferralEncounterClaimCatalog.SurgeryService;
+        }
+        string? existingCategory = candidates.FirstOrDefault(candidate => ClaimServiceCategories.Contains(candidate, StringComparer.OrdinalIgnoreCase));
+        return string.IsNullOrWhiteSpace(existingCategory) ? "Consultation" : existingCategory.Trim();
+    }
+
+    private static string? NormalizeReferralCatalogState(string? state)
+    {
+        if (string.IsNullOrWhiteSpace(state))
+        {
+            return null;
+        }
+        return NorthEastLocationData.States.FirstOrDefault(candidate => string.Equals(candidate, state.Trim(), StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static List<string> SplitClaimSelection(string? value)
+    {
+        return string.IsNullOrWhiteSpace(value)
+            ? new List<string>()
+            : value.Split(new[] { " | ", "," }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).ToList();
+    }
+
+    private static List<string> CleanClaimSelection(IEnumerable<string>? values, IEnumerable<string> catalog)
+    {
+        HashSet<string> allowed = new(catalog, StringComparer.OrdinalIgnoreCase);
+        return (values ?? Enumerable.Empty<string>())
+            .Where(value => !string.IsNullOrWhiteSpace(value) && allowed.Contains(value.Trim()))
+            .Select(value => value.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
     }
 
     private void ValidateClaimEvidenceFiles(ProviderClaimSubmissionViewModel model)

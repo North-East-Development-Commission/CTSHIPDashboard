@@ -1,4 +1,4 @@
-﻿@model AnalyticsViewModel
+@model AnalyticsViewModel
 @{
     ViewData["Title"] = "CTSHIP Claims Analytics";
 }
@@ -20,32 +20,65 @@
         <div class="col-xl-3 col-md-6">
             <div class="card bg-primary text-white shadow-lg h-100 border-0">
                 <div class="card-body py-5">
-                    <h5 class="mb-3">Total Claims</h5>
-                    <h1 class="display-3 fw-bold">@Model.TotalClaims</h1>
+                    <h5 class="mb-3">Total Claims Submitted</h5>
+                    <h1 class="display-4 fw-bold">@Model.TotalClaims</h1>
                 </div>
             </div>
         </div>
         <div class="col-xl-3 col-md-6">
             <div class="card bg-success text-white shadow-lg h-100 border-0">
                 <div class="card-body py-5">
-                    <h5 class="mb-3">Total Amount Claimed</h5>
-                    <h1 class="display-5 fw-bold">₦@((int)Model.PaidAmount)</h1>
+                    <h5 class="mb-3">Amount Claimed</h5>
+                    <h1 class="display-6 fw-bold">&#8358;@Model.TotalAmount.ToString("N0")</h1>
                 </div>
             </div>
         </div>
         <div class="col-xl-3 col-md-6">
             <div class="card bg-info text-white shadow-lg h-100 border-0">
                 <div class="card-body py-5">
-                    <h5 class="mb-3">Amount Paid</h5>
-                    <h1 class="display-5 fw-bold">₦@((int)Model.PaidAmount)</h1>
+                    <h5 class="mb-3">Claims Validated</h5>
+                    <h1 class="display-4 fw-bold">@Model.ClaimsValidated</h1>
                 </div>
             </div>
         </div>
         <div class="col-xl-3 col-md-6">
-            <div class="card @(Model.ApprovalRate >= 85 ? "bg-success" : Model.ApprovalRate >= 60 ? "bg-warning text-dark" : "bg-danger") text-white shadow-lg h-100 border-0">
+            <div class="card bg-danger text-white shadow-lg h-100 border-0">
                 <div class="card-body py-5">
-                    <h5 class="mb-3">Approval Rate</h5>
-                    <h1 class="display-3 fw-bold">@Model.ApprovalRate%</h1>
+                    <h5 class="mb-3">Claims Rejected</h5>
+                    <h1 class="display-4 fw-bold">@Model.RejectedClaims</h1>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="card bg-secondary text-white shadow-lg h-100 border-0">
+                <div class="card-body py-5">
+                    <h5 class="mb-3">Amount Approved</h5>
+                    <h1 class="display-6 fw-bold">&#8358;@Model.ApprovedAmount.ToString("N0")</h1>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="card bg-success text-white shadow-lg h-100 border-0">
+                <div class="card-body py-5">
+                    <h5 class="mb-3">Amount Paid</h5>
+                    <h1 class="display-6 fw-bold">&#8358;@Model.PaidAmount.ToString("N0")</h1>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="card bg-warning text-dark shadow-lg h-100 border-0">
+                <div class="card-body py-5">
+                    <h5 class="mb-3">Outstanding Claims</h5>
+                    <h1 class="display-4 fw-bold">@Model.OutstandingClaims</h1>
+                    <small>&#8358;@Model.OutstandingAmount.ToString("N0") outstanding</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="card bg-dark text-white shadow-lg h-100 border-0">
+                <div class="card-body py-5">
+                    <h5 class="mb-3">Average Processing Time</h5>
+                    <h1 class="display-6 fw-bold">@Model.AverageProcessingDays.ToString("N1") days</h1>
                 </div>
             </div>
         </div>

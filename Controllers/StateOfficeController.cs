@@ -1,4 +1,4 @@
-﻿using CTSHIPDashboard.Data;
+using CTSHIPDashboard.Data;
 using CTSHIPDashboard.Enums;
 using CTSHIPDashboard.Helpers;
 using CTSHIPDashboard.Models;
@@ -51,6 +51,12 @@ public class StateOfficeController : Controller
         }
 
         var state = user.State;
+        ClaimMatrixViewModel claimMatrix = ClaimMetricsService.Build(
+            await _context.Claims
+                .AsNoTracking()
+                .Include(c => c.Queries)
+                .Where(c => c.Enrollee != null && c.Enrollee.State == state)
+                .ToListAsync());
 
         var vm = new StateOfficeDashboardViewModel
         {
@@ -58,14 +64,18 @@ public class StateOfficeController : Controller
             TotalEnrollees = await _context.Enrollees.CountAsync(e => e.State == state),
             TotalProviders = await _context.Providers.CountAsync(e => e.State == state),
             ActiveEnrollees = await _context.Enrollees.CountAsync(e => e.State == state && e.Status == "Active"),
-            TotalClaims = await _context.Claims
-                .Include(c => c.Enrollee)
-                .Where(c => c.Enrollee != null && c.Enrollee.State == state)
-                .CountAsync(),
-            PaidClaims = await _context.Claims
-                .Include(c => c.Enrollee)
-                .Where(c => c.Enrollee != null && c.Enrollee.State == state && c.Status == "Paid")
-                .CountAsync(),
+            TotalClaims = claimMatrix.TotalClaims,
+            SubmittedClaims = claimMatrix.SubmittedClaims,
+            ClaimsValidated = claimMatrix.ClaimsValidated,
+            QueryClaims = claimMatrix.QueryClaims,
+            PaidClaims = claimMatrix.PaidClaims,
+            RejectedClaims = claimMatrix.RejectedClaims,
+            OutstandingClaims = claimMatrix.OutstandingClaims,
+            TotalClaimValue = claimMatrix.TotalClaimAmount,
+            ApprovedClaimValue = claimMatrix.ApprovedClaimAmount,
+            PaidClaimValue = claimMatrix.PaidClaimAmount,
+            OutstandingClaimValue = claimMatrix.OutstandingClaimAmount,
+            AverageProcessingDays = claimMatrix.AverageProcessingDays,
             HmoCount = await _context.Hmos
                 .Where(h => h.Enrollees.Any(e => e.State == state))
                 .Select(h => h.Id)
@@ -281,6 +291,9 @@ public class StateOfficeController : Controller
             .AsNoTracking()
             .Where(c => c.Enrollee != null && c.Enrollee.State == state);
 
+        ClaimMatrixViewModel claimMatrix = ClaimMetricsService.Build(
+            await stateClaims.Include(c => c.Queries).ToListAsync(cancellationToken));
+
         IQueryable<Claim> filteredClaims = stateClaims;
 
         if (!string.Equals(status, "All", StringComparison.OrdinalIgnoreCase))
@@ -317,22 +330,21 @@ public class StateOfficeController : Controller
             TotalPages = totalPages,
             PageSize = pageSize,
             TotalFilteredClaims = totalFilteredClaims,
-            TotalClaims = await stateClaims.CountAsync(cancellationToken),
-            PendingClaims = await stateClaims.CountAsync(
-                c => pendingStatuses.Contains(c.Status),
-                cancellationToken),
-            ApprovedClaims = await stateClaims.CountAsync(
-                c => approvedStatuses.Contains(c.Status),
-                cancellationToken),
-            PaidClaims = await stateClaims.CountAsync(c => c.Status == "Paid", cancellationToken),
-            RejectedClaims = await stateClaims.CountAsync(c => c.Status == "Rejected", cancellationToken),
-            TotalClaimValue = await stateClaims.SumAsync(c => (decimal?)c.Amount, cancellationToken) ?? 0m,
-            PendingClaimValue = await stateClaims
-                .Where(c => pendingStatuses.Contains(c.Status) || approvedStatuses.Contains(c.Status))
-                .SumAsync(c => (decimal?)c.Amount, cancellationToken) ?? 0m,
-            PaidClaimValue = await stateClaims
-                .Where(c => c.Status == "Paid")
-                .SumAsync(c => (decimal?)c.Amount, cancellationToken) ?? 0m,
+            TotalClaims = claimMatrix.TotalClaims,
+            SubmittedClaims = claimMatrix.SubmittedClaims,
+            PendingClaims = claimMatrix.SubmittedClaims,
+            ClaimsValidated = claimMatrix.ClaimsValidated,
+            QueryClaims = claimMatrix.QueryClaims,
+            ApprovedClaims = claimMatrix.ApprovedClaims,
+            PaidClaims = claimMatrix.PaidClaims,
+            RejectedClaims = claimMatrix.RejectedClaims,
+            OutstandingClaims = claimMatrix.OutstandingClaims,
+            TotalClaimValue = claimMatrix.TotalClaimAmount,
+            ApprovedClaimValue = claimMatrix.ApprovedClaimAmount,
+            PendingClaimValue = claimMatrix.TotalClaimAmount,
+            PaidClaimValue = claimMatrix.PaidClaimAmount,
+            OutstandingClaimValue = claimMatrix.OutstandingClaimAmount,
+            AverageProcessingDays = claimMatrix.AverageProcessingDays,
             AvailableStates = await GetAvailableStatesAsync(cancellationToken),
             Claims = await filteredClaims
                 .OrderByDescending(c => c.DateSubmitted)

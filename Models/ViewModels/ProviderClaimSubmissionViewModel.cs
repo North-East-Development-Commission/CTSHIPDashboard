@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using CTSHIPDashboard.Models;
 using Microsoft.AspNetCore.Http;
 
 namespace CTSHIPDashboard.ViewModels;
@@ -21,21 +22,48 @@ public class ProviderClaimSubmissionViewModel
 
     public string ProviderLevel { get; set; } = string.Empty;
 
+    public string CatalogState { get; set; } = string.Empty;
+
     public decimal Amount { get; set; }
 
     public string Diagnosis { get; set; } = string.Empty;
+
+    [Display(Name = "Diagnosis")]
+    public List<string> SelectedDiagnoses { get; set; } = new();
+
+    [StringLength(200)]
+    [Display(Name = "Other diagnosis")]
+    public string? DiagnosisOther { get; set; }
 
     public string Treatment { get; set; } = string.Empty;
 
     [Required]
     [StringLength(150)]
-    [Display(Name = "Diagnosis / Service Category")]
+    [Display(Name = "Service Category")]
     public string ServiceCategory { get; set; } = string.Empty;
 
-    [Required]
-    [StringLength(500)]
+    [StringLength(150)]
+    [Display(Name = "Other service category")]
+    public string? OtherServiceCategory { get; set; }
+
+    [StringLength(1000)]
     [Display(Name = "Specific Service / Procedure Provided")]
     public string ServiceProcedure { get; set; } = string.Empty;
+
+    [Display(Name = "Prescription")]
+    public List<string> SelectedPrescriptions { get; set; } = new();
+
+    [Display(Name = "Laboratory Investigations")]
+    public List<string> SelectedLaboratoryTests { get; set; } = new();
+
+    [Display(Name = "Surgery")]
+    public List<string> SelectedSurgeries { get; set; } = new();
+
+    public List<ReferralEncounterClaimCatalogItem> PrescriptionCatalog { get; set; } = new();
+
+    public List<ReferralEncounterClaimCatalogItem> LaboratoryCatalog { get; set; } = new();
+
+    public List<ReferralEncounterClaimCatalogItem> SurgeryCatalog { get; set; } = new();
 
     [StringLength(200)]
     [Display(Name = "Referral Facility")]
