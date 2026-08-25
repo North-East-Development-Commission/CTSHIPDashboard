@@ -92,6 +92,7 @@
     <link rel="stylesheet" href="~/lib/leaflet-markercluster/MarkerCluster.css" />
     <link rel="stylesheet" href="~/lib/leaflet-markercluster/MarkerCluster.Default.css" />
     <link rel="stylesheet" href="~/css/dashboard-theme.css" asp-append-version="true" />
+    @await RenderSectionAsync("Styles", required: false)
     <!-- Optional: Make it feel like a real app (PWA) -->
     <link rel="manifest" href="/manifest.json">
     <link rel="apple-touch-icon" href="/img/icon-192.png">
