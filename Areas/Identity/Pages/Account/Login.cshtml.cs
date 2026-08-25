@@ -353,9 +353,15 @@ namespace CTSHIPDashboard.Areas.Identity.Pages.Account
                         "SSHIA",
                         new { area = "" });
                 }
+                if (roleSet.Contains("NEDCAdmin"))
+                {
+                    return RedirectToAction(
+                       "Index",
+                        "Analytics",
+                        new { area = "" });
+                }
 
-                if (roleSet.Contains("IHSA") ||
-                    roleSet.Contains("NEDCAdmin"))
+                if (roleSet.Contains("IHSA"))
                 {
                     return RedirectToAction(
                         "Dashboard",

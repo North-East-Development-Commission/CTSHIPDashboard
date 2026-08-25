@@ -695,7 +695,7 @@ app.MapGet("/", context =>
                 "NEDCAdmin"))
         {
             dashboardPath =
-                "/NEDCAdmin/Dashboard";
+            "/Analytics/Index";
         }
         else if (
             context.User.IsInRole(
