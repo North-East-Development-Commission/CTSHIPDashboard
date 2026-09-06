@@ -1943,14 +1943,32 @@ public class HmoController : Controller
     }
 
     [Authorize(Roles = "CTSHIPAdmin,HMO")]
-    public async Task<IActionResult> EnrolleeDetails(int id)
+    public async Task<IActionResult> EnrolleeDetails(int id, CancellationToken cancellationToken = default)
     {
         var enrollee = await _context.Enrollees
             .Include(e => e.Hmo)
             .Include(e => e.provider)
             .Include(e => e.MedicalHistories)
-            .FirstOrDefaultAsync(e => e.Id == id);
+            .Include(e => e.Encounters).ThenInclude(e => e.Provider)
+            .Include(e => e.Encounters).ThenInclude(e => e.Doctor)
+            .Include(e => e.Encounters).ThenInclude(e => e.Claim)
+            .Include(e => e.Encounters).ThenInclude(e => e.Services)
+            .AsSplitQuery()
+            .FirstOrDefaultAsync(e => e.Id == id, cancellationToken);
         if (enrollee == null) return NotFound();
+
+        ApplicationUser? currentUser = await _userManager.GetUserAsync(User);
+        if (User.IsInRole("HMO")
+            && (currentUser == null || !currentUser.HmoId.HasValue || enrollee.HmoId != currentUser.HmoId.Value))
+        {
+            return Forbid();
+        }
+
+        ViewBag.TotalClaims = await _context.Claims.AsNoTracking().CountAsync(claim => claim.EnrolleeId == enrollee.Id, cancellationToken);
+        ViewBag.PaidClaims = await _context.Claims.AsNoTracking().CountAsync(claim => claim.EnrolleeId == enrollee.Id && claim.Status == "Paid", cancellationToken);
+        ViewBag.TotalEncounters = enrollee.Encounters.Count;
+        ViewBag.LastEncounterDate = enrollee.Encounters.OrderByDescending(encounter => encounter.VisitDate).FirstOrDefault()?.VisitDate;
+
         return View(enrollee);
     }
 

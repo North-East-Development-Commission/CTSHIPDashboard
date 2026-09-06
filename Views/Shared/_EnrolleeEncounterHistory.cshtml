@@ -1,0 +1,122 @@
+@model CTSHIPDashboard.Models.Enrollee
+
+@functions {
+    private static string StatusBadgeClass(string? status)
+    {
+        return status?.ToLowerInvariant() switch
+        {
+            "completed" => "bg-success",
+            "claimed" => "bg-primary",
+            "referred" => "bg-warning text-dark",
+            "cancelled" => "bg-danger",
+            _ => "bg-secondary"
+        };
+    }
+
+    private static string NotRecorded(string? value)
+    {
+        return string.IsNullOrWhiteSpace(value) ? "Not recorded" : value.Trim();
+    }
+}
+
+@{
+    List<CTSHIPDashboard.Models.Encounter> encounters = Model.Encounters?
+        .OrderByDescending(encounter => encounter.VisitDate)
+        .ThenByDescending(encounter => encounter.Id)
+        .ToList() ?? new List<CTSHIPDashboard.Models.Encounter>();
+}
+
+<div id="encounter-history" class="card border-0 shadow-lg mt-4" style="border-radius: 25px; overflow: hidden;">
+    <div class="card-header bg-success text-white py-4">
+        <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-2">
+            <div>
+                <h4 class="mb-1 fw-bold">Encounter History</h4>
+                <p class="mb-0 opacity-75">@encounters.Count clinical encounter@(encounters.Count == 1 ? "" : "s") recorded</p>
+            </div>
+            @if (ViewBag.LastEncounterDate != null)
+            {
+                <span class="badge bg-light text-success fs-6 px-3 py-2">Last visit: @(((DateTime)ViewBag.LastEncounterDate).ToString("dd MMM yyyy"))</span>
+            }
+        </div>
+    </div>
+    <div class="card-body p-0">
+        @if (encounters.Count == 0)
+        {
+            <div class="text-center py-5 px-3">
+                <h5 class="text-muted mb-1">No encounters recorded yet</h5>
+                <p class="text-muted mb-0">This enrollee's encounter history will appear here after facility visits are submitted.</p>
+            </div>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="bg-light">
+                        <tr>
+                            <th>Visit Date</th>
+                            <th>Encounter No.</th>
+                            <th>Provider</th>
+                            <th>Clinical Summary</th>
+                            <th>Services</th>
+                            <th>Outcome</th>
+                            <th>Review</th>
+                            <th class="text-end">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var encounter in encounters)
+                        {
+                            List<string> serviceNames = encounter.Services?
+                                .Select(service => service.ServiceName)
+                                .Where(name => !string.IsNullOrWhiteSpace(name))
+                                .Select(name => name!)
+                                .ToList() ?? new List<string>();
+                            int serviceCount = serviceNames.Count;
+                            string serviceSummary = serviceCount == 0
+                                ? "Not recorded"
+                                : string.Join(", ", serviceNames.Take(3));
+                            int extraServiceCount = serviceCount > 3 ? serviceCount - 3 : 0;
+
+                            <tr>
+                                <td>
+                                    <strong>@encounter.VisitDate.ToString("dd MMM yyyy")</strong><br />
+                                    <small class="text-muted">@encounter.VisitDate.ToString("HH:mm")</small>
+                                </td>
+                                <td><span class="text-primary fw-bold">@NotRecorded(encounter.EncounterNumber)</span></td>
+                                <td>
+                                    <strong>@(encounter.Provider?.Name ?? "Not recorded")</strong><br />
+                                    <small class="text-muted">@(encounter.Doctor?.FullName ?? encounter.SeenBy ?? "No staff recorded")</small>
+                                </td>
+                                <td>
+                                    <div><strong>Complaint:</strong> @NotRecorded(encounter.ChiefComplaint)</div>
+                                    <small class="text-muted"><strong>Diagnosis:</strong> @NotRecorded(encounter.Diagnosis)</small>
+                                </td>
+                                <td>
+                                    @serviceSummary
+                                    @if (extraServiceCount > 0)
+                                    {
+                                        <span class="badge bg-secondary ms-1">+@extraServiceCount</span>
+                                    }
+                                </td>
+                                <td>
+                                    <span class="badge @StatusBadgeClass(encounter.Status) px-3 py-2">@NotRecorded(encounter.Status)</span><br />
+                                    <small class="text-muted">@NotRecorded(encounter.PatientOutcome)</small>
+                                </td>
+                                <td>
+                                    <span class="badge bg-light text-primary border">HMO: @NotRecorded(encounter.HmoVerificationStatus)</span><br />
+                                    <span class="badge bg-light text-dark border mt-1">IHSA: @NotRecorded(encounter.IhsaVerificationStatus)</span>
+                                </td>
+                                <td class="text-end">
+                                    <a asp-controller="Enrollees" asp-action="EncounterDetails" asp-route-id="@encounter.Id"
+                                       class="btn btn-outline-success btn-sm rounded-pill px-3">
+                                        View
+                                    </a>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+</div>

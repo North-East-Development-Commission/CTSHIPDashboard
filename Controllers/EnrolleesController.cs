@@ -21,7 +21,7 @@ public class EnrolleesController : Controller
 {
     private const string HmoEnrollmentOfficerRole = "HmoEnrollmentOfficer";
     private const string EnrolleeManageRoles = "CTSHIPAdmin,HMO,HmoEnrollmentOfficer";
-    private const string EnrolleeViewRoles = "CTSHIPAdmin,HMO,HmoEnrollmentOfficer,Provider,Monitoring,NHIA,SSHIA,IHSA,NEDCAdmin";
+    private const string EnrolleeViewRoles = "Admin,CTSHIPAdmin,HMO,HmoEnrollmentOfficer,Provider,Monitoring,NHIA,SSHIA,IHSA,NEDCAdmin";
     private const string EnrolleeDashboardRoles = "HMO,HmoEnrollmentOfficer";
 
     private readonly ApplicationDbContext _context;
@@ -90,6 +90,90 @@ public class EnrolleesController : Controller
     }
 
 
+    private bool HasProgramWideEnrolleeAccess()
+    {
+        return User.IsInRole("Admin")
+            || User.IsInRole("CTSHIPAdmin")
+            || User.IsInRole("Monitoring")
+            || User.IsInRole("NHIA")
+            || User.IsInRole("IHSA")
+            || User.IsInRole("NEDCAdmin");
+    }
+
+    private async Task<bool> CanAccessEnrolleeAsync(
+        Enrollee enrollee,
+        ApplicationUser? currentUser,
+        int? encounterProviderId = null,
+        CancellationToken cancellationToken = default)
+    {
+        if (HasProgramWideEnrolleeAccess())
+        {
+            return true;
+        }
+
+        if (IsHmoEnrollmentScopedUser())
+        {
+            return currentUser?.HmoId.HasValue == true && enrollee.HmoId == currentUser.HmoId.Value;
+        }
+
+        if (User.IsInRole("SSHIA"))
+        {
+            return !string.IsNullOrWhiteSpace(currentUser?.State)
+                && string.Equals(enrollee.State, currentUser.State.Trim(), StringComparison.OrdinalIgnoreCase);
+        }
+
+        if (User.IsInRole("Provider"))
+        {
+            if (currentUser == null || !currentUser.ProviderId.HasValue)
+            {
+                return false;
+            }
+
+            int providerId = currentUser.ProviderId.Value;
+            if (encounterProviderId == providerId || enrollee.ProviderId == providerId)
+            {
+                return true;
+            }
+
+            return await _context.Encounters
+                .AsNoTracking()
+                .AnyAsync(encounter =>
+                    encounter.EnrolleeId == enrollee.Id
+                    && encounter.ProviderId == providerId,
+                    cancellationToken);
+        }
+
+        return false;
+    }
+
+    private async Task PopulateEnrolleeEncounterHistoryAsync(Enrollee enrollee, CancellationToken cancellationToken = default)
+    {
+        List<Encounter> encounters = await _context.Encounters
+            .AsNoTracking()
+            .Include(encounter => encounter.Provider)
+            .Include(encounter => encounter.Doctor)
+            .Include(encounter => encounter.Claim)
+            .Include(encounter => encounter.Services)
+            .Where(encounter => encounter.EnrolleeId == enrollee.Id)
+            .OrderByDescending(encounter => encounter.VisitDate)
+            .ThenByDescending(encounter => encounter.Id)
+            .AsSplitQuery()
+            .ToListAsync(cancellationToken);
+
+        enrollee.Encounters = encounters;
+        ViewBag.TotalEncounters = encounters.Count;
+        ViewBag.LastEncounterDate = encounters.FirstOrDefault()?.VisitDate;
+    }
+
+    private async Task PopulateEnrolleeClaimStatsAsync(int enrolleeId, CancellationToken cancellationToken = default)
+    {
+        ViewBag.TotalClaims = await _context.Claims
+            .AsNoTracking()
+            .CountAsync(claim => claim.EnrolleeId == enrolleeId, cancellationToken);
+        ViewBag.PaidClaims = await _context.Claims
+            .AsNoTracking()
+            .CountAsync(claim => claim.EnrolleeId == enrolleeId && claim.Status == "Paid", cancellationToken);
+    }
     // INDEX — ALL ENROLLEES
     // GET: /Enrollee or /Enrollee/Index
     [Authorize(Roles = "CTSHIPAdmin,HMO,HmoEnrollmentOfficer,Monitoring,NHIA,SSHIA,IHSA,NEDCAdmin")]
@@ -613,29 +697,64 @@ public class EnrolleesController : Controller
 
     // DETAILS
     [Authorize(Roles = EnrolleeViewRoles)]
-    public async Task<IActionResult> Details(int id)
+    public async Task<IActionResult> Details(int id, CancellationToken cancellationToken = default)
     {
         var enrollee = await _context.Enrollees
             .Include(e => e.Hmo)
+            .Include(e => e.provider)
             .Include(e => e.MedicalHistories)
-            .FirstOrDefaultAsync(e => e.Id == id);
+            .FirstOrDefaultAsync(e => e.Id == id, cancellationToken);
         if (enrollee == null) return NotFound();
 
         ApplicationUser? currentUser = await _userManager.GetUserAsync(User);
-        if (IsHmoEnrollmentScopedUser()
-            && (!(currentUser?.HmoId.HasValue ?? false) || enrollee.HmoId != currentUser!.HmoId))
+        if (!await CanAccessEnrolleeAsync(enrollee, currentUser, cancellationToken: cancellationToken))
         {
             return Forbid();
         }
 
-        if (User.IsInRole("SSHIA")
-            && (string.IsNullOrWhiteSpace(currentUser?.State)
-                || !string.Equals(enrollee.State, currentUser.State.Trim(), StringComparison.OrdinalIgnoreCase)))
-        {
-            return Forbid();
-        }
+        await PopulateEnrolleeClaimStatsAsync(enrollee.Id, cancellationToken);
+        await PopulateEnrolleeEncounterHistoryAsync(enrollee, cancellationToken);
 
         return View(enrollee);
+    }
+
+    [Authorize(Roles = EnrolleeViewRoles)]
+    public async Task<IActionResult> EncounterDetails(int id, CancellationToken cancellationToken = default)
+    {
+        Encounter? encounter = await _context.Encounters
+            .Include(e => e.Enrollee).ThenInclude(e => e!.Hmo)
+            .Include(e => e.Enrollee).ThenInclude(e => e!.provider)
+            .Include(e => e.Provider)
+            .Include(e => e.Doctor)
+            .Include(e => e.Services)
+            .Include(e => e.Prescriptions).ThenInclude(p => p.DrugInventoryItem)
+            .Include(e => e.PresentingComplaints)
+            .Include(e => e.Queries)
+            .Include(e => e.AuditTrails)
+            .Include(e => e.Claim)
+            .AsSplitQuery()
+            .FirstOrDefaultAsync(e => e.Id == id, cancellationToken);
+
+        if (encounter?.Enrollee == null)
+        {
+            return NotFound();
+        }
+
+        ApplicationUser? currentUser = await _userManager.GetUserAsync(User);
+        if (!await CanAccessEnrolleeAsync(encounter.Enrollee, currentUser, encounter.ProviderId, cancellationToken))
+        {
+            return Forbid();
+        }
+
+        ViewBag.LinkedReferral = await _context.Referrals
+            .Include(referral => referral.ReferredHospital)
+            .AsNoTracking()
+            .FirstOrDefaultAsync(referral =>
+                !referral.IsDeleted
+                && referral.EncounterReference == encounter.EncounterNumber,
+                cancellationToken);
+
+        return View(encounter);
     }
 
     // GENERATE UNIQUE ENROLLMENT NUMBER

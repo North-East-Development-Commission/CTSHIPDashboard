@@ -1,0 +1,402 @@
+@model CTSHIPDashboard.Models.Encounter
+
+@functions {
+    private static List<string> SplitClinicalData(string? value)
+    {
+        return string.IsNullOrWhiteSpace(value)
+            ? new List<string>()
+            : value.Split(new[] { " | ", "," }, StringSplitOptions.RemoveEmptyEntries)
+                .Select(item => item.Trim())
+                .Where(item => !string.IsNullOrWhiteSpace(item))
+                .ToList();
+    }
+
+    private static string NotRecorded(string? value)
+    {
+        return string.IsNullOrWhiteSpace(value) ? "Not recorded" : value.Trim();
+    }
+
+    private static string FormatWhen(DateTime? value)
+    {
+        return value.HasValue ? value.Value.ToString("dd MMM yyyy HH:mm") : "Pending";
+    }
+}
+
+@{
+    ViewData["Title"] = "Encounter Details - " + Model.EncounterNumber;
+    var linkedReferral = ViewBag.LinkedReferral as CTSHIPDashboard.Models.Referral;
+    var services = Model.Services?
+        .Where(service => !string.IsNullOrWhiteSpace(service.ServiceName))
+        .OrderBy(service => service.ServiceName)
+        .ToList() ?? new List<CTSHIPDashboard.Models.EncounterService>();
+    var serviceNames = services.Select(service => service.ServiceName.Trim()).ToList();
+    var referralSelected = serviceNames.Any(service => string.Equals(service, "Referral Services", StringComparison.OrdinalIgnoreCase));
+    var complaints = Model.PresentingComplaints?
+        .Where(complaint => !string.IsNullOrWhiteSpace(complaint.ComplaintName))
+        .Select(complaint => complaint.ComplaintName.Trim())
+        .ToList() ?? new List<string>();
+    var prescriptions = Model.Prescriptions?
+        .Where(prescription => !string.IsNullOrWhiteSpace(prescription.DrugName))
+        .OrderBy(prescription => prescription.DrugName)
+        .ToList() ?? new List<CTSHIPDashboard.Models.EncounterPrescription>();
+    var preventiveServices = SplitClinicalData(Model.PreventiveServicesData);
+    var immunizations = SplitClinicalData(Model.ImmunizationsData);
+    var screeningTests = SplitClinicalData(Model.ScreeningTestsData);
+    var selectedMedicines = SplitClinicalData(Model.SelectedMedicinesData);
+    var labText = Model.LabTests ?? string.Empty;
+    var labParts = labText.Split(new[] { " - " }, StringSplitOptions.None);
+    var requestedLabTests = string.IsNullOrWhiteSpace(labParts.ElementAtOrDefault(0))
+        ? new List<string>()
+        : labParts[0].Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries)
+            .Select(test => test.Trim())
+            .Where(test => !string.IsNullOrWhiteSpace(test))
+            .ToList();
+    var labResults = labParts.Length > 1
+        ? labParts.Skip(1)
+            .SelectMany(part => part.Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries))
+            .Select(result => result.Trim())
+            .Where(result => !string.IsNullOrWhiteSpace(result))
+            .ToList()
+        : new List<string>();
+    var queries = Model.Queries?
+        .OrderByDescending(query => query.RaisedAt)
+        .ToList() ?? new List<CTSHIPDashboard.Models.EncounterQuery>();
+    var auditTrails = Model.AuditTrails?
+        .OrderByDescending(audit => audit.PerformedAt)
+        .ToList() ?? new List<CTSHIPDashboard.Models.EncounterAuditTrail>();
+}
+
+<div class="container-fluid py-5">
+    <div class="row justify-content-center">
+        <div class="col-12 col-xl-11">
+            <div class="card border-0 shadow-lg rounded-4 overflow-hidden">
+                <div class="bg-success text-white py-5 px-4">
+                    <div class="d-flex flex-column flex-lg-row align-items-lg-center justify-content-between gap-3">
+                        <div>
+                            <p class="text-uppercase small fw-bold opacity-75 mb-2">Complete Encounter Record</p>
+                            <h1 class="display-6 fw-bold mb-2">@Model.EncounterNumber</h1>
+                            <p class="lead mb-0">@Model.VisitDate.ToString("dd MMM yyyy HH:mm")</p>
+                        </div>
+                        <div class="text-lg-end">
+                            <span class="badge bg-light text-success fs-6 px-3 py-2">@Model.Status</span>
+                            <span class="badge bg-primary fs-6 px-3 py-2">@Model.PatientOutcome</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card-body p-4 p-lg-5">
+                    <div class="row g-4 mb-4">
+                        <div class="col-lg-4">
+                            <div class="card border-success h-100 shadow-sm">
+                                <div class="card-body text-center p-4">
+                                    <img src="@EnrolleePhotoStorage.ResolvePhotoPath(Model.Enrollee?.PhotoPath, Model.Enrollee?.EnrollmentNumber)"
+                                         alt="@Model.Enrollee?.FullName"
+                                         class="rounded-circle shadow mb-3" style="width:170px;height:170px;object-fit:cover;border:6px solid #3B703B;" />
+                                    <h4 class="fw-bold mb-1">@Model.Enrollee?.FullName</h4>
+                                    <p class="text-muted mb-1">ID: @Model.Enrollee?.EnrollmentNumber</p>
+                                    <p class="text-muted mb-1">@(Model.Enrollee?.Gender ?? "Not recorded") / @(Model.Enrollee == null ? "Not recorded" : Model.Enrollee.DateOfBirth.ToString("dd MMM yyyy"))</p>
+                                    <p class="text-muted mb-1">HMO: @Model.Enrollee?.Hmo?.Name</p>
+                                    <p class="text-muted mb-0">@Model.Enrollee?.State, @Model.Enrollee?.LGA, @Model.Enrollee?.Ward</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-lg-8">
+                            <div class="card shadow-sm h-100">
+                                <div class="card-body p-4">
+                                    <h5 class="text-success fw-bold">Encounter & Provider Process</h5>
+                                    <div class="row g-3">
+                                        <div class="col-md-4"><strong>Date / Time:</strong><br />@Model.VisitDate.ToString("dd MMM yyyy HH:mm")</div>
+                                        <div class="col-md-4"><strong>Visit Type:</strong><br />@NotRecorded(Model.VisitType)</div>
+                                        <div class="col-md-4"><strong>Service Setting:</strong><br />@NotRecorded(Model.ServiceSetting)</div>
+                                        <div class="col-md-4"><strong>Reason:</strong><br />@NotRecorded(Model.ReasonForEncounter)</div>
+                                        <div class="col-md-4"><strong>Provider:</strong><br />@(Model.Provider?.Name ?? "Not recorded")</div>
+                                        <div class="col-md-4"><strong>Provider Code:</strong><br />@(Model.Provider?.Code ?? "Not recorded")</div>
+                                        <div class="col-md-4"><strong>Attending Staff:</strong><br />@(Model.Doctor?.FullName ?? Model.SeenBy ?? "Not recorded")</div>
+                                        <div class="col-md-4"><strong>Specialty / Unit:</strong><br />@(Model.Doctor?.Specialty ?? Model.Rank ?? "Not recorded")</div>
+                                        <div class="col-md-4"><strong>Recorded By:</strong><br />@NotRecorded(Model.AttendedBy)</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row g-4">
+                        <div class="col-lg-7">
+                            <div class="card shadow-sm h-100">
+                                <div class="card-body p-4">
+                                    <h5 class="text-success fw-bold">Clinical Assessment</h5>
+                                    <div class="mb-3">
+                                        <strong>Presenting Complaint(s):</strong>
+                                        <div class="mt-2">
+                                            @if (complaints.Count > 0)
+                                            {
+                                                foreach (var complaint in complaints)
+                                                {
+                                                    <span class="badge bg-light text-dark border me-1 mb-1">@complaint</span>
+                                                }
+                                            }
+                                            else
+                                            {
+                                                <span>@NotRecorded(Model.ChiefComplaint)</span>
+                                            }
+                                        </div>
+                                    </div>
+                                    <p><strong>Complaint / History:</strong> @NotRecorded(Model.ChiefComplaint)</p>
+                                    <p><strong>Diagnosis:</strong> @NotRecorded(Model.Diagnosis?.Replace(" | ", ", "))</p>
+                                    <p><strong>Other Diagnosis:</strong> @NotRecorded(Model.DiagnosisOther)</p>
+                                    <p><strong>Treatment / Clinical Note:</strong> @NotRecorded(Model.TreatmentGiven)</p>
+                                    <p><strong>General Notes:</strong> @NotRecorded(Model.Notes)</p>
+                                    <hr />
+                                    <div class="row g-3">
+                                        <div class="col-md-4"><strong>Temperature:</strong><br />@(Model.Temperature > 0 ? $"{Model.Temperature:N1} C" : "Not recorded")</div>
+                                        <div class="col-md-4"><strong>Blood Pressure:</strong><br />@NotRecorded(Model.BloodPressure)</div>
+                                        <div class="col-md-4"><strong>Pulse Rate:</strong><br />@(Model.PulseRate > 0 ? $"{Model.PulseRate:N0} bpm" : "Not recorded")</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-lg-5">
+                            <div class="card shadow-sm h-100">
+                                <div class="card-body p-4">
+                                    <h5 class="text-success fw-bold">Service Selection</h5>
+                                    @if (services.Count == 0)
+                                    {
+                                        <p class="text-muted mb-3">No services recorded.</p>
+                                    }
+                                    else
+                                    {
+                                        foreach (var service in services)
+                                        {
+                                            <span class="badge bg-primary me-1 mb-1">@service.ServiceName</span>
+                                        }
+                                    }
+                                    <p class="mt-3 mb-0"><strong>Other Service:</strong> @NotRecorded(Model.ServicesProvidedOther)</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-lg-6">
+                            <div class="card shadow-sm h-100">
+                                <div class="card-body p-4">
+                                    <h5 class="text-success fw-bold">Laboratory Process</h5>
+                                    @if (requestedLabTests.Count == 0 && labResults.Count == 0 && string.IsNullOrWhiteSpace(Model.LaboratoryOther))
+                                    {
+                                        <p class="text-muted mb-0">No laboratory investigations recorded.</p>
+                                    }
+                                    else
+                                    {
+                                        <div class="mb-3">
+                                            <strong>Requested Tests:</strong>
+                                            <div class="mt-2">
+                                                @if (requestedLabTests.Count == 0)
+                                                {
+                                                    <span class="text-muted">None recorded.</span>
+                                                }
+                                                else
+                                                {
+                                                    foreach (var test in requestedLabTests)
+                                                    {
+                                                        <span class="badge bg-primary me-1 mb-1">@test</span>
+                                                    }
+                                                }
+                                            </div>
+                                        </div>
+                                        @if (labResults.Count > 0)
+                                        {
+                                            <strong>Results:</strong>
+                                            <ul class="mb-3 mt-2">
+                                                @foreach (var result in labResults)
+                                                {
+                                                    <li>@result</li>
+                                                }
+                                            </ul>
+                                        }
+                                        <p class="mb-0"><strong>Other Laboratory Service:</strong> @NotRecorded(Model.LaboratoryOther)</p>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-lg-6">
+                            <div class="card shadow-sm h-100">
+                                <div class="card-body p-4">
+                                    <h5 class="text-success fw-bold">Pharmacy & Medicines Process</h5>
+                                    @if (prescriptions.Count > 0)
+                                    {
+                                        <div class="table-responsive mb-3">
+                                            <table class="table table-sm align-middle mb-0">
+                                                <thead><tr><th>Drug</th><th>Dosage</th><th>Stock</th><th class="text-end">Quantity</th></tr></thead>
+                                                <tbody>
+                                                    @foreach (var prescription in prescriptions)
+                                                    {
+                                                        string dosage = string.Join(" ", new[] { prescription.Strength, prescription.DosageForm }.Where(value => !string.IsNullOrWhiteSpace(value)));
+                                                        <tr>
+                                                            <td>@prescription.DrugName</td>
+                                                            <td>@(string.IsNullOrWhiteSpace(dosage) ? "Not recorded" : dosage)</td>
+                                                            <td><span class="badge @(prescription.StockStatus == "OutOfStock" ? "bg-danger" : "bg-success")">@prescription.StockStatus</span></td>
+                                                            <td class="text-end">@prescription.QuantityDispensed.ToString("N0") @prescription.UnitOfMeasure</td>
+                                                        </tr>
+                                                    }
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    }
+                                    else if (selectedMedicines.Count > 0)
+                                    {
+                                        <div class="mb-3">
+                                            @foreach (var medicine in selectedMedicines)
+                                            {
+                                                <span class="badge bg-light text-dark border me-1 mb-1">@medicine</span>
+                                            }
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <p class="text-muted">No medicines recorded.</p>
+                                    }
+                                    <p class="mb-0"><strong>Other Medicine:</strong> @NotRecorded(Model.MedicinesOther)</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-lg-6">
+                            <div class="card shadow-sm h-100">
+                                <div class="card-body p-4">
+                                    <h5 class="text-success fw-bold">Preventive Services Process</h5>
+                                    @if (preventiveServices.Count == 0 && immunizations.Count == 0 && screeningTests.Count == 0 && string.IsNullOrWhiteSpace(Model.PreventiveServicesOther))
+                                    {
+                                        <p class="text-muted mb-0">No preventive services recorded.</p>
+                                    }
+                                    else
+                                    {
+                                        @foreach (var service in preventiveServices)
+                                        {
+                                            <span class="badge bg-success me-1 mb-1">@service</span>
+                                        }
+                                        @foreach (var immunization in immunizations)
+                                        {
+                                            <span class="badge bg-info text-dark me-1 mb-1">@immunization</span>
+                                        }
+                                        @foreach (var screening in screeningTests)
+                                        {
+                                            <span class="badge bg-warning text-dark me-1 mb-1">@screening</span>
+                                        }
+                                        <p class="mt-3 mb-0"><strong>Other Preventive Service:</strong> @NotRecorded(Model.PreventiveServicesOther)</p>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-lg-6">
+                            <div class="card shadow-sm h-100">
+                                <div class="card-body p-4">
+                                    <h5 class="text-success fw-bold">Referral Process</h5>
+                                    @if (linkedReferral != null)
+                                    {
+                                        <p class="mb-1"><strong>Referral Provider:</strong> @linkedReferral.ReferredHospital?.Name</p>
+                                        <p class="mb-1"><strong>Priority:</strong> @linkedReferral.Priority</p>
+                                        <p class="mb-1"><strong>Status:</strong> <span class="badge bg-secondary">@linkedReferral.Status</span></p>
+                                        <p class="mb-1"><strong>Reason:</strong> @linkedReferral.ReasonForReferral</p>
+                                        <p class="mb-1"><strong>Clinical Summary:</strong> @NotRecorded(linkedReferral.ClinicalSummary)</p>
+                                        <p class="mb-0"><strong>Submitted:</strong> @FormatWhen(linkedReferral.SubmittedToHmoAt)</p>
+                                    }
+                                    else if (referralSelected)
+                                    {
+                                        <p class="text-muted mb-0">Referral Services was selected for this encounter. No linked referral record is available yet.</p>
+                                    }
+                                    else
+                                    {
+                                        <p class="text-muted mb-0">No referral process recorded for this encounter.</p>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-12">
+                            <div class="card border-success shadow-sm">
+                                <div class="card-header bg-success text-white fw-bold">Outcome, Funding & Verification Process</div>
+                                <div class="card-body p-4">
+                                    <div class="row g-3 mb-4">
+                                        <div class="col-md-3"><strong>Encounter Status:</strong><br /><span class="badge bg-success">@NotRecorded(Model.Status)</span></div>
+                                        <div class="col-md-3"><strong>Patient Outcome:</strong><br /><span class="badge bg-primary">@NotRecorded(Model.PatientOutcome)</span></div>
+                                        <div class="col-md-3"><strong>Claim:</strong><br />@(Model.ClaimId.HasValue ? "Linked" : "No claim")</div>
+                                        <div class="col-md-3"><strong>Billed:</strong><br />@(Model.IsBilled ? "Yes" : "No")</div>
+                                    </div>
+                                    <div class="row g-3 mb-4">
+                                        <div class="col-md-3"><strong>Consultation Fee:</strong><br />&#8358;@Model.ConsultationFee.ToString("N2")</div>
+                                        <div class="col-md-3"><strong>Laboratory Fee:</strong><br />&#8358;@Model.LabFee.ToString("N2")</div>
+                                        <div class="col-md-3"><strong>Drug Fee:</strong><br />&#8358;@Model.DrugFee.ToString("N2")</div>
+                                        <div class="col-md-3"><strong>Capitation Charge:</strong><br />&#8358;@Model.CapitationCharge.ToString("N2")</div>
+                                    </div>
+                                    <div class="row g-3">
+                                        <div class="col-md-4"><strong>HMO Verification:</strong><br /><span class="badge bg-primary">@Model.HmoVerificationStatus</span><br /><small>@NotRecorded(Model.HmoVerifiedBy) / @FormatWhen(Model.HmoVerifiedAt)</small><br /><small>@NotRecorded(Model.HmoVerificationNote)</small></div>
+                                        <div class="col-md-4"><strong>IHSA Verification:</strong><br /><span class="badge bg-info text-dark">@Model.IhsaVerificationStatus</span><br /><small>@NotRecorded(Model.IhsaVerifiedBy) / @FormatWhen(Model.IhsaVerifiedAt)</small><br /><small>@NotRecorded(Model.IhsaVerificationNote)</small></div>
+                                        <div class="col-md-4"><strong>Facility Submission:</strong><br />@FormatWhen(Model.SubmittedToHmoAt)<br /><small>Original data: @(!string.IsNullOrWhiteSpace(Model.OriginalFacilityDataJson) ? "Preserved" : "Pending")</small></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-12">
+                            <div class="card border-success shadow-sm">
+                                <div class="card-header bg-success text-white fw-bold">Query Cycle & Audit Trail</div>
+                                <div class="card-body p-4">
+                                    <h6 class="fw-bold text-success">Query Cycle</h6>
+                                    @if (queries.Count == 0)
+                                    {
+                                        <p class="text-muted">No clarification queries have been raised.</p>
+                                    }
+                                    else
+                                    {
+                                        <div class="table-responsive mb-4">
+                                            <table class="table table-sm align-middle">
+                                                <thead><tr><th>Query</th><th>Responsible</th><th>Response</th><th>Resolution</th><th>Status</th></tr></thead>
+                                                <tbody>
+                                                    @foreach (var query in queries)
+                                                    {
+                                                        <tr>
+                                                            <td>@query.QueryRaised<br /><small class="text-muted">By @query.RaisedByName on @query.RaisedAt.ToString("dd MMM yyyy HH:mm")</small></td>
+                                                            <td>@query.ResponsiblePerson</td>
+                                                            <td>@NotRecorded(query.Response)<br /><small class="text-muted">@FormatWhen(query.RespondedAt)</small></td>
+                                                            <td>@NotRecorded(query.Resolution)<br /><small class="text-muted">@NotRecorded(query.ClosureNote)</small></td>
+                                                            <td><span class="badge bg-secondary">@query.Status</span></td>
+                                                        </tr>
+                                                    }
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    }
+
+                                    <h6 class="fw-bold text-success mt-4">Audit Trail</h6>
+                                    @if (auditTrails.Count == 0)
+                                    {
+                                        <p class="text-muted mb-0">No audit events recorded yet.</p>
+                                    }
+                                    else
+                                    {
+                                        <ul class="list-group">
+                                            @foreach (var item in auditTrails)
+                                            {
+                                                <li class="list-group-item d-flex justify-content-between gap-3">
+                                                    <span><strong>@item.Action</strong><br /><span class="text-muted">@NotRecorded(item.Summary)</span></span>
+                                                    <small class="text-muted text-nowrap">@item.PerformedAt.ToString("dd MMM yyyy HH:mm")</small>
+                                                </li>
+                                            }
+                                        </ul>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="d-flex flex-column flex-sm-row justify-content-center gap-3 mt-5">
+                        <a asp-controller="Enrollees" asp-action="Details" asp-route-id="@Model.EnrolleeId" class="btn btn-primary btn-lg px-5">Back to Enrollee</a>
+                        <a asp-controller="Enrollees" asp-action="Details" asp-route-id="@Model.EnrolleeId" asp-fragment="encounter-history" class="btn btn-outline-success btn-lg px-5">Encounter History</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

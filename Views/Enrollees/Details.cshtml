@@ -1,4 +1,4 @@
-﻿@model Enrollee
+@model Enrollee
 @{
     ViewData["Title"] = "Enrollee Details";
     bool canEditEnrollees = User.IsInRole("Admin")
@@ -150,6 +150,9 @@
             </div>
 
           
+
+
+            <partial name="_EnrolleeEncounterHistory" model="Model" />
         </div>
     </div>
 </div>

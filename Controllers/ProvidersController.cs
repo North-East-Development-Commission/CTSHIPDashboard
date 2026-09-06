@@ -1934,13 +1934,48 @@ public class ProvidersController : Controller
 
     // DETAILS
     [Authorize(Roles = "Provider")]
-    public async Task<IActionResult> EnDetails(int id)
+    public async Task<IActionResult> EnDetails(int id, CancellationToken cancellationToken = default)
     {
+        ApplicationUser? currentUser = await _userManager.GetUserAsync(User);
+        if (currentUser == null || !currentUser.ProviderId.HasValue)
+        {
+            return Forbid();
+        }
+
+        int providerId = currentUser.ProviderId.Value;
         var enrollee = await _context.Enrollees
             .Include(e => e.Hmo)
+            .Include(e => e.provider)
             .Include(e => e.MedicalHistories)
-            .FirstOrDefaultAsync(e => e.Id == id);
+            .FirstOrDefaultAsync(e => e.Id == id, cancellationToken);
         if (enrollee == null) return NotFound();
+
+        bool hasProviderAccess = enrollee.ProviderId == providerId
+            || await _context.Encounters
+                .AsNoTracking()
+                .AnyAsync(encounter => encounter.EnrolleeId == id && encounter.ProviderId == providerId, cancellationToken);
+        if (!hasProviderAccess)
+        {
+            return Forbid();
+        }
+
+        enrollee.Encounters = await _context.Encounters
+            .AsNoTracking()
+            .Include(encounter => encounter.Provider)
+            .Include(encounter => encounter.Doctor)
+            .Include(encounter => encounter.Claim)
+            .Include(encounter => encounter.Services)
+            .Where(encounter => encounter.EnrolleeId == id && encounter.ProviderId == providerId)
+            .OrderByDescending(encounter => encounter.VisitDate)
+            .ThenByDescending(encounter => encounter.Id)
+            .AsSplitQuery()
+            .ToListAsync(cancellationToken);
+
+        ViewBag.TotalClaims = await _context.Claims.AsNoTracking().CountAsync(claim => claim.EnrolleeId == enrollee.Id && claim.ProviderId == providerId, cancellationToken);
+        ViewBag.PaidClaims = await _context.Claims.AsNoTracking().CountAsync(claim => claim.EnrolleeId == enrollee.Id && claim.ProviderId == providerId && claim.Status == "Paid", cancellationToken);
+        ViewBag.TotalEncounters = enrollee.Encounters.Count;
+        ViewBag.LastEncounterDate = enrollee.Encounters.FirstOrDefault()?.VisitDate;
+
         return View(enrollee);
     }
 
