@@ -529,7 +529,7 @@ public class HmoController : Controller
 
         List<int> providerIds = providers.Select(provider => provider.Id).ToList();
         Dictionary<int, int> enrolleeCounts = new();
-        Dictionary<int, int> utilizationCounts = new();
+        Dictionary<int, CapitationEncounterVerificationMetrics> encounterMetricsByProvider = new();
         Dictionary<int, CapitationPayment> payments = new();
 
         if (providerIds.Count > 0)
@@ -544,18 +544,49 @@ public class HmoController : Controller
                 .Select(group => new { ProviderId = group.Key ?? 0, Count = group.Count() })
                 .ToDictionaryAsync(x => x.ProviderId, x => x.Count);
 
-            utilizationCounts = await _context.Encounters
+            var encounterRows = await _context.Encounters
                 .AsNoTracking()
                 .Where(encounter => providerIds.Contains(encounter.ProviderId)
                     && encounter.Enrollee != null
                     && encounter.Enrollee.HmoId == selectedHmo
                     && encounter.VisitDate >= month
                     && encounter.VisitDate < nextMonth)
-                .Select(encounter => new { encounter.ProviderId, encounter.EnrolleeId })
-                .Distinct()
+                .Select(encounter => new
+                {
+                    encounter.ProviderId,
+                    encounter.EnrolleeId,
+                    encounter.HmoVerificationStatus,
+                    encounter.CapitationCharge,
+                    ServiceAccessCount = encounter.Services.Count == 0 ? 1 : encounter.Services.Count,
+                    HasOpenQuery = encounter.Queries.Any(query => query.Status != "Closed")
+                })
+                .ToListAsync();
+
+            encounterMetricsByProvider = encounterRows
                 .GroupBy(encounter => encounter.ProviderId)
-                .Select(group => new { ProviderId = group.Key, Count = group.Count() })
-                .ToDictionaryAsync(x => x.ProviderId, x => x.Count);
+                .ToDictionary(
+                    group => group.Key,
+                    group => new CapitationEncounterVerificationMetrics
+                    {
+                        SubmittedEncounterCount = group.Sum(encounter => encounter.ServiceAccessCount),
+                        HmoCertifiedEncounterCount = group
+                            .Where(encounter => encounter.HmoVerificationStatus == "Certified")
+                            .Sum(encounter => encounter.ServiceAccessCount),
+                        PendingVerificationEncounterCount = group
+                            .Where(encounter => encounter.HmoVerificationStatus == "Submitted")
+                            .Sum(encounter => encounter.ServiceAccessCount),
+                        QueryRaisedEncounterCount = group
+                            .Where(encounter => encounter.HmoVerificationStatus == "Query Raised" || encounter.HasOpenQuery)
+                            .Sum(encounter => encounter.ServiceAccessCount),
+                        HmoVerifiedUtilizedEnrolleeCount = group
+                            .Where(encounter => encounter.HmoVerificationStatus == "Certified")
+                            .Select(encounter => encounter.EnrolleeId)
+                            .Distinct()
+                            .Count(),
+                        HmoCertifiedCapitationCharge = group
+                            .Where(encounter => encounter.HmoVerificationStatus == "Certified")
+                            .Sum(encounter => encounter.CapitationCharge)
+                    });
 
             payments = await _context.CapitationPayments
                 .AsNoTracking()
@@ -578,12 +609,14 @@ public class HmoController : Controller
             Providers = providers.Select(provider =>
             {
                 enrolleeCounts.TryGetValue(provider.Id, out int enrolleeCount);
-                utilizationCounts.TryGetValue(provider.Id, out int utilizedEnrolleeCount);
+                encounterMetricsByProvider.TryGetValue(provider.Id, out CapitationEncounterVerificationMetrics? encounterMetrics);
                 payments.TryGetValue(provider.Id, out CapitationPayment? payment);
 
+                int hmoVerifiedUtilizedEnrolleeCount = encounterMetrics?.HmoVerifiedUtilizedEnrolleeCount ?? 0;
+                int certifiedEncounterCount = encounterMetrics?.HmoCertifiedEncounterCount ?? 0;
                 decimal utilizationRate = enrolleeCount == 0
                     ? 0m
-                    : Math.Round((decimal)utilizedEnrolleeCount / enrolleeCount * 100m, 2);
+                    : Math.Round((decimal)certifiedEncounterCount / enrolleeCount * 100m, 2);
 
                 return new CapitationProviderRowViewModel
                 {
@@ -597,6 +630,12 @@ public class HmoController : Controller
                         ? payment.CapitationPerEnrollee
                         : defaultCapitationPerEnrollee,
                     UtilizationRate = utilizationRate,
+                    SubmittedEncounterCount = encounterMetrics?.SubmittedEncounterCount ?? 0,
+                    HmoCertifiedEncounterCount = encounterMetrics?.HmoCertifiedEncounterCount ?? 0,
+                    PendingVerificationEncounterCount = encounterMetrics?.PendingVerificationEncounterCount ?? 0,
+                    QueryRaisedEncounterCount = encounterMetrics?.QueryRaisedEncounterCount ?? 0,
+                    HmoVerifiedUtilizedEnrolleeCount = hmoVerifiedUtilizedEnrolleeCount,
+                    HmoCertifiedCapitationCharge = encounterMetrics?.HmoCertifiedCapitationCharge ?? 0m,
                     DueDate = payment?.DueDate ?? month.AddMonths(1).AddDays(-1),
                     ActualPaymentMade = payment?.ActualPaymentMade > 0
                         ? payment.ActualPaymentMade
@@ -911,15 +950,20 @@ public class HmoController : Controller
             && enrollee.ProviderId == providerId
             && enrollee.Status == "Active");
 
-        int utilizedEnrolleeCount = await _context.Encounters
+        var certifiedEncounterRows = await _context.Encounters
             .Where(encounter => encounter.ProviderId == providerId
                 && encounter.Enrollee != null
                 && encounter.Enrollee.HmoId == hmoId
                 && encounter.VisitDate >= reportingMonth
-                && encounter.VisitDate < nextMonth)
-            .Select(encounter => encounter.EnrolleeId)
-            .Distinct()
-            .CountAsync();
+                && encounter.VisitDate < nextMonth
+                && encounter.HmoVerificationStatus == "Certified")
+            .Select(encounter => new
+            {
+                ServiceAccessCount = encounter.Services.Count == 0 ? 1 : encounter.Services.Count
+            })
+            .ToListAsync();
+
+        int utilizedEnrolleeCount = certifiedEncounterRows.Sum(encounter => encounter.ServiceAccessCount);
 
         decimal utilizationRate = enrolleeCount == 0
             ? 0m
@@ -966,6 +1010,16 @@ public class HmoController : Controller
         return safeName.Length > 80 ? safeName[..80] : safeName;
     }
 
+
+    private sealed class CapitationEncounterVerificationMetrics
+    {
+        public int SubmittedEncounterCount { get; set; }
+        public int HmoCertifiedEncounterCount { get; set; }
+        public int PendingVerificationEncounterCount { get; set; }
+        public int QueryRaisedEncounterCount { get; set; }
+        public int HmoVerifiedUtilizedEnrolleeCount { get; set; }
+        public decimal HmoCertifiedCapitationCharge { get; set; }
+    }
 
     private bool IsProviderManagementAdmin()
     {
@@ -2386,13 +2440,3 @@ ViewBag.TotalClaims = await _context.Enrollees
                     $"HMO_Claims_{currentUser.hmo?.Name ?? "All"}_{DateTime.Now:yyyyMMdd_HHmm}.xlsx");
     }
 }
-
-
-
-
-
-
-
-
-
-

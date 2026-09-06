@@ -1423,7 +1423,7 @@ public class StateOfficeController : Controller
     {
         query = query.Where(report => !_context.Providers.Any(provider =>
             provider.Id == report.ProviderId
-            && (provider.Level == ReferralProviderLevel || provider.Code.StartsWith("REF-"))));
+            && (provider.Level == ReferralProviderLevel || provider.Level == ReferralProviderSyncHelper.SecondaryProviderLevel || provider.Code.StartsWith("REF-"))));
 
         if (CanManageReports())
         {
@@ -1492,7 +1492,7 @@ public class StateOfficeController : Controller
     {
         query = query.Where(report => _context.Providers.Any(provider =>
             provider.Id == report.ProviderId
-            && (provider.Level == ReferralProviderLevel || provider.Code.StartsWith("REF-"))));
+            && (provider.Level == ReferralProviderLevel || provider.Level == ReferralProviderSyncHelper.SecondaryProviderLevel || provider.Code.StartsWith("REF-"))));
 
         if (CanManageReports())
         {
@@ -1556,13 +1556,13 @@ public class StateOfficeController : Controller
     private static IQueryable<Provider> OnlyReferralProviderFacilities(IQueryable<Provider> query)
     {
         return query.Where(provider =>
-            provider.Level == ReferralProviderLevel || provider.Code.StartsWith("REF-"));
+            provider.Level == ReferralProviderLevel || provider.Level == ReferralProviderSyncHelper.SecondaryProviderLevel || provider.Code.StartsWith("REF-"));
     }
 
     private static IQueryable<Provider> ExcludeReferralProviderFacilities(IQueryable<Provider> query)
     {
         return query.Where(provider =>
-            provider.Level != ReferralProviderLevel && !provider.Code.StartsWith("REF-"));
+            provider.Level != ReferralProviderLevel && provider.Level != ReferralProviderSyncHelper.SecondaryProviderLevel && !provider.Code.StartsWith("REF-"));
     }
 
     private async Task<bool> CanAccessReportStateAsync(

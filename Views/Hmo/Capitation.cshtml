@@ -51,15 +51,19 @@
     <div class="row g-3 mb-4 text-center">
         <div class="col-xl-2 col-md-4 col-6"><div class="card border-0 shadow-sm h-100"><div class="card-body"><p class="text-muted fw-bold mb-1">PHC Providers</p><h2 class="fw-bold text-primary mb-0">@Model.Providers.Count</h2></div></div></div>
         <div class="col-xl-2 col-md-4 col-6"><div class="card border-0 shadow-sm h-100"><div class="card-body"><p class="text-muted fw-bold mb-1">Enrollees</p><h2 class="fw-bold text-success mb-0">@Model.TotalEnrollees.ToString("N0")</h2></div></div></div>
-        <div class="col-xl-2 col-md-4 col-6"><div class="card border-0 shadow-sm h-100"><div class="card-body"><p class="text-muted fw-bold mb-1">Expected</p><h3 class="fw-bold text-dark mb-0">NGN @Model.TotalCapitation.ToString("N2")</h3></div></div></div>
-        <div class="col-xl-2 col-md-4 col-6"><div class="card border-0 shadow-sm h-100"><div class="card-body"><p class="text-muted fw-bold mb-1">Actual Paid</p><h3 class="fw-bold text-success mb-0">NGN @Model.TotalActualPayment.ToString("N2")</h3></div></div></div>
-        <div class="col-xl-2 col-md-4 col-6"><div class="card border-0 shadow-sm h-100"><div class="card-body"><p class="text-muted fw-bold mb-1">Outstanding</p><h3 class="fw-bold text-danger mb-0">NGN @Model.TotalOutstandingAmount.ToString("N2")</h3></div></div></div>
-        <div class="col-xl-2 col-md-4 col-6"><div class="card border-0 shadow-sm h-100"><div class="card-body"><p class="text-muted fw-bold mb-1">Utilization</p><h3 class="fw-bold text-info mb-0">@Model.AverageUtilizationRate.ToString("N2")%</h3></div></div></div>
+        <div class="col-xl-2 col-md-4 col-6"><div class="card border-0 shadow-sm h-100"><div class="card-body"><p class="text-muted fw-bold mb-1">Service Encounters</p><h2 class="fw-bold text-dark mb-0">@Model.TotalSubmittedEncounters.ToString("N0")</h2></div></div></div>
+        <div class="col-xl-2 col-md-4 col-6"><div class="card border-0 shadow-sm h-100"><div class="card-body"><p class="text-muted fw-bold mb-1">HMO Certified</p><h2 class="fw-bold text-success mb-0">@Model.TotalHmoCertifiedEncounters.ToString("N0")</h2></div></div></div>
+        <div class="col-xl-2 col-md-4 col-6"><div class="card border-0 shadow-sm h-100"><div class="card-body"><p class="text-muted fw-bold mb-1">Pending / Query</p><h3 class="fw-bold text-warning mb-0">@((Model.TotalPendingVerificationEncounters + Model.TotalQueryRaisedEncounters).ToString("N0"))</h3></div></div></div>
+        <div class="col-xl-2 col-md-4 col-6"><div class="card border-0 shadow-sm h-100"><div class="card-body"><p class="text-muted fw-bold mb-1">Certified Utilization</p><h3 class="fw-bold text-info mb-0">@Model.AverageUtilizationRate.ToString("N2")%</h3></div></div></div>
+        <div class="col-xl-3 col-md-6"><div class="card border-0 shadow-sm h-100"><div class="card-body"><p class="text-muted fw-bold mb-1">Expected Capitation</p><h3 class="fw-bold text-dark mb-0">NGN @Model.TotalCapitation.ToString("N2")</h3></div></div></div>
+        <div class="col-xl-3 col-md-6"><div class="card border-0 shadow-sm h-100"><div class="card-body"><p class="text-muted fw-bold mb-1">Certified Service Charge</p><h3 class="fw-bold text-success mb-0">NGN @Model.TotalHmoCertifiedCapitationCharge.ToString("N2")</h3></div></div></div>
+        <div class="col-xl-3 col-md-6"><div class="card border-0 shadow-sm h-100"><div class="card-body"><p class="text-muted fw-bold mb-1">Actual Paid</p><h3 class="fw-bold text-success mb-0">NGN @Model.TotalActualPayment.ToString("N2")</h3></div></div></div>
+        <div class="col-xl-3 col-md-6"><div class="card border-0 shadow-sm h-100"><div class="card-body"><p class="text-muted fw-bold mb-1">Outstanding</p><h3 class="fw-bold text-danger mb-0">NGN @Model.TotalOutstandingAmount.ToString("N2")</h3></div></div></div>
     </div>
 
     <div class="card border-0 shadow-lg">
         <div class="card-header bg-success text-white py-3">
-            <h3 class="fw-bold mb-0">Monthly / Quarterly Capitation Payments</h3>
+            <h3 class="fw-bold mb-0">HMO Verified Capitation Payments</h3>
         </div>
         <div class="card-body p-0">
             <div class="table-responsive">
@@ -68,13 +72,14 @@
                         <tr>
                             <th>Provider</th>
                             <th>Enrollees</th>
+                            <th>HMO Verification</th>
                             <th>Rate</th>
                             <th>Expected Amount</th>
+                            <th>Certified Charge</th>
                             <th>Actual Paid</th>
                             <th>Outstanding</th>
+                            <th>Payment Evidence</th>
                             <th>Due / Received</th>
-                            <th>Timeliness</th>
-                            <th>Status / Reference</th>
                             @if (canUpdateCapitation)
                             {
                                 <th>Update</th>
@@ -85,7 +90,7 @@
                         @if (!Model.Providers.Any())
                         {
                             <tr>
-                                <td colspan="@(canUpdateCapitation ? 10 : 9)" class="text-center py-5 text-muted fs-5">No active PHC providers found for this HMO.</td>
+                                <td colspan="@(canUpdateCapitation ? 11 : 10)" class="text-center py-5 text-muted fs-5">No active PHC providers found for this HMO.</td>
                             </tr>
                         }
                         else
@@ -97,6 +102,8 @@
                                     : provider.PaymentStatus == "Partially Paid"
                                         ? "bg-info text-dark"
                                         : "bg-warning text-dark";
+                                bool hasPaymentEvidence = !string.IsNullOrWhiteSpace(provider.ProofOfPaymentPath);
+                                bool hasPaymentReference = !string.IsNullOrWhiteSpace(provider.PaymentReference);
                                 <tr>
                                     <td>
                                         <div class="fw-bold">@provider.ProviderName</div>
@@ -104,33 +111,53 @@
                                         <div class="small text-muted">@provider.PaymentPeriod</div>
                                     </td>
                                     <td class="fw-bold">@provider.EnrolleeCount.ToString("N0")</td>
+                                    <td>
+                                        <div><strong>Service encounters:</strong> @provider.SubmittedEncounterCount.ToString("N0")</div>
+                                        <div><strong>Certified:</strong> <span class="text-success fw-bold">@provider.HmoCertifiedEncounterCount.ToString("N0")</span></div>
+                                        <div><strong>Pending:</strong> @provider.PendingVerificationEncounterCount.ToString("N0")</div>
+                                        <div><strong>Query:</strong> @provider.QueryRaisedEncounterCount.ToString("N0")</div>
+                                        <div class="small text-muted">Certified users: @provider.HmoVerifiedUtilizedEnrolleeCount.ToString("N0")</div>
+                                        @if (provider.HasPendingHmoVerification)
+                                        {
+                                            <a asp-action="PrimaryProviderEncountersReport" asp-route-status="Submitted" asp-route-fromDate="@Model.ReportingMonth.ToString("yyyy-MM-dd")" asp-route-toDate="@Model.ReportingMonth.AddMonths(1).AddDays(-1).ToString("yyyy-MM-dd")" class="small">Review pending encounters</a>
+                                        }
+                                    </td>
                                     <td>NGN @provider.CapitationPerEnrollee.ToString("N2")</td>
                                     <td class="fw-bold">NGN @provider.TotalCapitation.ToString("N2")</td>
+                                    <td class="fw-bold text-success">NGN @provider.HmoCertifiedCapitationCharge.ToString("N2")</td>
                                     <td class="fw-bold text-success">NGN @provider.ActualPaymentMade.ToString("N2")</td>
                                     <td class="fw-bold @(provider.OutstandingAmount > 0 ? "text-danger" : "text-success")">NGN @provider.OutstandingAmount.ToString("N2")</td>
                                     <td>
-                                        <div><strong>Due:</strong> @(provider.DueDate?.ToString("dd MMM yyyy") ?? "-")</div>
-                                        <div><strong>Received:</strong> @(provider.ProviderPaymentReceivedDate?.ToString("dd MMM yyyy") ?? "-")</div>
-                                    </td>
-                                    <td>
-                                        @if (provider.PaymentTimelinessDays.HasValue)
-                                        {
-                                            <span class="badge @(provider.PaymentTimelinessDays.Value <= 0 ? "bg-success" : "bg-danger")">@provider.PaymentTimelinessDays.Value day(s)</span>
-                                        }
-                                        else
-                                        {
-                                            <span class="text-muted">Pending</span>
-                                        }
-                                    </td>
-                                    <td>
                                         <span class="badge @badgeClass">@provider.PaymentStatus</span>
-                                        @if (!string.IsNullOrWhiteSpace(provider.PaymentReference))
+                                        @if (hasPaymentReference)
                                         {
                                             <div class="fw-bold small mt-1">@provider.PaymentReference</div>
                                         }
-                                        @if (!string.IsNullOrWhiteSpace(provider.ProofOfPaymentPath))
+                                        @if (hasPaymentEvidence)
                                         {
-                                            <a href="@provider.ProofOfPaymentPath" target="_blank" class="small">View proof</a>
+                                            <a href="@provider.ProofOfPaymentPath" target="_blank" class="btn btn-sm btn-outline-success mt-2">
+                                                <i class="bi bi-file-earmark-check me-1"></i> View evidence
+                                            </a>
+                                        }
+                                        else if (provider.PaymentStatus == "Paid" || provider.PaymentStatus == "Partially Paid")
+                                        {
+                                            <div class="small text-danger mt-2">Evidence required</div>
+                                        }
+                                        else
+                                        {
+                                            <div class="small text-muted mt-2">No payment evidence yet</div>
+                                        }
+                                    </td>
+                                    <td>
+                                        <div><strong>Due:</strong> @(provider.DueDate?.ToString("dd MMM yyyy") ?? "-")</div>
+                                        <div><strong>Received:</strong> @(provider.ProviderPaymentReceivedDate?.ToString("dd MMM yyyy") ?? "-")</div>
+                                        @if (provider.PaymentTimelinessDays.HasValue)
+                                        {
+                                            <span class="badge @(provider.PaymentTimelinessDays.Value <= 0 ? "bg-success" : "bg-danger") mt-1">@provider.PaymentTimelinessDays.Value day(s)</span>
+                                        }
+                                        else
+                                        {
+                                            <div class="small text-muted mt-1">Pending</div>
                                         }
                                     </td>
                                     @if (canUpdateCapitation)
@@ -173,10 +200,10 @@
                                                 </div>
 
                                                 <input type="text" name="PaymentReference" value="@provider.PaymentReference" maxlength="100" class="form-control form-control-sm" placeholder="Transaction/payment reference" />
-                                                <input type="file" name="proofOfPayment" accept=".pdf,.jpg,.jpeg,.png" class="form-control form-control-sm" />
+                                                <input type="file" name="proofOfPayment" accept=".pdf,.jpg,.jpeg,.png" class="form-control form-control-sm" aria-label="Evidence of payment" />
 
                                                 <button type="submit" class="btn btn-success btn-sm">
-                                                    <i class="bi bi-check2-circle me-1"></i> Save
+                                                    <i class="bi bi-check2-circle me-1"></i> Save payment evidence
                                                 </button>
                                             </form>
                                         </td>

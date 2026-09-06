@@ -210,6 +210,10 @@ builder.Services.AddScoped<
     IAuditService,
     AuditService>();
 
+builder.Services.AddScoped<
+    IPasswordResetEmailSender,
+    PasswordResetEmailSender>();
+
 
 // ============================================================
 // BUILD APPLICATION

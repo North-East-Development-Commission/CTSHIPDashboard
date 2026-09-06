@@ -484,10 +484,11 @@ namespace CTSHIPDashboard.Controllers
                     existing.DrugFee = existing.Prescriptions.Sum(prescription => prescription.TotalCost);
                     if (existing.SubmittedToHmoAt.HasValue)
                     {
-                        existing.CapitationCharge = await ResolveEncounterCapitationChargeAsync(
+                        decimal capitationRate = await ResolveEncounterCapitationChargeAsync(
                             existing.ProviderId,
                             existing.Enrollee?.HmoId,
                             existing.VisitDate);
+                        existing.CapitationCharge = capitationRate * Math.Max(existing.Services.Count, 1);
                     }
                     if (!await DeductPendingEncounterPrescriptionsAsync(existing))
                     {
@@ -1280,7 +1281,9 @@ namespace CTSHIPDashboard.Controllers
             encounter.SubmittedToHmoAt = DateTime.UtcNow;
             encounter.HmoVerificationStatus = "Submitted";
             encounter.IhsaVerificationStatus = "Not Ready";
-            encounter.CapitationCharge = await ResolveEncounterCapitationChargeAsync(encounter.ProviderId, enrollee?.HmoId, encounter.VisitDate);
+            int serviceAccessCount = Math.Max(encounter.Services.Count, 1);
+            decimal capitationRate = await ResolveEncounterCapitationChargeAsync(encounter.ProviderId, enrollee?.HmoId, encounter.VisitDate);
+            encounter.CapitationCharge = capitationRate * serviceAccessCount;
             encounter.OriginalFacilityDataJson = BuildEncounterSourceSnapshot(encounter, enrollee, provider);
 
             string actorName = currentUser?.FullName ?? currentUser?.Email ?? User.Identity?.Name ?? "Provider";
@@ -1692,6 +1695,3 @@ namespace CTSHIPDashboard.Controllers
         }
     }
 }
-
-
-

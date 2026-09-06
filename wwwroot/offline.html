@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#3b703b">
+  <title>Offline - NEDC CTSHIP Dashboard</title>
+  <style>
+    :root { color-scheme: light; --green: #3b703b; --gold: #FE9031; }
+    body { min-height: 100vh; margin: 0; display: grid; place-items: center; font-family: Arial, Helvetica, sans-serif; color: var(--green); background: linear-gradient(135deg, #fff 0%, rgba(59, 112, 59, .10) 100%); }
+    main { width: min(520px, calc(100vw - 40px)); text-align: center; }
+    img { width: 112px; height: 112px; object-fit: contain; margin-bottom: 1.25rem; }
+    h1 { margin: 0 0 .75rem; color: var(--green); font-size: 1.8rem; }
+    p { margin: 0 0 1.25rem; line-height: 1.55; }
+    a { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 0 1.1rem; color: #17351d; background: var(--gold); border-radius: .65rem; font-weight: 700; text-decoration: none; }
+  </style>
+</head>
+<body>
+  <main>
+    <img src="/images/nedc-logo-transparent.png" alt="NEDC logo">
+    <h1>You are offline</h1>
+    <p>The CTSHIP dashboard needs a network connection for live records. Reconnect and try again.</p>
+    <a href="/">Retry</a>
+  </main>
+</body>
+</html>

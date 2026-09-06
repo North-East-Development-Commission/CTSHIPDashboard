@@ -731,18 +731,38 @@ namespace CTSHIPDashboard.Controllers
                 return Json(new { success = false, providers = Array.Empty<object>() });
             }
 
-            var providers = await _context.ReferralHospitals
-                .Where(hospital => hospital.IsActive)
-                .OrderBy(hospital => hospital.Name)
-                .Select(hospital => new
-                {
-                    id = hospital.Id,
-                    text = string.IsNullOrWhiteSpace(hospital.State)
-                        ? hospital.Name
-                        : hospital.Name + " - " + hospital.State,
-                    selected = selectedReferralHospitalId.HasValue && hospital.Id == selectedReferralHospitalId.Value
-                })
+            await ReferralProviderSyncHelper.EnsureReferralHospitalsForSecondaryProvidersAsync(_context, hmoId);
+
+            List<Provider> secondaryProviders = await _context.Providers
+                .AsNoTracking()
+                .Where(provider =>
+                    provider.IsActive &&
+                    provider.HmoId == hmoId &&
+                    provider.Level == ReferralProviderSyncHelper.SecondaryProviderLevel)
+                .OrderBy(provider => provider.Name)
                 .ToListAsync();
+
+            List<ReferredHospital> hospitals = await _context.ReferralHospitals
+                .AsNoTracking()
+                .Where(hospital => hospital.IsActive)
+                .ToListAsync();
+
+            var providers = secondaryProviders
+                .Select(provider => new
+                {
+                    Provider = provider,
+                    Hospital = hospitals.FirstOrDefault(hospital => ReferralProviderSyncHelper.MatchesProvider(hospital, provider))
+                })
+                .Where(item => item.Hospital != null)
+                .Select(item => new
+                {
+                    id = item.Hospital!.Id,
+                    text = string.IsNullOrWhiteSpace(item.Provider.State)
+                        ? item.Provider.Name
+                        : item.Provider.Name + " - " + item.Provider.State,
+                    selected = selectedReferralHospitalId.HasValue && item.Hospital.Id == selectedReferralHospitalId.Value
+                })
+                .ToList();
 
             return Json(new { success = true, providers });
         }

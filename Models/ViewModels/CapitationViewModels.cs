@@ -15,6 +15,11 @@ public class CapitationIndexViewModel
     public decimal TotalActualPayment => Providers.Sum(provider => provider.ActualPaymentMade);
     public decimal TotalOutstandingAmount => Providers.Sum(provider => provider.OutstandingAmount);
     public int PaidProviderCount => Providers.Count(provider => provider.PaymentStatus == "Paid");
+    public int TotalSubmittedEncounters => Providers.Sum(provider => provider.SubmittedEncounterCount);
+    public int TotalHmoCertifiedEncounters => Providers.Sum(provider => provider.HmoCertifiedEncounterCount);
+    public int TotalPendingVerificationEncounters => Providers.Sum(provider => provider.PendingVerificationEncounterCount);
+    public int TotalQueryRaisedEncounters => Providers.Sum(provider => provider.QueryRaisedEncounterCount);
+    public decimal TotalHmoCertifiedCapitationCharge => Providers.Sum(provider => provider.HmoCertifiedCapitationCharge);
 
     public decimal AverageUtilizationRate => TotalEnrollees == 0
         ? 0m
@@ -32,6 +37,13 @@ public class CapitationProviderRowViewModel
     public decimal CapitationPerEnrollee { get; set; }
     public decimal TotalCapitation => EnrolleeCount * CapitationPerEnrollee;
     public decimal UtilizationRate { get; set; }
+    public int SubmittedEncounterCount { get; set; }
+    public int HmoCertifiedEncounterCount { get; set; }
+    public int PendingVerificationEncounterCount { get; set; }
+    public int QueryRaisedEncounterCount { get; set; }
+    public int HmoVerifiedUtilizedEnrolleeCount { get; set; }
+    public decimal HmoCertifiedCapitationCharge { get; set; }
+    public bool HasPendingHmoVerification => PendingVerificationEncounterCount > 0 || QueryRaisedEncounterCount > 0;
     public DateTime? DueDate { get; set; }
     public decimal ActualPaymentMade { get; set; }
     public DateTime? ProviderPaymentReceivedDate { get; set; }

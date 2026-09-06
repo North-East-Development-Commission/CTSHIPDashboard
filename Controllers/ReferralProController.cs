@@ -200,7 +200,7 @@ public class ReferralProController : Controller
         ReferredHospital? currentHospital = await GetCurrentReferralHospitalAsync(cancellationToken);
         if (!User.IsInRole("CTSHIPAdmin") && currentHospital == null)
         {
-            TempData["Error"] = "Your ReferralPro account is not linked to an active referral hospital. Match the user email with the referral hospital email.";
+            TempData["Error"] = "Your ReferralPro account is not linked to an active secondary/referral provider. Match the user email with the provider email.";
             ViewBag.Search = search;
             ViewBag.Status = status;
             SetReferralCounts(0, 0, 0);
@@ -339,7 +339,7 @@ public class ReferralProController : Controller
 
         if (!await PopulateCodeVerificationModelAsync(model, cancellationToken))
         {
-            TempData["Error"] = "Your ReferralPro account is not linked to an active referral hospital.";
+            TempData["Error"] = "Your ReferralPro account is not linked to an active secondary/referral provider.";
             return RedirectToAction(nameof(Index));
         }
 
@@ -737,7 +737,8 @@ public class ReferralProController : Controller
 
         if (currentHospital == null)
         {
-            query = query.Where(x => x.Provider != null && x.Provider.Level == "Referral Hospital");
+            query = query.Where(x => x.Provider != null &&
+                (x.Provider.Level == "Referral Hospital" || x.Provider.Level == ReferralProviderSyncHelper.SecondaryProviderLevel));
         }
         else
         {

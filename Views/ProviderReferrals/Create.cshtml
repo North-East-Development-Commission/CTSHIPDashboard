@@ -1,4 +1,4 @@
-﻿@model CTSHIPDashboard.ViewModels.ReferralCreateViewModel
+@model CTSHIPDashboard.ViewModels.ReferralCreateViewModel
 @using CTSHIPDashboard.Enums
 @{
     ViewData["Title"] = "Create Referral";
@@ -60,7 +60,7 @@
         <div class="col-md-6">
             <label asp-for="ReferredHospitalId" class="form-label"></label>
             <select asp-for="ReferredHospitalId" asp-items="Model.ReferredHospitals" class="form-select">
-                <option value="">-- Select Referred Hospital --</option>
+                <option value="">-- Select Referral Provider --</option>
             </select>
             <span asp-validation-for="ReferredHospitalId" class="text-danger"></span>
         </div>

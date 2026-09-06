@@ -1,4 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 namespace CTSHIPDashboard.Models.ViewModels
 {
     public class ProviderListViewModel
@@ -22,7 +22,7 @@ namespace CTSHIPDashboard.Models.ViewModels
         public string LevelDisplay => Level switch
         {
             "Tertiary" => "Tertiary",
-            "Secondary" => "Secondary",
+            "Secondary" => "Secondary / Referral Provider",
             "Private" => "Private",
             "Primary" => "Primary",
             _ => "Unknown"

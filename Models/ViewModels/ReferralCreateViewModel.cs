@@ -1,4 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 using CTSHIPDashboard.Enums;
 using Microsoft.AspNetCore.Mvc.Rendering;
 
@@ -42,7 +42,7 @@ public class ReferralCreateViewModel
     public string FromProviderName { get; set; } = string.Empty;
 
     [Required]
-    [Display(Name = "Referred Hospital")]
+    [Display(Name = "Referral Provider")]
     public Guid? ReferredHospitalId { get; set; }
 
     [Required]

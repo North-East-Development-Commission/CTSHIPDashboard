@@ -191,7 +191,7 @@ public class ProvidersController : Controller
         {
             new() { Value = "all", Text = "All Levels" },
             new() { Value = "Tertiary", Text = "Tertiary (Teaching Hospitals)" },
-            new() { Value = "Secondary", Text = "Secondary (General Hospitals)" },
+            new() { Value = "Secondary", Text = "Secondary / Referral Providers (General Hospitals)" },
             new() { Value = "Private", Text = "Private Hospitals" },
             new() { Value = "Primary", Text = "Primary Health Centres (PHC)" }
         };
@@ -247,6 +247,7 @@ public class ProvidersController : Controller
 
                 _context.Providers.Add(provider);
                 await _context.SaveChangesAsync();
+                await ReferralProviderSyncHelper.EnsureReferralHospitalForProviderAsync(_context, provider, HttpContext.RequestAborted);
 
                 ApplicationUser? currentUser = await _userManager.GetUserAsync(User);
                 await _auditService.LogAsync(
@@ -347,6 +348,7 @@ public class ProvidersController : Controller
                 existing.HmoId = provider.HmoId;
 
                 await _context.SaveChangesAsync();
+                await ReferralProviderSyncHelper.EnsureReferralHospitalForProviderAsync(_context, existing, HttpContext.RequestAborted);
 
                 ApplicationUser? currentUser = await _userManager.GetUserAsync(User);
                 await _auditService.LogAsync(
@@ -587,7 +589,7 @@ public class ProvidersController : Controller
         var levels = new List<SelectListItem>
     {
         new() { Value = "Tertiary", Text = "Tertiary (Teaching Hospital)" },
-        new() { Value = "Secondary", Text = "Secondary (General/Specialist Hospital)" },
+        new() { Value = "Secondary", Text = "Secondary / Referral Provider (General/Specialist Hospital)" },
         new() { Value = "Private", Text = "Private Hospital/Clinic" },
         new() { Value = "Primary", Text = "Primary Health Centre (PHC)" }
     };

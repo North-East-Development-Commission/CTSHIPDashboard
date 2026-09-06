@@ -11,6 +11,7 @@ namespace CTSHIPDashboard.Helpers
         public static IReadOnlyList<BulkEnrolleeColumn> Columns { get; } =
             new List<BulkEnrolleeColumn>
             {
+                new("EnrollmentNumber", "Required column. Enter the existing enrolment number if one has already been issued; leave the cell blank to generate a new one.", "CTH-2025-BN-100001"),
                 new("FullName", "Enrollee's complete name. Required.", "Amina Musa"),
                 new("Gender", "Required. Use M, F, Male, or Female.", "F"),
                 new("DateOfBirth", "Required. Use dd/MM/yyyy.", "18/04/1992"),

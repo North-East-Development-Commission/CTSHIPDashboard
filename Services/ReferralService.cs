@@ -1,4 +1,4 @@
-﻿using CTSHIPDashboard.Models;
+using CTSHIPDashboard.Models;
 using CTSHIPDashboard.Enums;
 using CTSHIPDashboard.ViewModels;
 using CTSHIPDashboard.Data;
@@ -651,6 +651,8 @@ public class ReferralService : IReferralService
 
     private async Task<List<SelectListItem>> GetHospitalSelectListAsync(Guid? selectedId, CancellationToken cancellationToken)
     {
+        await ReferralProviderSyncHelper.EnsureReferralHospitalsForSecondaryProvidersAsync(_context, cancellationToken: cancellationToken);
+
         return await _context.ReferralHospitals
             .AsNoTracking()
             .Where(x => x.IsActive)

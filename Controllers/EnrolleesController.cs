@@ -796,10 +796,23 @@ public class EnrolleesController : Controller
             worksheet.Cells[2, index + 1].Value = column.Example;
         }
 
-        worksheet.Cells[2, 3].Value = new DateTime(1992, 4, 18);
-        worksheet.Cells[2, 3].Style.Numberformat.Format = "dd/mm/yyyy";
-        worksheet.Cells[2, 4].Style.Numberformat.Format = "@";
-        worksheet.Cells[2, 5].Style.Numberformat.Format = "@";
+        Dictionary<string, int> templateColumns = BulkEnrolleeUploadSchema.Columns
+            .Select((column, index) => new
+            {
+                Header = BulkEnrolleeUploadSchema.NormalizeHeader(column.Header),
+                Column = index + 1
+            })
+            .ToDictionary(column => column.Header, column => column.Column);
+
+        int TemplateColumn(string header) =>
+            templateColumns[BulkEnrolleeUploadSchema.NormalizeHeader(header)];
+
+        worksheet.Cells[2, TemplateColumn("DateOfBirth")].Value = new DateTime(1992, 4, 18);
+        worksheet.Cells[2, TemplateColumn("DateOfBirth")].Style.Numberformat.Format = "dd/mm/yyyy";
+        foreach (string textHeader in new[] { "EnrollmentNumber", "Phone", "NIN" })
+        {
+            worksheet.Cells[2, TemplateColumn(textHeader)].Style.Numberformat.Format = "@";
+        }
 
         using (ExcelRange header = worksheet.Cells[1, 1, 1, BulkEnrolleeUploadSchema.Columns.Count])
         {
@@ -964,9 +977,18 @@ public class EnrolleesController : Controller
                 .AsNoTracking()
                 .Select(enrollee => enrollee.NIN)
                 .ToHashSetAsync();
+            HashSet<string> knownEnrollmentNumbers = new(
+                (await _context.Enrollees
+                    .AsNoTracking()
+                    .Select(enrollee => enrollee.EnrollmentNumber)
+                    .ToListAsync())
+                .Where(number => !string.IsNullOrWhiteSpace(number)),
+                StringComparer.OrdinalIgnoreCase);
             int nextSequence = await _context.Enrollees
                 .AsNoTracking()
                 .MaxAsync(enrollee => (int?)enrollee.Id) ?? 0;
+            int providedEnrollmentNumberCount = 0;
+            int generatedEnrollmentNumberCount = 0;
 
             Dictionary<string, string> validStates = new(StringComparer.OrdinalIgnoreCase)
             {
@@ -991,10 +1013,11 @@ public class EnrolleesController : Controller
                     string lga = worksheet.Cells[rowNumber, Column("LGA")].Text.Trim();
                     string ward = worksheet.Cells[rowNumber, Column("Ward")].Text.Trim();
                     string address = worksheet.Cells[rowNumber, Column("Address")].Text.Trim();
+                    string enrollmentNumber = worksheet.Cells[rowNumber, Column("EnrollmentNumber")].Text.Trim();
                     string vulnerabilityCategory = OptionalCellText(rowNumber, "VulnerabilityCategory");
                     string otherVulnerableCategory = OptionalCellText(rowNumber, "OtherVulnerableCategory");
 
-                    if (new[] { fullName, genderValue, phone, ninValue, stateValue, lga, ward, address }
+                    if (new[] { enrollmentNumber, fullName, genderValue, phone, ninValue, stateValue, lga, ward, address }
                         .All(string.IsNullOrWhiteSpace)
                         && string.IsNullOrWhiteSpace(dobCell.Text))
                     {
@@ -1075,6 +1098,12 @@ public class EnrolleesController : Controller
                         continue;
                     }
 
+                    if (enrollmentNumber.Length > 30)
+                    {
+                        errors.Add($"Row {rowNumber}: EnrollmentNumber cannot exceed 30 characters.");
+                        continue;
+                    }
+
                     bool isPregnant = false;
                     bool hasDisability = false;
                     bool isIdp = false;
@@ -1120,16 +1149,39 @@ public class EnrolleesController : Controller
                         normalizedOtherVulnerableCategory = otherVulnerableCategory.Trim();
                     }
 
-                    if (!knownNins.Add(nin))
+                    if (knownNins.Contains(nin))
                     {
                         errors.Add(
                             $"Row {rowNumber}: NIN {ninDigits} already exists or is repeated in this file.");
                         continue;
                     }
 
+                    bool hasProvidedEnrollmentNumber = !string.IsNullOrWhiteSpace(enrollmentNumber);
+                    if (hasProvidedEnrollmentNumber && knownEnrollmentNumbers.Contains(enrollmentNumber))
+                    {
+                        errors.Add(
+                            $"Row {rowNumber}: EnrollmentNumber {enrollmentNumber} already exists or is repeated in this file.");
+                        continue;
+                    }
+
+                    if (!hasProvidedEnrollmentNumber)
+                    {
+                        do
+                        {
+                            nextSequence++;
+                            enrollmentNumber =
+                                $"CTH-{DateTime.Now:yyyy}-{GetStateCode(state)}-{nextSequence:D6}";
+                        }
+                        while (knownEnrollmentNumbers.Contains(enrollmentNumber));
+                    }
+
+                    knownNins.Add(nin);
+                    knownEnrollmentNumbers.Add(enrollmentNumber);
+
                     Enrollee enrollee = new()
                     {
                         FullName = fullName,
+                        EnrollmentNumber = enrollmentNumber,
                         Gender = gender,
                         DateOfBirth = dob,
                         Phone = phone,
@@ -1150,9 +1202,14 @@ public class EnrolleesController : Controller
                         RegisteredBy = User.Identity?.Name ?? "Bulk Upload"
                     };
 
-                    nextSequence++;
-                    enrollee.EnrollmentNumber =
-                        $"CTH-{DateTime.Now:yyyy}-{GetStateCode(state)}-{nextSequence:D6}";
+                    if (hasProvidedEnrollmentNumber)
+                    {
+                        providedEnrollmentNumberCount++;
+                    }
+                    else
+                    {
+                        generatedEnrollmentNumberCount++;
+                    }
 
                     enrollees.Add(enrollee);
                 }
@@ -1182,11 +1239,16 @@ public class EnrolleesController : Controller
                     selectedProvider.Name,
                     AuditActor.Details(
                         $"Imported:{enrollees.Count}",
+                        $"PreservedEnrollmentNumbers:{providedEnrollmentNumberCount}",
+                        $"GeneratedEnrollmentNumbers:{generatedEnrollmentNumberCount}",
                         $"HMO:{selectedHmo.Name}",
                         $"Provider:{selectedProvider.Name}",
                         $"File:{excelFile.FileName}"),
                     HttpContext.RequestAborted);
-                TempData["Success"] = $"{enrollees.Count} enrollees uploaded successfully!";
+                TempData["Success"] =
+                    $"{enrollees.Count} enrollees uploaded successfully! "
+                    + $"{providedEnrollmentNumberCount} existing enrolment number(s) preserved; "
+                    + $"{generatedEnrollmentNumberCount} new number(s) generated.";
                 return RedirectAfterEnrollmentChange();
 
             }
