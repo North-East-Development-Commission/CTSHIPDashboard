@@ -928,6 +928,8 @@ public class EnrolleesController : Controller
 
         worksheet.Cells[2, TemplateColumn("DateOfBirth")].Value = new DateTime(1992, 4, 18);
         worksheet.Cells[2, TemplateColumn("DateOfBirth")].Style.Numberformat.Format = "dd/mm/yyyy";
+        worksheet.Cells[2, TemplateColumn("DateRegistered")].Value = new DateTime(2026, 9, 6, 14, 30, 0);
+        worksheet.Cells[2, TemplateColumn("DateRegistered")].Style.Numberformat.Format = "dd/mm/yyyy hh:mm";
         foreach (string textHeader in new[] { "EnrollmentNumber", "Phone", "NIN" })
         {
             worksheet.Cells[2, TemplateColumn(textHeader)].Style.Numberformat.Format = "@";
@@ -949,7 +951,7 @@ public class EnrolleesController : Controller
         }
 
         worksheet.Cells[worksheet.Dimension.Address].AutoFitColumns();
-        worksheet.Column(9).Width = Math.Max(worksheet.Column(9).Width, 32);
+        worksheet.Column(TemplateColumn("Address")).Width = Math.Max(worksheet.Column(TemplateColumn("Address")).Width, 32);
         worksheet.View.FreezePanes(2, 1);
         worksheet.Cells[1, 1, 2, BulkEnrolleeUploadSchema.Columns.Count].AutoFilter = true;
 
@@ -1092,6 +1094,77 @@ public class EnrolleesController : Controller
             string OptionalCellText(int row, string header) =>
                 HasColumn(header) ? worksheet.Cells[row, Column(header)].Text.Trim() : string.Empty;
 
+            static bool TryParseOptionalDateTime(ExcelRange cell, out DateTime? parsedDateTime)
+            {
+                parsedDateTime = null;
+
+                if (cell.Value == null && string.IsNullOrWhiteSpace(cell.Text))
+                {
+                    return true;
+                }
+
+                if (cell.Value is DateTime dateTimeValue)
+                {
+                    parsedDateTime = dateTimeValue;
+                    return true;
+                }
+
+                string text = cell.Text.Trim();
+                if (string.IsNullOrWhiteSpace(text))
+                {
+                    return true;
+                }
+
+                if (cell.Value is double serialValue && TryFromExcelSerialDate(serialValue, out DateTime serialDateTime))
+                {
+                    parsedDateTime = serialDateTime;
+                    return true;
+                }
+
+                if (double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out double textSerialValue)
+                    && TryFromExcelSerialDate(textSerialValue, out DateTime textSerialDateTime))
+                {
+                    parsedDateTime = textSerialDateTime;
+                    return true;
+                }
+
+                string[] acceptedFormats =
+                {
+                    "dd/MM/yyyy", "d/M/yyyy", "yyyy-MM-dd", "MM/dd/yyyy", "M/d/yyyy",
+                    "dd/MM/yyyy HH:mm", "d/M/yyyy H:mm", "yyyy-MM-dd HH:mm", "MM/dd/yyyy HH:mm", "M/d/yyyy H:mm",
+                    "dd/MM/yyyy hh:mm tt", "d/M/yyyy h:mm tt", "yyyy-MM-ddTHH:mm:ss", "yyyy-MM-ddTHH:mm"
+                };
+
+                if (DateTime.TryParseExact(text, acceptedFormats, CultureInfo.InvariantCulture, DateTimeStyles.AllowWhiteSpaces, out DateTime exactDateTime)
+                    || DateTime.TryParse(text, CultureInfo.CurrentCulture, DateTimeStyles.AllowWhiteSpaces, out exactDateTime)
+                    || DateTime.TryParse(text, CultureInfo.InvariantCulture, DateTimeStyles.AllowWhiteSpaces, out exactDateTime))
+                {
+                    parsedDateTime = exactDateTime;
+                    return true;
+                }
+
+                return false;
+            }
+
+            static bool TryFromExcelSerialDate(double serialValue, out DateTime dateTime)
+            {
+                dateTime = default;
+                if (serialValue < 1 || serialValue > 2958465)
+                {
+                    return false;
+                }
+
+                try
+                {
+                    dateTime = DateTime.FromOADate(serialValue);
+                    return true;
+                }
+                catch (ArgumentException)
+                {
+                    return false;
+                }
+            }
+
             HashSet<long> knownNins = await _context.Enrollees
                 .AsNoTracking()
                 .Select(enrollee => enrollee.NIN)
@@ -1135,8 +1208,23 @@ public class EnrolleesController : Controller
                     string enrollmentNumber = worksheet.Cells[rowNumber, Column("EnrollmentNumber")].Text.Trim();
                     string vulnerabilityCategory = OptionalCellText(rowNumber, "VulnerabilityCategory");
                     string otherVulnerableCategory = OptionalCellText(rowNumber, "OtherVulnerableCategory");
+                    DateTime dateRegistered = DateTime.Now;
+                    if (HasColumn("DateRegistered"))
+                    {
+                        ExcelRange dateRegisteredCell = worksheet.Cells[rowNumber, Column("DateRegistered")];
+                        if (!TryParseOptionalDateTime(dateRegisteredCell, out DateTime? providedDateRegistered))
+                        {
+                            errors.Add($"Row {rowNumber}: DateRegistered must be a valid date/time or left blank.");
+                            continue;
+                        }
 
-                    if (new[] { enrollmentNumber, fullName, genderValue, phone, ninValue, stateValue, lga, ward, address }
+                        if (providedDateRegistered.HasValue)
+                        {
+                            dateRegistered = providedDateRegistered.Value;
+                        }
+                    }
+
+                    if (new[] { enrollmentNumber, fullName, genderValue, phone, ninValue, stateValue, lga, ward }
                         .All(string.IsNullOrWhiteSpace)
                         && string.IsNullOrWhiteSpace(dobCell.Text))
                     {
@@ -1152,7 +1240,7 @@ public class EnrolleesController : Controller
                     if (string.IsNullOrWhiteSpace(stateValue)) emptyFields.Add("State");
                     if (string.IsNullOrWhiteSpace(lga)) emptyFields.Add("LGA");
                     if (string.IsNullOrWhiteSpace(ward)) emptyFields.Add("Ward");
-                                        if (emptyFields.Any())
+                    if (emptyFields.Any())
                     {
                         errors.Add(
                             $"Row {rowNumber}: Missing required values: {string.Join(", ", emptyFields)}.");
@@ -1309,7 +1397,7 @@ public class EnrolleesController : Controller
                         IsIdp = isIdp,
                         OtherVulnerableCategory = normalizedOtherVulnerableCategory,
                         IsActive = true,
-                        DateRegistered = DateTime.Now,
+                        DateRegistered = dateRegistered,
                         RegisteredBy = User.Identity?.Name ?? "Bulk Upload"
                     };
 

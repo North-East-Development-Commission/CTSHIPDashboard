@@ -15,6 +15,7 @@ namespace CTSHIPDashboard.Helpers
                 new("FullName", "Enrollee's complete name. Required.", "Amina Musa"),
                 new("Gender", "Required. Use M, F, Male, or Female.", "F"),
                 new("DateOfBirth", "Required. Use dd/MM/yyyy.", "18/04/1992"),
+                new("DateRegistered", "Optional. Any valid Excel date/time or typed date/time is accepted; leave blank to use the upload time.", "06/09/2026 14:30", false),
                 new("Phone", "Required. Keep as text so the leading zero is retained.", "08012345678"),
                 new("NIN", "Required. Exactly 11 digits and unique.", "12345678901"),
                 new("State", "Required. Adamawa, Bauchi, Borno, Gombe, Taraba, or Yobe.", "Borno"),
