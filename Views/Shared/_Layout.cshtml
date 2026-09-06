@@ -85,9 +85,10 @@
     <meta name="theme-color" content="#3b703b" />
     <meta name="application-name" content="NEDC CTSHIP" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-title" content="CTSHIP" />
+    <meta name="apple-mobile-web-app-title" content="NEDC CTSHIP" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="msapplication-TileColor" content="#3b703b" />
+    <meta name="msapplication-TileImage" content="/img/nedc-logo-180.png" />
 
     <!-- Offline-ready UI libraries -->
 
@@ -101,10 +102,13 @@
     <link rel="stylesheet" href="~/css/dashboard-theme.css" asp-append-version="true" />
     @await RenderSectionAsync("Styles", required: false)
     <!-- Optional: Make it feel like a real app (PWA) -->
-    <link rel="manifest" href="/manifest.json">
-    <link rel="icon" type="image/png" sizes="192x192" href="/img/nedc-logo-192.png">
-    <link rel="apple-touch-icon" sizes="192x192" href="/img/nedc-logo-192.png">
-
+    <link rel="manifest" href="~/manifest.json" asp-append-version="true">
+    <link rel="shortcut icon" href="~/favicon.ico" asp-append-version="true">
+    <link rel="icon" href="~/favicon.ico" sizes="any" asp-append-version="true">
+    <link rel="icon" type="image/png" sizes="16x16" href="~/img/nedc-logo-16.png" asp-append-version="true">
+    <link rel="icon" type="image/png" sizes="32x32" href="~/img/nedc-logo-32.png" asp-append-version="true">
+    <link rel="icon" type="image/png" sizes="192x192" href="~/img/nedc-logo-192.png" asp-append-version="true">
+    <link rel="apple-touch-icon" sizes="180x180" href="~/img/nedc-logo-180.png" asp-append-version="true">
     <style>
         .footer-brand {
             background: linear-gradient(135deg, var(--ct-green-dark), var(--ct-green));

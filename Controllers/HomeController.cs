@@ -6,7 +6,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
-namespace CTHIPDashboard.Controllers
+namespace CTSHIPDashboard.Controllers
 {
     [Authorize]
     public class HomeController : Controller

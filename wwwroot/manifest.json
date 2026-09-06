@@ -1,6 +1,6 @@
 {
-  "name": "NEDC CTSHIP Dashboard",
-  "short_name": "CTSHIP",
+  "name": "NEDC CTSHIP",
+  "short_name": "NEDC CTSHIP",
   "description": "Community Targeted Social Health Insurance Project dashboard for the North East Development Commission.",
   "id": "/",
   "start_url": "/?source=pwa",
@@ -17,13 +17,25 @@
       "src": "/img/nedc-logo-192.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
     },
     {
       "src": "/img/nedc-logo-512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "/img/nedc-logo-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/img/nedc-logo-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ]
 }

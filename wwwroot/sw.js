@@ -1,10 +1,15 @@
-const CACHE_NAME = 'ctship-pwa-v1';
+const CACHE_NAME = 'ctship-pwa-v2';
 const CORE_ASSETS = [
   '/offline.html',
   '/manifest.json',
   '/css/dashboard-theme.css',
   '/js/site.js',
+  '/favicon.ico',
   '/images/nedc-logo-transparent.png',
+  '/img/nedc-logo-16.png',
+  '/img/nedc-logo-32.png',
+  '/img/nedc-logo-48.png',
+  '/img/nedc-logo-180.png',
   '/img/nedc-logo-192.png',
   '/img/nedc-logo-512.png',
   '/lib/bootstrap/dist/css/bootstrap.min.css',
