@@ -1131,7 +1131,7 @@ public class EnrolleesController : Controller
                     string stateValue = worksheet.Cells[rowNumber, Column("State")].Text.Trim();
                     string lga = worksheet.Cells[rowNumber, Column("LGA")].Text.Trim();
                     string ward = worksheet.Cells[rowNumber, Column("Ward")].Text.Trim();
-                    string address = worksheet.Cells[rowNumber, Column("Address")].Text.Trim();
+                    string address = OptionalCellText(rowNumber, "Address");
                     string enrollmentNumber = worksheet.Cells[rowNumber, Column("EnrollmentNumber")].Text.Trim();
                     string vulnerabilityCategory = OptionalCellText(rowNumber, "VulnerabilityCategory");
                     string otherVulnerableCategory = OptionalCellText(rowNumber, "OtherVulnerableCategory");
@@ -1152,8 +1152,7 @@ public class EnrolleesController : Controller
                     if (string.IsNullOrWhiteSpace(stateValue)) emptyFields.Add("State");
                     if (string.IsNullOrWhiteSpace(lga)) emptyFields.Add("LGA");
                     if (string.IsNullOrWhiteSpace(ward)) emptyFields.Add("Ward");
-                    if (string.IsNullOrWhiteSpace(address)) emptyFields.Add("Address");
-                    if (emptyFields.Any())
+                                        if (emptyFields.Any())
                     {
                         errors.Add(
                             $"Row {rowNumber}: Missing required values: {string.Join(", ", emptyFields)}.");
@@ -1245,22 +1244,15 @@ public class EnrolleesController : Controller
                             case "INTERNALLYDISPLACEDPERSON":
                                 isIdp = true;
                                 break;
-                            case "OTHER":
-                            case "OTHERS":
-                                if (string.IsNullOrWhiteSpace(otherVulnerableCategory))
-                                {
-                                    errors.Add($"Row {rowNumber}: OtherVulnerableCategory is required when VulnerabilityCategory is Others.");
-                                    continue;
-                                }
-                                normalizedOtherVulnerableCategory = otherVulnerableCategory.Trim();
-                                break;
                             case "NONE":
                             case "NOTAPPLICABLE":
                             case "NA":
                                 break;
                             default:
-                                errors.Add($"Row {rowNumber}: VulnerabilityCategory must be Pregnant Woman, PLWD, IDP, Others, or blank.");
-                                continue;
+                                normalizedOtherVulnerableCategory = !string.IsNullOrWhiteSpace(otherVulnerableCategory)
+                                    ? otherVulnerableCategory.Trim()
+                                    : vulnerabilityCategory.Trim();
+                                break;
                         }
                     }
                     else if (!string.IsNullOrWhiteSpace(otherVulnerableCategory))

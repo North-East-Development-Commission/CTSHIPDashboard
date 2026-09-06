@@ -20,9 +20,9 @@ namespace CTSHIPDashboard.Helpers
                 new("State", "Required. Adamawa, Bauchi, Borno, Gombe, Taraba, or Yobe.", "Borno"),
                 new("LGA", "Required. Local Government Area.", "Maiduguri Metropolitan"),
                 new("Ward", "Required. Enrollee's ward.", "Shehuri North"),
-                new("Address", "Required. Residential address.", "12 Example Street, Maiduguri"),
-                new("VulnerabilityCategory", "Optional. Use Pregnant Woman, PLWD, IDP, Others, or leave blank.", "IDP", false),
-                new("OtherVulnerableCategory", "Optional. Required only when VulnerabilityCategory is Others.", "Conflict-affected person", false)
+                new("Address", "Optional. Residential address; may be left blank.", "12 Example Street, Maiduguri", false),
+                new("VulnerabilityCategory", "Optional. Free text is accepted. Known values like Pregnant Woman, PLWD, and IDP still feed the vulnerability flags.", "Lactating mother", false),
+                new("OtherVulnerableCategory", "Optional. Extra vulnerability detail when needed.", "Conflict-affected person", false)
             };
 
         public static IReadOnlyList<string> RequiredHeaders { get; } =
