@@ -1,0 +1,21 @@
+@model List<CTSHIPDashboard.Models.Encounter>
+@{ ViewData["Title"] = "Encounters"; }
+<h1 class="h3 mb-4">Encounters</h1>
+<form method="get" class="d-flex gap-2 mb-3">
+    <input name="search" value="@ViewBag.Search" class="form-control" placeholder="Enrollee name or number" aria-label="Search encounters" />
+    <button class="btn btn-outline-secondary" title="Search"><i class="bi bi-search"></i></button>
+</form>
+<div class="table-responsive"><table class="table">
+<thead><tr><th>Enrollee</th><th>Enrollment number</th><th>Facility</th><th>Visit date</th><th></th></tr></thead>
+<tbody>
+@foreach (var encounter in Model)
+{
+    <tr><td>@encounter.Enrollee?.FullName</td><td>@encounter.Enrollee?.EnrollmentNumber</td><td>@encounter.Provider?.Name</td><td>@encounter.VisitDate.ToString("dd MMM yyyy")</td>
+    <td><a asp-controller="Enrollees" asp-action="EncounterDetails" asp-route-id="@encounter.Id">View details</a></td></tr>
+}
+@if (Model.Count == 0) { <tr><td colspan="5">No encounters found.</td></tr> }
+</tbody></table></div>
+<nav class="d-flex gap-3">
+@if (ViewBag.Page > 1) { <a asp-action="Encounters" asp-route-page="@(ViewBag.Page - 1)" asp-route-search="@ViewBag.Search">Previous</a> }
+@if (ViewBag.HasNext) { <a asp-action="Encounters" asp-route-page="@(ViewBag.Page + 1)" asp-route-search="@ViewBag.Search">Next</a> }
+</nav>

@@ -31,6 +31,7 @@ namespace CTSHIPDashboard.Controllers
         public async Task<IActionResult> Index(
             string? state,
             string? lga,
+            int? hmoId,
             CancellationToken cancellationToken)
         {
             ApplicationUser? user = await _userManager.GetUserAsync(User);
@@ -58,7 +59,8 @@ namespace CTSHIPDashboard.Controllers
             }
 
             MonitoringDashboardViewModel model =
-                await _indicatorService.BuildDashboardAsync(state, lga, cancellationToken);
+                await _indicatorService.BuildDashboardAsync(state, lga, hmoId, cancellationToken);
+            ViewBag.AvailableHmos = await _context.Hmos.AsNoTracking().OrderBy(h => h.Name).ToListAsync(cancellationToken);
             return View(model);
         }
 

@@ -14,9 +14,6 @@
             </p>
         </div>
         <div class="d-flex flex-wrap gap-2">
-            <a asp-controller="ReferralPro" asp-action="VerifyCode" class="btn btn-warning fw-bold shadow-lg px-4">
-                <i class="bi bi-shield-check"></i> Verify Code
-            </a>
             <a href="@Url.Content("~/ReferralPro/Referrals")" class="btn btn-light text-success fw-bold shadow px-4">
                 <i class="bi bi-arrow-clockwise"></i> Refresh
             </a>
@@ -113,14 +110,10 @@
                     <td>@item.Priority</td>
                     <td>
                         @await Html.PartialAsync("_ReferralStatusBadge", item.Status)
-                        @if ((item.Status == ReferralStatus.Verified || item.Status == ReferralStatus.Audited) && item.ReferralVerificationCodeExpired)
-                        {
-                            <div class="small text-danger mt-1">Code expired</div>
-                        }
                     </td>
                     <td class="text-end">
                         <div class="btn-group btn-group-sm" role="group" aria-label="Referral actions">
-                            @if (User.IsInRole("CTSHIPAdmin") || item.Status == ReferralStatus.Received || item.Status == ReferralStatus.Closed)
+@if (item.Id != Guid.Empty)
                             {
                                 <a asp-controller="ReferralPro" asp-action="Details" asp-route-id="@item.Id" class="btn btn-outline-primary">
                                     View
@@ -128,9 +121,10 @@
                             }
                             @if (item.Status == ReferralStatus.Verified || item.Status == ReferralStatus.Audited)
                             {
-                                <a asp-controller="ReferralPro" asp-action="VerifyCode" asp-route-id="@item.Id" class="btn btn-success fw-bold">
-                                    Verify Code
-                                </a>
+                                <form asp-action="Receive" asp-route-id="@item.Id" method="post">
+                                    @Html.AntiForgeryToken()
+                                    <button class="btn btn-success" type="submit">Start encounter</button>
+                                </form>
                             }
                             @if (item.Status == ReferralStatus.Received)
                             {

@@ -11,7 +11,7 @@ namespace CTSHIPDashboard.Services;
 
 public class ReferralService : IReferralService
 {
-    private const int ReferralVerificationCodeValidDays = 7;
+
 
     private readonly ApplicationDbContext _context;
     private readonly IAppNotificationService _notificationService;
@@ -323,14 +323,7 @@ public class ReferralService : IReferralService
         referral.VerifiedAt = DateTime.UtcNow;
         referral.HmoVerificationNote = model.VerificationNote.Trim();
 
-        if (model.IsApproved)
-        {
-            await IssueReferralVerificationCodeAsync(referral, userId, userName, cancellationToken);
-        }
-        else
-        {
-            ClearReferralVerificationCode(referral);
-        }
+        ClearReferralVerificationCode(referral);
 
         _context.ReferralAuditLogs.Add(new ReferralAuditLog
         {
@@ -357,125 +350,15 @@ public class ReferralService : IReferralService
         return true;
     }
 
-    public async Task<bool> ReissueReferralVerificationCodeAsync(
-        Guid referralId,
-        string? userId,
-        string? userName,
-        CancellationToken cancellationToken = default)
-    {
-        Referral? referral = await _context.Referrals.FirstOrDefaultAsync(
-            x => x.Id == referralId && !x.IsDeleted,
-            cancellationToken);
+    // Retain these contracts for old clients; referral codes are no longer issued or accepted.
+    public Task<bool> ReissueReferralVerificationCodeAsync(
+        Guid referralId, string? userId, string? userName, CancellationToken cancellationToken = default)
+        => Task.FromResult(false);
 
-        if (referral == null ||
-            (referral.Status != ReferralStatus.Verified && referral.Status != ReferralStatus.Audited))
-        {
-            return false;
-        }
-
-        await IssueReferralVerificationCodeAsync(referral, userId, userName, cancellationToken);
-        await _context.SaveChangesAsync(cancellationToken);
-        await _auditService.LogAsync(
-            "Referral.CodeReissued",
-            AuditActor.Format(userName),
-            referral.Id.ToString(),
-            AuditActor.Details(
-                $"Enrollee:{referral.EnrolleeNumber}",
-                $"Status:{referral.Status}",
-                referral.ReferralVerificationCodeExpiresAt.HasValue
-                    ? $"Expires:{referral.ReferralVerificationCodeExpiresAt.Value:yyyy-MM-dd HH:mm} UTC"
-                    : null),
-            cancellationToken);
-        return true;
-    }
-
-    public async Task<ReferralCodeVerificationResult> VerifyReferralCodeAsync(
-        ReferralCodeVerificationViewModel model,
-        Guid referredHospitalId,
-        string? userId,
-        string? userName,
-        CancellationToken cancellationToken = default)
-    {
-        string code = NormalizeReferralVerificationCode(model.Code);
-        if (string.IsNullOrWhiteSpace(code))
-        {
-            return ReferralCodeVerificationResult.Failure("Enter the referral verification code.");
-        }
-
-        IQueryable<Referral> query = _context.Referrals
-            .Where(x =>
-                !x.IsDeleted &&
-                x.ReferredHospitalId == referredHospitalId &&
-                x.ReferralVerificationCode == code);
-
-        if (model.ReferralId.HasValue)
-        {
-            query = query.Where(x => x.Id == model.ReferralId.Value);
-        }
-
-        Referral? referral = await query.FirstOrDefaultAsync(cancellationToken);
-        if (referral == null)
-        {
-            return ReferralCodeVerificationResult.Failure("The referral verification code is invalid for this referral facility.");
-        }
-
-        if (referral.Status == ReferralStatus.Closed)
-        {
-            return ReferralCodeVerificationResult.Failure("This referral has already been closed.");
-        }
-
-        if (referral.Status == ReferralStatus.Received && referral.ReferralVerificationCodeVerifiedAt.HasValue)
-        {
-            return ReferralCodeVerificationResult.Success(referral.Id, "Referral code was already verified.");
-        }
-
-        if (referral.Status != ReferralStatus.Verified && referral.Status != ReferralStatus.Audited)
-        {
-            return ReferralCodeVerificationResult.Failure("Only HMO-verified referrals can be verified by code.");
-        }
-
-        DateTime now = DateTime.UtcNow;
-        if (!referral.ReferralVerificationCodeExpiresAt.HasValue ||
-            referral.ReferralVerificationCodeExpiresAt.Value <= now)
-        {
-            return ReferralCodeVerificationResult.Failure("This referral verification code has expired. Ask the HMO to reactivate or issue a new code.");
-        }
-
-        referral.Status = ReferralStatus.Received;
-        referral.ReferralVerificationCodeVerifiedAt = now;
-        referral.ReferralVerificationCodeVerifiedByUserId = userId;
-        referral.ReferralVerificationCodeVerifiedByName = userName;
-
-        _context.ReferralAuditLogs.Add(new ReferralAuditLog
-        {
-            ReferralId = referral.Id,
-            Action = ReferralAuditAction.ReferralCodeVerified,
-            PerformedByUserId = userId,
-            PerformedByName = userName,
-            Note = "Referral verification code confirmed by referred facility."
-        });
-
-        _context.ReferralAuditLogs.Add(new ReferralAuditLog
-        {
-            ReferralId = referral.Id,
-            Action = ReferralAuditAction.Received,
-            PerformedByUserId = userId,
-            PerformedByName = userName,
-            Note = "Referral received after successful code verification."
-        });
-
-        await _context.SaveChangesAsync(cancellationToken);
-        await _auditService.LogAsync(
-            "Referral.CodeVerified",
-            AuditActor.Format(userName),
-            referral.Id.ToString(),
-            AuditActor.Details(
-                $"Enrollee:{referral.EnrolleeNumber}",
-                $"ReferredHospital:{referral.ReferredHospitalId}",
-                $"Status:{referral.Status}"),
-            cancellationToken);
-        return ReferralCodeVerificationResult.Success(referral.Id, "Referral code verified. Referral details are now available.");
-    }
+    public Task<ReferralCodeVerificationResult> VerifyReferralCodeAsync(
+        ReferralCodeVerificationViewModel model, Guid referredHospitalId,
+        string? userId, string? userName, CancellationToken cancellationToken = default)
+        => Task.FromResult(ReferralCodeVerificationResult.Failure("Open the referral worklist to start an encounter."));
 
     public async Task<bool> AuditReferralAsync(ReferralAuditViewModel model, string? userId, string? userName, CancellationToken cancellationToken = default)
     {
@@ -579,62 +462,6 @@ public class ReferralService : IReferralService
         };
 
         return await CreateReferralAsync(createModel, userId, userName, true, cancellationToken);
-    }
-
-    private async Task IssueReferralVerificationCodeAsync(
-        Referral referral,
-        string? userId,
-        string? userName,
-        CancellationToken cancellationToken)
-    {
-        DateTime now = DateTime.UtcNow;
-        referral.ReferralVerificationCode = await GenerateUniqueReferralVerificationCodeAsync(cancellationToken);
-        referral.ReferralVerificationCodeIssuedAt = now;
-        referral.ReferralVerificationCodeExpiresAt = now.AddDays(ReferralVerificationCodeValidDays);
-        referral.ReferralVerificationCodeIssuedByUserId = userId;
-        referral.ReferralVerificationCodeIssuedByName = userName;
-        referral.ReferralVerificationCodeVerifiedAt = null;
-        referral.ReferralVerificationCodeVerifiedByUserId = null;
-        referral.ReferralVerificationCodeVerifiedByName = null;
-
-        _context.ReferralAuditLogs.Add(new ReferralAuditLog
-        {
-            ReferralId = referral.Id,
-            Action = ReferralAuditAction.ReferralCodeIssued,
-            PerformedByUserId = userId,
-            PerformedByName = userName,
-            Note = $"Referral verification code issued. It expires on {referral.ReferralVerificationCodeExpiresAt.Value:yyyy-MM-dd HH:mm} UTC."
-        });
-    }
-
-    private async Task<string> GenerateUniqueReferralVerificationCodeAsync(CancellationToken cancellationToken)
-    {
-        for (int attempt = 0; attempt < 20; attempt++)
-        {
-            string code = "RVC" + RandomNumberGenerator.GetInt32(0, 100_000_000).ToString("D8");
-            bool exists = await _context.Referrals
-                .AnyAsync(x => x.ReferralVerificationCode == code && !x.IsDeleted, cancellationToken);
-
-            if (!exists)
-            {
-                return code;
-            }
-        }
-
-        return "RVC" + Guid.NewGuid().ToString("N")[..8].ToUpperInvariant();
-    }
-
-    private static string NormalizeReferralVerificationCode(string? code)
-    {
-        if (string.IsNullOrWhiteSpace(code))
-        {
-            return string.Empty;
-        }
-
-        return new string(code
-            .Where(char.IsLetterOrDigit)
-            .Select(char.ToUpperInvariant)
-            .ToArray());
     }
 
     private static void ClearReferralVerificationCode(Referral referral)

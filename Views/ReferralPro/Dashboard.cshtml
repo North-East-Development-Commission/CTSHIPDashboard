@@ -22,8 +22,8 @@
             </p>
         </div>
         <div class="d-flex flex-wrap gap-2">
-            <a asp-controller="ReferralPro" asp-action="VerifyCode" class="btn btn-warning fw-bold">
-                <i class="bi bi-shield-check"></i> Verify Code
+            <a asp-controller="ReferralPro" asp-action="Index" class="btn btn-warning fw-bold">
+                <i class="bi bi-clipboard-pulse"></i> Start encounter
             </a>
             <a href="@Url.Content("~/ReferralPro/Referrals")" class="btn btn-light text-success fw-bold">
                 <i class="bi bi-list-task"></i> Referral Worklist
@@ -187,10 +187,6 @@
             <div class="card h-100">
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <strong>Referral Alerts</strong>
-                    @if (Model.ExpiredCodes > 0)
-                    {
-                        <span class="badge bg-warning text-dark">@Model.ExpiredCodes expired code(s)</span>
-                    }
                 </div>
                 <div class="card-body">
                     @if (Model.Alerts.Count == 0)
@@ -211,7 +207,7 @@
                                     <small>@alert.AlertAt.ToLocalTime().ToString("dd MMM yyyy HH:mm")</small>
                                 </div>
                                 <a asp-controller="ReferralPro"
-                                   asp-action="VerifyCode"
+                                   asp-action="Details"
                                    asp-route-id="@alert.ReferralId"
                                    class="btn btn-sm btn-success">Open</a>
                             </div>
@@ -260,16 +256,12 @@
                                         <td>@item.FromProviderName</td>
                                         <td>
                                             @await Html.PartialAsync("_ReferralStatusBadge", item.Status)
-                                            @if (item.ReferralVerificationCodeExpired)
-                                            {
-                                                <div class="small text-danger mt-1">Code expired</div>
-                                            }
                                         </td>
                                         <td class="text-end">
                                             @if (item.Status == ReferralStatus.Verified || item.Status == ReferralStatus.Audited)
                                             {
-                                                <a asp-controller="ReferralPro" asp-action="VerifyCode" asp-route-id="@item.Id" class="btn btn-sm btn-success">
-                                                    Verify
+                                                <a asp-controller="ReferralPro" asp-action="Details" asp-route-id="@item.Id" class="btn btn-sm btn-success">
+                                                    Start encounter
                                                 </a>
                                             }
                                             else if (item.Status == ReferralStatus.Received)

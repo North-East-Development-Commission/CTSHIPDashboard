@@ -382,109 +382,28 @@ public class HmoController : Controller
     }
 
     [Authorize(Roles ="HMO")]
-    public async Task<IActionResult> Dashboard()
+    public async Task<IActionResult> Dashboard([FromServices] IMonitoringIndicatorService indicators, string? state, string? lga, CancellationToken cancellationToken)
     {
-        var currentUser = await _userManager.GetUserAsync(User);
-        if (currentUser == null)
-        {
-            TempData["Error"] = "User not found.";
-            return RedirectToAction("Index", "Home");
-        }
+        var user = await _userManager.GetUserAsync(User);
+        if (user?.HmoId == null) return Forbid();
+        var hmo = await _context.Hmos.AsNoTracking().FirstOrDefaultAsync(h => h.Id == user.HmoId, cancellationToken);
+        if (hmo == null) return Forbid();
+        var model = await indicators.BuildDashboardAsync(state, lga, hmo.Id, cancellationToken);
+        ViewBag.DashboardTitle = "HMO Dashboard";
+        ViewBag.DashboardHeading = hmo.Name;
+        ViewBag.LgaController = "Hmo";
+        return View("~/Views/Monitoring/Index.cshtml", model);
+    }
 
-        // METHOD 1: Try to get HMO from user's HmoId (RECOMMENDED)
-        Hmo? hmo = null;
-
-        if (currentUser.HmoId.HasValue)
-        {
-            hmo = await _context.Hmos
-                .Include(h => h.Enrollees)
-                .Include(h => h.Claims)
-                .Include(h => h.Providers)
-                .FirstOrDefaultAsync(h => h.Id == currentUser.HmoId.Value);
-        }
-
-        // METHOD 2: Fallback — match by email domain or HMO code in username
-        if (hmo == null && !string.IsNullOrEmpty(currentUser.Email))
-        {
-            var emailDomain = currentUser.Email.Split('@').LastOrDefault()?.ToLower();
-            var username = currentUser.UserName?.ToLower();
-
-            hmo = await _context.Hmos
-                .Include(h => h.Enrollees)
-                .Include(h => h.Claims)
-                .Include(h => h.Providers)
-                .FirstOrDefaultAsync(h =>
-                    h.Email.ToLower().Contains(emailDomain!) ||
-                    h.RegistrationNumber.ToLower() == username ||
-                    h.Name.ToLower().Contains(username ?? ""));
-        }
-
-        // FINAL FALLBACK: Show error
-        if (hmo == null)
-        {
-            TempData["Error"] = "Your account is not linked to any HMO. Contact administrator.";
-            return RedirectToAction("Index", "Home");
-        }
-
-        if (currentUser?.HmoId == null)
-        {
-            // Handle no HMO
-            return View(new List<Provider>());
-        }
-
-        // GET ALL PROVIDERS UNDER THE CURRENT USER'S HMO
-        var providers = await _context.Providers
-            .Where(p => p.HmoId == currentUser.HmoId.Value)
-            .OrderBy(p => p.Name)
-            .ToListAsync();
-
-        // POPULATE DASHBOARD DATA
-        ViewBag.HmoName = hmo.Name;
-        ViewBag.HmoCode = hmo.RegistrationNumber;
-
-        ViewBag.EnrolleeCount = hmo.Enrollees?.Count ?? 0;
-        ViewBag.ClaimCount = hmo.Claims?.Count ?? 0;
-        ViewBag.ProviderCount = hmo.Providers?.Count ?? 0;
-        ViewBag.TotalVisits = await _context.Encounters.CountAsync(encounter => encounter.Enrollee != null && encounter.Enrollee.HmoId == hmo.Id);
-
-        ViewBag.PendingClaims = hmo.Claims?.Count(c => c.Status == "Submitted") ?? 0;
-        ViewBag.PaidClaims = hmo.Claims?.Count(c => c.Status == "Paid") ?? 0;
-        ViewBag.ApprovedClaims = hmo.Claims?.Count(c => c.Status == "Approved") ?? 0;
-        ViewBag.ComplaintMetrics = await ComplaintMetricsService.BuildAsync(
-            _context.Complaints.Where(complaint => complaint.HmoId == hmo.Id));
-        ViewBag.EncounterDemographicMatrix = await EncounterDemographicMatrixService.BuildAsync(
-            _context.Enrollees.AsNoTracking().Where(enrollee => enrollee.HmoId == hmo.Id),
-            _context.Encounters.AsNoTracking().Where(encounter => encounter.Enrollee != null && encounter.Enrollee.HmoId == hmo.Id),
-            hmo.Name,
-            HttpContext.RequestAborted);
-
-        IQueryable<Referral> hmoReferrals = _context.Referrals
-            .AsNoTracking()
-            .Where(referral =>
-                !referral.IsDeleted &&
-                referral.HmoCode == hmo.RegistrationNumber);
-
-        int totalReferrals = await hmoReferrals.CountAsync();
-        int completedReferrals = await hmoReferrals.CountAsync(
-            referral => referral.Status == ReferralStatus.Closed);
-
-        ViewBag.TotalReferrals = totalReferrals;
-        ViewBag.PendingReferralVerification = await hmoReferrals.CountAsync(
-            referral => referral.Status == ReferralStatus.SubmittedToHmo);
-        ViewBag.ActiveReferrals = await hmoReferrals.CountAsync(referral =>
-            referral.Status == ReferralStatus.Verified ||
-            referral.Status == ReferralStatus.Audited ||
-            referral.Status == ReferralStatus.Received);
-        ViewBag.CompletedReferrals = completedReferrals;
-        ViewBag.RejectedReferrals = await hmoReferrals.CountAsync(
-            referral => referral.Status == ReferralStatus.Rejected);
-        ViewBag.ReferralCompletionRate = totalReferrals == 0
-            ? 0m
-            : Math.Round((decimal)completedReferrals / totalReferrals * 100m, 2);
-
-        ViewBag.Providers = hmo.Providers ?? new List<Provider>();
-
-        return View(hmo);
+    [Authorize(Roles = "HMO")]
+    [HttpGet]
+    public async Task<IActionResult> Lgas(string? state)
+    {
+        var user = await _userManager.GetUserAsync(User);
+        if (user?.HmoId == null) return Forbid();
+        return Json(await _context.Enrollees.AsNoTracking()
+            .Where(e => e.HmoId == user.HmoId && e.State == state)
+            .Select(e => e.LGA).Distinct().OrderBy(lga => lga).ToListAsync());
     }
 
     [Authorize(Roles = "HMO")]

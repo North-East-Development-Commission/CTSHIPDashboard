@@ -186,7 +186,7 @@ namespace CTSHIPDashboard.Services
             string? otherVulnerableCategory,
             DateTime today)
         {
-            if (isPregnant && NormalizeGender(gender) == "Female")
+            if (VulnerabilityClassification.IsPregnant(isPregnant, otherVulnerableCategory) && NormalizeGender(gender) == "Female")
             {
                 return "Pregnant women";
             }

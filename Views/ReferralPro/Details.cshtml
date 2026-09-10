@@ -14,7 +14,7 @@
     <a href="@Url.Content("~/ReferralPro/Referrals")" class="btn btn-light">
             <i class="bi bi-arrow-left"></i> Back To Referrals
         </a>
-    @if (Model.ReferralVerificationCode != null)
+    @if (Model.Status != ReferralStatus.Draft)
     {
         <a asp-controller="ReferralPrint" asp-action="PrintSlip" asp-route-id="@Model.Id" class="btn btn-primary ms-2">
             <i class="bi bi-printer"></i> Print Referral Slip
@@ -106,22 +106,12 @@
                     <form asp-controller="ReferralPro" asp-action="Receive" asp-route-id="@Model.Id" method="post">
                         @Html.AntiForgeryToken()
                         <button type="submit" class="btn btn-success w-100">
-                            <i class="bi bi-check2-circle"></i> Receive Referral
+                            <i class="bi bi-check2-circle"></i> Start encounter
                         </button>
                     </form>
                 }
                 @if (Model.Status == ReferralStatus.Received)
                 {
-                    @if (Model.ReferralVerificationCodeVerifiedAt.HasValue)
-                    {
-                        <div class="alert alert-success mb-2">
-                            Code verified on @Model.ReferralVerificationCodeVerifiedAt.Value.ToLocalTime().ToString("dd MMM yyyy HH:mm")
-                            @if (!string.IsNullOrWhiteSpace(Model.ReferralVerificationCodeVerifiedByName))
-                            {
-                                <span>by @Model.ReferralVerificationCodeVerifiedByName</span>
-                            }
-                        </div>
-                    }
                     <a asp-controller="ReferralPro" asp-action="Encounter" asp-route-id="@Model.Id" class="btn btn-success">
                         <i class="bi bi-file-medical"></i> Record Referral Encounter
                     </a>

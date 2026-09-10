@@ -8,6 +8,7 @@
         public string Gender { get; set; } = string.Empty;
         public string Phone { get; set; } = string.Empty;
         public string State { get; set; } = string.Empty;
+        public string LGA { get; set; } = string.Empty;
         public string HmoName { get; set; } = string.Empty;
         public string HmoCode { get; set; } = string.Empty;
 

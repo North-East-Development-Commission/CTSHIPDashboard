@@ -427,7 +427,7 @@
 
         <div class="col-lg-5">
             <div class="card h-100 shadow-sm">
-                <div class="card-header fw-bold">Top 5 HMOs by Enrolment</div>
+                <div class="card-header fw-bold">Top HMOs by Enrolment</div>
                 <ol class="list-group list-group-flush">
                     @foreach (var hmo in ViewBag.TopHmos ?? new List<dynamic>())
                     {
@@ -438,7 +438,7 @@
                     }
                 </ol>
 
-                <div class="card-header border-top fw-bold">Top 5 Providers by Paid Claims</div>
+                <div class="card-header border-top fw-bold">Top Providers by Paid Claims</div>
                 <ol class="list-group list-group-flush">
                     @foreach (var provider in ViewBag.TopProviders ?? new List<dynamic>())
                     {

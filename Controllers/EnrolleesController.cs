@@ -21,7 +21,7 @@ public class EnrolleesController : Controller
 {
     private const string HmoEnrollmentOfficerRole = "HmoEnrollmentOfficer";
     private const string EnrolleeManageRoles = "CTSHIPAdmin,HMO,HmoEnrollmentOfficer";
-    private const string EnrolleeViewRoles = "Admin,CTSHIPAdmin,HMO,HmoEnrollmentOfficer,Provider,Monitoring,NHIA,SSHIA,IHSA,NEDCAdmin";
+    private const string EnrolleeViewRoles = "Admin,CTSHIPAdmin,HMO,HmoEnrollmentOfficer,Provider,Monitoring,NHIA,SSHIA,IHSA,NEDCAdmin,StateOffice";
     private const string EnrolleeDashboardRoles = "HMO,HmoEnrollmentOfficer";
 
     private readonly ApplicationDbContext _context;
@@ -43,6 +43,9 @@ public class EnrolleesController : Controller
     {
         return User.IsInRole("HMO") || User.IsInRole(HmoEnrollmentOfficerRole);
     }
+
+    private bool IsFacilityEnrollmentOfficer(ApplicationUser? user) =>
+        User.IsInRole(HmoEnrollmentOfficerRole) && !User.IsInRole("HMO") && user?.ProviderId != null;
 
     private IActionResult RedirectAfterEnrollmentChange()
     {
@@ -113,10 +116,11 @@ public class EnrolleesController : Controller
 
         if (IsHmoEnrollmentScopedUser())
         {
-            return currentUser?.HmoId.HasValue == true && enrollee.HmoId == currentUser.HmoId.Value;
+            return currentUser?.HmoId.HasValue == true && enrollee.HmoId == currentUser.HmoId.Value
+                && (!IsFacilityEnrollmentOfficer(currentUser) || enrollee.ProviderId == currentUser.ProviderId);
         }
 
-        if (User.IsInRole("SSHIA"))
+        if (User.IsInRole("SSHIA") || User.IsInRole("StateOffice"))
         {
             return !string.IsNullOrWhiteSpace(currentUser?.State)
                 && string.Equals(enrollee.State, currentUser.State.Trim(), StringComparison.OrdinalIgnoreCase);
@@ -201,6 +205,8 @@ public class EnrolleesController : Controller
         if (restrictedHmoId.HasValue)
         {
             enrollees = enrollees.Where(e => e.HmoId == restrictedHmoId.Value);
+            if (IsFacilityEnrollmentOfficer(currentUser))
+                enrollees = enrollees.Where(e => e.ProviderId == currentUser!.ProviderId);
             hmo = restrictedHmoId.Value.ToString();
         }
 
@@ -349,6 +355,8 @@ public class EnrolleesController : Controller
     [Authorize(Roles = EnrolleeManageRoles)]
     public async Task<IActionResult> Create(Enrollee enrollee)
     {
+        enrollee.OtherVulnerableCategory = null;
+        ModelState.Remove(nameof(Enrollee.OtherVulnerableCategory));
         // Remove EnrollmentNumber from validation (we generate it)
         ModelState.Remove(nameof(Enrollee.EnrollmentNumber));
 
@@ -444,6 +452,7 @@ public class EnrolleesController : Controller
     private async Task PopulateCreateDropdownsAsync(Enrollee enrollee)
     {
         ApplicationUser? currentUser = await _userManager.GetUserAsync(User);
+        bool facilityScoped = IsFacilityEnrollmentOfficer(currentUser);
         int? restrictedHmoId = IsHmoEnrollmentScopedUser() ? currentUser?.HmoId : null;
 
         if (restrictedHmoId.HasValue)
@@ -480,6 +489,7 @@ public class EnrolleesController : Controller
 
         ViewBag.Provider = await providerQuery
             .OrderBy(p => p.Name)
+            .Where(p => !facilityScoped || p.Id == currentUser!.ProviderId)
             .Select(p => new SelectListItem
             {
                 Value = p.Id.ToString(),
@@ -494,6 +504,9 @@ public class EnrolleesController : Controller
 
     private async Task ValidateEnrollmentAssignmentAsync(Enrollee enrollee, string providerErrorMessage)
     {
+        var officer = await _userManager.GetUserAsync(User);
+        if (IsFacilityEnrollmentOfficer(officer) && enrollee.ProviderId != officer!.ProviderId)
+            ModelState.AddModelError(nameof(Enrollee.ProviderId), "Select your assigned facility.");
         if (!enrollee.HmoId.HasValue)
         {
             ModelState.AddModelError(nameof(Enrollee.HmoId), "Select an HMO.");
@@ -525,7 +538,8 @@ public class EnrolleesController : Controller
 
         ApplicationUser? currentUser = await _userManager.GetUserAsync(User);
         if (IsHmoEnrollmentScopedUser()
-            && (!(currentUser?.HmoId.HasValue ?? false) || enrollee.HmoId != currentUser!.HmoId))
+            && (!(currentUser?.HmoId.HasValue ?? false) || enrollee.HmoId != currentUser!.HmoId
+                || (IsFacilityEnrollmentOfficer(currentUser) && enrollee.ProviderId != currentUser.ProviderId)))
         {
             return Forbid();
         }
@@ -555,7 +569,8 @@ public class EnrolleesController : Controller
         ApplicationUser? currentUser = await _userManager.GetUserAsync(User);
         int? restrictedHmoId = IsHmoEnrollmentScopedUser() ? currentUser?.HmoId : null;
         if (IsHmoEnrollmentScopedUser()
-            && (!restrictedHmoId.HasValue || existing.HmoId != restrictedHmoId))
+            && (!restrictedHmoId.HasValue || existing.HmoId != restrictedHmoId
+                || (IsFacilityEnrollmentOfficer(currentUser) && existing.ProviderId != currentUser!.ProviderId)))
         {
             return Forbid();
         }
@@ -577,6 +592,8 @@ public class EnrolleesController : Controller
         }
 
         int? requestedHmoId = existing.HmoId;
+        if (IsFacilityEnrollmentOfficer(currentUser) && enrollee.ProviderId != currentUser!.ProviderId)
+            ModelState.AddModelError(nameof(Enrollee.ProviderId), "Select your assigned facility.");
         if (enrollee.ProviderId.HasValue
             && !await _context.Providers.AnyAsync(p =>
                 p.Id == enrollee.ProviderId.Value
@@ -640,6 +657,8 @@ public class EnrolleesController : Controller
 
     private async Task PopulateEditDropdownsAsync(Enrollee enrollee, int? restrictedHmoId = null)
     {
+        var currentUser = await _userManager.GetUserAsync(User);
+        bool facilityScoped = IsFacilityEnrollmentOfficer(currentUser);
         ViewBag.States = GetNigerianStates();
         ViewBag.CanChangeHmo = false;
 
@@ -668,6 +687,7 @@ public class EnrolleesController : Controller
 
         ViewBag.Provider = await providerQuery
             .Where(p => p.IsActive || p.Id == enrollee.ProviderId)
+            .Where(p => !facilityScoped || p.Id == currentUser!.ProviderId)
             .OrderBy(p => p.Name)
             .Select(p => new SelectListItem
             {
@@ -882,6 +902,8 @@ public class EnrolleesController : Controller
             int currentHmoId = currentUser.HmoId.Value;
             hmos = hmos.Where(hmo => hmo.Id == currentHmoId);
             providers = providers.Where(provider => provider.HmoId == currentHmoId);
+            if (IsFacilityEnrollmentOfficer(currentUser))
+                providers = providers.Where(provider => provider.Id == currentUser.ProviderId);
         }
 
         ViewBag.Hmos = await hmos.OrderBy(hmo => hmo.Name).Select(h => new SelectListItem
@@ -1026,6 +1048,9 @@ public class EnrolleesController : Controller
 
             hmoId = currentUser.HmoId.Value;
         }
+
+        if (IsFacilityEnrollmentOfficer(currentUser) && providerId != currentUser!.ProviderId)
+            return Forbid();
 
         Hmo? selectedHmo = await _context.Hmos
             .AsNoTracking()
@@ -1558,10 +1583,14 @@ public class EnrolleesController : Controller
         }
 
         int currentHmoId = currentUser.HmoId.Value;
+        int? dashboardProviderId = IsFacilityEnrollmentOfficer(currentUser) ? currentUser.ProviderId : null;
 
         var query = _context.Enrollees
             .Include(e => e.Hmo)
             .Where(e => e.HmoId == currentHmoId);
+
+        if (IsFacilityEnrollmentOfficer(currentUser))
+            query = query.Where(e => e.ProviderId == currentUser.ProviderId);
 
         // SEARCH — USE EF.Functions.Like() FOR CASE-INSENSITIVE SEARCH
         if (!string.IsNullOrWhiteSpace(search))
@@ -1600,12 +1629,15 @@ public class EnrolleesController : Controller
             .FirstOrDefaultAsync() ?? "Your HMO";
         ViewBag.TotalEnrollees = totalItems;
         ViewBag.ActiveEnrollees = await _context.Enrollees
-            .CountAsync(e => e.HmoId == currentHmoId && e.Status == "Active");
+            .CountAsync(e => e.HmoId == currentHmoId && e.Status == "Active"
+                && (!dashboardProviderId.HasValue || e.ProviderId == dashboardProviderId));
         ViewBag.TotalEncounters = await _context.Encounters
-            .CountAsync(e => e.Enrollee != null && e.Enrollee.HmoId == currentHmoId);
+            .CountAsync(e => e.Enrollee != null && e.Enrollee.HmoId == currentHmoId
+                && (!dashboardProviderId.HasValue || e.Enrollee.ProviderId == dashboardProviderId));
                 ViewBag.TotalVisits = ViewBag.TotalEncounters;
 ViewBag.TotalClaims = await _context.Claims
-            .CountAsync(e => e.HmoId == currentHmoId);
+            .CountAsync(e => e.HmoId == currentHmoId
+                && (!dashboardProviderId.HasValue || (e.Enrollee != null && e.Enrollee.ProviderId == dashboardProviderId)));
 
         ViewBag.Search = search;
         ViewBag.Status = status;

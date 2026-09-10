@@ -70,29 +70,6 @@
                 <p><strong>Verified:</strong><br />@(Model.VerifiedAt.HasValue? Model.VerifiedAt.Value.ToLocalTime().ToString("dd MMM yyyy HH:mm") + " by " + Model.VerifiedByName : "Not verified")</p>
                 <p><strong>Audited:</strong><br />@(Model.AuditedAt.HasValue? Model.AuditedAt.Value.ToLocalTime().ToString("dd MMM yyyy HH:mm") + " by " + Model.AuditedByName : "Not audited")</p>
 
-                @if (!string.IsNullOrWhiteSpace(Model.ReferralVerificationCode))
-                {
-                    <div class="alert @referralCodeAlertClass">
-                        <div class="small text-muted">Code for enrollee to present</div>
-                        <div class="fs-4 fw-bold">@Model.ReferralVerificationCode</div>
-                        <div class="small">
-                            Expires:
-                            @(Model.ReferralVerificationCodeExpiresAt.HasValue
-                                ? Model.ReferralVerificationCodeExpiresAt.Value.ToLocalTime().ToString("dd MMM yyyy HH:mm")
-                                : "Not set")
-                        </div>
-                        @if (Model.ReferralVerificationCodeExpired)
-                        {
-                            <div class="small text-danger">Expired. Ask the HMO to reactivate or issue a new code.</div>
-                        }
-                        @if (Model.ReferralVerificationCodeVerifiedAt.HasValue)
-                        {
-                            <div class="small text-success">
-                                Verified by referred facility on @Model.ReferralVerificationCodeVerifiedAt.Value.ToLocalTime().ToString("dd MMM yyyy HH:mm")
-                            </div>
-                        }
-                    </div>
-                }
 
                 @if (Model.Status == ReferralStatus.Draft)
                 {

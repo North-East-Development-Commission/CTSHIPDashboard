@@ -89,6 +89,7 @@ public class ReferralProController : Controller
     [HttpGet("Dashboard")]
     public async Task<IActionResult> Dashboard(CancellationToken cancellationToken = default)
     {
+        ViewBag.IsSecondaryProvider = await IsSecondaryProviderAsync(cancellationToken);
         ReferredHospital? currentHospital = await GetCurrentReferralHospitalAsync(cancellationToken);
         if (!User.IsInRole("CTSHIPAdmin") && currentHospital == null)
         {
@@ -108,40 +109,21 @@ public class ReferralProController : Controller
             cancellationToken);
         int received = await query.CountAsync(x => x.Status == ReferralStatus.Received, cancellationToken);
         int completed = await query.CountAsync(x => x.Status == ReferralStatus.Closed, cancellationToken);
-        int expiredCodes = await query.CountAsync(x =>
-            (x.Status == ReferralStatus.Verified || x.Status == ReferralStatus.Audited) &&
-            x.ReferralVerificationCodeExpiresAt.HasValue &&
-            x.ReferralVerificationCodeExpiresAt.Value <= DateTime.UtcNow,
-            cancellationToken);
         int thisMonth = await query.CountAsync(x => x.CreatedAt >= monthStart, cancellationToken);
         ReferralProviderClaimMetrics claimMetrics = await GetReferralClaimMetricsAsync(currentHospital, cancellationToken);
         ReferralProviderComplaintMetrics complaintMetrics = await GetReferralComplaintMetricsAsync(currentHospital, cancellationToken);
 
         List<ReferralProviderDashboardAlertViewModel> alerts = await query
             .Where(x => x.Status == ReferralStatus.Verified || x.Status == ReferralStatus.Audited)
-            .OrderBy(x =>
-                x.ReferralVerificationCodeExpiresAt.HasValue &&
-                x.ReferralVerificationCodeExpiresAt.Value <= DateTime.UtcNow
-                    ? 0
-                    : 1)
-            .ThenByDescending(x => x.VerifiedAt ?? x.AuditedAt ?? x.SubmittedToHmoAt ?? x.CreatedAt)
+            .OrderByDescending(x => x.VerifiedAt ?? x.AuditedAt ?? x.SubmittedToHmoAt ?? x.CreatedAt)
             .Take(5)
             .Select(x => new ReferralProviderDashboardAlertViewModel
             {
                 ReferralId = x.Id,
-                Title = x.ReferralVerificationCodeExpiresAt.HasValue &&
-                    x.ReferralVerificationCodeExpiresAt.Value <= DateTime.UtcNow
-                        ? "Referral code expired"
-                        : "Referral ready for code verification",
+                Title = "Referral ready for encounter",
                 Message = x.EnrolleeFullName + " from " + x.FromProviderName,
-                Icon = x.ReferralVerificationCodeExpiresAt.HasValue &&
-                    x.ReferralVerificationCodeExpiresAt.Value <= DateTime.UtcNow
-                        ? "exclamation-triangle"
-                        : "shield-check",
-                CssClass = x.ReferralVerificationCodeExpiresAt.HasValue &&
-                    x.ReferralVerificationCodeExpiresAt.Value <= DateTime.UtcNow
-                        ? "alert-warning"
-                        : "alert-success",
+                Icon = "clipboard-pulse",
+                CssClass = "alert-success",
                 AlertAt = x.VerifiedAt ?? x.AuditedAt ?? x.SubmittedToHmoAt ?? x.CreatedAt
             })
             .ToListAsync(cancellationToken);
@@ -173,7 +155,7 @@ public class ReferralProController : Controller
             ReadyToReceive = readyToReceive,
             Received = received,
             Completed = completed,
-            ExpiredCodes = expiredCodes,
+            ExpiredCodes = 0,
             ThisMonth = thisMonth,
             SubmittedClaimValue = claimMetrics.TotalClaimValue,
             TotalClaims = claimMetrics.TotalClaims,
@@ -258,6 +240,7 @@ public class ReferralProController : Controller
 
         ViewBag.Search = search;
         ViewBag.Status = status;
+        ViewBag.IsSecondaryProvider = await IsSecondaryProviderAsync(cancellationToken);
         ViewBag.CurrentHospitalName = currentHospital?.Name;
         return View(referrals);
     }
@@ -276,11 +259,6 @@ public class ReferralProController : Controller
             return Forbid();
         }
 
-        if (!User.IsInRole("CTSHIPAdmin") && RequiresReferralCodeVerification(referral))
-        {
-            TempData["Error"] = "Verify the referral code presented by the enrollee before viewing full referral details.";
-            return RedirectToAction(nameof(VerifyCode), new { id });
-        }
 
         ViewBag.EnrolleeId = await _context.Enrollees
             .AsNoTracking()
@@ -324,107 +302,23 @@ public class ReferralProController : Controller
             return RedirectToAction(nameof(Details), new { id });
         }
 
-        TempData["Error"] = "Enter the HMO-issued referral verification code before receiving this referral.";
-        return RedirectToAction(nameof(VerifyCode), new { id });
+        referral.Status = ReferralStatus.Received;
+        await _context.SaveChangesAsync(cancellationToken);
+        var actor = await _userManager.GetUserAsync(User);
+        await _auditService.LogAsync("Referral.Received", actor?.FullName ?? User.Identity?.Name ?? "", referral.Id.ToString(), "Facility received approved referral.", cancellationToken);
+        return RedirectToAction(nameof(Encounter), new { id });
     }
 
     [HttpGet("VerifyCode")]
     [HttpGet("VerifyCode/{id:guid}")]
-    public async Task<IActionResult> VerifyCode(Guid? id, CancellationToken cancellationToken = default)
-    {
-        ReferralCodeVerificationViewModel model = new()
-        {
-            ReferralId = id
-        };
-
-        if (!await PopulateCodeVerificationModelAsync(model, cancellationToken))
-        {
-            TempData["Error"] = "Your ReferralPro account is not linked to an active secondary/referral provider.";
-            return RedirectToAction(nameof(Index));
-        }
-
-        if (id.HasValue)
-        {
-            Referral? referral = await GetReferralWithDetailsAsync(id.Value, cancellationToken);
-            if (referral == null)
-            {
-                return NotFound();
-            }
-
-            if (!await CanAccessReferralAsync(referral, cancellationToken))
-            {
-                return Forbid();
-            }
-
-            if (referral.Status == ReferralStatus.Received)
-            {
-                TempData["Success"] = "Referral code has already been verified.";
-                return RedirectToAction(nameof(Details), new { id });
-            }
-
-            if (referral.Status == ReferralStatus.Closed)
-            {
-                TempData["Error"] = "This referral has already been closed.";
-                return RedirectToAction(nameof(Details), new { id });
-            }
-        }
-
-        return View(model);
-    }
+    public IActionResult VerifyCode(Guid? id)
+        => id.HasValue ? RedirectToAction(nameof(Details), new { id }) : RedirectToAction(nameof(Index));
 
     [HttpPost("VerifyCode")]
     [HttpPost("VerifyCode/{id:guid}")]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> VerifyCode(
-        Guid? id,
-        ReferralCodeVerificationViewModel model,
-        CancellationToken cancellationToken = default)
-    {
-        if (id.HasValue)
-        {
-            if (model.ReferralId.HasValue && model.ReferralId.Value != id.Value)
-            {
-                return BadRequest();
-            }
-
-            model.ReferralId = id.Value;
-        }
-
-        Guid? hospitalId = await GetReferralVerificationHospitalIdAsync(model.ReferralId, cancellationToken);
-        if (!hospitalId.HasValue)
-        {
-            ModelState.AddModelError(string.Empty, "Your account is not linked to a referral facility.");
-        }
-
-        if (!ModelState.IsValid)
-        {
-            await PopulateCodeVerificationModelAsync(model, cancellationToken);
-            return View(model);
-        }
-
-        ApplicationUser? currentUser = await _userManager.GetUserAsync(User);
-        string? userId = currentUser?.Id;
-        string? userName = currentUser?.FullName
-            ?? currentUser?.Email
-            ?? User.Identity?.Name;
-
-        ReferralCodeVerificationResult result = await _referralService.VerifyReferralCodeAsync(
-            model,
-            hospitalId!.Value,
-            userId,
-            userName,
-            cancellationToken);
-
-        if (!result.Succeeded || !result.ReferralId.HasValue)
-        {
-            ModelState.AddModelError(nameof(model.Code), result.Message);
-            await PopulateCodeVerificationModelAsync(model, cancellationToken);
-            return View(model);
-        }
-
-        TempData["Success"] = result.Message;
-        return RedirectToAction(nameof(Details), new { id = result.ReferralId.Value });
-    }
+    public IActionResult VerifyCode(ReferralCodeVerificationViewModel model)
+        => RedirectToAction(nameof(Index));
 
     [HttpGet("Encounter/{id:guid}")]
     public async Task<IActionResult> Encounter(Guid id, CancellationToken cancellationToken = default)
@@ -795,6 +689,13 @@ public class ReferralProController : Controller
             .Include(x => x.ReferredHospital)
             .Include(x => x.AuditLogs)
             .FirstOrDefaultAsync(x => x.Id == id && !x.IsDeleted, cancellationToken);
+    }
+
+    private async Task<bool> IsSecondaryProviderAsync(CancellationToken cancellationToken)
+    {
+        var user = await _userManager.GetUserAsync(User);
+        return user?.ProviderId != null && await _context.Providers.AsNoTracking().AnyAsync(
+            p => p.Id == user.ProviderId && p.IsActive && p.Level == "Secondary", cancellationToken);
     }
 
     private async Task<bool> CanAccessReferralAsync(Referral referral, CancellationToken cancellationToken)

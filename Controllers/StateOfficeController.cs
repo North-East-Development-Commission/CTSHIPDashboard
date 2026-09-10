@@ -104,6 +104,22 @@ public class StateOfficeController : Controller
         return View(vm);
     }
 
+    [Authorize(Roles = "StateOffice")]
+    public async Task<IActionResult> Encounters(string? search, int page = 1)
+    {
+        var user = await _userManager.GetUserAsync(User);
+        if (string.IsNullOrWhiteSpace(user?.State)) return Forbid();
+        var query = _context.Encounters.AsNoTracking().Include(e => e.Enrollee).Include(e => e.Provider)
+            .Where(e => e.Enrollee != null && e.Enrollee.State == user.State);
+        if (!string.IsNullOrWhiteSpace(search))
+            query = query.Where(e => e.Enrollee!.FullName.Contains(search) || e.Enrollee.EnrollmentNumber.Contains(search));
+        page = Math.Clamp(page, 1, 1000000);
+        ViewBag.Page = page;
+        ViewBag.Search = search;
+        ViewBag.HasNext = await query.CountAsync() > page * 25;
+        return View(await query.OrderByDescending(e => e.VisitDate).ThenByDescending(e => e.Id).Skip((page - 1) * 25).Take(25).ToListAsync());
+    }
+
     // ====================== ENROLLEES LIST ======================
     [Authorize(Roles = "CTSHIPAdmin,StateOffice")]
     [Authorize(Roles = "StateOffice,CTSHIPAdmin,Admin")]
@@ -150,17 +166,17 @@ public class StateOfficeController : Controller
             .OrderByDescending(e => e.DateRegistered)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
-            .Select(e => new
+            .Select(e => new EnrolleeListViewModel
             {
-                e.Id,
-                e.EnrollmentNumber,
-                e.FullName,
-                e.Phone,
-                e.NIN,
-                e.State,
-                e.LGA,
+                Id = e.Id,
+                EnrollmentNumber = e.EnrollmentNumber,
+                FullName = e.FullName,
+                Phone = e.Phone,
+                NIN = e.NIN,
+                State = e.State,
+                LGA = e.LGA,
                 HmoName = e.Hmo != null ? e.Hmo.Name : "N/A",
-                e.DateRegistered,
+                DateRegistered = e.DateRegistered,
                 Status = e.Status ?? "Active"
             })
             .ToListAsync();

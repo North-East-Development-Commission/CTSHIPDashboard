@@ -77,34 +77,6 @@
                 {
                     <a asp-controller="HmoReferrals" asp-action="Audit" asp-route-id="@Model.Id" class="btn btn-primary">Audit Referral</a>
                 }
-                @if (!string.IsNullOrWhiteSpace(Model.ReferralVerificationCode))
-                {
-                    <div class="alert @referralCodeAlertClass mb-0">
-                        <div class="small text-muted">Referral Verification Code</div>
-                        <div class="fs-4 fw-bold">@Model.ReferralVerificationCode</div>
-                        <div class="small">
-                            Expires:
-                            @(Model.ReferralVerificationCodeExpiresAt.HasValue
-                                ? Model.ReferralVerificationCodeExpiresAt.Value.ToLocalTime().ToString("dd MMM yyyy HH:mm")
-                                : "Not set")
-                        </div>
-                        @if (Model.ReferralVerificationCodeVerifiedAt.HasValue)
-                        {
-                            <div class="small text-success">
-                                Verified by referred facility on @Model.ReferralVerificationCodeVerifiedAt.Value.ToLocalTime().ToString("dd MMM yyyy HH:mm")
-                            </div>
-                        }
-                    </div>
-                }
-                @if (Model.Status == ReferralStatus.Verified || Model.Status == ReferralStatus.Audited)
-                {
-                    <form asp-controller="HmoReferrals" asp-action="ReissueCode" asp-route-id="@Model.Id" method="post">
-                        @Html.AntiForgeryToken()
-                        <button type="submit" class="btn btn-outline-success w-100">
-                            @(Model.ReferralVerificationCodeExpired ? "Reactivate / Issue New Code" : "Reissue Code")
-                        </button>
-                    </form>
-                }
             </div>
         </div>
     </div>

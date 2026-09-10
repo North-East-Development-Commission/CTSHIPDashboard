@@ -1,7 +1,7 @@
 ﻿@model CTSHIPDashboard.Models.ViewModels.MonitoringDashboardViewModel
 
 @{
-    ViewData["Title"] = "Monitoring & Evaluation";
+    ViewData["Title"] = ViewBag.DashboardTitle as string ?? "Monitoring & Evaluation";
 }
 
 <style>
@@ -9,7 +9,7 @@
     .monitoring-filter option {
         color: #244a2a !important;
         background-color: #fff !important;
-        font-weight: 800;
+        font-weight: 500;
     }
 
     .monitoring-filter:focus {
@@ -21,14 +21,14 @@
 <div class="ct-page">
 <div class="ct-page-header d-flex flex-wrap justify-content-between align-items-center gap-3">
     <div>
-        <h1 class="mb-1">Monitoring & Evaluation Dashboard</h1>
+        <h1 class="mb-1">@(ViewBag.DashboardHeading as string ?? "Monitoring & Evaluation Dashboard")</h1>
         <p class="mb-0">@Model.ScopeDisplay programme statistics.</p>
     </div>
 
     <form method="get" class="row g-2 align-items-end">
         <div class="col-auto">
             <label class="form-label small mb-1" for="monitoringState">State</label>
-            @if (User.IsInRole("StateOffice"))
+            @if (User.IsInRole("StateOffice") || User.IsInRole("SSHIA"))
             {
                 <input type="hidden" name="state" value="@Model.SelectedState" />
                 <select id="monitoringState" class="form-select monitoring-filter" aria-label="Assigned state" disabled>
@@ -72,11 +72,24 @@
                 }
             </select>
         </div>
+        @if (ViewBag.AvailableHmos is List<CTSHIPDashboard.Models.Hmo> availableHmos)
+        {
+            <div class="col-auto">
+                <label for="monitoringHmo" class="form-label small mb-1">HMO</label>
+                <select name="hmoId" id="monitoringHmo" class="form-select monitoring-filter">
+                    <option value="">All HMOs</option>
+                    @foreach (var hmo in availableHmos)
+                    {
+                        <option value="@hmo.Id" selected="@(Model.SelectedHmoId == hmo.Id)">@hmo.Name</option>
+                    }
+                </select>
+            </div>
+        }
         <div class="col-auto d-grid">
             <button class="btn btn-outline-success">View</button>
         </div>
         <div class="col-auto d-grid">
-            <a asp-action="Index" class="btn btn-outline-secondary">Clear</a>
+            <a asp-action="@(ViewContext.RouteData.Values["action"]?.ToString())" class="btn btn-outline-secondary">Clear</a>
         </div>
     </form>
 </div>
@@ -94,7 +107,7 @@
 {
     <div class="card mb-4">
         <div class="card-body">
-            <form asp-action="SetTarget" method="post" class="row g-2 align-items-end">
+            <form asp-controller="Monitoring" asp-action="SetTarget" method="post" class="row g-2 align-items-end">
                 @Html.AntiForgeryToken()
                 <input type="hidden" name="Scope" value="@Model.Scope" />
                 <input type="hidden" name="Lga" value="@Model.SelectedLga" />
@@ -118,6 +131,7 @@
 }
 
 <partial name="_MonitoringIndicatorCards" model="Model" />
+<partial name="_ExtendedMonitoringIndicators" model="Model" />
 
 <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
     <h2 class="h4 fw-bold mb-0">Complaint Management Metrics</h2>
@@ -131,28 +145,28 @@
 <div class="row g-3 mb-4">
     <div class="col-xl-3 col-md-6">
         <div class="card h-100 border-warning"><div class="card-body">
-            <div class="text-muted">Number of Referrals</div>
+            <div class="text-muted"><i class="fa-solid fa-hospital-user ct-kpi-icon" aria-hidden="true"></i>Number of Referrals</div>
             <div class="display-6 fw-bold" style="color:#8a6819;">@Model.TotalReferrals.ToString("N0")</div>
             <small>All recorded referrals</small>
         </div></div>
     </div>
     <div class="col-xl-3 col-md-6">
         <div class="card h-100 border-success"><div class="card-body">
-            <div class="text-muted">Completed Referrals</div>
+            <div class="text-muted"><i class="fa-solid fa-circle-check ct-kpi-icon" aria-hidden="true"></i>Completed Referrals</div>
             <div class="display-6 fw-bold text-success">@Model.CompletedReferrals.ToString("N0")</div>
             <small>Audited or closed</small>
         </div></div>
     </div>
     <div class="col-xl-3 col-md-6">
         <div class="card h-100 border-warning"><div class="card-body">
-            <div class="text-muted">Pending Referrals</div>
+            <div class="text-muted"><i class="fa-solid fa-hourglass-half ct-kpi-icon" aria-hidden="true"></i>Pending Referrals</div>
             <div class="display-6 fw-bold text-warning-emphasis">@Model.PendingReferrals.ToString("N0")</div>
             <small>Awaiting completion</small>
         </div></div>
     </div>
     <div class="col-xl-3 col-md-6">
         <div class="card h-100 border-success"><div class="card-body">
-            <div class="text-muted">Referral Completion Rate</div>
+            <div class="text-muted"><i class="fa-solid fa-chart-line ct-kpi-icon" aria-hidden="true"></i>Referral Completion Rate</div>
             <div class="display-6 fw-bold text-success">@Model.ReferralCompletionRate%</div>
             <small>@Model.RejectedReferrals.ToString("N0") rejected</small>
         </div></div>
@@ -161,28 +175,28 @@
 <div class="row g-3 mb-4">
     <div class="col-xl-3 col-md-6">
         <div class="card ct-kpi h-100"><div class="card-body">
-            <div class="text-muted">Accredited Providers</div>
+            <div class="text-muted"><i class="fa-solid fa-hospital ct-kpi-icon" aria-hidden="true"></i>Accredited Providers</div>
             <div class="display-6 fw-bold">@Model.TotalProviders.ToString("N0")</div>
             <small>@Model.TotalHmos.ToString("N0") HMO(s) serving this scope</small>
         </div></div>
     </div>
     <div class="col-xl-3 col-md-6">
         <div class="card ct-kpi h-100"><div class="card-body">
-            <div class="text-muted">Total Encounters</div>
+            <div class="text-muted"><i class="fa-solid fa-stethoscope ct-kpi-icon" aria-hidden="true"></i>Total Encounters</div>
             <div class="display-6 fw-bold">@Model.TotalEncounters.ToString("N0")</div>
             <small>@Model.EncounterRatePerThousand per 1,000 active enrollees</small>
         </div></div>
     </div>
     <div class="col-xl-3 col-md-6">
         <div class="card ct-kpi h-100"><div class="card-body">
-            <div class="text-muted">Total Claims</div>
+            <div class="text-muted"><i class="fa-solid fa-file-invoice ct-kpi-icon" aria-hidden="true"></i>Total Claims</div>
             <div class="display-6 fw-bold">@Model.TotalClaims.ToString("N0")</div>
             <small>@Model.ClaimApprovalRate% paid-claim rate</small>
         </div></div>
     </div>
     <div class="col-xl-3 col-md-6">
         <div class="card ct-kpi h-100"><div class="card-body">
-            <div class="text-muted">Audited Deaths</div>
+            <div class="text-muted"><i class="fa-solid fa-clipboard-check ct-kpi-icon" aria-hidden="true"></i>Audited Deaths</div>
             <div class="display-6 fw-bold">@Model.AuditedDeaths.ToString("N0")</div>
             <small>@Model.DeathRatePerThousand per 1,000 active enrollees</small>
         </div></div>
@@ -192,7 +206,7 @@
 <div class="row g-3 mb-4">
     <div class="col-xl-3 col-md-6">
         <div class="card h-100 border-success"><div class="card-body">
-            <div class="text-muted">Total Claim Value</div>
+            <div class="text-muted"><i class="fa-solid fa-money-bill-wave ct-kpi-icon" aria-hidden="true"></i>Total Claim Value</div>
             <div class="h3 fw-bold text-success">₦@Model.TotalClaimValue.ToString("N2")</div>
             <small>Paid: ₦@Model.PaidClaimValue.ToString("N2")</small>
         </div></div>
@@ -378,10 +392,29 @@
 
 @section Scripts {
     <script>
+        Chart.defaults.font.family = getComputedStyle(document.body).fontFamily;
+        Chart.defaults.font.size = 12;
+        Chart.defaults.color = '#45545d';
+        Chart.defaults.plugins.legend.labels.usePointStyle = true;
+        Chart.defaults.plugins.legend.labels.padding = 18;
+        Chart.defaults.plugins.tooltip.backgroundColor = 'rgba(34, 49, 55, .94)';
+        Chart.defaults.plugins.tooltip.padding = 12;
+        Chart.defaults.plugins.tooltip.cornerRadius = 6;
+        Chart.defaults.animation.duration = matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 350;
+        const ctChartPalette = {
+            green: '#285f39',
+            greenSoft: '#6aa36f',
+            gold: '#f2a72d',
+            amber: '#c57a18',
+            teal: '#247c75',
+            blue: '#386fa4',
+            rose: '#b94b5d',
+            slate: '#667085'
+        };
         (() => {
             const stateSelect = document.getElementById('monitoringState');
             const lgaSelect = document.getElementById('monitoringLga');
-            const lgaUrl = '@Url.Action("Lgas", "Monitoring")';
+            const lgaUrl = '@Url.Action("Lgas", ViewBag.LgaController as string ?? "Monitoring")';
 
             const replaceLgas = (items) => {
                 lgaSelect.innerHTML = '<option value="">All LGAs</option>';
@@ -418,7 +451,10 @@
                 labels: ['Male', 'Female', 'Other / Unspecified'],
                 datasets: [{
                     data: [@Model.MaleCount, @Model.FemaleCount, @Model.OtherGenderCount],
-                    backgroundColor: ['#3B703B', '#FE9031', '#FFFFFF']
+                    backgroundColor: [ctChartPalette.blue, ctChartPalette.green, ctChartPalette.slate],
+                    borderColor: '#ffffff',
+                    borderWidth: 2,
+                    hoverOffset: 6
                 }]
             }
         });
@@ -430,13 +466,21 @@
                 datasets: [{
                     label: '% of Total Enrolled',
                     data: [
-                        @Model.PregnantWomenPercentage,
-                        @Model.UnderFivePercentage,
-                        @Model.PlwdPercentage,
-                        @Model.ElderlyPercentage,
-                        @Model.OtherVulnerablePercentage
+                        @Html.Raw(Json.Serialize(Model.PregnantWomenPercentage)),
+                        @Html.Raw(Json.Serialize(Model.UnderFivePercentage)),
+                        @Html.Raw(Json.Serialize(Model.PlwdPercentage)),
+                        @Html.Raw(Json.Serialize(Model.ElderlyPercentage)),
+                        @Html.Raw(Json.Serialize(Model.OtherVulnerablePercentage))
                     ],
-                    backgroundColor: '#3B703B'
+                    backgroundColor: [
+                        ctChartPalette.rose,
+                        ctChartPalette.gold,
+                        ctChartPalette.teal,
+                        ctChartPalette.green,
+                        ctChartPalette.blue
+                    ],
+                    borderRadius: 6,
+                    borderSkipped: false
                 }]
             },
             options: { scales: { y: { beginAtZero: true, max: 100 } } }
@@ -453,7 +497,10 @@
                         @Model.RejectedClaims,
                         @Math.Max(0, Model.TotalClaims - Model.PaidClaims - Model.PendingClaims - Model.RejectedClaims)
                     ],
-                    backgroundColor: ['#3B703B', '#FE9031', '#FFFFFF', '#3B703B']
+                    backgroundColor: [ctChartPalette.green, ctChartPalette.gold, ctChartPalette.rose, ctChartPalette.slate],
+                    borderColor: '#ffffff',
+                    borderWidth: 2,
+                    hoverOffset: 6
                 }]
             }
         });
@@ -467,12 +514,16 @@
                     {
                         label: 'Total Enrollees',
                         data: stateRows.map(x => x.totalEnrollees),
-                        backgroundColor: '#FE9031'
+                        backgroundColor: ctChartPalette.gold,
+                        borderRadius: 6,
+                        borderSkipped: false
                     },
                     {
                         label: 'Active Enrollees',
                         data: stateRows.map(x => x.activeEnrollees),
-                        backgroundColor: '#3B703B'
+                        backgroundColor: ctChartPalette.green,
+                        borderRadius: 6,
+                        borderSkipped: false
                     }
                 ]
             },

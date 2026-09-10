@@ -25,18 +25,6 @@
                     <span class="text-danger" data-valmsg-for="Referral.ReferredHospitalId" data-valmsg-replace="true"></span>
                 </div>
 
-                <div class="col-md-6">
-                    <label for="Referral_Priority" class="form-label text-success fw-bold">Priority</label>
-                    <select id="Referral_Priority" name="Referral.Priority" class="form-select form-select-lg">
-                        @foreach (var priority in Html.GetEnumSelectList<ReferralPriority>())
-                        {
-                            bool selected = priority.Value == ((int)Model.Priority).ToString();
-                            <option value="@priority.Value" selected="@selected">@priority.Text</option>
-                        }
-                    </select>
-                    <span class="text-danger" data-valmsg-for="Referral.Priority" data-valmsg-replace="true"></span>
-                </div>
-
                 <div class="col-12">
                     <label for="Referral_ReasonForReferral" class="form-label text-success fw-bold">Reason For Referral</label>
                     <textarea id="Referral_ReasonForReferral"

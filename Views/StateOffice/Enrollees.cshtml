@@ -66,7 +66,7 @@
                         {
                             <tr>
                                 <td><strong class="text-primary">@e.EnrollmentNumber</strong></td>
-                                <td>@e.FullName</td>
+                                <td><a asp-controller="Enrollees" asp-action="Details" asp-route-id="@e.Id">@e.FullName</a></td>
                                 <td>@e.HmoName</td>
                                 <td>@e.Phone</td>
                                 <td>@e.LGA</td>

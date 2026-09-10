@@ -356,8 +356,8 @@ namespace CTSHIPDashboard.Areas.Identity.Pages.Account
                 if (roleSet.Contains("NEDCAdmin"))
                 {
                     return RedirectToAction(
-                       "Index",
-                        "Analytics",
+                        "Dashboard",
+                        "NEDCAdmin",
                         new { area = "" });
                 }
 

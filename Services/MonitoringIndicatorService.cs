@@ -96,13 +96,14 @@ namespace CTSHIPDashboard.Services
                 string.Equals(x.Gender, "Female", StringComparison.OrdinalIgnoreCase)
                 || string.Equals(x.Gender, "F", StringComparison.OrdinalIgnoreCase));
 
-            int pregnant = enrollees.Count(x => x.IsPregnant && IsFemale(x));
+            int pregnant = enrollees.Count(x => VulnerabilityClassification.IsPregnant(x.IsPregnant, x.OtherVulnerableCategory) && IsFemale(x));
             int underFive = enrollees.Count(x => x.DateOfBirth > underFiveThreshold);
             int elderly = enrollees.Count(x => x.DateOfBirth <= elderlyThreshold);
             int plwd = enrollees.Count(x => x.HasDisability);
-            int other = enrollees.Count(x => x.IsIdp || !string.IsNullOrWhiteSpace(x.OtherVulnerableCategory));
+            int other = enrollees.Count(x => x.IsIdp || (!string.IsNullOrWhiteSpace(x.OtherVulnerableCategory)
+                && !VulnerabilityClassification.IsPregnant(false, x.OtherVulnerableCategory)));
             int vulnerable = enrollees.Count(x =>
-                (x.IsPregnant && IsFemale(x))
+                (VulnerabilityClassification.IsPregnant(x.IsPregnant, x.OtherVulnerableCategory) && IsFemale(x))
                 || x.DateOfBirth > underFiveThreshold
                 || x.DateOfBirth <= elderlyThreshold
                 || x.HasDisability
@@ -298,7 +299,10 @@ namespace CTSHIPDashboard.Services
             int auditedReports = await reportQuery.CountAsync(x => x.AuditStatus == "Audited", cancellationToken);
             int reportsNeedingCorrection = await reportQuery.CountAsync(x => x.AuditStatus == "Needs Correction", cancellationToken);
             DateTime activeUserCutoff = DateTime.UtcNow.AddDays(-30);
-            IQueryable<ApplicationUser> userQuery = _context.Users.AsNoTracking();
+            IQueryable<ApplicationUser> userQuery = _context.Users.AsNoTracking().Where(u => !u.IsDeleted);
+            if (scope != "CTSHIP") userQuery = userQuery.Where(u => u.State == scope);
+            if (!string.IsNullOrWhiteSpace(selectedLga))
+                userQuery = userQuery.Where(u => u.Provider != null && u.Provider.LGA == selectedLga);
             IQueryable<UserActivity> activeUserQuery = _context.UserActivities
                 .AsNoTracking()
                 .Where(x => x.Timestamp >= activeUserCutoff);
@@ -311,6 +315,7 @@ namespace CTSHIPDashboard.Services
                     user.Id == x.UserId && user.HmoId == hmoFilter));
             }
 
+            activeUserQuery = activeUserQuery.Where(activity => userQuery.Any(user => user.Id == activity.UserId));
             int totalUsers = await userQuery.CountAsync(cancellationToken);
             int activeUsersLast30Days = await activeUserQuery
                 .Select(x => x.UserId)
@@ -853,7 +858,7 @@ namespace CTSHIPDashboard.Services
             {
                 string? category = enrollee.DateOfBirth > underFiveThreshold ? "Children Under 5"
                     : enrollee.DateOfBirth <= elderlyThreshold ? "Elderly (60+)"
-                    : enrollee.IsPregnant && IsFemale(enrollee) ? "Pregnant Women"
+                    : VulnerabilityClassification.IsPregnant(enrollee.IsPregnant, enrollee.OtherVulnerableCategory) && IsFemale(enrollee) ? "Pregnant Women"
                     : enrollee.HasDisability ? "PLWD"
                     : enrollee.IsIdp || !string.IsNullOrWhiteSpace(enrollee.OtherVulnerableCategory)
                         ? "Other / IDP"

@@ -94,12 +94,15 @@
 
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="~/lib/bootstrap-icons/font/bootstrap-icons.min.css" />
+    <link rel="stylesheet" href="~/lib/fontawesome/css/fontawesome.min.css" />
+    <link rel="stylesheet" href="~/lib/fontawesome/css/solid.min.css" />
     <link rel="stylesheet" href="~/lib/select2/css/select2.min.css" />
     <link rel="stylesheet" href="~/lib/sweetalert2/sweetalert2.min.css" />
     <link rel="stylesheet" href="~/lib/leaflet/leaflet.css" />
     <link rel="stylesheet" href="~/lib/leaflet-markercluster/MarkerCluster.css" />
     <link rel="stylesheet" href="~/lib/leaflet-markercluster/MarkerCluster.Default.css" />
     <link rel="stylesheet" href="~/css/dashboard-theme.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/css/glass-theme.css" asp-append-version="true" />
     @await RenderSectionAsync("Styles", required: false)
     <!-- Optional: Make it feel like a real app (PWA) -->
     <link rel="manifest" href="~/manifest.json" asp-append-version="true">
@@ -461,6 +464,9 @@
 
             @if (User.IsInRole("HMO"))
             {
+                <a asp-controller="HmoUsers" asp-action="Index" class="nav-link">
+                    <i class="bi bi-person-gear"></i> Facility Accounts
+                </a>
                     <a asp-controller="Hmo" asp-action="Dashboard" class="nav-link text-white">
                         <i class="bi bi-people-fill"></i> Dashboard
                     </a>
@@ -668,6 +674,9 @@
 
             @if (User.IsInRole("StateOffice"))
             {
+                <a asp-controller="StateOffice" asp-action="Encounters" class="nav-link">
+                    <i class="bi bi-clipboard-pulse"></i> Encounters
+                </a>
                 <a asp-controller="StateOffice" asp-action="Index" class="nav-link">
                     <i class="bi bi-building"></i> Dashboard
                 </a>
@@ -723,7 +732,7 @@
             @if (User.IsInRole("NEDCAdmin"))
             {
                 <div class="px-3 pt-2 pb-1 small text-uppercase text-white-50 fw-semibold">NEDC HQ Oversight</div>
-                <a asp-controller="Analytics" asp-action="Index" class="nav-link">
+                <a asp-controller="NEDCAdmin" asp-action="Dashboard" class="nav-link">
                     <i class="bi bi-speedometer2"></i> HQ Dashboard
                 </a>
                 <a asp-controller="Enrollees" asp-action="Index" class="nav-link">
@@ -802,6 +811,13 @@
     <script src="~/lib/leaflet/leaflet.js"></script>
     <script src="~/lib/leaflet-markercluster/leaflet.markercluster.js"></script>
     <script src="~/js/site.js" asp-append-version="true"></script>
+    <script src="~/js/enrolment-camera.js" asp-append-version="true"></script>
+    <script>
+        const measuredTopbar = document.querySelector('.ct-topbar');
+        if (measuredTopbar && window.ResizeObserver) {
+            new ResizeObserver(() => document.documentElement.style.setProperty('--ct-measured-topbar', measuredTopbar.getBoundingClientRect().height + 'px')).observe(measuredTopbar);
+        }
+    </script>
     <script>
         (() => {
             const removePageLoader = () => {

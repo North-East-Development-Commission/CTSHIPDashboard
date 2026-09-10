@@ -37,10 +37,10 @@ public class NEDCAdminController : Controller
 
     public IActionResult Index() => RedirectToAction(nameof(Dashboard));
 
-    public async Task<IActionResult> Dashboard(string? state, int? hmoId, CancellationToken cancellationToken)
+    public async Task<IActionResult> Dashboard(string? state, string? lga, int? hmoId, CancellationToken cancellationToken)
     {
         MonitoringDashboardViewModel model = await _monitoringIndicatorService.BuildDashboardAsync(
-            state, null, hmoId, cancellationToken);
+            state, lga, hmoId, cancellationToken);
 
         ViewBag.AvailableHmos = await _context.Hmos.AsNoTracking().OrderBy(x => x.Name).ToListAsync(cancellationToken);
         ViewBag.SelectedHmoId = model.SelectedHmoId;
@@ -49,14 +49,16 @@ public class NEDCAdminController : Controller
         ViewBag.DashboardDescription = "Executive oversight of CTSHIP delivery, IHSA-reviewed reports, finance, referrals, and programme performance.";
         ViewBag.DashboardViewLabel = "NEDC administrative control view";
         ViewBag.IsNedcDashboard = true;
-        ViewBag.NedcPendingReports = await _context.StateOfficeMonthlyReports
-            .AsNoTracking()
+        var scopedReports = _context.StateOfficeMonthlyReports.AsNoTracking().AsQueryable();
+        if (!string.IsNullOrWhiteSpace(model.SelectedState)) scopedReports = scopedReports.Where(r => r.State == model.SelectedState);
+        if (!string.IsNullOrWhiteSpace(model.SelectedLga)) scopedReports = scopedReports.Where(r => r.Lga == model.SelectedLga);
+        if (model.SelectedHmoId.HasValue) scopedReports = scopedReports.Where(r => _context.Providers.Any(p => p.Id == r.ProviderId && p.HmoId == model.SelectedHmoId));
+        ViewBag.NedcPendingReports = await scopedReports
             .CountAsync(x => x.AuditStatus == "Audited" && x.NedcAuditStatus == "Pending", cancellationToken);
-        ViewBag.NedcCompletedReports = await _context.StateOfficeMonthlyReports
-            .AsNoTracking()
+        ViewBag.NedcCompletedReports = await scopedReports
             .CountAsync(x => x.AuditStatus == "Audited" && x.NedcAuditStatus != "Pending", cancellationToken);
 
-        return View("~/Views/IHSA/Dashboard.cshtml", model);
+        return View("~/Views/Monitoring/Index.cshtml", model);
     }
 
     public Task<IActionResult> MonthlyReports(

@@ -30,5 +30,10 @@
     <Folder Include="wwwroot\images\" />
     <Folder Include="wwwroot\uploads\enrollees\" />
   </ItemGroup>
+  <ItemGroup>
+    <Compile Remove="Tests/**/*.cs" />
+    <Content Remove="Tests/**" />
+    <None Remove="Tests/**" />
+  </ItemGroup>
 
 </Project>
