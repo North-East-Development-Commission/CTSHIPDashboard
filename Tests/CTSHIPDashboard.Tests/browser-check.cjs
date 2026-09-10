@@ -18,6 +18,10 @@ const os = require('node:os');
             await page.setViewportSize({ width, height: 1000 });
             await page.goto('http://127.0.0.1:5098/preview/dashboard', { waitUntil: 'networkidle' });
             await page.evaluate(() => document.fonts.ready);
+            if (await page.locator('#hmoProviderPreview tbody tr').count() !== 5)
+                throw new Error('HMO provider preview should show five sample facilities');
+            if (await page.getByRole('link', { name: 'View all providers' }).getAttribute('href') !== '/Hmo/MyProviders')
+                throw new Error('Provider full-list link is incorrect');
             const state = await page.evaluate(() => ({
                 width: innerWidth,
                 documentWidth: document.documentElement.scrollWidth,

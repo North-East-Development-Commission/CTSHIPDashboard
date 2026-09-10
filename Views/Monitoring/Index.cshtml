@@ -131,6 +131,36 @@
 }
 
 <partial name="_MonitoringIndicatorCards" model="Model" />
+@if (User.IsInRole("HMO") && ViewBag.DashboardProviders is List<CTSHIPDashboard.Models.Provider> dashboardProviders)
+{
+    <section class="mb-4" aria-labelledby="hmoProvidersHeading">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+            <h2 id="hmoProvidersHeading" class="h4 mb-0">Your Providers</h2>
+            <a asp-controller="Hmo" asp-action="MyProviders" class="btn btn-outline-success">
+                View all providers <i class="bi bi-arrow-right ms-1" aria-hidden="true"></i>
+            </a>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0" id="hmoProviderPreview">
+                <thead><tr><th scope="col">Facility</th><th scope="col">State</th><th scope="col">LGA</th><th scope="col">Level</th><th scope="col">Status</th></tr></thead>
+                <tbody>
+                    @foreach (var facility in dashboardProviders)
+                    {
+                        <tr>
+                            <td><a asp-controller="Hmo" asp-action="ProDetails" asp-route-id="@facility.Id">@facility.Name</a></td>
+                            <td>@facility.State</td><td>@facility.LGA</td><td>@facility.Level</td>
+                            <td><span class="badge @(facility.IsActive ? "bg-success" : "bg-light text-dark")">@(facility.IsActive ? "Active" : "Inactive")</span></td>
+                        </tr>
+                    }
+                    @if (dashboardProviders.Count == 0)
+                    {
+                        <tr><td colspan="5" class="text-muted py-4">No providers match the selected filters.</td></tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </section>
+}
 <partial name="_ExtendedMonitoringIndicators" model="Model" />
 
 <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">

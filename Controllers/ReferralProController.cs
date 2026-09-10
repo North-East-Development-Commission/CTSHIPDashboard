@@ -519,7 +519,7 @@ public class ReferralProController : Controller
                 referral.Id,
                 ReferralAuditAction.Closed,
                 currentUser,
-                "Referral closed after encounter and claim submission. Referral verification code expired.");
+                "Referral closed after encounter and claim submission.");
 
             await _context.SaveChangesAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);

@@ -392,6 +392,13 @@ public class HmoController : Controller
         ViewBag.DashboardTitle = "HMO Dashboard";
         ViewBag.DashboardHeading = hmo.Name;
         ViewBag.LgaController = "Hmo";
+        var dashboardProviders = _context.Providers.AsNoTracking().Where(p => p.HmoId == hmo.Id);
+        if (!string.IsNullOrWhiteSpace(model.SelectedState))
+            dashboardProviders = dashboardProviders.Where(p => p.State == model.SelectedState);
+        if (!string.IsNullOrWhiteSpace(model.SelectedLga))
+            dashboardProviders = dashboardProviders.Where(p => p.LGA == model.SelectedLga);
+        ViewBag.DashboardProviders = await dashboardProviders.OrderBy(p => p.Name).ThenBy(p => p.Id)
+            .Take(5).ToListAsync(cancellationToken);
         return View("~/Views/Monitoring/Index.cshtml", model);
     }
 

@@ -41,6 +41,7 @@ internal static class PreviewHost
             await next();
         });
         app.MapControllerRoute("preview", "preview/{action=Dashboard}", new { controller = "Preview" });
+        app.MapControllerRoute("default", "{controller=Home}/{action=Index}/{id?}");
         Console.WriteLine("Sample-data preview: http://127.0.0.1:5098/preview/dashboard");
         await app.RunAsync();
     }
@@ -53,6 +54,11 @@ public class PreviewController : Controller
         ViewBag.DashboardTitle = "HMO Dashboard";
         ViewBag.DashboardHeading = "Sample HMO";
         ViewBag.LgaController = "Preview";
+        ViewBag.DashboardProviders = Enumerable.Range(1, 5).Select(i => new Provider
+        {
+            Id = i, Name = $"Sample Facility {i}", State = "Borno", LGA = "Jere",
+            Level = i == 5 ? "Secondary" : "Primary", IsActive = i != 4
+        }).ToList();
         var model = new MonitoringDashboardViewModel
         {
             Scope = "Sample data", ScopeDisplay = "Sample data", SelectedState = state ?? "", SelectedLga = lga ?? "",
