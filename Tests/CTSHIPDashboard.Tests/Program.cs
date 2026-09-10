@@ -23,6 +23,12 @@ Check(VulnerabilityClassification.IsPregnant(false, " Pregnant Woman "), "legacy
 Check(VulnerabilityClassification.IsPregnant(true, null), "pregnancy checkbox");
 Check(!VulnerabilityClassification.IsPregnant(false, "Not pregnant"), "negative pregnancy category");
 Check(!VulnerabilityClassification.IsPregnant(false, "IDP"), "unrelated vulnerable category");
+Check(VulnerabilityClassification.HasDisability(false, " PLWD "), "legacy PLWD abbreviation");
+Check(VulnerabilityClassification.HasDisability(false, " Physically   Challenged "), "physically challenged maps to PLWD regardless of case and spacing");
+Check(VulnerabilityClassification.HasDisability(false, "Person Living with Disability"), "legacy disability full name");
+Check(VulnerabilityClassification.HasDisability(false, "Person Living with Disability (PLWD)"), "legacy disability combined label");
+Check(VulnerabilityClassification.HasDisability(true, null), "disability checkbox");
+Check(!VulnerabilityClassification.HasDisability(false, "No disability"), "negative disability category");
 
 using var connection = new SqliteConnection("Data Source=:memory:");
 connection.Open();

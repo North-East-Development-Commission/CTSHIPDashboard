@@ -11,6 +11,7 @@ namespace CTSHIPDashboard.Models.ViewModels
         public int? SelectedHmoId { get; set; }
         public List<string> AvailableStates { get; set; } = new();
         public List<string> AvailableLgas { get; set; } = new();
+        public List<TopProviderEnrolleeViewModel> TopProvidersByEnrollees { get; set; } = new();
 
         public int TargetEnrollees { get; set; }
         public int TotalEnrolled { get; set; }
@@ -67,6 +68,7 @@ namespace CTSHIPDashboard.Models.ViewModels
         public int QueryClaims { get; set; }
         public int PaidClaims { get; set; }
         public int PendingClaims { get; set; }
+        public int ApprovedClaims { get; set; }
         public int RejectedClaims { get; set; }
         public int OutstandingClaims { get; set; }
         public decimal ClaimApprovalRate { get; set; }
@@ -158,6 +160,15 @@ namespace CTSHIPDashboard.Models.ViewModels
         public decimal ClaimValue { get; set; }
         public int Complaints { get; set; }
         public decimal ServiceUtilizationRate { get; set; }
+    }
+
+    public class TopProviderEnrolleeViewModel
+    {
+        public int ProviderId { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public string State { get; set; } = string.Empty;
+        public string Lga { get; set; } = string.Empty;
+        public int Enrollees { get; set; }
     }
 
     public class ProviderLevelMetricViewModel

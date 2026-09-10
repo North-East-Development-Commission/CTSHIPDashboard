@@ -178,15 +178,16 @@
                         {
                             <tr>
                                 <td>@e.EnrollmentNumber</td>
-                                <td>@e.FullName</td>
-                                <td>@e.HmoName</td>
-                                <td>@e.DateRegistered.ToString("yyyy-MM-dd")</td>
-                                <td>@e.Status</td>
-                            </tr>
-                        }
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
+                                <td>@e.FullName</td>
+                                <td>@e.HmoName</td>
+                                <td>@e.DateRegistered.ToString("yyyy-MM-dd")</td>
+                                <td>@e.Status</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
 </div>
+<partial name="_TopProvidersByEnrollees" model="Model.Monitoring" />

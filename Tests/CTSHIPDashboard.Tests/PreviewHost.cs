@@ -70,9 +70,15 @@ public class PreviewController : Controller
             TotalReferrals = 320, CompletedReferrals = 264, PendingReferrals = 56, ReferralCompletionRate = 82.5m,
             TotalClaims = 1842, ClaimsValidated = 1601, RejectedClaims = 42, OutstandingClaims = 199,
             TotalClaimValue = 142800000, ApprovedClaimValue = 131000000, PaidClaimValue = 119000000,
-            OutstandingClaimValue = 23800000, AverageProcessingDays = 4.2, PaidClaims = 1500,
+            OutstandingClaimValue = 23800000, AverageProcessingDays = 4.2, PaidClaims = 1500, ApprovedClaims = 101, PendingClaims = 199,
             PregnantWomenCount = 842, PregnantWomenPercentage = 6.7m,
             ServiceUtilizationRate = 41.2m, UniqueServiceUsers = 4628, ActiveUsersLast30Days = 73,
+            TopProvidersByEnrollees = new()
+            {
+                new() { ProviderId = 1, Name = "Sample Facility 1", State = "Borno", Lga = "Jere", Enrollees = 2840 },
+                new() { ProviderId = 2, Name = "Sample Facility 2", State = "Borno", Lga = "Jere", Enrollees = 1950 },
+                new() { ProviderId = 3, Name = "Sample Facility 3", State = "Borno", Lga = "Maiduguri", Enrollees = 1620 }
+            },
             StateIndicators = new() { new() { State = "Borno", TotalEnrollees = 12480, ActiveEnrollees = 11232, Encounters = 5834 } },
             HmoOversight = new() { new() { Name = "Sample HMO", Enrollees = 12480, Providers = 87, Encounters = 5834 } },
             ProviderLevelMetrics = new() { new() { Level = "Primary", Providers = 65, Enrollees = 9840, Encounters = 4210 }, new() { Level = "Secondary", Providers = 22, Enrollees = 2640, Encounters = 1624 } },

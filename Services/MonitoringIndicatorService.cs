@@ -99,9 +99,10 @@ namespace CTSHIPDashboard.Services
             int pregnant = enrollees.Count(x => VulnerabilityClassification.IsPregnant(x.IsPregnant, x.OtherVulnerableCategory) && IsFemale(x));
             int underFive = enrollees.Count(x => x.DateOfBirth > underFiveThreshold);
             int elderly = enrollees.Count(x => x.DateOfBirth <= elderlyThreshold);
-            int plwd = enrollees.Count(x => x.HasDisability);
+            int plwd = enrollees.Count(x => VulnerabilityClassification.HasDisability(x.HasDisability, x.OtherVulnerableCategory));
             int other = enrollees.Count(x => x.IsIdp || (!string.IsNullOrWhiteSpace(x.OtherVulnerableCategory)
-                && !VulnerabilityClassification.IsPregnant(false, x.OtherVulnerableCategory)));
+                && !VulnerabilityClassification.IsPregnant(false, x.OtherVulnerableCategory)
+                && !VulnerabilityClassification.HasDisability(false, x.OtherVulnerableCategory)));
             int vulnerable = enrollees.Count(x =>
                 (VulnerabilityClassification.IsPregnant(x.IsPregnant, x.OtherVulnerableCategory) && IsFemale(x))
                 || x.DateOfBirth > underFiveThreshold
@@ -262,6 +263,21 @@ namespace CTSHIPDashboard.Services
                 .Distinct()
                 .CountAsync(cancellationToken);
             int totalProviders = await providerQuery.CountAsync(cancellationToken);
+            var topProvidersByEnrollees = await providerQuery
+                .Select(provider => new TopProviderEnrolleeViewModel
+                {
+                    ProviderId = provider.Id,
+                    Name = provider.Name,
+                    State = provider.State,
+                    Lga = provider.LGA,
+                    Enrollees = query.Count(enrollee => enrollee.ProviderId == provider.Id)
+                })
+                .Where(provider => provider.Enrollees > 0)
+                .OrderByDescending(provider => provider.Enrollees)
+                .ThenBy(provider => provider.Name)
+                .ThenBy(provider => provider.ProviderId)
+                .Take(10)
+                .ToListAsync(cancellationToken);
             int primaryProviders = await providerQuery.CountAsync(
                 x => x.Level == "Primary",
                 cancellationToken);
@@ -425,6 +441,7 @@ namespace CTSHIPDashboard.Services
                 QueryClaims = claimMatrix.QueryClaims,
                 PaidClaims = claimMatrix.PaidClaims,
                 PendingClaims = claimMatrix.SubmittedClaims,
+                ApprovedClaims = claimMatrix.ApprovedClaims,
                 RejectedClaims = claimMatrix.RejectedClaims,
                 OutstandingClaims = claimMatrix.OutstandingClaims,
                 ClaimApprovalRate = Percentage(claimMatrix.PaidClaims, claimMatrix.TotalClaims),
@@ -452,6 +469,7 @@ namespace CTSHIPDashboard.Services
                 ComplaintMetrics = complaintMetrics,
                 HmoOversight = hmoOversight,
                 ProviderLevelMetrics = providerLevelMetrics,
+                TopProvidersByEnrollees = topProvidersByEnrollees,
                 DiseaseTrends = diseaseTrends,
                 StateIndicators = stateIndicators,
                 EncounterDemographicMatrix = encounterDemographicMatrix,

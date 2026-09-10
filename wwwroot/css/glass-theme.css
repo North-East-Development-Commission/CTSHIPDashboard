@@ -9,6 +9,7 @@
     --ct-brand-gold-soft: #fff3df;
     --ct-brand-border: rgba(40,95,57,.28);
     --ct-brand-border-gold: rgba(242,167,45,.48);
+    --ct-metric-gradient: linear-gradient(rgba(0,0,0,.35), rgba(0,0,0,.35)), linear-gradient(135deg, var(--ct-green-dark) 0%, var(--ct-green) 56%, var(--ct-gold) 100%);
 }
 body {
     background-color: #f4f7f1;
@@ -93,7 +94,7 @@ body {
 .main-content .row > :nth-child(3n + 2) > .ct-kpi,
 .main-content .row > :nth-child(3n + 2) > .dashboard-card.kpi-card { border-color: var(--ct-brand-gold) !important; }
 .main-content .ct-kpi :where(.display-4,.display-5,.display-6) { font-size: 1.75rem; font-variant-numeric: tabular-nums; }
-.main-content .card-header:not(.bg-success):not(.bg-primary):not(.bg-warning):not(.bg-danger):not(.bg-dark):not(.bg-info):not(.bg-secondary) { color: var(--ct-ink) !important; background: linear-gradient(90deg, rgba(231,242,233,.72), rgba(255,243,223,.58)) !important; border-bottom: 1px solid rgba(242,167,45,.34) !important; }
+.main-content .card-header:where(:not(.bg-success):not(.bg-primary):not(.bg-warning):not(.bg-danger):not(.bg-dark):not(.bg-info):not(.bg-secondary)) { color: var(--ct-ink) !important; background: linear-gradient(90deg, rgba(231,242,233,.72), rgba(255,243,223,.58)) !important; border-bottom: 1px solid rgba(242,167,45,.34) !important; }
 .main-content .card-header.bg-warning,
 .main-content .card-header.bg-warning :where(h1,h2,h3,h4,h5,h6,p,small,span,div,strong,a,i) { color: var(--ct-ink) !important; }
 .main-content .table { color: #34463a; --bs-table-color: #34463a; }
@@ -133,6 +134,77 @@ body {
 .main-content :where(.row > *, .card-body) { min-width: 0; }
 .main-content .table-responsive { overflow-x: auto; }
 .main-content :where(h1,h2) { overflow-wrap: anywhere; }
+.main-content .ct-page-header {
+    background: rgba(23,61,37,.96) !important;
+    color: #fff !important;
+    border: 1px solid var(--ct-brand-green) !important;
+    border-left-width: 5px !important;
+    padding: 16px !important;
+}
+.main-content .ct-page-header :is(h1,h2,h3,h4,h5,h6,label,div,strong) { color: #fff !important; }
+.main-content .ct-page-header :is(p,small,.text-muted) { color: #ffcf78 !important; opacity: 1 !important; }
+.main-content .ct-page-header .form-label { color: #ffcf78 !important; }
+.main-content .ct-page-header :is(.form-control,.form-select) { color: var(--ct-ink) !important; background-color: #fff !important; }
+.main-content .ct-page-header .btn-outline-success { background: #ffcf78 !important; border-color: #ffcf78 !important; color: #173d25 !important; }
+.main-content .ct-page-header .btn-outline-success:hover { background: #ffe2a8 !important; }
+.main-content .card-header.bg-light :is(h1,h2,h3,h4,h5,h6,p,small,span,strong,i) { color: var(--ct-ink) !important; }
+.main-content .badge:is(.bg-light,.bg-white,.bg-warning) :is(span,small,i) { color: var(--ct-ink) !important; }
+/* Shared metric surfaces include older dashboards without a KPI class. */
+.main-content .card:is(.ct-kpi,.kpi-card,.text-white),
+.main-content .card:has(> .card-body > :is(.h3,.display-6)) {
+    background: var(--ct-metric-gradient) !important;
+    border-color: rgba(59,112,59,.7) !important;
+    color: #fff !important;
+    backdrop-filter: blur(14px);
+}
+.main-content .card:is(.ct-kpi,.kpi-card,.text-white) > .card-body :is(h1,h2,h3,h4,h5,h6,p,span,small,div,strong,i,a),
+.main-content .card:has(> .card-body > :is(.h3,.display-6)) > .card-body :is(h1,h2,h3,h4,h5,h6,p,span,small,div,strong,i,a),
+.main-content .provider-dashboard .dashboard-card.kpi-card * {
+    color: #fff !important;
+    opacity: 1 !important;
+    text-shadow: none !important;
+}
+.main-content .card .card-body .ct-kpi-icon {
+    background: rgba(255,255,255,.12) !important;
+    border-color: rgba(255,255,255,.45) !important;
+}
+.main-content .card:has(> .table-responsive) > .card-header {
+    background: var(--ct-metric-gradient) !important;
+    color: #fff !important;
+    border-bottom-color: var(--ct-brand-green) !important;
+}
+.main-content .card:has(> .table-responsive) > .card-header :is(div,strong,span,small,h2,h3,h4,i) {
+    color: #fff !important;
+    opacity: 1 !important;
+}
+.main-content .card:has(> .table-responsive) > .card-header small.text-muted { color: #ffcf78 !important; }
+.main-content .table thead {
+    background: var(--ct-metric-gradient) !important;
+}
+.main-content .table thead th {
+    background: transparent !important;
+    color: #fff !important;
+    --bs-table-bg: transparent;
+    box-shadow: none !important;
+}
+@keyframes ct-panel-enter {
+    from { opacity: .6; transform: translateY(6px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+@media (prefers-reduced-motion: no-preference) {
+    .main-content .ct-page-header,
+    .main-content .card { animation: ct-panel-enter 280ms ease-out both; }
+    .main-content .card { transition: box-shadow 180ms ease, transform 180ms ease; }
+    .main-content .btn { transition: background-color 160ms ease, border-color 160ms ease, box-shadow 160ms ease; }
+}
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+    .main-content .card:is(.ct-kpi,.kpi-card):hover { transform: translateY(-2px); }
+}
+@media (prefers-reduced-motion: reduce) {
+    .main-content .card,
+    .main-content .ct-page-header,
+    .main-content .btn { animation: none !important; transition: none !important; transform: none !important; }
+}
 @media (max-width: 767.98px) {
     .ct-content-shell { padding: 8px 12px !important; }
     .main-content .card-body.p-5 { padding: 16px !important; }

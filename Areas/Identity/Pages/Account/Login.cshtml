@@ -18,10 +18,25 @@
         max-width: 100%;
         object-fit: contain;
     }
+    .login-page { max-width: 960px; margin-inline: auto; }
+    .login-page .form-control { min-height: 48px; }
+    .login-page .form-label { display: block; margin-bottom: .5rem; }
+    @@keyframes login-enter {
+        from { opacity: 0; transform: translateY(8px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    @@media (prefers-reduced-motion: no-preference) {
+        .login-page #account { animation: login-enter 300ms ease-out; }
+        .login-page #login-submit { transition: background-color 160ms ease, box-shadow 160ms ease, transform 160ms ease; }
+        .login-page #login-submit:active { transform: scale(.99); }
+    }
+    @@media (prefers-reduced-motion: reduce) {
+        .login-page #account, .login-page #login-submit { animation: none; transition: none; transform: none; }
+    }
 </style>
 
 <h1>@ViewData["Title"]</h1>
-<div class="container-fluid">
+<div class="container-fluid login-page">
        <div class="card border-0 shadow-sm">
         <div class="login-logo-wrap">
             <img src="~/images/nedcL.jpg" alt="Company Logo" class="login-logo" />
@@ -32,18 +47,18 @@
             <h5 class="mb-0 text-center"><i class="bi bi-person-plus-fill"></i> LOGIN</h5>
         </div>
         <div class="card-body">
-            <div class="col-6 offset-3">
+            <div class="col-12 col-md-8 col-lg-6 mx-auto">
                 <form id="account" method="post">
                     <hr />
                     <div asp-validation-summary="ModelOnly" class="text-danger" role="alert"></div>
-                    <div class="form-floating mb-3">
-                        <input asp-for="Input.Email" class="form-control" autocomplete="username" aria-required="true" placeholder="name@example.com" />
+                    <div class="mb-3">
                         <label asp-for="Input.Email" class="form-label">Email</label>
+                        <input asp-for="Input.Email" class="form-control" autocomplete="username" inputmode="email" aria-required="true" />
                         <span asp-validation-for="Input.Email" class="text-danger"></span>
                     </div>
-                    <div class="form-floating mb-3">
-                        <input asp-for="Input.Password" class="form-control" autocomplete="current-password" aria-required="true" placeholder="password" />
+                    <div class="mb-3">
                         <label asp-for="Input.Password" class="form-label">Password</label>
+                        <input asp-for="Input.Password" class="form-control" autocomplete="current-password" aria-required="true" />
                         <span asp-validation-for="Input.Password" class="text-danger"></span>
                     </div>
                     <div class="d-flex justify-content-end mb-3">

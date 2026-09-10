@@ -202,7 +202,7 @@ namespace CTSHIPDashboard.Services
                 return "Elderly (60+)";
             }
 
-            if (hasDisability)
+            if (VulnerabilityClassification.HasDisability(hasDisability, otherVulnerableCategory))
             {
                 return "PLWD";
             }

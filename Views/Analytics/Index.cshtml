@@ -25,7 +25,7 @@
         <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
             <h2 class="h3 fw-bold mb-0">Complaint Management Metrics</h2>
             <a asp-controller="Complaints" asp-action="Index" class="btn btn-success">
-                <i class="bi bi-chat-square-text-fill me-1"></i> Manage Complaints
+                <i class="fa-solid fa-comments me-1" aria-hidden="true"></i> Manage Complaints
             </a>
         </div>
         <partial name="_ComplaintMetrics" model="Model.ComplaintMetrics" />
@@ -44,7 +44,7 @@
             <div class="col-xl-3 col-md-6">
                 <div class="card bg-success text-white h-100 shadow">
                     <div class="card-body">
-                        <i class="bi bi-hospital fs-2 mb-2"></i>
+                        <i class="fa-solid fa-hospital fs-2 mb-2" aria-hidden="true"></i>
                         <div>Accredited Providers</div>
                         <div class="display-6 fw-bold">@Model.TotalProviders.ToString("N0")</div>
                         <small>Active hospitals and clinics</small>
@@ -54,7 +54,7 @@
             <div class="col-xl-3 col-md-6">
                 <div class="card bg-primary text-white h-100 shadow">
                     <div class="card-body">
-                        <i class="bi bi-buildings fs-2 mb-2"></i>
+                        <i class="fa-solid fa-building-shield fs-2 mb-2" aria-hidden="true"></i>
                         <div>Registered HMOs</div>
                         <div class="display-6 fw-bold">@Model.TotalHmos.ToString("N0")</div>
                         <small>Coverage management organizations</small>
@@ -64,7 +64,7 @@
             <div class="col-xl-3 col-md-6">
                 <div class="card ct-kpi h-100">
                     <div class="card-body">
-                        <i class="bi bi-activity fs-2 mb-2"></i>
+                        <i class="fa-solid fa-chart-line fs-2 mb-2" aria-hidden="true"></i>
                         <div>Total Encounters</div>
                         <div class="display-6 fw-bold">@Model.TotalEncounters.ToString("N0")</div>
                         <small>@Model.EncounterRatePerThousand per 1,000 active enrollees</small>
@@ -74,7 +74,7 @@
             <div class="col-xl-3 col-md-6">
                 <div class="card bg-primary text-white h-100 shadow">
                     <div class="card-body">
-                        <i class="bi bi-file-medical fs-2 mb-2"></i>
+                        <i class="fa-solid fa-file-medical fs-2 mb-2" aria-hidden="true"></i>
                         <div>Total Claims</div>
                         <div class="display-6 fw-bold">@Model.TotalClaims.ToString("N0")</div>
                         <small>@Model.ClaimApprovalRate% paid-claim rate</small>
@@ -84,7 +84,7 @@
             <div class="col-xl-3 col-md-6">
                 <div class="card bg-success text-white h-100 shadow">
                     <div class="card-body">
-                        <i class="bi bi-heart-pulse fs-2 mb-2"></i>
+                        <i class="fa-solid fa-heart-pulse fs-2 mb-2" aria-hidden="true"></i>
                         <div>Audited Deaths</div>
                         <div class="display-6 fw-bold">@Model.AuditedDeaths.ToString("N0")</div>
                         <small>@Model.DeathRatePerThousand per 1,000 active enrollees</small>
@@ -94,7 +94,7 @@
             <div class="col-xl-3 col-md-6">
                 <div class="card bg-primary text-white h-100 shadow">
                     <div class="card-body">
-                        <i class="bi bi-arrow-left-right fs-2 mb-2"></i>
+                        <i class="fa-solid fa-right-left fs-2 mb-2" aria-hidden="true"></i>
                         <div>Referral Completion</div>
                         <div class="display-6 fw-bold">@Model.ReferralCompletionRate%</div>
                         <small>@Model.CompletedReferrals.ToString("N0") of @Model.TotalReferrals.ToString("N0") completed</small>
@@ -456,7 +456,9 @@
     </div>
 </div>
 
-@section Scripts {
+<partial name="_TopProvidersByEnrollees" model="Model" />
+
+@section Scripts {
     @if (User.IsInRole("CTSHIPAdmin") || User.IsInRole("Admin"))
     {
         <script>
@@ -469,13 +471,13 @@
             new Chart(document.getElementById('analyticsClaimsStatusChart'), {
                 type: 'doughnut',
                 data: {
-                    labels: ['Paid', 'Pending', 'Rejected', 'Other'],
+                    labels: ['Paid', 'Pending', 'Rejected', 'Approved'],
                     datasets: [{
                         data: [
                             @Model.PaidClaims,
                             @Model.PendingClaims,
                             @Model.RejectedClaims,
-                            @Math.Max(0, Model.TotalClaims - Model.PaidClaims - Model.PendingClaims - Model.RejectedClaims)
+                            @Model.ApprovedClaims
                         ],
                         backgroundColor: [
                             monitoringPalette.green,
@@ -493,9 +495,9 @@
             new Chart(document.getElementById('analyticsGenderChart'), {
                 type: 'doughnut',
                 data: {
-                    labels: ['Male', 'Female', 'Other / Unspecified'],
+                    labels: ['Male', 'Female'],
                     datasets: [{
-                        data: [@Model.MaleCount, @Model.FemaleCount, @Model.OtherGenderCount],
+                        data: [@Model.MaleCount, @Model.FemaleCount],
                         backgroundColor: [
                             monitoringPalette.green,
                             monitoringPalette.gold,

@@ -18,6 +18,16 @@ const os = require('node:os');
             await page.setViewportSize({ width, height: 1000 });
             await page.goto('http://127.0.0.1:5098/preview/dashboard', { waitUntil: 'networkidle' });
             await page.evaluate(() => document.fonts.ready);
+            const presentation = await page.evaluate(() => ({
+                claims: Chart.getChart('claimsStatusChart').data.labels,
+                approved: Chart.getChart('claimsStatusChart').data.datasets[0].data[3],
+                gender: Chart.getChart('genderChart').data.labels,
+                titleColor: getComputedStyle(document.querySelector('.ct-page-header h1')).color
+            }));
+            if (presentation.claims[3] !== 'Approved' || presentation.approved !== 101)
+                throw new Error('Approved chart category does not match approved claims');
+            if (presentation.gender.join(',') !== 'Male,Female') throw new Error('Unexpected gender categories');
+            if (presentation.titleColor !== 'rgb(255, 255, 255)') throw new Error('Page title contrast regressed');
             if (await page.locator('#hmoProviderPreview tbody tr').count() !== 5)
                 throw new Error('HMO provider preview should show five sample facilities');
             if (await page.getByRole('link', { name: 'View all providers' }).getAttribute('href') !== '/Hmo/MyProviders')

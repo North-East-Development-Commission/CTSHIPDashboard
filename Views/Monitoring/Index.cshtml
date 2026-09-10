@@ -420,6 +420,8 @@
 </div>
 </div>
 
+<partial name="_TopProvidersByEnrollees" model="Model" />
+
 @section Scripts {
     <script>
         Chart.defaults.font.family = getComputedStyle(document.body).fontFamily;
@@ -478,9 +480,9 @@
         new Chart(document.getElementById('genderChart'), {
             type: 'doughnut',
             data: {
-                labels: ['Male', 'Female', 'Other / Unspecified'],
+                labels: ['Male', 'Female'],
                 datasets: [{
-                    data: [@Model.MaleCount, @Model.FemaleCount, @Model.OtherGenderCount],
+                    data: [@Model.MaleCount, @Model.FemaleCount],
                     backgroundColor: [ctChartPalette.blue, ctChartPalette.green, ctChartPalette.slate],
                     borderColor: '#ffffff',
                     borderWidth: 2,
@@ -519,13 +521,13 @@
         new Chart(document.getElementById('claimsStatusChart'), {
             type: 'doughnut',
             data: {
-                labels: ['Paid', 'Pending', 'Rejected', 'Other'],
+                labels: ['Paid', 'Pending', 'Rejected', 'Approved'],
                 datasets: [{
                     data: [
                         @Model.PaidClaims,
                         @Model.PendingClaims,
                         @Model.RejectedClaims,
-                        @Math.Max(0, Model.TotalClaims - Model.PaidClaims - Model.PendingClaims - Model.RejectedClaims)
+                        @Model.ApprovedClaims
                     ],
                     backgroundColor: [ctChartPalette.green, ctChartPalette.gold, ctChartPalette.rose, ctChartPalette.slate],
                     borderColor: '#ffffff',
