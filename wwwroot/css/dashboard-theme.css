@@ -238,8 +238,6 @@ li {
     inset: .85rem auto .85rem 1rem;
     width: .38rem;
     border-radius: 999px;
-    background: rgba(255, 255, 255, .82);
-    box-shadow: 0 0 0 1px rgba(254, 144, 49, .35);
 }
 
 .ct-page-header > * {
