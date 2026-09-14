@@ -31,9 +31,9 @@
             <a asp-action="Dashboard" class="btn btn-outline-secondary">Clear Filters</a>
         </div>
         <div class="row g-3 align-items-end">
-            <div class="col-md-5">
-                <label class="form-label">State</label>
-                <select name="state" class="form-select">
+            <div class="col-md-3">
+                <label class="form-label" for="ihsaState">State</label>
+                <select name="state" id="ihsaState" class="form-select">
                     @if (string.IsNullOrWhiteSpace(Model.SelectedState))
                     {
                         <option value="" selected>All states</option>
@@ -55,7 +55,24 @@
                     }
                 </select>
             </div>
-            <div class="col-md-5">
+            <div class="col-md-3">
+                <label class="form-label" for="ihsaLga">LGA</label>
+                <select name="lga" id="ihsaLga" class="form-select" aria-label="Filter IHSA dashboard by LGA" disabled="@string.IsNullOrWhiteSpace(Model.SelectedState)">
+                    <option value="">All LGAs</option>
+                    @foreach (string lga in Model.AvailableLgas)
+                    {
+                        if (lga == Model.SelectedLga)
+                        {
+                            <option value="@lga" selected>@lga</option>
+                        }
+                        else
+                        {
+                            <option value="@lga">@lga</option>
+                        }
+                    }
+                </select>
+            </div>
+            <div class="col-md-4">
                 <label class="form-label">HMO</label>
                 <select name="hmoId" class="form-select">
                     @if (!Model.SelectedHmoId.HasValue)
@@ -202,3 +219,40 @@
 </div>
 
 <partial name="_TopProvidersByEnrollees" model="Model" />
+@section Scripts {
+    <script>
+        (() => {
+            const stateSelect = document.getElementById('ihsaState');
+            const lgaSelect = document.getElementById('ihsaLga');
+            const lgaUrl = '@Url.Action("Lgas", "Monitoring")';
+
+            const replaceLgas = (items) => {
+                lgaSelect.innerHTML = '<option value="">All LGAs</option>';
+                items.forEach(item => {
+                    const option = document.createElement('option');
+                    option.value = item;
+                    option.textContent = item;
+                    lgaSelect.appendChild(option);
+                });
+                lgaSelect.disabled = !stateSelect.value;
+            };
+
+            stateSelect?.addEventListener('change', async () => {
+                if (!stateSelect.value) {
+                    replaceLgas([]);
+                    lgaSelect.disabled = true;
+                    return;
+                }
+
+                lgaSelect.disabled = true;
+                const response = await fetch(`${lgaUrl}?state=${encodeURIComponent(stateSelect.value)}`);
+                if (!response.ok) {
+                    replaceLgas([]);
+                    return;
+                }
+
+                replaceLgas(await response.json());
+            });
+        })();
+    </script>
+}

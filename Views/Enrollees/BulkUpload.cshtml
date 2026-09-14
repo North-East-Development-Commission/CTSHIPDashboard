@@ -54,7 +54,7 @@
                                 <label class="form-label text-success fw-bold fs-5">
                                     Assign to HMO <span class="text-danger">*</span>
                                 </label>
-                                <select name="hmoId" class="form-select form-select-lg"
+                                <select name="hmoId" id="bulkHmoId" class="form-select form-select-lg"
                                         asp-items="ViewBag.Hmos" required>
                                     <option value="">Select HMO</option>
                                 </select>
@@ -64,7 +64,7 @@
                                 <label class="form-label text-success fw-bold fs-5">
                                     Assign to Provider <span class="text-danger">*</span>
                                 </label>
-                                <select name="providerId" class="form-select form-select-lg"
+                                <select name="providerId" id="bulkProviderId" class="form-select form-select-lg"
                                         asp-items="ViewBag.Pros" required>
                                     <option value="">Select Provider</option>
                                 </select>
@@ -141,4 +141,47 @@
         </div>
     </div>
 </div>
+@section Scripts {
+    <script>
+        (() => {
+            const hmoSelect = document.getElementById('bulkHmoId');
+            const providerSelect = document.getElementById('bulkProviderId');
+            const providersUrl = '@Url.Action("GetProvidersByHmo", "Enrollees")';
 
+            const setProviderOptions = (providers) => {
+                providerSelect.innerHTML = '<option value="">Select Provider</option>';
+                providers.forEach(provider => {
+                    const option = document.createElement('option');
+                    option.value = provider.id;
+                    option.textContent = provider.text;
+                    providerSelect.appendChild(option);
+                });
+                providerSelect.disabled = !hmoSelect.value || providers.length === 0;
+            };
+
+            const loadProviders = async () => {
+                if (!hmoSelect.value) {
+                    setProviderOptions([]);
+                    return;
+                }
+
+                providerSelect.disabled = true;
+                const response = await fetch(`${providersUrl}?hmoId=${encodeURIComponent(hmoSelect.value)}`);
+                if (!response.ok) {
+                    setProviderOptions([]);
+                    return;
+                }
+
+                const result = await response.json();
+                setProviderOptions(result.success ? result.providers : []);
+            };
+
+            hmoSelect?.addEventListener('change', loadProviders);
+            if (hmoSelect?.value && providerSelect.options.length <= 1) {
+                loadProviders();
+            } else if (!hmoSelect?.value) {
+                providerSelect.disabled = true;
+            }
+        })();
+    </script>
+}

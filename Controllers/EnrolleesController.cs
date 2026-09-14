@@ -881,6 +881,58 @@ public class EnrolleesController : Controller
         return Json(wards);
     }
 
+
+    [HttpGet]
+    [Authorize(Roles = EnrolleeManageRoles)]
+    public async Task<IActionResult> GetProvidersByHmo(int hmoId, CancellationToken cancellationToken)
+    {
+        if (hmoId <= 0)
+        {
+            return Json(new { success = false, providers = Array.Empty<object>() });
+        }
+
+        await ReferralProviderSyncHelper.EnsureReferralHospitalsForSecondaryProvidersAsync(_context, hmoId, cancellationToken);
+
+        ApplicationUser? currentUser = await _userManager.GetUserAsync(User);
+        IQueryable<Provider> providers = _context.Providers
+            .AsNoTracking()
+            .Where(provider => provider.IsActive && provider.HmoId == hmoId);
+
+        if (IsHmoEnrollmentScopedUser())
+        {
+            if (currentUser?.HmoId != hmoId)
+            {
+                return Forbid();
+            }
+
+            if (IsFacilityEnrollmentOfficer(currentUser))
+            {
+                providers = providers.Where(provider => provider.Id == currentUser.ProviderId);
+            }
+        }
+
+        List<Provider> providerOptions = await providers
+            .OrderBy(provider => provider.Name)
+            .ToListAsync(cancellationToken);
+        var items = providerOptions.Select(provider => new
+        {
+            id = provider.Id,
+            text = FormatBulkProviderText(provider)
+        });
+
+        return Json(new { success = true, providers = items });
+    }
+
+    private static string FormatBulkProviderText(Provider provider)
+    {
+        string text = string.IsNullOrWhiteSpace(provider.State)
+            ? provider.Name
+            : provider.Name + " - " + provider.State;
+
+        return ReferralProviderSyncHelper.IsReferralProviderLevel(provider.Level)
+            ? text + " (Referral Provider)"
+            : text;
+    }
     // GET: Enrollee/BulkUpload
     [Authorize(Roles = EnrolleeManageRoles)]
     public async Task<IActionResult> BulkUpload()
@@ -888,6 +940,7 @@ public class EnrolleesController : Controller
         ApplicationUser? currentUser = await _userManager.GetUserAsync(User);
         IQueryable<Hmo> hmos = _context.Hmos.AsNoTracking();
         IQueryable<Provider> providers = _context.Providers.AsNoTracking();
+        int? selectedHmoId = null;
 
         if (IsHmoEnrollmentScopedUser())
         {
@@ -899,30 +952,38 @@ public class EnrolleesController : Controller
                 return View();
             }
 
-            int currentHmoId = currentUser.HmoId.Value;
-            hmos = hmos.Where(hmo => hmo.Id == currentHmoId);
-            providers = providers.Where(provider => provider.HmoId == currentHmoId);
+            selectedHmoId = currentUser.HmoId.Value;
+            await ReferralProviderSyncHelper.EnsureReferralHospitalsForSecondaryProvidersAsync(_context, selectedHmoId.Value);
+            hmos = hmos.Where(hmo => hmo.Id == selectedHmoId.Value);
+            providers = providers.Where(provider => provider.HmoId == selectedHmoId.Value);
             if (IsFacilityEnrollmentOfficer(currentUser))
+            {
                 providers = providers.Where(provider => provider.Id == currentUser.ProviderId);
+            }
+        }
+        else
+        {
+            providers = providers.Where(provider => false);
         }
 
         ViewBag.Hmos = await hmos.OrderBy(hmo => hmo.Name).Select(h => new SelectListItem
         {
             Value = h.Id.ToString(),
-            Text = h.Name
+            Text = h.Name,
+            Selected = selectedHmoId.HasValue && h.Id == selectedHmoId.Value
         }).ToListAsync();
-        ViewBag.Pros = await providers
+        List<Provider> providerOptions = await providers
             .Where(provider => provider.IsActive)
             .OrderBy(provider => provider.Name)
-            .Select(h => new SelectListItem
+            .ToListAsync();
+        ViewBag.Pros = providerOptions.Select(provider => new SelectListItem
         {
-            Value = h.Id.ToString(),
-            Text = h.Name
-        }).ToListAsync();
+            Value = provider.Id.ToString(),
+            Text = FormatBulkProviderText(provider)
+        }).ToList();
 
         return View();
     }
-
     [HttpGet]
     [Authorize(Roles = EnrolleeManageRoles)]
     public IActionResult DownloadBulkUploadTemplate()

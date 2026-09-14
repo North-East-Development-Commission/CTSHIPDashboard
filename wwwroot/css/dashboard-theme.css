@@ -5,8 +5,8 @@
     --ct-gold: #FE9031;
     --ct-gold-dark: #a9812d;
     --ct-gold-soft: rgba(254, 144, 49, .12);
-    --ct-app-gradient: linear-gradient(135deg, var(--ct-green-dark) 0%, var(--ct-green) 58%, var(--ct-gold) 100%);
-    --ct-app-gradient-soft: linear-gradient(135deg, rgba(43, 87, 47, .95) 0%, rgba(59, 112, 59, .92) 58%, rgba(254, 144, 49, .9) 100%);
+    --ct-app-gradient: linear-gradient(135deg, #3b703b 0%, #3b703b 58%, var(--ct-gold) 100%);
+    --ct-app-gradient-soft: linear-gradient(135deg, rgba(59, 112, 59, .95) 0%, rgba(59, 112, 59, .92) 58%, rgba(254, 144, 49, .9) 100%);
     --ct-button-on-gold: #17351d;
     --ct-border: rgba(59, 112, 59, .22);
     --ct-shadow: 0 10px 30px rgba(59, 112, 59, .12);
@@ -226,7 +226,7 @@ li {
     background: var(--ct-app-gradient);
     color: #fff;
     border: 1px solid rgba(254, 144, 49, .28);
-    border-radius: 2rem;
+    border-radius: 2rem !important;
     padding: 1.75rem 2rem;
     margin-bottom: 1.5rem;
     box-shadow: var(--ct-shadow);

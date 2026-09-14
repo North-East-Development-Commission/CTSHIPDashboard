@@ -44,12 +44,26 @@ public class IHSAController : Controller
 
     public async Task<IActionResult> Dashboard(
         string? state,
+        string? lga,
         int? hmoId,
         CancellationToken cancellationToken)
     {
+        if (string.IsNullOrWhiteSpace(state))
+        {
+            lga = null;
+        }
+        else if (!string.IsNullOrWhiteSpace(lga))
+        {
+            List<string> availableLgas = await GetAvailableLgasAsync(state, cancellationToken);
+            if (!availableLgas.Contains(lga.Trim(), StringComparer.OrdinalIgnoreCase))
+            {
+                lga = null;
+            }
+        }
+
         MonitoringDashboardViewModel model = await _monitoringIndicatorService.BuildDashboardAsync(
             state,
-            null,
+            lga,
             hmoId,
             cancellationToken);
 
@@ -267,6 +281,30 @@ public class IHSAController : Controller
             .Distinct()
             .OrderBy(state => state)
             .ToListAsync(cancellationToken);
+    }
+
+    private async Task<List<string>> GetAvailableLgasAsync(string? state, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(state))
+        {
+            return new List<string>();
+        }
+
+        state = state.Trim();
+        List<string> configured = NorthEastLocationData.GetLgas(state).ToList();
+        List<string> recorded = await _context.Enrollees
+            .AsNoTracking()
+            .Where(x => x.State == state && x.LGA != "")
+            .Select(x => x.LGA)
+            .Distinct()
+            .ToListAsync(cancellationToken);
+
+        return configured
+            .Concat(recorded)
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(x => x)
+            .ToList();
     }
 }
 
