@@ -253,10 +253,14 @@ namespace CTSHIPDashboard.Services
                 .Include(x => x.Queries)
                 .ToListAsync(cancellationToken);
             ClaimMatrixViewModel claimMatrix = ClaimMetricsService.Build(claims);
-            int totalEncounters = await encounterQuery.CountAsync(cancellationToken);
-            int totalVisits = await encounterQuery
-                .Select(x => new { x.EnrolleeId, VisitDay = x.VisitDate.Date })
-                .Distinct()
+            int totalEncounters = await encounterQuery.CountAsync(cancellationToken);
+
+            int totalVisits = await encounterQuery
+
+                .Select(x => new { x.EnrolleeId, VisitDay = x.VisitDate.Date })
+
+                .Distinct()
+
                 .CountAsync(cancellationToken);
             int uniqueServiceUsers = await encounterQuery
                 .Select(x => x.EnrolleeId)
@@ -389,7 +393,8 @@ namespace CTSHIPDashboard.Services
                 Scope = scope,
                 ScopeDisplay = BuildScopeDisplay(scope, selectedLga, selectedHmoName),
                 SelectedState = scope == CtsTargetScope ? string.Empty : scope,
-                SelectedLga = selectedLga,
+                SelectedLga = selectedLga,
+
                 SelectedHmoId = selectedHmoId,
                 AvailableStates = availableStates,
                 AvailableLgas = await GetAvailableLgasAsync(scope, cancellationToken),
@@ -432,7 +437,8 @@ namespace CTSHIPDashboard.Services
                 SecondaryProviders = secondaryProviders,
                 ReferralProviders = referralProviders,
                 TotalHmos = totalHmos,
-                TotalEncounters = totalEncounters,
+                TotalEncounters = totalEncounters,
+
                 TotalVisits = totalVisits,
                 EncounterRatePerThousand = RatePerThousand(totalEncounters, active),
                 TotalClaims = claimMatrix.TotalClaims,
@@ -471,7 +477,8 @@ namespace CTSHIPDashboard.Services
                 ProviderLevelMetrics = providerLevelMetrics,
                 TopProvidersByEnrollees = topProvidersByEnrollees,
                 DiseaseTrends = diseaseTrends,
-                StateIndicators = stateIndicators,
+                StateIndicators = stateIndicators,
+
                 EncounterDemographicMatrix = encounterDemographicMatrix,
                 MostUsedServices = recordedServices
                     .GroupBy(x => new { x.ServiceName, x.ServiceSetting })
@@ -973,11 +980,3 @@ namespace CTSHIPDashboard.Services
         }
     }
 }
-
-
-
-
-
-
-
-

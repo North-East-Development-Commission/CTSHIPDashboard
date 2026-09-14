@@ -14,7 +14,7 @@
         border: none;
         border-radius: 16px;
         background: #ffffff;
-        color: #244a2a;
+        color: #0B2A14;
         box-shadow: 0 10px 30px rgba(0, 100, 0, 0.1);
         transition: transform 0.3s ease, box-shadow 0.3s ease;
         overflow: hidden;
@@ -25,33 +25,33 @@
     }
     .kpi-card {
         background: linear-gradient(rgba(25,72,32,.16), rgba(25,72,32,.16)), linear-gradient(135deg, var(--bg-start), var(--bg-end));
-        color: white !important;
+        color: #0B2A14 !important;
         border-radius: 16px;
         padding: 2rem;
         text-align: center;
         height: 100%;
-        text-shadow: 0 1px 2px rgba(0,0,0,.28);
+        text-shadow: none;
     }
     .main-content .provider-dashboard .dashboard-card.kpi-card {
         background: linear-gradient(rgba(25,72,32,.16), rgba(25,72,32,.16)), linear-gradient(135deg, var(--bg-start), var(--bg-end)) !important;
         background-image: linear-gradient(rgba(25,72,32,.16), rgba(25,72,32,.16)), linear-gradient(135deg, var(--bg-start), var(--bg-end)) !important;
         border: 1px solid rgba(255,255,255,.28) !important;
-        color: #ffffff !important;
+        color: #0B2A14 !important;
         box-shadow: 0 12px 30px rgba(43,87,47,.24) !important;
     }
     .main-content .provider-dashboard .dashboard-card.kpi-card :where(h1,h2,h3,h4,h5,h6,p,span,small,div,strong,i,.text-muted) {
-        color: #ffffff !important;
+        color: #0B2A14 !important;
         opacity: 1 !important;
-        text-shadow: 0 1px 2px rgba(0,0,0,.24) !important;
+        text-shadow: none !important;
     }
     .kpi-card h5 {
-        color: white !important;
+        color: #0B2A14 !important;
         font-size: 1.15rem;
         font-weight: 800;
         letter-spacing: .02em;
     }
     .kpi-card h2 {
-        color: white !important;
+        color: #0B2A14 !important;
         font-size: 1.8rem;
         overflow-wrap: anywhere;
     }
@@ -62,7 +62,7 @@
     }
     .section-header {
         background: linear-gradient(90deg, #71B843, #3F8F3B);
-        color: white;
+        color: #0B2A14;
         border-radius: 16px 16px 0 0;
         padding: 1.5rem;
         text-align: center;
@@ -77,7 +77,7 @@
         background: rgba(254, 144, 49, .12);
     }
     .table-modern thead th {
-        color: #2F6F31 !important;
+        color: #0B2A14 !important;
         font-weight: 800;
         white-space: nowrap;
     }
@@ -85,25 +85,25 @@
         background: linear-gradient(rgba(25,72,32,.18), rgba(25,72,32,.18)), linear-gradient(135deg, #71B843, #3F8F3B);
         border: 3px solid #FE9031;
         border-radius: 20px;
-        color: white;
+        color: #0B2A14;
         padding: 2rem;
         box-shadow: 0 12px 30px rgba(43,87,47,.22);
     }
     .provider-hero h1,
     .provider-hero p,
     .provider-hero strong {
-        color: white !important;
+        color: #0B2A14 !important;
         opacity: 1 !important;
     }
     .provider-hero .facility-code {
-        color: white !important;
-        background: #FE9031;
+        color: #0B2A14 !important;
+        background: #F7A93B;
         border-radius: 999px;
         display: inline-block;
         padding: .45rem 1rem;
     }
     .dashboard-card .text-muted {
-        color: #244a2a !important;
+        color: #0B2A14 !important;
         opacity: 1 !important;
         font-weight: 700;
     }
@@ -113,42 +113,50 @@
     .provider-dashboard .dashboard-card strong,
     .provider-dashboard .dashboard-card td,
     .provider-dashboard .dashboard-card li {
-        color: #244a2a;
+        color: #0B2A14;
         opacity: 1;
     }
     .provider-dashboard .dashboard-card .section-header,
     .provider-dashboard .dashboard-card .section-header *,
     .provider-dashboard .kpi-card,
     .provider-dashboard .kpi-card * {
-        color: #ffffff !important;
+        color: #0B2A14 !important;
         opacity: 1 !important;
+        text-shadow: none !important;
     }
     .provider-dashboard .table-modern tbody td {
-        color: #244a2a !important;
+        color: #0B2A14 !important;
         font-weight: 600;
         background: #ffffff;
     }
     .provider-dashboard .list-group-item {
-        color: #244a2a !important;
+        color: #0B2A14 !important;
         background: #ffffff;
     }
-    .provider-dashboard .badge,
     .provider-dashboard .btn-success,
-    .provider-dashboard .btn-warning {
+    .provider-dashboard .badge:not(.bg-warning):not(.bg-light):not(.bg-white) {
         color: #ffffff !important;
+        opacity: 1 !important;
+        font-weight: 700;
+    }
+    .provider-dashboard .btn-warning,
+    .provider-dashboard .badge.bg-warning,
+    .provider-dashboard .badge.bg-light,
+    .provider-dashboard .badge.bg-white {
+        color: #0B2A14 !important;
         opacity: 1 !important;
         font-weight: 700;
     }
     .provider-dashboard .footer-brand,
     .provider-dashboard .footer-brand * {
-        color: #ffffff !important;
+        color: #0B2A14 !important;
         opacity: 1 !important;
     }
     .doctor-rank {
         width: 40px;
         height: 40px;
-        background: #71B843;
-        color: white;
+        background: #4C8F35;
+        color: #ffffff;
         border-radius: 50%;
         display: flex;
         align-items: center;
@@ -159,7 +167,7 @@
         background: linear-gradient(rgba(25,72,32,.18), rgba(25,72,32,.18)), linear-gradient(135deg, #3F8F3B, #71B843);
         border-radius: 16px;
         padding: 3rem;
-        color: white;
+        color: #0B2A14;
     }
 </style>
 

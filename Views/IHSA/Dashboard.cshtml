@@ -58,7 +58,14 @@
             <div class="col-md-3">
                 <label class="form-label" for="ihsaLga">LGA</label>
                 <select name="lga" id="ihsaLga" class="form-select" aria-label="Filter IHSA dashboard by LGA" disabled="@string.IsNullOrWhiteSpace(Model.SelectedState)">
-                    <option value="">All LGAs</option>
+                    @if (string.IsNullOrWhiteSpace(Model.SelectedState))
+                    {
+                        <option value="">Select a state first</option>
+                    }
+                    else
+                    {
+                        <option value="">All LGAs</option>
+                    }
                     @foreach (string lga in Model.AvailableLgas)
                     {
                         if (lga == Model.SelectedLga)
@@ -226,21 +233,29 @@
             const lgaSelect = document.getElementById('ihsaLga');
             const lgaUrl = '@Url.Action("Lgas", "Monitoring")';
 
+            const addOption = (value, text) => {
+                const option = document.createElement('option');
+                option.value = value;
+                option.textContent = text;
+                lgaSelect.appendChild(option);
+            };
+
             const replaceLgas = (items) => {
-                lgaSelect.innerHTML = '<option value="">All LGAs</option>';
-                items.forEach(item => {
-                    const option = document.createElement('option');
-                    option.value = item;
-                    option.textContent = item;
-                    lgaSelect.appendChild(option);
-                });
-                lgaSelect.disabled = !stateSelect.value;
+                lgaSelect.innerHTML = '';
+                if (!stateSelect.value) {
+                    lgaSelect.disabled = true;
+                    addOption('', 'Select a state first');
+                    return;
+                }
+
+                lgaSelect.disabled = false;
+                addOption('', 'All LGAs');
+                items.forEach(item => addOption(item, item));
             };
 
             stateSelect?.addEventListener('change', async () => {
                 if (!stateSelect.value) {
                     replaceLgas([]);
-                    lgaSelect.disabled = true;
                     return;
                 }
 
