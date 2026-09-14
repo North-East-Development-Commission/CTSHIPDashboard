@@ -107,7 +107,7 @@ namespace CTSHIPDashboard.Services
                 (VulnerabilityClassification.IsPregnant(x.IsPregnant, x.OtherVulnerableCategory) && IsFemale(x))
                 || x.DateOfBirth > underFiveThreshold
                 || x.DateOfBirth <= elderlyThreshold
-                || x.HasDisability
+                || VulnerabilityClassification.HasDisability(x.HasDisability, x.OtherVulnerableCategory)
                 || x.IsIdp
                 || !string.IsNullOrWhiteSpace(x.OtherVulnerableCategory));
 
@@ -877,7 +877,7 @@ namespace CTSHIPDashboard.Services
                 string? category = enrollee.DateOfBirth > underFiveThreshold ? "Children Under 5"
                     : enrollee.DateOfBirth <= elderlyThreshold ? "Elderly (60+)"
                     : VulnerabilityClassification.IsPregnant(enrollee.IsPregnant, enrollee.OtherVulnerableCategory) && IsFemale(enrollee) ? "Pregnant Women"
-                    : enrollee.HasDisability ? "PLWD"
+                    : VulnerabilityClassification.HasDisability(enrollee.HasDisability, enrollee.OtherVulnerableCategory) ? "PLWD"
                     : enrollee.IsIdp || !string.IsNullOrWhiteSpace(enrollee.OtherVulnerableCategory)
                         ? "Other / IDP"
                         : null;

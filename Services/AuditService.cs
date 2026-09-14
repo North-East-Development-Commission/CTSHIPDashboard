@@ -1,4 +1,5 @@
 using CTSHIPDashboard.Data;
+using CTSHIPDashboard.Helpers;
 using CTSHIPDashboard.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -32,7 +33,7 @@ namespace CTSHIPDashboard.Services
                 PerformedBy = string.IsNullOrWhiteSpace(performedBy) ? "Unknown" : performedBy.Trim(),
                 TargetUserEmail = target,
                 Details = details,
-                Timestamp = DateTime.Now
+                Timestamp = CtshipClock.Now
             };
 
             try

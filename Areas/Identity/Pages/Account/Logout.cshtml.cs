@@ -1,10 +1,11 @@
-﻿// Licensed to the .NET Foundation under one or more agreements.
+// Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 #nullable disable
 
 using System;
 using System.Threading.Tasks;
 using CTSHIPDashboard.Models;
+using CTSHIPDashboard.Helpers;
 using CTSHIPDashboard.Data;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
@@ -38,7 +39,7 @@ namespace CTSHIPDashboard.Areas.Identity.Pages.Account
             var user = await _userManager.GetUserAsync(User);
             if (user != null)
             {
-                var now = DateTime.Now;
+                var now = CtshipClock.Now;
                 var actor = string.IsNullOrWhiteSpace(user.FullName)
                     ? user.Email ?? user.UserName ?? user.Id
                     : $"{user.FullName} ({user.Email ?? user.UserName})";

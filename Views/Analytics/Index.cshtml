@@ -12,7 +12,7 @@
         </div>
         <div class="text-end">
             <div class="fw-bold">Live programme snapshot</div>
-            <small>@DateTime.Now.ToString("dd MMM yyyy, h:mm tt")</small>
+            <small>@CtshipClock.Now.ToString("dd MMM yyyy, h:mm tt")</small>
         </div>
     </div>
 
@@ -28,81 +28,8 @@
                 <i class="fa-solid fa-comments me-1" aria-hidden="true"></i> Manage Complaints
             </a>
         </div>
-        <partial name="_ComplaintMetrics" model="Model.ComplaintMetrics" />
-
-        <div class="d-flex flex-wrap justify-content-between align-items-end gap-2 mb-3">
-            <div>
-                <h2 class="h3 fw-bold mb-1">Admin Monitoring Intelligence</h2>
-                <p class="text-muted mb-0">Indicators available in Monitoring that were previously absent from Analytics.</p>
-            </div>
-            <a asp-controller="Monitoring" asp-action="Index" class="btn btn-outline-success">
-                Open Monitoring Dashboard
-            </a>
-        </div>
-
-        <div class="row g-3 mb-4">
-            <div class="col-xl-3 col-md-6">
-                <div class="card bg-success text-white h-100 shadow">
-                    <div class="card-body">
-                        <i class="fa-solid fa-hospital fs-2 mb-2" aria-hidden="true"></i>
-                        <div>Accredited Providers</div>
-                        <div class="display-6 fw-bold">@Model.TotalProviders.ToString("N0")</div>
-                        <small>Active hospitals and clinics</small>
-                    </div>
-                </div>
-            </div>
-            <div class="col-xl-3 col-md-6">
-                <div class="card bg-primary text-white h-100 shadow">
-                    <div class="card-body">
-                        <i class="fa-solid fa-building-shield fs-2 mb-2" aria-hidden="true"></i>
-                        <div>Registered HMOs</div>
-                        <div class="display-6 fw-bold">@Model.TotalHmos.ToString("N0")</div>
-                        <small>Coverage management organizations</small>
-                    </div>
-                </div>
-            </div>
-            <div class="col-xl-3 col-md-6">
-                <div class="card ct-kpi h-100">
-                    <div class="card-body">
-                        <i class="fa-solid fa-chart-line fs-2 mb-2" aria-hidden="true"></i>
-                        <div>Total Encounters</div>
-                        <div class="display-6 fw-bold">@Model.TotalEncounters.ToString("N0")</div>
-                        <small>@Model.EncounterRatePerThousand per 1,000 active enrollees</small>
-                    </div>
-                </div>
-            </div>
-            <div class="col-xl-3 col-md-6">
-                <div class="card bg-primary text-white h-100 shadow">
-                    <div class="card-body">
-                        <i class="fa-solid fa-file-medical fs-2 mb-2" aria-hidden="true"></i>
-                        <div>Total Claims</div>
-                        <div class="display-6 fw-bold">@Model.TotalClaims.ToString("N0")</div>
-                        <small>@Model.ClaimApprovalRate% paid-claim rate</small>
-                    </div>
-                </div>
-            </div>
-            <div class="col-xl-3 col-md-6">
-                <div class="card bg-success text-white h-100 shadow">
-                    <div class="card-body">
-                        <i class="fa-solid fa-heart-pulse fs-2 mb-2" aria-hidden="true"></i>
-                        <div>Audited Deaths</div>
-                        <div class="display-6 fw-bold">@Model.AuditedDeaths.ToString("N0")</div>
-                        <small>@Model.DeathRatePerThousand per 1,000 active enrollees</small>
-                    </div>
-                </div>
-            </div>
-            <div class="col-xl-3 col-md-6">
-                <div class="card bg-primary text-white h-100 shadow">
-                    <div class="card-body">
-                        <i class="fa-solid fa-right-left fs-2 mb-2" aria-hidden="true"></i>
-                        <div>Referral Completion</div>
-                        <div class="display-6 fw-bold">@Model.ReferralCompletionRate%</div>
-                        <small>@Model.CompletedReferrals.ToString("N0") of @Model.TotalReferrals.ToString("N0") completed</small>
-                    </div>
-                </div>
-            </div>
-        </div>
-
+        <partial name="_ComplaintMetrics" model="Model.ComplaintMetrics" />
+
         <h2 class="h4 fw-bold mb-3">Financial Monitoring</h2>
         <div class="row g-3 mb-4">
             <div class="col-xl-3 col-md-6">
@@ -517,11 +444,11 @@
                     datasets: [{
                         label: '% of total enrolled',
                         data: [
-                            @Model.PregnantWomenPercentage,
-                            @Model.UnderFivePercentage,
-                            @Model.PlwdPercentage,
-                            @Model.ElderlyPercentage,
-                            @Model.OtherVulnerablePercentage
+                            @Html.Raw(Json.Serialize(Model.PregnantWomenPercentage)),
+                            @Html.Raw(Json.Serialize(Model.UnderFivePercentage)),
+                            @Html.Raw(Json.Serialize(Model.PlwdPercentage)),
+                            @Html.Raw(Json.Serialize(Model.ElderlyPercentage)),
+                            @Html.Raw(Json.Serialize(Model.OtherVulnerablePercentage))
                         ],
                         backgroundColor: [
                             monitoringPalette.gold,

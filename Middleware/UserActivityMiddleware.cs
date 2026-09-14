@@ -1,5 +1,6 @@
-﻿// Middleware/UserActivityMiddleware.cs
+// Middleware/UserActivityMiddleware.cs
 using CTSHIPDashboard.Data;
+using CTSHIPDashboard.Helpers;
 using CTSHIPDashboard.Models;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Controllers;
@@ -35,7 +36,7 @@ namespace CTSHIPDashboard.Middleware
                 return;
             }
 
-            var now = DateTime.Now;
+            var now = CtshipClock.Now;
             var actor = string.IsNullOrWhiteSpace(user.FullName)
                 ? user.Email ?? user.UserName ?? user.Id
                 : $"{user.FullName} ({user.Email ?? user.UserName})";

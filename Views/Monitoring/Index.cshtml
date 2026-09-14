@@ -1,4 +1,4 @@
-﻿@model CTSHIPDashboard.Models.ViewModels.MonitoringDashboardViewModel
+@model CTSHIPDashboard.Models.ViewModels.MonitoringDashboardViewModel
 
 @{
     ViewData["Title"] = ViewBag.DashboardTitle as string ?? "Monitoring & Evaluation";
@@ -170,78 +170,6 @@
     </a>
 </div>
 <partial name="_ComplaintMetrics" model="Model.ComplaintMetrics" />
-
-<h2 class="h4 fw-bold mb-3">Operational and Financial Monitoring</h2>
-<div class="row g-3 mb-4">
-    <div class="col-xl-3 col-md-6">
-        <div class="card h-100 border-warning"><div class="card-body">
-            <div class="text-muted"><i class="fa-solid fa-hospital-user ct-kpi-icon" aria-hidden="true"></i>Number of Referrals</div>
-            <div class="display-6 fw-bold" style="color:#8a6819;">@Model.TotalReferrals.ToString("N0")</div>
-            <small>All recorded referrals</small>
-        </div></div>
-    </div>
-    <div class="col-xl-3 col-md-6">
-        <div class="card h-100 border-success"><div class="card-body">
-            <div class="text-muted"><i class="fa-solid fa-circle-check ct-kpi-icon" aria-hidden="true"></i>Completed Referrals</div>
-            <div class="display-6 fw-bold text-success">@Model.CompletedReferrals.ToString("N0")</div>
-            <small>Audited or closed</small>
-        </div></div>
-    </div>
-    <div class="col-xl-3 col-md-6">
-        <div class="card h-100 border-warning"><div class="card-body">
-            <div class="text-muted"><i class="fa-solid fa-hourglass-half ct-kpi-icon" aria-hidden="true"></i>Pending Referrals</div>
-            <div class="display-6 fw-bold text-warning-emphasis">@Model.PendingReferrals.ToString("N0")</div>
-            <small>Awaiting completion</small>
-        </div></div>
-    </div>
-    <div class="col-xl-3 col-md-6">
-        <div class="card h-100 border-success"><div class="card-body">
-            <div class="text-muted"><i class="fa-solid fa-chart-line ct-kpi-icon" aria-hidden="true"></i>Referral Completion Rate</div>
-            <div class="display-6 fw-bold text-success">@Model.ReferralCompletionRate%</div>
-            <small>@Model.RejectedReferrals.ToString("N0") rejected</small>
-        </div></div>
-    </div>
-</div>
-<div class="row g-3 mb-4">
-    <div class="col-xl-3 col-md-6">
-        <div class="card ct-kpi h-100"><div class="card-body">
-            <div class="text-muted"><i class="fa-solid fa-hospital ct-kpi-icon" aria-hidden="true"></i>Accredited Providers</div>
-            <div class="display-6 fw-bold">@Model.TotalProviders.ToString("N0")</div>
-            <small>@Model.TotalHmos.ToString("N0") HMO(s) serving this scope</small>
-        </div></div>
-    </div>
-    <div class="col-xl-3 col-md-6">
-        <div class="card ct-kpi h-100"><div class="card-body">
-            <div class="text-muted"><i class="fa-solid fa-stethoscope ct-kpi-icon" aria-hidden="true"></i>Total Encounters</div>
-            <div class="display-6 fw-bold">@Model.TotalEncounters.ToString("N0")</div>
-            <small>@Model.EncounterRatePerThousand per 1,000 active enrollees</small>
-        </div></div>
-    </div>
-    <div class="col-xl-3 col-md-6">
-        <div class="card ct-kpi h-100"><div class="card-body">
-            <div class="text-muted"><i class="fa-solid fa-file-invoice ct-kpi-icon" aria-hidden="true"></i>Total Claims</div>
-            <div class="display-6 fw-bold">@Model.TotalClaims.ToString("N0")</div>
-            <small>@Model.ClaimApprovalRate% paid-claim rate</small>
-        </div></div>
-    </div>
-    <div class="col-xl-3 col-md-6">
-        <div class="card ct-kpi h-100"><div class="card-body">
-            <div class="text-muted"><i class="fa-solid fa-clipboard-check ct-kpi-icon" aria-hidden="true"></i>Audited Deaths</div>
-            <div class="display-6 fw-bold">@Model.AuditedDeaths.ToString("N0")</div>
-            <small>@Model.DeathRatePerThousand per 1,000 active enrollees</small>
-        </div></div>
-    </div>
-</div>
-
-<div class="row g-3 mb-4">
-    <div class="col-xl-3 col-md-6">
-        <div class="card h-100 border-success"><div class="card-body">
-            <div class="text-muted"><i class="fa-solid fa-money-bill-wave ct-kpi-icon" aria-hidden="true"></i>Total Claim Value</div>
-            <div class="h3 fw-bold text-success">₦@Model.TotalClaimValue.ToString("N2")</div>
-            <small>Paid: ₦@Model.PaidClaimValue.ToString("N2")</small>
-        </div></div>
-    </div>
-</div>
 
 <div class="row g-4 mb-4">
     <div class="col-lg-5">

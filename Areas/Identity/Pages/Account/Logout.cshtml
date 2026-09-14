@@ -1,4 +1,4 @@
-﻿@page
+@page
 @model LogoutModel
 @{
     ViewData["Title"] = "Logout";
@@ -36,7 +36,6 @@
         <div class="col-md-6 col-lg-5">
             <!-- Card wrapper -->
             <div class="card shadow border-0 rounded-4 overflow-hidden">
-                <!-- Green header -->
                 <div class="bg-success text-white text-center py-4">
                     <h3 class="mb-0 fw-bold">@ViewData["Title"]</h3>
                 </div>
@@ -71,7 +70,7 @@
                                 Thank you for using the application.<br>
                                 Come back anytime!
                             </p>
-                            <a asp-area="" asp-page="/Index" class="btn btn-outline-success">
+                            <a asp-area="" asp-controller="Home" asp-action="Index" class="btn btn-outline-success">
                                 Return to home page
                             </a>
                         </div>

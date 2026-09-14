@@ -18,7 +18,7 @@
         </div>
         <div class="text-end">
             <div class="fw-bold">@dashboardViewLabel</div>
-            <small>@DateTime.Now.ToString("dd MMM yyyy, h:mm tt")</small>
+            <small>@CtshipClock.Now.ToString("dd MMM yyyy, h:mm tt")</small>
         </div>
     </div>
 
@@ -86,58 +86,6 @@
     </form>
 
     <partial name="_MonitoringIndicatorCards" model="Model" />
-
-    <div class="row g-3 mb-4 text-center">
-        <div class="col-xl-3 col-md-6">
-            <div class="card shadow-sm h-100"><div class="card-body">
-                <div class="text-muted">Total Claims Submitted</div>
-                <div class="h3 fw-bold text-primary">@Model.TotalClaims.ToString("N0")</div>
-            </div></div>
-        </div>
-        <div class="col-xl-3 col-md-6">
-            <div class="card shadow-sm h-100"><div class="card-body">
-                <div class="text-muted">Amount Claimed</div>
-                <div class="h3 fw-bold text-success">NGN @Model.TotalClaimValue.ToString("N0")</div>
-            </div></div>
-        </div>
-        <div class="col-xl-3 col-md-6">
-            <div class="card shadow-sm h-100"><div class="card-body">
-                <div class="text-muted">Claims Validated</div>
-                <div class="h3 fw-bold text-success">@Model.ClaimsValidated.ToString("N0")</div>
-            </div></div>
-        </div>
-        <div class="col-xl-3 col-md-6">
-            <div class="card shadow-sm h-100"><div class="card-body">
-                <div class="text-muted">Claims Rejected</div>
-                <div class="h3 fw-bold text-danger">@Model.RejectedClaims.ToString("N0")</div>
-            </div></div>
-        </div>
-        <div class="col-xl-3 col-md-6">
-            <div class="card shadow-sm h-100"><div class="card-body">
-                <div class="text-muted">Amount Approved</div>
-                <div class="h3 fw-bold text-info">NGN @Model.ApprovedClaimValue.ToString("N0")</div>
-            </div></div>
-        </div>
-        <div class="col-xl-3 col-md-6">
-            <div class="card shadow-sm h-100"><div class="card-body">
-                <div class="text-muted">Amount Paid</div>
-                <div class="h3 fw-bold text-success">NGN @Model.PaidClaimValue.ToString("N0")</div>
-            </div></div>
-        </div>
-        <div class="col-xl-3 col-md-6">
-            <div class="card shadow-sm h-100"><div class="card-body">
-                <div class="text-muted">Outstanding Claims</div>
-                <div class="h3 fw-bold text-warning">@Model.OutstandingClaims.ToString("N0")</div>
-                <small class="text-muted">NGN @Model.OutstandingClaimValue.ToString("N0") outstanding</small>
-            </div></div>
-        </div>
-        <div class="col-xl-3 col-md-6">
-            <div class="card shadow-sm h-100"><div class="card-body">
-                <div class="text-muted">Average Processing Time</div>
-                <div class="h3 fw-bold text-dark">@Model.AverageProcessingDays.ToString("N1") days</div>
-            </div></div>
-        </div>
-    </div>
     <partial name="_EncounterDemographicMatrix" model="Model.EncounterDemographicMatrix" />
 
     <div class="row g-3 mb-4">

@@ -114,7 +114,7 @@
     <link rel="apple-touch-icon" sizes="180x180" href="~/img/nedc-logo-180.png" asp-append-version="true">
     <style>
         .footer-brand {
-            background: linear-gradient(135deg, var(--ct-green-dark), var(--ct-green));
+            background: var(--ct-app-gradient);
             border-top: 4px solid var(--ct-gold);
             border-radius: 16px;
             padding: 3rem;
@@ -133,7 +133,7 @@
             height: auto;
             width: 280px;
             max-width: 88vw;
-            background: linear-gradient(180deg, var(--ct-green) 0%, var(--ct-green-dark) 100%);
+            background: var(--ct-app-gradient);
             color: white;
             border-right: 0;
             z-index: 1045;
@@ -773,9 +773,12 @@
             <a asp-area="Identity" asp-page="/Account/Manage/Index" class="nav-link">
                 <i class="bi bi-person-circle"></i> Profile & Password
             </a>
-            <a asp-area="Identity" asp-page="/Account/Logout" class="nav-link">
-                <i class="bi bi-box-arrow-right"></i> Logout
-            </a>
+            <form asp-area="Identity" asp-page="/Account/Logout" asp-route-returnUrl="/Identity/Account/Logout" method="post" class="m-0">
+                @Html.AntiForgeryToken()
+                <button type="submit" class="nav-link border-0 bg-transparent w-100 text-start">
+                    <i class="bi bi-box-arrow-right"></i> Logout
+                </button>
+            </form>
         </nav>
     </div>
   </div>
@@ -790,7 +793,7 @@
     <!-- Footer -->
     <div class="footer-brand">
         <p class="mb-0 small fw-bold">
-            ©@DateTime.Today.Year CTSHIP - Community Targeted Social Health Insurance Project | Powered by North East Development Commission (NEDC)
+            ©@CtshipClock.Today.Year CTSHIP - Community Targeted Social Health Insurance Project | Powered by North East Development Commission (NEDC)
         </p>
         <button type="button" class="btn ct-install-button ct-install-footer d-none mt-3" data-pwa-install aria-label="Install CTSHIP app">
             <i class="bi bi-download" aria-hidden="true"></i>

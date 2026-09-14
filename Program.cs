@@ -8,6 +8,9 @@ using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
+Environment.SetEnvironmentVariable("TZ", "Africa/Lagos");
+TimeZoneInfo.ClearCachedData();
+
 var builder = WebApplication.CreateBuilder(args);
 
 // ============================================================

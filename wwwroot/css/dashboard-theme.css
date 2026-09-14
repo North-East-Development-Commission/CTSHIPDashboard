@@ -5,6 +5,8 @@
     --ct-gold: #FE9031;
     --ct-gold-dark: #a9812d;
     --ct-gold-soft: rgba(254, 144, 49, .12);
+    --ct-app-gradient: linear-gradient(135deg, var(--ct-green-dark) 0%, var(--ct-green) 58%, var(--ct-gold) 100%);
+    --ct-app-gradient-soft: linear-gradient(135deg, rgba(43, 87, 47, .95) 0%, rgba(59, 112, 59, .92) 58%, rgba(254, 144, 49, .9) 100%);
     --ct-button-on-gold: #17351d;
     --ct-border: rgba(59, 112, 59, .22);
     --ct-shadow: 0 10px 30px rgba(59, 112, 59, .12);
@@ -107,7 +109,7 @@ li {
 
 .ct-topbar {
     min-height: var(--ct-topbar-height);
-    background: linear-gradient(100deg, var(--ct-green-dark), var(--ct-green));
+    background: var(--ct-app-gradient);
     border-bottom: 4px solid var(--ct-gold);
 }
 
@@ -219,13 +221,30 @@ li {
 }
 
 .ct-page-header {
-    background: linear-gradient(135deg, var(--ct-green), var(--ct-green-dark));
+    position: relative;
+    overflow: hidden;
+    background: var(--ct-app-gradient);
     color: #fff;
-    border-left: 6px solid var(--ct-gold);
-    border-radius: 1.25rem;
+    border: 1px solid rgba(254, 144, 49, .28);
+    border-radius: 2rem;
     padding: 1.75rem 2rem;
     margin-bottom: 1.5rem;
     box-shadow: var(--ct-shadow);
+}
+
+.ct-page-header::before {
+    content: "";
+    position: absolute;
+    inset: .85rem auto .85rem 1rem;
+    width: .38rem;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, .82);
+    box-shadow: 0 0 0 1px rgba(254, 144, 49, .35);
+}
+
+.ct-page-header > * {
+    position: relative;
+    z-index: 1;
 }
 
 .ct-page-header h1,
@@ -261,7 +280,7 @@ li {
     border: 0;
     border-radius: 1rem;
     color: #fff;
-    background: linear-gradient(135deg, var(--ct-green), var(--ct-green-dark));
+    background: var(--ct-app-gradient-soft);
     box-shadow: var(--ct-shadow);
     position: relative;
     isolation: isolate;
@@ -274,8 +293,7 @@ li {
 }
 
 .ct-kpi-green-gold {
-    background:
-        linear-gradient(135deg, var(--ct-green-dark) 0%, var(--ct-green) 56%, var(--ct-gold) 100%);
+    background: var(--ct-app-gradient);
 }
 
 .ct-kpi-gold-green {
@@ -951,8 +969,7 @@ a:hover {
 
 .ct-enrollee-editor__header {
     color: #fff;
-    background:
-        linear-gradient(115deg, var(--ct-green) 0 68%, var(--ct-gold) 68% 100%);
+    background: var(--ct-app-gradient);
 }
 
 .ct-enrollee-editor__photo {
@@ -966,7 +983,7 @@ a:hover {
 
 .ct-enrollee-editor__footer {
     color: #fff;
-    background: var(--ct-green);
+    background: var(--ct-app-gradient);
     border-top: 4px solid var(--ct-gold);
 }
 
@@ -1008,6 +1025,7 @@ a:hover {
 }
 
 .footer-brand {
+    background: var(--ct-app-gradient);
     border-radius: 0 !important;
     margin-top: 2rem;
 }

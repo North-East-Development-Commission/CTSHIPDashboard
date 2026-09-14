@@ -1,4 +1,5 @@
-﻿using CTSHIPDashboard.Data;
+using CTSHIPDashboard.Data;
+using CTSHIPDashboard.Helpers;
 using CTSHIPDashboard.Models;
 using CTSHIPDashboard.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -61,7 +62,7 @@ public class NotificationsController : Controller
             x.Url,
             x.Icon,
             x.CreatedAt,
-            CreatedAtText = x.CreatedAt.ToLocalTime().ToString("dd MMM, h:mm tt"),
+            CreatedAtText = CtshipClock.ToLocal(x.CreatedAt).ToString("dd MMM, h:mm tt"),
             x.IsUnread
         }));
     }
