@@ -3,7 +3,12 @@
 @{
     ViewData["Title"] = "IHSA Referral Provider Reports";
     var availableStates = ViewBag.AvailableStates as List<string> ?? new List<string>();
+    var availableLgas = ViewBag.AvailableLgas as List<string> ?? new List<string>();
     string selectedState = ViewBag.State as string ?? string.Empty;
+    string selectedLga = ViewBag.Lga as string ?? string.Empty;
+    var lgasByState = availableStates.ToDictionary(
+        state => state,
+        state => NorthEastLocationData.GetLgas(state).OrderBy(lga => lga).ToList());
 }
 
 <div class="ct-page">
@@ -26,7 +31,7 @@
             <div class="col-md-3"><label class="form-label">Reporting Month</label><input type="month" name="reportingPeriod" value="@ViewBag.ReportingPeriod" class="form-control" /></div>
             <div class="col-md-3">
                 <label class="form-label">State</label>
-                <select name="state" class="form-select">
+                <select name="state" id="ihsaReferralReportState" class="form-select">
                     @if (string.IsNullOrWhiteSpace(selectedState))
                     {
                         <option value="" selected>All states</option>
@@ -48,8 +53,32 @@
                     }
                 </select>
             </div>
-            <div class="col-md-2 d-grid"><button type="submit" class="btn btn-success">Filter</button></div>
-            <div class="col-md-2 d-grid"><a asp-action="ReferralProviderReports" class="btn btn-outline-secondary">Clear</a></div>
+            <div class="col-lg-3 col-md-4">
+                <label class="form-label" for="ihsaReferralReportLga">LGA</label>
+                <select name="lga" id="ihsaReferralReportLga" class="form-select" disabled="@string.IsNullOrWhiteSpace(selectedState)">
+                    @if (string.IsNullOrWhiteSpace(selectedState))
+                    {
+                        <option value="">Select a state first</option>
+                    }
+                    else
+                    {
+                        <option value="">All LGAs</option>
+                    }
+                    @foreach (string lga in availableLgas)
+                    {
+                        if (lga == selectedLga)
+                        {
+                            <option value="@lga" selected>@lga</option>
+                        }
+                        else
+                        {
+                            <option value="@lga">@lga</option>
+                        }
+                    }
+                </select>
+            </div>
+            <div class="col-lg-1 col-md-2 d-grid"><button type="submit" class="btn btn-success">Filter</button></div>
+            <div class="col-lg-2 col-md-2 d-grid"><a asp-action="ReferralProviderReports" class="btn btn-outline-secondary">Clear</a></div>
         </div>
     </form>
 
@@ -81,3 +110,39 @@
         </div>
     </div>
 </div>
+@section Scripts {
+    <script>
+        (() => {
+            const stateSelect = document.getElementById('ihsaReferralReportState');
+            const lgaSelect = document.getElementById('ihsaReferralReportLga');
+            const lgasByState = @Html.Raw(Json.Serialize(lgasByState));
+            const initialLga = @Html.Raw(Json.Serialize(selectedLga));
+
+            const addOption = (value, text, selected = false) => {
+                const option = document.createElement('option');
+                option.value = value;
+                option.textContent = text;
+                option.selected = selected;
+                lgaSelect.appendChild(option);
+            };
+
+            const renderLgas = (preserveInitial) => {
+                const state = stateSelect.value;
+                lgaSelect.innerHTML = '';
+                if (!state) {
+                    lgaSelect.disabled = true;
+                    addOption('', 'Select a state first');
+                    return;
+                }
+
+                lgaSelect.disabled = false;
+                addOption('', 'All LGAs');
+                const selected = preserveInitial ? initialLga : '';
+                (lgasByState[state] || []).forEach(lga => addOption(lga, lga, lga === selected));
+            };
+
+            stateSelect?.addEventListener('change', () => renderLgas(false));
+            if (stateSelect && lgaSelect) renderLgas(true);
+        })();
+    </script>
+}

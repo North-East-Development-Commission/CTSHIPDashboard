@@ -114,26 +114,40 @@ public class IHSAController : Controller
     public async Task<IActionResult> MonthlyReports(
         string? reportingPeriod,
         string? state,
+        string? lga,
         CancellationToken cancellationToken)
     {
+        state = string.IsNullOrWhiteSpace(state) ? null : state.Trim();
+        List<string> availableLgas = await GetAvailableReportLgasAsync(false, state, cancellationToken);
+        lga = NormalizeSelectedLga(state, lga, availableLgas);
+
         IQueryable<StateOfficeMonthlyReport> query = ReportQuery(isReferralProviderReport: false);
-        ApplyReportFilters(ref query, reportingPeriod, state);
+        ApplyReportFilters(ref query, reportingPeriod, state, lga);
         ViewBag.ReportingPeriod = reportingPeriod;
         ViewBag.State = state;
+        ViewBag.Lga = lga;
         ViewBag.AvailableStates = await GetAvailableStatesAsync(false, cancellationToken);
+        ViewBag.AvailableLgas = availableLgas;
         return View(await query.OrderByDescending(x => x.ReportingMonth).ThenByDescending(x => x.DateSubmitted).ToListAsync(cancellationToken));
     }
 
     public async Task<IActionResult> ReferralProviderReports(
         string? reportingPeriod,
         string? state,
+        string? lga,
         CancellationToken cancellationToken)
     {
+        state = string.IsNullOrWhiteSpace(state) ? null : state.Trim();
+        List<string> availableLgas = await GetAvailableReportLgasAsync(true, state, cancellationToken);
+        lga = NormalizeSelectedLga(state, lga, availableLgas);
+
         IQueryable<StateOfficeMonthlyReport> query = ReportQuery(isReferralProviderReport: true);
-        ApplyReportFilters(ref query, reportingPeriod, state);
+        ApplyReportFilters(ref query, reportingPeriod, state, lga);
         ViewBag.ReportingPeriod = reportingPeriod;
         ViewBag.State = state;
+        ViewBag.Lga = lga;
         ViewBag.AvailableStates = await GetAvailableStatesAsync(true, cancellationToken);
+        ViewBag.AvailableLgas = availableLgas;
         return View(await query.OrderByDescending(x => x.ReportingMonth).ThenByDescending(x => x.DateSubmitted).ToListAsync(cancellationToken));
     }
 
@@ -249,12 +263,19 @@ public class IHSAController : Controller
     private static void ApplyReportFilters(
         ref IQueryable<StateOfficeMonthlyReport> query,
         string? reportingPeriod,
-        string? state)
+        string? state,
+        string? lga)
     {
         if (!string.IsNullOrWhiteSpace(state))
         {
             string selectedState = state.Trim();
             query = query.Where(x => x.State == selectedState);
+        }
+
+        if (!string.IsNullOrWhiteSpace(lga))
+        {
+            string selectedLga = lga.Trim();
+            query = query.Where(x => x.Lga == selectedLga);
         }
 
         if (DateTime.TryParseExact(
@@ -268,6 +289,44 @@ public class IHSAController : Controller
         }
     }
 
+    private static string? NormalizeSelectedLga(string? state, string? lga, List<string> availableLgas)
+    {
+        if (string.IsNullOrWhiteSpace(state) || string.IsNullOrWhiteSpace(lga))
+        {
+            return null;
+        }
+
+        string selectedLga = lga.Trim();
+        return availableLgas.Contains(selectedLga, StringComparer.OrdinalIgnoreCase)
+            ? selectedLga
+            : null;
+    }
+
+    private async Task<List<string>> GetAvailableReportLgasAsync(
+        bool referralProviderReports,
+        string? state,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(state))
+        {
+            return new List<string>();
+        }
+
+        string selectedState = state.Trim();
+        List<string> configured = NorthEastLocationData.GetLgas(selectedState).ToList();
+        List<string> recorded = await ReportQuery(referralProviderReports)
+            .Where(x => x.State == selectedState && x.Lga != "")
+            .Select(x => x.Lga)
+            .Distinct()
+            .ToListAsync(cancellationToken);
+
+        return configured
+            .Concat(recorded)
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(x => x)
+            .ToList();
+    }
     private async Task<List<string>> GetAvailableStatesAsync(bool referralProviderReports, CancellationToken cancellationToken)
     {
         IQueryable<Provider> providers = _context.Providers.AsNoTracking();
@@ -307,5 +366,3 @@ public class IHSAController : Controller
             .ToList();
     }
 }
-
-

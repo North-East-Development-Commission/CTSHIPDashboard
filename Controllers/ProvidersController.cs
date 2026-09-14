@@ -732,12 +732,7 @@ public class ProvidersController : Controller
         }
 
         var provider = await _context.Providers
-            .Include(p => p.Encounters)
-                .ThenInclude(e => e.Enrollee)
-            .Include(p => p.Encounters)
-                .ThenInclude(e => e.Doctor)
-            .Include(p => p.Doctors)
-            .Include(p => p.Claims)
+            .AsNoTracking()
             .FirstOrDefaultAsync(p =>
                 p.Email == currentUser.Email ||
                 p.Phone == currentUser.PhoneNumber ||
@@ -749,6 +744,35 @@ public class ProvidersController : Controller
             return RedirectToAction("Index", "Home");
         }
 
+        IQueryable<Encounter> encounterQuery = _context.Encounters
+            .AsNoTracking()
+            .Where(e => e.ProviderId == provider.Id);
+        IQueryable<Claim> claimQuery = _context.Claims
+            .AsNoTracking()
+            .Where(c => c.ProviderId == provider.Id);
+
+        int totalUniqueEnrollees = await _context.Enrollees
+            .AsNoTracking()
+            .CountAsync(e => e.ProviderId == provider.Id);
+        int totalEncounters = await encounterQuery.CountAsync();
+        int totalVisits = await encounterQuery
+            .Select(e => new { e.EnrolleeId, VisitDay = e.VisitDate.Date })
+            .Distinct()
+            .CountAsync();
+        int totalClaims = await claimQuery.CountAsync();
+        decimal totalClaimAmount = await claimQuery.Select(c => (decimal?)c.Amount).SumAsync() ?? 0m;
+        int pendingClaims = await claimQuery.CountAsync(c => c.Status == "Submitted" || c.Status == "Approved");
+        int paidClaims = await claimQuery.CountAsync(c => c.Status == "Paid");
+
+        List<Encounter> providerEncounters = await encounterQuery
+            .Include(e => e.Enrollee)
+            .Include(e => e.Doctor)
+            .OrderByDescending(e => e.VisitDate)
+            .ToListAsync();
+        List<Claim> providerClaims = await claimQuery
+            .OrderByDescending(c => c.DateSubmitted)
+            .ToListAsync();
+
         var enrollees = await _context.Enrollees
             .AsNoTracking()
             .Where(e => e.ProviderId == provider.Id)
@@ -756,7 +780,7 @@ public class ProvidersController : Controller
             .ToListAsync();
 
         // TOP DOCTORS
-        var topDoctors = provider.Encounters?
+        var topDoctors = providerEncounters
             .Where(e => e.Doctor != null || !string.IsNullOrEmpty(e.SeenBy))
             .GroupBy(e => e.Doctor != null ? e.Doctor.FullName : e.SeenBy!.Trim())
             .Select(g => new TopDoctorStats
@@ -767,7 +791,7 @@ public class ProvidersController : Controller
             })
             .OrderByDescending(g => g.EncounterCount)
             .Take(5)
-            .ToList() ?? new List<TopDoctorStats>();
+            .ToList();
 
         var providerServices = await _context.EncounterServices
             .AsNoTracking()
@@ -821,20 +845,20 @@ public class ProvidersController : Controller
         var viewModel = new ProviderDashboardViewModel
         {
             ProviderId = provider.Id,
-            ProviderName = provider.Name,
-            ProviderCode = provider.Code,
-            Level = provider.Level,
-            State = provider.State,
+            ProviderName = provider.Name ?? string.Empty,
+            ProviderCode = provider.Code ?? string.Empty,
+            Level = provider.Level ?? string.Empty,
+            State = provider.State ?? string.Empty,
             CanUseClaims = ProviderClaimAccessHelper.CanUseClaims(provider),
 
-            TotalUniqueEnrollees = enrollees.Count,
-            TotalDoctors = provider.Doctors?.Count(doctor => doctor.IsActive) ?? 0,
-            TotalEncounters = provider.Encounters?.Count ?? 0,
-            TotalVisits = provider.Encounters?.Count ?? 0,
-            TotalClaims = provider.Claims?.Count ?? 0,
-            TotalClaimAmount = provider.Claims?.Sum(c => c.Amount) ?? 0,
-            PendingClaims = provider.Claims?.Count(c => c.Status == "Submitted" || c.Status == "Approved") ?? 0,
-            PaidClaims = provider.Claims?.Count(c => c.Status == "Paid") ?? 0,
+            TotalUniqueEnrollees = totalUniqueEnrollees,
+            TotalDoctors = await _context.Doctors.AsNoTracking().CountAsync(doctor => doctor.ProviderId == provider.Id && doctor.IsActive),
+            TotalEncounters = totalEncounters,
+            TotalVisits = totalVisits,
+            TotalClaims = totalClaims,
+            TotalClaimAmount = totalClaimAmount,
+            PendingClaims = pendingClaims,
+            PaidClaims = paidClaims,
             TotalReferrals = totalReferrals,
             PendingReferralVerification = await initiatedReferrals.CountAsync(
                 x => x.Status == ReferralStatus.SubmittedToHmo),
@@ -849,12 +873,9 @@ public class ProvidersController : Controller
                 ? 0m
                 : Math.Round((decimal)completedReferrals / totalReferrals * 100m, 2),
 
-            RecentEncounters = provider.Encounters?
-         .OrderByDescending(e => e.VisitDate)
-         .Take(5)
-         .ToList() ?? new List<Encounter>(),
+            RecentEncounters = providerEncounters.Take(5).ToList(),
 
-            Claims = provider.Claims?.ToList() ?? new List<Claim>(),   // FIXED!
+            Claims = providerClaims,
             //ctrl a, alt hoi, alt hoa
             Enrollees = enrollees,
             TopDoctors = topDoctors,
@@ -2208,8 +2229,3 @@ public class ProvidersController : Controller
     }
 
 }
-
-
-
-
-

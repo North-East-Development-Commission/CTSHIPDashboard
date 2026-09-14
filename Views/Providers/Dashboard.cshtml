@@ -7,7 +7,7 @@
 <!-- Custom Styles -->
 <style>
     body {
-        background: linear-gradient(135deg, #ffffff 0%, rgba(59, 112, 59, .08) 100%);
+        background: linear-gradient(135deg, #ffffff 0%, rgba(113, 184, 67, .12) 100%);
         min-height: 100vh;
     }
     .dashboard-card {
@@ -24,13 +24,25 @@
         box-shadow: 0 20px 40px rgba(0, 100, 0, 0.15);
     }
     .kpi-card {
-        background: linear-gradient(135deg, var(--bg-start), var(--bg-end));
+        background: linear-gradient(rgba(25,72,32,.16), rgba(25,72,32,.16)), linear-gradient(135deg, var(--bg-start), var(--bg-end));
         color: white !important;
         border-radius: 16px;
         padding: 2rem;
         text-align: center;
         height: 100%;
         text-shadow: 0 1px 2px rgba(0,0,0,.28);
+    }
+    .main-content .provider-dashboard .dashboard-card.kpi-card {
+        background: linear-gradient(rgba(25,72,32,.16), rgba(25,72,32,.16)), linear-gradient(135deg, var(--bg-start), var(--bg-end)) !important;
+        background-image: linear-gradient(rgba(25,72,32,.16), rgba(25,72,32,.16)), linear-gradient(135deg, var(--bg-start), var(--bg-end)) !important;
+        border: 1px solid rgba(255,255,255,.28) !important;
+        color: #ffffff !important;
+        box-shadow: 0 12px 30px rgba(43,87,47,.24) !important;
+    }
+    .main-content .provider-dashboard .dashboard-card.kpi-card :where(h1,h2,h3,h4,h5,h6,p,span,small,div,strong,i,.text-muted) {
+        color: #ffffff !important;
+        opacity: 1 !important;
+        text-shadow: 0 1px 2px rgba(0,0,0,.24) !important;
     }
     .kpi-card h5 {
         color: white !important;
@@ -40,6 +52,8 @@
     }
     .kpi-card h2 {
         color: white !important;
+        font-size: 1.8rem;
+        overflow-wrap: anywhere;
     }
     .kpi-icon {
         font-size: 3rem;
@@ -47,7 +61,7 @@
         margin-bottom: 1rem;
     }
     .section-header {
-        background: linear-gradient(90deg, #3B703B, #2B572F);
+        background: linear-gradient(90deg, #71B843, #3F8F3B);
         color: white;
         border-radius: 16px 16px 0 0;
         padding: 1.5rem;
@@ -63,12 +77,12 @@
         background: rgba(254, 144, 49, .12);
     }
     .table-modern thead th {
-        color: #2B572F !important;
+        color: #2F6F31 !important;
         font-weight: 800;
         white-space: nowrap;
     }
     .provider-hero {
-        background: linear-gradient(135deg, #3B703B, #2B572F);
+        background: linear-gradient(rgba(25,72,32,.18), rgba(25,72,32,.18)), linear-gradient(135deg, #71B843, #3F8F3B);
         border: 3px solid #FE9031;
         border-radius: 20px;
         color: white;
@@ -133,7 +147,7 @@
     .doctor-rank {
         width: 40px;
         height: 40px;
-        background: #3B703B;
+        background: #71B843;
         color: white;
         border-radius: 50%;
         display: flex;
@@ -142,7 +156,7 @@
         font-weight: bold;
     }
     .footer-brand {
-        background: linear-gradient(135deg, #2B572F, #3B703B);
+        background: linear-gradient(rgba(25,72,32,.18), rgba(25,72,32,.18)), linear-gradient(135deg, #3F8F3B, #71B843);
         border-radius: 16px;
         padding: 3rem;
         color: white;
@@ -154,7 +168,7 @@
     <div class="provider-hero text-center mb-4">
         <h1 class="display-4 fw-bold mb-3">@Model.ProviderName</h1>
         <p class="facility-code lead fw-bold fs-5 mb-3">Facility Code: <strong>@Model.ProviderCode</strong></p>
-        <p class="fs-5 fw-bold mb-0">@Model.Level � @Model.State</p>
+        <p class="fs-5 fw-bold mb-0">@Model.Level - @Model.State</p>
     </div>
 
     <div class="d-flex flex-wrap justify-content-center gap-2 mb-5">
@@ -184,57 +198,57 @@
     <!-- KPI CARDS -->
     <div class="row g-4 mb-5">
         <div class="col-xl-3 col-md-6">
-            <div class="dashboard-card kpi-card" style="--bg-start:#3B703B; --bg-end:#2B572F;">
+            <div class="dashboard-card kpi-card" style="--bg-start:#71B843; --bg-end:#3F8F3B;">
                 <div class="kpi-icon">
                     <i class="bi bi-people"></i>
                 </div>
                 <h5>Patients</h5>
-                <h2 class="display-5 fw-bold mb-0">@Model.TotalUniqueEnrollees</h2>
+                <h2 class="display-5 fw-bold mb-0">@((Model.TotalUniqueEnrollees ?? 0).ToString("N0"))</h2>
             </div>
         </div>
         <div class="col-xl-3 col-md-6">
-            <div class="dashboard-card kpi-card" style="--bg-start:#FE9031; --bg-end:#3B703B;">
+            <div class="dashboard-card kpi-card" style="--bg-start:#FE9031; --bg-end:#71B843;">
                 <div class="kpi-icon">
                     <i class="bi bi-calendar2-check"></i>
                 </div>
                 <h5>Total Visits</h5>
-                <h2 class="display-5 fw-bold mb-0">@Model.TotalVisits</h2>
+                <h2 class="display-5 fw-bold mb-0">@Model.TotalVisits.ToString("N0")</h2>
             </div>
         </div>
         <div class="col-xl-3 col-md-6">
-            <div class="dashboard-card kpi-card" style="--bg-start:#3B703B; --bg-end:#FE9031;">
+            <div class="dashboard-card kpi-card" style="--bg-start:#71B843; --bg-end:#FE9031;">
                 <div class="kpi-icon">
                     <i class="bi bi-journal-medical"></i>
                 </div>
                 <h5>Total Encounters</h5>
-                <h2 class="display-5 fw-bold mb-0">@Model.TotalEncounters</h2>
+                <h2 class="display-5 fw-bold mb-0">@Model.TotalEncounters.ToString("N0")</h2>
             </div>
         </div>
         @if (Model.CanUseClaims)
         {
             <div class="col-xl-3 col-md-6">
-                <div class="dashboard-card kpi-card" style="--bg-start:#3B703B; --bg-end:#FE9031;">
+                <div class="dashboard-card kpi-card" style="--bg-start:#71B843; --bg-end:#FE9031;">
                     <div class="kpi-icon">
                         <i class="bi bi-hourglass-split"></i>
                     </div>
                     <h5>Pending Claims</h5>
-                    <h2 class="display-5 fw-bold mb-0">@Model.PendingClaims</h2>
+                    <h2 class="display-5 fw-bold mb-0">@Model.PendingClaims.ToString("N0")</h2>
                 </div>
             </div>
             <div class="col-xl-3 col-md-6">
-                <div class="dashboard-card kpi-card" style="--bg-start:#FE9031; --bg-end:#3B703B;">
+                <div class="dashboard-card kpi-card" style="--bg-start:#FE9031; --bg-end:#71B843;">
                     <div class="kpi-icon">
                         <i class="bi bi-journal"></i>
                     </div>
                     <h5>Claims Value</h5>
-                    <h2 class="display-5 fw-bold mb-0">?@((int)Model.TotalClaimAmount)</h2>
+                    <h2 class="display-5 fw-bold mb-0">NGN @Model.TotalClaimAmount.ToString("N0")</h2>
                 </div>
             </div>
         }
         else
         {
             <div class="col-xl-3 col-md-6">
-                <div class="dashboard-card kpi-card" style="--bg-start:#3B703B; --bg-end:#FE9031;">
+                <div class="dashboard-card kpi-card" style="--bg-start:#71B843; --bg-end:#FE9031;">
                     <div class="kpi-icon">
                         <i class="bi bi-cash-stack"></i>
                     </div>
@@ -243,12 +257,12 @@
                 </div>
             </div>
             <div class="col-xl-3 col-md-6">
-                <div class="dashboard-card kpi-card" style="--bg-start:#FE9031; --bg-end:#3B703B;">
+                <div class="dashboard-card kpi-card" style="--bg-start:#FE9031; --bg-end:#71B843;">
                     <div class="kpi-icon">
                         <i class="bi bi-hospital"></i>
                     </div>
                     <h5>Provider Level</h5>
-                    <h2 class="display-6 fw-bold mb-0">PHC</h2>
+                    <h2 class="display-6 fw-bold mb-0">@Model.Level</h2>
                 </div>
             </div>
         }
