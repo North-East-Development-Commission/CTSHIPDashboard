@@ -15,7 +15,7 @@ using System.Text.Json;
 
 namespace CTSHIPDashboard.Controllers
 {
-    [Authorize(Roles = "Provider,CTSHIPAdmin")]
+    [Authorize(Roles = "Provider,CTSHIPAdmin,Admin")]
     public class EncountersController : Controller
     {
 
@@ -319,12 +319,13 @@ namespace CTSHIPDashboard.Controllers
 
                     return RedirectToAction(nameof(Index));
                 }
-                catch (DbUpdateException)
+                catch (DbUpdateException exception)
                 {
                     await transaction.RollbackAsync();
+                    string reason = exception.GetBaseException().Message;
                     ModelState.AddModelError(
                         string.Empty,
-                        "The encounter could not be completed. No funds were deducted.");
+                        $"The encounter could not be completed. No funds were deducted. Database reason: {reason}");
                 }
             }
 
@@ -1358,7 +1359,7 @@ namespace CTSHIPDashboard.Controllers
 
         private async Task<bool> CanAccessProviderAsync(int providerId)
         {
-            if (User.IsInRole("CTSHIPAdmin"))
+            if (User.IsInRole("CTSHIPAdmin") || User.IsInRole("Admin"))
             {
                 return true;
             }

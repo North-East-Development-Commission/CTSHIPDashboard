@@ -67,7 +67,7 @@ public class ReferralCreateViewModel
     public string? InvestigationSummary { get; set; }
 
     [Display(Name = "Priority")]
-    public ReferralPriority Priority { get; set; } = ReferralPriority.Routine;
+    public ReferralPriority Priority { get; set; } = ReferralPriority.Urgent;
 
     public List<SelectListItem> ReferredHospitals { get; set; } = new();
 }

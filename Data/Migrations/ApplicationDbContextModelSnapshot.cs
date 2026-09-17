@@ -1662,7 +1662,7 @@ namespace CTSHIPDashboard.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
-                    b.Property<long>("NIN")
+                    b.Property<long?>("NIN")
                         .HasColumnType("bigint");
 
                     b.Property<string>("OtherVulnerableCategory")
@@ -1670,7 +1670,6 @@ namespace CTSHIPDashboard.Migrations
                         .HasColumnType("nvarchar(100)");
 
                     b.Property<string>("Phone")
-                        .IsRequired()
                         .HasMaxLength(20)
                         .HasColumnType("nvarchar(20)");
 

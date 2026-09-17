@@ -1,4 +1,4 @@
-﻿namespace CTSHIPDashboard.Models.ViewModels
+namespace CTSHIPDashboard.Models.ViewModels
 {
     public class EnrolleeListViewModel
     {
@@ -6,7 +6,7 @@
         public string FullName { get; set; } = string.Empty;
         public string EnrollmentNumber { get; set; } = string.Empty;
         public string Gender { get; set; } = string.Empty;
-        public string Phone { get; set; } = string.Empty;
+        public string? Phone { get; set; }
         public string State { get; set; } = string.Empty;
         public string LGA { get; set; } = string.Empty;
         public string HmoName { get; set; } = string.Empty;
@@ -15,7 +15,7 @@
         public string Status { get; set; } = "Active";
         public DateTime DateRegistered { get; set; }
         public string? PhotoPath { get; set; }
-        public Int64 NIN { get; internal set; }
+        public long? NIN { get; internal set; }
 
         // Read-only computed property — perfect!
         public string StatusBadgeClass => Status?.ToLowerInvariant() switch

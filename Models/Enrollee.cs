@@ -1,4 +1,4 @@
-﻿using CTSHIPDashboard.Models;
+using CTSHIPDashboard.Models;
 using CTSHIPDashboard.Models.ViewModels;
 using System;
 using System.ComponentModel.DataAnnotations;
@@ -32,11 +32,10 @@ namespace CTSHIPDashboard.Models
         [Display(Name = "Date of Birth")]
         public DateTime DateOfBirth { get; set; }
 
-        [Required]
         [Phone]
         [StringLength(20)]
         [Display(Name = "Phone Number")]
-        public string Phone { get; set; } = string.Empty;
+        public string? Phone { get; set; }
 
         [Required]
         [StringLength(500)]
@@ -49,10 +48,9 @@ namespace CTSHIPDashboard.Models
         [StringLength(50)]
         public string Ward { get; set; } = string.Empty; // e.g. Lagos, Kano, FCT
 
-        [Required]
         [Range(1, long.MaxValue, ErrorMessage = "Must be a valid positive long integer.")]
         [Display(Name = "NIN")]
-        public long NIN { get; set; }
+        public long? NIN { get; set; }
 
         [Required]
         [StringLength(100)]

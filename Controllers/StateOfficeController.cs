@@ -157,7 +157,7 @@ public class StateOfficeController : Controller
                 EF.Functions.Like(e.FullName, s) ||
                 EF.Functions.Like(e.EnrollmentNumber, s) ||
                 EF.Functions.Like(e.Phone ?? "", s) ||
-                EF.Functions.Like(e.NIN.ToString(), s));
+                EF.Functions.Like((e.NIN ?? 0).ToString(), s));
         }
 
         var totalItems = await query.CountAsync();

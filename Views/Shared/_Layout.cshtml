@@ -464,9 +464,6 @@
 
             @if (User.IsInRole("HMO"))
             {
-                <a asp-controller="HmoUsers" asp-action="Index" class="nav-link">
-                    <i class="bi bi-person-gear"></i> Facility Accounts
-                </a>
                     <a asp-controller="Hmo" asp-action="Dashboard" class="nav-link text-white">
                         <i class="bi bi-people-fill"></i> Dashboard
                     </a>
@@ -479,6 +476,10 @@
                     <a asp-controller="Hmo" asp-action="MyProviders" class="nav-link">
                         <i class="bi bi-hospital-fill"></i> My Providers
                     </a>
+
+                        <a asp-controller="HmoUsers" asp-action="Index" class="nav-link">
+                            <i class="bi bi-person-gear"></i> Facility Accounts
+                        </a>
                     <a asp-controller="Hmo" asp-action="Capitation" class="nav-link">
                         <i class="bi bi-cash-stack"></i> Capitation
                     </a>
@@ -654,6 +655,9 @@
                 <a asp-controller="Providers" asp-action="Index" asp-route-level="Secondary" class="nav-link">
                     <i class="bi bi-building-add"></i> Referral Providers
                 </a>
+                <a asp-controller="ReferralPro" asp-action="Index" class="nav-link">
+                    <i class="bi bi-clipboard2-pulse"></i> Referral Encounters
+                </a>
                 <hr class="ct-logout-divider mx-3 my-2">
                 <a asp-area="Identity" asp-page="/Account/Manage/Index" class="nav-link">
                     <i class="bi bi-person-gear"></i> Admin Settings
@@ -756,9 +760,7 @@
                 <a asp-controller="IHSA" asp-action="Referrals" class="nav-link">
                     <i class="bi bi-arrow-left-right"></i> Referral Oversight
                 </a>
-                <a asp-controller="Monitoring" asp-action="Index" class="nav-link">
-                    <i class="bi bi-bar-chart-line-fill"></i> Monitoring & Evaluation
-                </a>
+               
             }
                     @if (User.IsInRole("CTSHIPAdmin") || User.IsInRole("HMO") || User.IsInRole("Provider") ||
                                     User.IsInRole("StateOffice") || User.IsInRole("Monitoring") ||
@@ -793,7 +795,7 @@
     <!-- Footer -->
     <div class="footer-brand">
         <p class="mb-0 small fw-bold">
-            ©@CtshipClock.Today.Year CTSHIP - Community Targeted Social Health Insurance Project | Powered by North East Development Commission (NEDC)
+            ©@CtshipClock.Today.Year CTSHIP - Community Targeted Social Health Insurance Program | Powered by North East Development Commission (NEDC)
         </p>
         <button type="button" class="btn ct-install-button ct-install-footer d-none mt-3" data-pwa-install aria-label="Install CTSHIP app">
             <i class="bi bi-download" aria-hidden="true"></i>

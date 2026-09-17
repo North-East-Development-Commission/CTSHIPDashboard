@@ -28,6 +28,10 @@ namespace CTSHIPDashboard.ViewModels
         public int CompletedReferrals { get; set; }
         public int RejectedReferrals { get; set; }
         public decimal ReferralCompletionRate { get; set; }
+        public DateTime? CapitationReportingMonth { get; set; }
+        public decimal CapitationReceived { get; set; }
+        public decimal CapitationOutstanding { get; set; }
+        public decimal CapitationUtilizationRate { get; set; }
 
         // Recent Encounters (Latest 10)
         public List<Encounter> RecentEncounters { get; set; } = new();

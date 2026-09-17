@@ -56,7 +56,7 @@ public class Referral
     [StringLength(1000)]
     public string? InvestigationSummary { get; set; }
 
-    public ReferralPriority Priority { get; set; } = ReferralPriority.Routine;
+    public ReferralPriority Priority { get; set; } = ReferralPriority.Urgent;
 
     public ReferralStatus Status { get; set; } = ReferralStatus.Draft;
 

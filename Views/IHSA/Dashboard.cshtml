@@ -156,7 +156,7 @@
         <div class="col-xl-3 col-md-6"><div class="card bg-success text-white h-100"><div class="card-body"><div><i class="fa-solid fa-heart-pulse me-2" aria-hidden="true"></i>Service Utilization</div><div class="display-6 fw-bold">@Model.ServiceUtilizationRate%</div><small>@Model.UniqueServiceUsers.ToString("N0") unique users</small></div></div></div>
         <div class="col-xl-3 col-md-6"><div class="card bg-primary text-white h-100"><div class="card-body"><div><i class="fa-solid fa-clipboard-check me-2" aria-hidden="true"></i>@(isNedcDashboard ? "IHSA Reports Awaiting HQ Audit" : "Reports Pending Audit")</div><div class="display-6 fw-bold">@((isNedcDashboard ? (int)ViewBag.NedcPendingReports : Model.PendingReports).ToString("N0"))</div><small>@(isNedcDashboard ? $"{((int)ViewBag.NedcCompletedReports):N0} HQ decisions recorded" : $"{Model.AuditedReports:N0} audited")</small></div></div></div>
         <div class="col-xl-3 col-md-6"><div class="card bg-success text-white h-100"><div class="card-body"><div><i class="fa-solid fa-money-check-dollar me-2" aria-hidden="true"></i>Capitation Paid</div><div class="h3 fw-bold">NGN @Model.Capitation.PaidAmount.ToString("N2")</div><small>@Model.Capitation.PaidPayments of @Model.Capitation.TotalPayments payments</small></div></div></div>
-        <div class="col-xl-3 col-md-6"><div class="card bg-primary text-white h-100"><div class="card-body"><div><i class="fa-solid fa-users-gear me-2" aria-hidden="true"></i>Active Users</div><div class="display-6 fw-bold">@Model.ActiveUsersLast30Days.ToString("N0")</div><small>Last 30 days</small></div></div></div>
+
     </div>
 
     <div class="card shadow-sm mb-4">

@@ -273,29 +273,6 @@
     </div>
 </div>
 
-<div class="card">
-    <div class="card-header d-flex justify-content-between">
-        <span class="fw-bold">Exclusive Vulnerable Group Distribution Check</span>
-        <span class="badge @(Math.Abs(Model.VulnerableDistributionTotal - 100) <= 0.5m ? "bg-success" : "bg-warning text-dark")">
-            Total: @Model.VulnerableDistributionTotal%
-        </span>
-    </div>
-    <div class="card-body">
-        <p class="text-muted">Each vulnerable enrollee is counted once using age-first classification, preventing overlap.</p>
-        @foreach (var category in Model.VulnerableDistribution)
-        {
-            <div class="mb-3">
-                <div class="d-flex justify-content-between">
-                    <span>@category.Label (@category.Count)</span><span>@category.Percentage%</span>
-                </div>
-                <div class="progress">
-                    <div class="progress-bar bg-success" style="width: @category.Percentage%"></div>
-                </div>
-            </div>
-        }
-    </div>
-</div>
-
 <div class="row g-4 mt-1">
     <div class="col-lg-5">
         <div class="card h-100">

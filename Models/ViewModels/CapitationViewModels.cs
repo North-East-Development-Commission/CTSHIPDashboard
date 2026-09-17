@@ -87,3 +87,28 @@ public class CapitationPaymentUpdateViewModel
     [StringLength(100)]
     public string? PaymentReference { get; set; }
 }
+
+public class CapitationBulkDisbursementViewModel
+{
+    [Required]
+    public string ReportingMonth { get; set; } = string.Empty;
+
+    [Required]
+    public List<int> ProviderIds { get; set; } = new();
+
+    [Required]
+    [StringLength(20)]
+    public string PaymentPeriod { get; set; } = "Monthly";
+
+    [Range(typeof(decimal), "0.01", "9999999999999999")]
+    public decimal CapitationPerEnrollee { get; set; }
+
+    [DataType(DataType.Date)]
+    public DateTime? DueDate { get; set; }
+
+    [DataType(DataType.Date)]
+    public DateTime? ProviderPaymentReceivedDate { get; set; }
+
+    [StringLength(100)]
+    public string? PaymentReference { get; set; }
+}

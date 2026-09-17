@@ -232,8 +232,8 @@ public class EnrolleesController : Controller
             enrollees = enrollees.Where(e =>
                 e.FullName.ToLower().Contains(search) ||
                 e.EnrollmentNumber.Contains(search) ||
-                e.Phone.Contains(search) ||
-                (e.NIN.ToString().Contains(search))
+                (e.Phone != null && e.Phone.Contains(search)) ||
+                (e.NIN.HasValue && e.NIN.Value.ToString().Contains(search))
             );
         }
 
@@ -389,12 +389,14 @@ public class EnrolleesController : Controller
 
         await ValidateEnrollmentAssignmentAsync(enrollee, "Select a facility assigned to the selected HMO.");
 
-        //check if both name and nin exists
-        bool alreadyExists = await _context.Enrollees
-            .AnyAsync(e => e.NIN == enrollee.NIN);
-        if (alreadyExists)
+        if (enrollee.NIN.HasValue)
         {
-            ModelState.AddModelError(nameof(Enrollee.NIN), "An enrollee with this NIN already exists.");
+            bool alreadyExists = await _context.Enrollees
+                .AnyAsync(e => e.NIN == enrollee.NIN);
+            if (alreadyExists)
+            {
+                ModelState.AddModelError(nameof(Enrollee.NIN), "An enrollee with this NIN already exists.");
+            }
         }
 
         if (ModelState.IsValid)
@@ -575,7 +577,8 @@ public class EnrolleesController : Controller
             return Forbid();
         }
 
-        if (await _context.Enrollees.AnyAsync(e => e.NIN == enrollee.NIN && e.Id != id))
+        if (enrollee.NIN.HasValue
+            && await _context.Enrollees.AnyAsync(e => e.NIN == enrollee.NIN && e.Id != id))
         {
             ModelState.AddModelError(nameof(Enrollee.NIN), "Another enrollee already uses this NIN.");
         }
@@ -703,7 +706,7 @@ public class EnrolleesController : Controller
         target.FullName = source.FullName.Trim();
         target.Gender = source.Gender;
         target.DateOfBirth = source.DateOfBirth;
-        target.Phone = source.Phone.Trim();
+        target.Phone = string.IsNullOrWhiteSpace(source.Phone) ? null : source.Phone.Trim();
         target.NIN = source.NIN;
         target.State = source.State;
         target.LGA = source.LGA.Trim();
@@ -1253,7 +1256,8 @@ public class EnrolleesController : Controller
 
             HashSet<long> knownNins = await _context.Enrollees
                 .AsNoTracking()
-                .Select(enrollee => enrollee.NIN)
+                .Where(enrollee => enrollee.NIN.HasValue)
+                .Select(enrollee => enrollee.NIN!.Value)
                 .ToHashSetAsync();
             HashSet<string> knownEnrollmentNumbers = new(
                 (await _context.Enrollees
@@ -1285,8 +1289,8 @@ public class EnrolleesController : Controller
                     string fullName = worksheet.Cells[rowNumber, Column("FullName")].Text.Trim();
                     string genderValue = worksheet.Cells[rowNumber, Column("Gender")].Text.Trim();
                     ExcelRange dobCell = worksheet.Cells[rowNumber, Column("DateOfBirth")];
-                    string phone = worksheet.Cells[rowNumber, Column("Phone")].Text.Trim();
-                    string ninValue = worksheet.Cells[rowNumber, Column("NIN")].Text.Trim();
+                    string phone = OptionalCellText(rowNumber, "Phone");
+                    string ninValue = OptionalCellText(rowNumber, "NIN");
                     string stateValue = worksheet.Cells[rowNumber, Column("State")].Text.Trim();
                     string lga = worksheet.Cells[rowNumber, Column("LGA")].Text.Trim();
                     string ward = worksheet.Cells[rowNumber, Column("Ward")].Text.Trim();
@@ -1321,8 +1325,6 @@ public class EnrolleesController : Controller
                     if (string.IsNullOrWhiteSpace(fullName)) emptyFields.Add("FullName");
                     if (string.IsNullOrWhiteSpace(genderValue)) emptyFields.Add("Gender");
                     if (string.IsNullOrWhiteSpace(dobCell.Text)) emptyFields.Add("DateOfBirth");
-                    if (string.IsNullOrWhiteSpace(phone)) emptyFields.Add("Phone");
-                    if (string.IsNullOrWhiteSpace(ninValue)) emptyFields.Add("NIN");
                     if (string.IsNullOrWhiteSpace(stateValue)) emptyFields.Add("State");
                     if (string.IsNullOrWhiteSpace(lga)) emptyFields.Add("LGA");
                     if (string.IsNullOrWhiteSpace(ward)) emptyFields.Add("Ward");
@@ -1367,13 +1369,19 @@ public class EnrolleesController : Controller
                         continue;
                     }
 
+                    long? nin = null;
                     string ninDigits = ninValue.Trim();
-                    if (ninDigits.Length != 11
-                        || !ninDigits.All(char.IsDigit)
-                        || !long.TryParse(ninDigits, out long nin))
+                    if (!string.IsNullOrWhiteSpace(ninDigits))
                     {
-                        errors.Add($"Row {rowNumber}: NIN must contain exactly 11 digits.");
-                        continue;
+                        if (ninDigits.Length != 11
+                            || !ninDigits.All(char.IsDigit)
+                            || !long.TryParse(ninDigits, out long parsedNin))
+                        {
+                            errors.Add($"Row {rowNumber}: NIN must contain exactly 11 digits when provided.");
+                            continue;
+                        }
+
+                        nin = parsedNin;
                     }
 
                     if (!validStates.TryGetValue(stateValue, out string? state))
@@ -1434,7 +1442,7 @@ public class EnrolleesController : Controller
                         normalizedOtherVulnerableCategory = otherVulnerableCategory.Trim();
                     }
 
-                    if (knownNins.Contains(nin))
+                    if (nin.HasValue && knownNins.Contains(nin.Value))
                     {
                         errors.Add(
                             $"Row {rowNumber}: NIN {ninDigits} already exists or is repeated in this file.");
@@ -1460,7 +1468,10 @@ public class EnrolleesController : Controller
                         while (knownEnrollmentNumbers.Contains(enrollmentNumber));
                     }
 
-                    knownNins.Add(nin);
+                    if (nin.HasValue)
+                    {
+                        knownNins.Add(nin.Value);
+                    }
                     knownEnrollmentNumbers.Add(enrollmentNumber);
 
                     Enrollee enrollee = new()
@@ -1469,7 +1480,7 @@ public class EnrolleesController : Controller
                         EnrollmentNumber = enrollmentNumber,
                         Gender = gender,
                         DateOfBirth = dob,
-                        Phone = phone,
+                        Phone = string.IsNullOrWhiteSpace(phone) ? null : phone,
                         State = state,
                         LGA = lga,
                         Ward = ward,
@@ -1660,7 +1671,7 @@ public class EnrolleesController : Controller
             query = query.Where(e =>
                 EF.Functions.Like(e.FullName, s) ||
                 EF.Functions.Like(e.EnrollmentNumber, s) ||
-                EF.Functions.Like(e.Phone, s));
+                EF.Functions.Like(e.Phone ?? "", s));
         }
 
         // FILTER BY STATUS (IsActive boolean)

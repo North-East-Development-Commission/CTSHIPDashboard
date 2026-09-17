@@ -841,6 +841,13 @@ public class ProvidersController : Controller
         int completedReferrals = await initiatedReferrals.CountAsync(
             x => x.Status == ReferralStatus.Closed);
 
+        CapitationPayment? latestCapitation = await _context.CapitationPayments
+            .AsNoTracking()
+            .Where(payment => payment.ProviderId == provider.Id)
+            .OrderByDescending(payment => payment.ReportingMonth)
+            .ThenByDescending(payment => payment.UpdatedAt ?? payment.CreatedAt)
+            .FirstOrDefaultAsync();
+
         // BUILD VIEWMODEL
         var viewModel = new ProviderDashboardViewModel
         {
@@ -872,6 +879,10 @@ public class ProvidersController : Controller
             ReferralCompletionRate = totalReferrals == 0
                 ? 0m
                 : Math.Round((decimal)completedReferrals / totalReferrals * 100m, 2),
+            CapitationReportingMonth = latestCapitation?.ReportingMonth,
+            CapitationReceived = latestCapitation?.ActualPaymentMade ?? 0m,
+            CapitationOutstanding = latestCapitation?.OutstandingAmount ?? 0m,
+            CapitationUtilizationRate = latestCapitation?.UtilizationRate ?? 0m,
 
             RecentEncounters = providerEncounters.Take(5).ToList(),
 

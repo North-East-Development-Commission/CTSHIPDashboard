@@ -31,7 +31,7 @@ public class EncounterReferralInputViewModel
     [Display(Name = "Investigation Summary")]
     public string? InvestigationSummary { get; set; }
 
-    public ReferralPriority Priority { get; set; } = ReferralPriority.Routine;
+    public ReferralPriority Priority { get; set; } = ReferralPriority.Urgent;
 
     public List<SelectListItem> ReferredHospitals { get; set; } = new();
 }

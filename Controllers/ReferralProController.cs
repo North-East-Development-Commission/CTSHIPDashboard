@@ -17,7 +17,7 @@ using AppClaim = CTSHIPDashboard.Models.Claim;
 
 namespace CTSHIPDashboard.Controllers;
 
-[Authorize(Roles = "ReferralPro,CTSHIPAdmin")]
+[Authorize(Roles = "ReferralPro,CTSHIPAdmin,Admin")]
 [Route("ReferralPro/Referrals")]
 public class ReferralProController : Controller
 {
@@ -91,7 +91,7 @@ public class ReferralProController : Controller
     {
         ViewBag.IsSecondaryProvider = await IsSecondaryProviderAsync(cancellationToken);
         ReferredHospital? currentHospital = await GetCurrentReferralHospitalAsync(cancellationToken);
-        if (!User.IsInRole("CTSHIPAdmin") && currentHospital == null)
+        if (!IsReferralOversightAdmin() && currentHospital == null)
         {
             return View(new ReferralProviderDashboardViewModel
             {
@@ -180,7 +180,7 @@ public class ReferralProController : Controller
         CancellationToken cancellationToken = default)
     {
         ReferredHospital? currentHospital = await GetCurrentReferralHospitalAsync(cancellationToken);
-        if (!User.IsInRole("CTSHIPAdmin") && currentHospital == null)
+        if (!IsReferralOversightAdmin() && currentHospital == null)
         {
             TempData["Error"] = "Your ReferralPro account is not linked to an active secondary/referral provider. Match the user email with the provider email.";
             ViewBag.Search = search;
@@ -554,7 +554,8 @@ public class ReferralProController : Controller
         {
             await transaction.RollbackAsync(cancellationToken);
             DeleteSavedClaimSupportFiles(savedClaimSupportFiles);
-            ModelState.AddModelError(string.Empty, "The referral encounter, claim, and supporting documents could not be saved. Please review the form and try again.");
+            string reason = exception.GetBaseException().Message;
+            ModelState.AddModelError(string.Empty, $"The referral encounter, claim, and supporting documents could not be saved. Database reason: {reason}");
         }
 
         PopulateEncounterLists(model);
@@ -576,7 +577,7 @@ public class ReferralProController : Controller
             .Include(x => x.ReferredHospital)
             .Where(x => !x.IsDeleted && visibleStatuses.Contains(x.Status));
 
-        if (!User.IsInRole("CTSHIPAdmin") && currentHospital != null)
+        if (!IsReferralOversightAdmin() && currentHospital != null)
         {
             query = query.Where(x => x.ReferredHospitalId == currentHospital.Id);
         }
@@ -691,6 +692,10 @@ public class ReferralProController : Controller
             .FirstOrDefaultAsync(x => x.Id == id && !x.IsDeleted, cancellationToken);
     }
 
+    private bool IsReferralOversightAdmin()
+    {
+        return User.IsInRole("CTSHIPAdmin") || User.IsInRole("Admin");
+    }
     private async Task<bool> IsSecondaryProviderAsync(CancellationToken cancellationToken)
     {
         var user = await _userManager.GetUserAsync(User);
@@ -700,7 +705,7 @@ public class ReferralProController : Controller
 
     private async Task<bool> CanAccessReferralAsync(Referral referral, CancellationToken cancellationToken)
     {
-        if (User.IsInRole("CTSHIPAdmin"))
+        if (IsReferralOversightAdmin())
         {
             return true;
         }
@@ -711,7 +716,7 @@ public class ReferralProController : Controller
 
     private async Task<ReferredHospital?> GetCurrentReferralHospitalAsync(CancellationToken cancellationToken)
     {
-        if (!User.IsInRole("ReferralPro") || User.IsInRole("CTSHIPAdmin"))
+        if (!User.IsInRole("ReferralPro") || IsReferralOversightAdmin())
         {
             return null;
         }
@@ -1410,7 +1415,7 @@ public class ReferralProController : Controller
             }
         }
 
-        return User.IsInRole("CTSHIPAdmin") || currentHospital != null;
+        return IsReferralOversightAdmin() || currentHospital != null;
     }
 
     private async Task<Guid?> GetReferralVerificationHospitalIdAsync(
@@ -1423,7 +1428,7 @@ public class ReferralProController : Controller
             return currentHospital.Id;
         }
 
-        if (!User.IsInRole("CTSHIPAdmin") || !referralId.HasValue)
+        if (!IsReferralOversightAdmin() || !referralId.HasValue)
         {
             return null;
         }

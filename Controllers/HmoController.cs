@@ -740,6 +740,130 @@ public class HmoController : Controller
         });
     }
 
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [Authorize(Roles = "HMO")]
+    public async Task<IActionResult> BulkDisburseCapitation(CapitationBulkDisbursementViewModel model)
+    {
+        ApplicationUser? currentUser = await _userManager.GetUserAsync(User);
+        if (currentUser?.HmoId == null)
+        {
+            TempData["Error"] = "Your account is not linked to any HMO.";
+            return RedirectToAction("Index", "Home");
+        }
+
+        int hmoId = currentUser.HmoId.Value;
+        DateTime month = ParseCapitationReportingMonth(model.ReportingMonth);
+        List<int> providerIds = model.ProviderIds
+            .Where(providerId => providerId > 0)
+            .Distinct()
+            .ToList();
+
+        if (providerIds.Count == 0)
+        {
+            TempData["Error"] = "Select at least one primary provider for capitation disbursement.";
+            return RedirectToAction(nameof(Capitation), new
+            {
+                reportingMonth = month.ToString("yyyy-MM"),
+                capitationPerEnrollee = model.CapitationPerEnrollee
+            });
+        }
+
+        if (!ModelState.IsValid || model.CapitationPerEnrollee <= 0)
+        {
+            TempData["Error"] = "Enter a valid capitation rate and provider selection.";
+            return RedirectToAction(nameof(Capitation), new
+            {
+                reportingMonth = month.ToString("yyyy-MM"),
+                capitationPerEnrollee = model.CapitationPerEnrollee
+            });
+        }
+
+        List<Provider> providers = await _context.Providers
+            .Where(provider => provider.HmoId == hmoId
+                && provider.IsActive
+                && provider.Level == "Primary"
+                && providerIds.Contains(provider.Id))
+            .OrderBy(provider => provider.Name)
+            .ToListAsync();
+
+        if (providers.Count == 0)
+        {
+            TempData["Error"] = "No valid primary providers were selected.";
+            return RedirectToAction(nameof(Capitation), new
+            {
+                reportingMonth = month.ToString("yyyy-MM"),
+                capitationPerEnrollee = model.CapitationPerEnrollee
+            });
+        }
+
+        DateTime receivedDate = model.ProviderPaymentReceivedDate?.Date ?? DateTime.Today;
+        DateTime dueDate = model.DueDate?.Date ?? month.AddMonths(1).AddDays(-1);
+        string paymentPeriod = string.IsNullOrWhiteSpace(model.PaymentPeriod) ? "Monthly" : model.PaymentPeriod.Trim();
+        string? paymentReference = string.IsNullOrWhiteSpace(model.PaymentReference)
+            ? null
+            : model.PaymentReference.Trim();
+        decimal totalDisbursed = 0m;
+
+        foreach (Provider provider in providers)
+        {
+            (int enrolleeCount, decimal utilizationRate) = await GetCapitationProviderMetricsAsync(hmoId, provider.Id, month);
+            decimal actualPayment = enrolleeCount * model.CapitationPerEnrollee;
+            totalDisbursed += actualPayment;
+
+            CapitationPayment? payment = await _context.CapitationPayments.FirstOrDefaultAsync(x =>
+                x.HmoId == hmoId
+                && x.ProviderId == provider.Id
+                && x.ReportingMonth == month);
+
+            if (payment == null)
+            {
+                payment = new CapitationPayment
+                {
+                    HmoId = hmoId,
+                    ProviderId = provider.Id,
+                    ReportingMonth = month,
+                    CreatedAt = DateTime.UtcNow
+                };
+                _context.CapitationPayments.Add(payment);
+            }
+            else
+            {
+                payment.UpdatedAt = DateTime.UtcNow;
+            }
+
+            payment.EnrolleeCount = enrolleeCount;
+            payment.UtilizationRate = utilizationRate;
+            payment.PaymentPeriod = paymentPeriod;
+            payment.CapitationPerEnrollee = model.CapitationPerEnrollee;
+            payment.DueDate = dueDate;
+            payment.ActualPaymentMade = actualPayment;
+            payment.ProviderPaymentReceivedDate = receivedDate;
+            payment.PaymentStatus = actualPayment > 0 ? "Paid" : "Pending";
+            payment.PaymentReference = paymentReference;
+        }
+
+        await _context.SaveChangesAsync();
+        await _auditService.LogAsync(
+            "Capitation.BulkDisbursed",
+            AuditActor.Format(currentUser, User.Identity?.Name),
+            $"{providers.Count} providers",
+            AuditActor.Details(
+                $"Month:{month:yyyy-MM}",
+                $"Providers:{providers.Count}",
+                $"Rate:NGN {model.CapitationPerEnrollee:N2}",
+                $"TotalDisbursed:NGN {totalDisbursed:N2}",
+                string.IsNullOrWhiteSpace(paymentReference) ? null : $"PaymentRef:{paymentReference}"),
+            HttpContext.RequestAborted);
+
+        TempData["Success"] = $"Capitation disbursed to {providers.Count} provider(s). Total: NGN {totalDisbursed:N2}.";
+        return RedirectToAction(nameof(Capitation), new
+        {
+            reportingMonth = month.ToString("yyyy-MM"),
+            capitationPerEnrollee = model.CapitationPerEnrollee
+        });
+    }
+
     // Helper: Nigerian States
     private List<SelectListItem> GetNigerianStates(string? selectedState = null)
     {
@@ -1575,12 +1699,14 @@ public class HmoController : Controller
 
         await ValidateAddEnrolleeAssignmentAsync(enrollee);
 
-        //check if both name and nin exists
-        bool alreadyExists = await _context.Enrollees
-            .AnyAsync(e => e.NIN == enrollee.NIN);
-        if (alreadyExists)
+        if (enrollee.NIN.HasValue)
         {
-            ModelState.AddModelError(nameof(Enrollee.NIN), "An enrollee with this NIN already exists.");
+            bool alreadyExists = await _context.Enrollees
+                .AnyAsync(e => e.NIN == enrollee.NIN);
+            if (alreadyExists)
+            {
+                ModelState.AddModelError(nameof(Enrollee.NIN), "An enrollee with this NIN already exists.");
+            }
         }
 
         if (ModelState.IsValid)
@@ -1738,7 +1864,8 @@ public class HmoController : Controller
             return Forbid();
         }
 
-        if (await _context.Enrollees.AnyAsync(e => e.NIN == enrollee.NIN && e.Id != id))
+        if (enrollee.NIN.HasValue
+            && await _context.Enrollees.AnyAsync(e => e.NIN == enrollee.NIN && e.Id != id))
         {
             ModelState.AddModelError(nameof(Enrollee.NIN), "Another enrollee already uses this NIN.");
         }
@@ -1856,7 +1983,7 @@ public class HmoController : Controller
         target.FullName = source.FullName.Trim();
         target.Gender = source.Gender;
         target.DateOfBirth = source.DateOfBirth;
-        target.Phone = source.Phone.Trim();
+        target.Phone = string.IsNullOrWhiteSpace(source.Phone) ? null : source.Phone.Trim();
         target.NIN = source.NIN;
         target.State = source.State;
         target.LGA = source.LGA.Trim();
@@ -1944,8 +2071,6 @@ public class HmoController : Controller
 
         return View(enrollee);
     }
-    // Helper: Nigerian States
-
 
     // Helper: State Code for Enrollment Number
     private string GetStateCode(string state)
@@ -2026,7 +2151,18 @@ public class HmoController : Controller
                     var lga = row[rowNumber, 6].GetValue<string>()?.Trim();
                     var ward = row[rowNumber, 7].GetValue<string>()?.Trim();
                     var address = row[rowNumber, 8].GetValue<string>()?.Trim();
-                    var nin = row[rowNumber, 9].GetValue<long>();
+                    long? nin = null;
+                    string? ninText = row[rowNumber, 9].GetValue<string>()?.Trim();
+                    if (!string.IsNullOrWhiteSpace(ninText))
+                    {
+                        if (ninText.Length != 11 || !ninText.All(char.IsDigit) || !long.TryParse(ninText, out long parsedNin))
+                        {
+                            errors.Add($"Row {rowNumber}: NIN must contain exactly 11 digits when provided");
+                            continue;
+                        }
+
+                        nin = parsedNin;
+                    }
 
 
                     if (string.IsNullOrEmpty(fullName) || string.IsNullOrEmpty(state))
@@ -2047,7 +2183,7 @@ public class HmoController : Controller
                         FullName = fullName!,
                         Gender = gender == "M" || gender == "Male" ? "Male" : "Female",
                         DateOfBirth = dob,
-                        Phone = phone ?? "N/A",
+                        Phone = string.IsNullOrWhiteSpace(phone) ? null : phone,
                         State = state!,
                         LGA = lga ?? "N/A",
                         Ward = ward ?? "N/A",
