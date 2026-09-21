@@ -33,7 +33,7 @@
         <h2 class="h4 fw-bold mb-3">Financial Monitoring</h2>
         <div class="row g-3 mb-4">
             <div class="col-xl-3 col-md-6">
-                <div class="card h-100 border-success shadow-sm">
+                <div class="card ct-kpi ct-kpi-green-gold h-100">
                     <div class="card-body">
                         <div class="text-muted">Total Claim Value</div>
                         <div class="h3 fw-bold text-success">NGN @Model.TotalClaimValue.ToString("N2")</div>
@@ -45,7 +45,7 @@
 
         <div class="row g-3 mb-4">
             <div class="col-xl-3 col-md-6">
-                <div class="card h-100 border-success shadow-sm">
+                <div class="card ct-kpi ct-kpi-green-gold h-100">
                     <div class="card-body">
                         <div class="text-muted">Capitation Payments</div>
                         <div class="h3 fw-bold text-success">@Model.Capitation.TotalPayments.ToString("N0")</div>
@@ -54,7 +54,7 @@
                 </div>
             </div>
             <div class="col-xl-3 col-md-6">
-                <div class="card h-100 border-success shadow-sm">
+                <div class="card ct-kpi ct-kpi-green-gold h-100">
                     <div class="card-body">
                         <div class="text-muted">Capitation Value</div>
                         <div class="h3 fw-bold text-success">NGN @Model.Capitation.TotalAmount.ToString("N2")</div>
@@ -63,7 +63,7 @@
                 </div>
             </div>
             <div class="col-xl-3 col-md-6">
-                <div class="card h-100 border-success shadow-sm">
+                <div class="card ct-kpi ct-kpi-green-gold h-100">
                     <div class="card-body">
                         <div class="text-muted">Service Utilization</div>
                         <div class="h3 fw-bold text-success">@Model.ServiceUtilizationRate%</div>
@@ -72,7 +72,7 @@
                 </div>
             </div>
             <div class="col-xl-3 col-md-6">
-                <div class="card h-100 border-success shadow-sm">
+                <div class="card ct-kpi ct-kpi-green-gold h-100">
                     <div class="card-body">
                         <div class="text-muted">System Users</div>
                         <div class="h3 fw-bold text-success">@Model.TotalUsers.ToString("N0")</div>
@@ -82,7 +82,7 @@
             </div>
         </div>
 
-        <div class="card shadow-sm mb-4">
+        <div class="card mb-4">
             <div class="card-header fw-bold">System Activity Matrix</div>
             <div class="table-responsive">
                 <table class="table table-striped table-hover mb-0 ct-wide-table">
@@ -105,7 +105,7 @@
 
         <div class="row g-4 mb-4">
             <div class="col-lg-5">
-                <div class="card h-100 shadow-sm">
+                <div class="card h-100">
                     <div class="card-header fw-bold">Provider Network Matrix</div>
                     <div class="table-responsive">
                         <table class="table table-striped mb-0">
@@ -121,7 +121,7 @@
                 </div>
             </div>
             <div class="col-lg-7">
-                <div class="card h-100 shadow-sm">
+                <div class="card h-100">
                     <div class="card-header fw-bold">HMO Oversight Matrix</div>
                     <div class="table-responsive">
                         <table class="table table-hover mb-0">
@@ -138,7 +138,7 @@
             </div>
         </div>
 
-        <div class="card shadow-sm mb-4">
+        <div class="card mb-4">
             <div class="card-header fw-bold">Disease Trends From Encounters</div>
             <div class="table-responsive">
                 <table class="table table-striped mb-0">
@@ -158,19 +158,19 @@
         </div>
         <div class="row g-4 mb-4">
             <div class="col-lg-4">
-                <div class="card h-100 shadow-sm">
+                <div class="card h-100">
                     <div class="card-header fw-bold">Claims Status</div>
                     <div class="card-body"><canvas id="analyticsClaimsStatusChart"></canvas></div>
                 </div>
             </div>
             <div class="col-lg-4">
-                <div class="card h-100 shadow-sm">
+                <div class="card h-100">
                     <div class="card-header fw-bold">Gender Distribution</div>
                     <div class="card-body"><canvas id="analyticsGenderChart"></canvas></div>
                 </div>
             </div>
             <div class="col-lg-4">
-                <div class="card h-100 shadow-sm">
+                <div class="card h-100">
                     <div class="card-header fw-bold">Vulnerable Population</div>
                     <div class="card-body"><canvas id="analyticsVulnerableChart"></canvas></div>
                 </div>
@@ -179,7 +179,7 @@
 
         <div class="row g-4 mb-4">
             <div class="col-lg-6">
-                <div class="card h-100 shadow-sm">
+                <div class="card h-100">
                     <div class="card-header fw-bold">Referral Workflow</div>
                     <div class="table-responsive">
                         <table class="table table-striped mb-0">
@@ -195,7 +195,7 @@
                 </div>
             </div>
             <div class="col-lg-6">
-                <div class="card h-100 shadow-sm">
+                <div class="card h-100">
                     <div class="card-header fw-bold">Preventive Service Delivery</div>
                     <div class="table-responsive">
                         <table class="table table-striped mb-0">
@@ -214,12 +214,12 @@
             </div>
         </div>
 
-        <div class="card shadow-sm mb-4">
+        <div class="card mb-4">
             <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
                 <span class="fw-bold">Vulnerable Group Indicators</span>
                 <div class="d-flex flex-wrap gap-2">
                     <span class="badge bg-success">@Model.VulnerableEnrolleeCount.ToString("N0") unique vulnerable enrollees</span>
-                    <span class="badge bg-primary">Exclusive distribution: @Model.VulnerableDistributionTotal%</span>
+                    <span class="badge bg-warning text-dark">Exclusive distribution: @Model.VulnerableDistributionTotal%</span>
                 </div>
             </div>
             <div class="table-responsive">
@@ -241,23 +241,9 @@
                     </tbody>
                 </table>
             </div>
-            <div class="card-body border-top">
-                @foreach (var category in Model.VulnerableDistribution)
-                {
-                    <div class="mb-3">
-                        <div class="d-flex justify-content-between gap-3">
-                            <span>@category.Label (@category.Count.ToString("N0"))</span>
-                            <span class="fw-bold">@category.Percentage%</span>
-                        </div>
-                        <div class="progress">
-                            <div class="progress-bar bg-success" style="width: @category.Percentage%"></div>
-                        </div>
-                    </div>
-                }
-            </div>
         </div>
 
-        <div class="card shadow-sm mb-5">
+        <div class="card mb-5">
             <div class="card-header fw-bold">State Monitoring Scorecard</div>
             <div class="table-responsive">
                 <table class="table table-hover table-striped mb-0 ct-wide-table">
@@ -304,7 +290,7 @@
     }
     else
     {
-        <div class="card shadow-sm mb-4">
+        <div class="card mb-4">
             <div class="card-header fw-bold">Enrolment by State</div>
             <div class="table-responsive">
                 <table class="table table-striped mb-0">
@@ -327,7 +313,7 @@
 
     <div class="row g-4 mb-4">
         <div class="col-lg-7">
-            <div class="card h-100 shadow-sm">
+            <div class="card h-100">
                 <div class="card-header fw-bold">Most Frequently Used Services</div>
                 <div class="table-responsive">
                     <table class="table table-hover mb-0">
@@ -353,7 +339,7 @@
         </div>
 
         <div class="col-lg-5">
-            <div class="card h-100 shadow-sm">
+            <div class="card h-100">
                 <div class="card-header fw-bold">Top HMOs by Enrolment</div>
                 <ol class="list-group list-group-flush">
                     @foreach (var hmo in ViewBag.TopHmos ?? new List<dynamic>())
