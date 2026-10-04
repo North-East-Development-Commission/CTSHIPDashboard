@@ -1667,6 +1667,8 @@ public class HmoController : Controller
     [Authorize(Roles = "CTSHIPAdmin,HMO")]
     public async Task<IActionResult> AddEnrollee(Enrollee enrollee)
     {
+        enrollee.Address = enrollee.Address?.Trim() ?? string.Empty;
+        enrollee.Gender = GenderClassification.Normalize(enrollee.Gender) ?? enrollee.Gender;
         // Remove EnrollmentNumber from validation (we generate it)
         ModelState.Remove(nameof(Enrollee.EnrollmentNumber));
 
@@ -1981,14 +1983,14 @@ public class HmoController : Controller
     private static void ApplyEnrolleeEditableFields(Enrollee target, Enrollee source)
     {
         target.FullName = source.FullName.Trim();
-        target.Gender = source.Gender;
+        target.Gender = GenderClassification.Normalize(source.Gender) ?? source.Gender;
         target.DateOfBirth = source.DateOfBirth;
         target.Phone = string.IsNullOrWhiteSpace(source.Phone) ? null : source.Phone.Trim();
         target.NIN = source.NIN;
         target.State = source.State;
         target.LGA = source.LGA.Trim();
         target.Ward = source.Ward.Trim();
-        target.Address = source.Address.Trim();
+        target.Address = source.Address?.Trim() ?? string.Empty;
         target.IsPregnant = source.IsPregnant;
         target.HasDisability = source.HasDisability;
         target.IsIdp = source.IsIdp;

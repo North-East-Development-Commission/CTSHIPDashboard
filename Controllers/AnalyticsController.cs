@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Globalization;
 using CTSHIPDashboard.Services;
-
+using CTSHIPDashboard.Helpers;
 [Authorize(Roles = "CTSHIPAdmin,Admin, NEDCAdmin")]
 public class AnalyticsController : Controller
 {
@@ -129,11 +129,11 @@ public class AnalyticsController : Controller
         {
             TotalEnrollees = total,
             ActiveEnrollees = enrollees.Count(e => e.Status == "Active"),
-            FemaleCount = enrollees.Count(e => e.Gender == "Female"),
-            MaleCount = enrollees.Count(e => e.Gender == "Male"),
+            FemaleCount = enrollees.Count(e => GenderClassification.IsFemale(e.Gender)),
+            MaleCount = enrollees.Count(e => GenderClassification.IsMale(e.Gender)),
 
             // Explicitly compute percentages expected by your View layout
-            FemalePercentage = total > 0 ? (int)Math.Round((double)enrollees.Count(e => e.Gender == "Female") / total * 100) : 0,
+            FemalePercentage = total > 0 ? (int)Math.Round((double)enrollees.Count(e => GenderClassification.IsFemale(e.Gender)) / total * 100) : 0,
             CoverageRate = (decimal)(total > 0 ? Math.Round((double)total / 220000000 * 100, 4) : 0), // Out of 220M population
 
             AgeGroups = new Dictionary<string, int>

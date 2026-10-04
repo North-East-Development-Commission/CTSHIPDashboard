@@ -1,6 +1,11 @@
 @using CTSHIPDashboard.Helpers
+@using System.Text.Json
 @{
     ViewData["Title"] = "Bulk Enrollee Upload";
+    ViewData["SuppressErrorPopup"] = true;
+    var uploadErrors = JsonSerializer.Deserialize<List<BulkEnrolleeUploadError>>(
+        TempData["BulkUploadErrors"] as string ?? "[]") ?? new();
+    int totalErrors = TempData["BulkUploadErrorCount"] as int? ?? uploadErrors.Count;
 }
 
 <div class="container-fluid py-5">
@@ -24,14 +29,27 @@
                     {
                         <div class="alert alert-danger alert-dismissible fade show rounded-4">
                             <i class="bi bi-exclamation-triangle-fill me-1"></i> @TempData["Error"]
+                            @if (uploadErrors.Count > 0)
+                            {
+                                <div class="table-responsive mt-3">
+                                    <table class="table table-sm align-middle mb-0">
+                                        <thead><tr><th>Row</th><th>Field</th><th>Cell</th><th>Issue</th></tr></thead>
+                                        <tbody>
+                                            @foreach (var error in uploadErrors)
+                                            {
+                                                <tr><td>@error.Row</td><td>@error.Field</td><td>@(error.Cell ?? "-")</td><td>@error.Message</td></tr>
+                                            }
+                                        </tbody>
+                                    </table>
+                                </div>
+                                @if (totalErrors > uploadErrors.Count)
+                                {
+                                    <p class="small mt-2 mb-0">Showing the first @uploadErrors.Count of @totalErrors issues.</p>
+                                }
+                            }
                             @if (TempData["ErrorDetails"] != null)
                             {
-                                <details class="mt-3">
-                                    <summary class="text-decoration-underline">Show row errors</summary>
-                                    <div class="bg-white text-danger p-3 rounded mt-2 small">
-                                        @Html.Raw(TempData["ErrorDetails"])
-                                    </div>
-                                </details>
+                                <p class="mt-2 mb-0">@TempData["ErrorDetails"]</p>
                             }
                             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
                         </div>
@@ -40,34 +58,37 @@
                     <form asp-action="BulkUpload" method="post" enctype="multipart/form-data">
                         <div class="row g-4">
                             <div class="col-lg-6">
-                                <label class="form-label text-success fw-bold fs-5">
+                                <label for="excelFile" class="form-label text-success fw-bold fs-5">
                                     Excel File (.xlsx) <span class="text-danger">*</span>
                                 </label>
-                                <input type="file" name="excelFile" accept=".xlsx"
+                                <input type="file" name="excelFile" id="excelFile" accept=".xlsx" aria-describedby="excelFileError"
                                        class="form-control form-control-lg" required />
+                                <span id="excelFileError" class="text-danger d-block" aria-live="polite">@TempData["ExcelFileError"]</span>
                                 <small class="text-muted">
-                                    Use the downloadable template. Header order may vary. Required headers must be present; EnrollmentNumber, DateRegistered, Address, and vulnerability fields may be left blank when not available.
+                                    Use the downloadable template. Header order may vary. Required headers must be present; EnrollmentNumber, DateRegistered, Address, Phone, NIN, and vulnerability fields may be left blank when not available.
                                 </small>
                             </div>
 
                             <div class="col-lg-3">
-                                <label class="form-label text-success fw-bold fs-5">
+                                <label for="bulkHmoId" class="form-label text-success fw-bold fs-5">
                                     Assign to HMO <span class="text-danger">*</span>
                                 </label>
-                                <select name="hmoId" id="bulkHmoId" class="form-select form-select-lg"
+                                <select name="hmoId" id="bulkHmoId" class="form-select form-select-lg" aria-describedby="bulkHmoIdError"
                                         asp-items="ViewBag.Hmos" required>
                                     <option value="">Select HMO</option>
                                 </select>
+                                <span id="bulkHmoIdError" class="text-danger d-block" aria-live="polite">@TempData["HmoIdError"]</span>
                             </div>
 
                             <div class="col-lg-3">
-                                <label class="form-label text-success fw-bold fs-5">
+                                <label for="bulkProviderId" class="form-label text-success fw-bold fs-5">
                                     Assign to Provider <span class="text-danger">*</span>
                                 </label>
-                                <select name="providerId" id="bulkProviderId" class="form-select form-select-lg"
+                                <select name="providerId" id="bulkProviderId" class="form-select form-select-lg" aria-describedby="bulkProviderIdError"
                                         asp-items="ViewBag.Pros" required>
                                     <option value="">Select Provider</option>
                                 </select>
+                                <span id="bulkProviderIdError" class="text-danger d-block" aria-live="polite">@TempData["ProviderIdError"]</span>
                             </div>
                         </div>
 

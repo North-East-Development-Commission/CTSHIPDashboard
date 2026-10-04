@@ -87,6 +87,33 @@ public class PreviewController : Controller
         return View("~/Views/Monitoring/Index.cshtml", model);
     }
 
-    public IActionResult Enrolment() => View("~/Views/Enrollees/Create.cshtml", new Enrollee());
+    public IActionResult Enrolment(bool errors = false, bool hmo = false)
+    {
+        ViewBag.Hmos = new[] { new Microsoft.AspNetCore.Mvc.Rendering.SelectListItem("Sample HMO", "1") };
+        ViewBag.Provider = new[] { new Microsoft.AspNetCore.Mvc.Rendering.SelectListItem("Sample Facility", "1") };
+        if (errors)
+        {
+            ModelState.AddModelError("FullName", "Enter the enrollee's full name.");
+            ModelState.AddModelError("Phone", "Enter a valid phone number, such as 08012345678, or leave it blank.");
+            ModelState.AddModelError("NIN", "An enrollee with this NIN already exists.");
+            ModelState.AddModelError("DateOfBirth", "Date of birth must be earlier than today.");
+            ModelState.AddModelError("ProviderId", "Select a facility assigned to the selected HMO.");
+        }
+        return View(hmo ? "~/Views/Hmo/AddEnrollee.cshtml" : "~/Views/Enrollees/Create.cshtml", new Enrollee());
+    }
+
+    public IActionResult BulkErrors()
+    {
+        ViewBag.Hmos = new[] { new Microsoft.AspNetCore.Mvc.Rendering.SelectListItem("Sample HMO", "1") };
+        ViewBag.Pros = new[] { new Microsoft.AspNetCore.Mvc.Rendering.SelectListItem("Sample Facility", "1") };
+        TempData["Error"] = "No enrollees were imported. Fix 3 issues across 1 row, then upload again.";
+        TempData["BulkUploadErrors"] = System.Text.Json.JsonSerializer.Serialize(new[]
+        {
+            new CTSHIPDashboard.Helpers.BulkEnrolleeUploadError(2, "Gender", "C2", "Enter M, F, Male, or Female."),
+            new CTSHIPDashboard.Helpers.BulkEnrolleeUploadError(2, "NIN", "G2", "Enter exactly 11 digits, or leave it blank if the NIN is unavailable."),
+            new CTSHIPDashboard.Helpers.BulkEnrolleeUploadError(2, "LGA", "I2", "LGA '<script>invalid</script>' does not belong to Borno.")
+        });
+        return View("~/Views/Enrollees/BulkUpload.cshtml");
+    }
     public IActionResult Lgas(string? state) => Json(new[] { "Jere", "Maiduguri" });
 }

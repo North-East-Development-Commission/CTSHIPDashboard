@@ -22,14 +22,18 @@
 </div>
 
 <div class="col-md-6">
-    <label asp-for="Ward" class="form-label text-success fw-bold"></label>
+    <label for="WardSelect" class="form-label text-success fw-bold">Ward</label>
     <input asp-for="Ward" type="hidden" id="WardValue" />
-    <select class="form-select form-select-lg" id="WardSelect" required disabled>
+    <select class="form-select form-select-lg" id="WardSelect" name="WardSelection" required disabled
+            data-val="true" data-val-required="Select a ward or choose Other to enter its name.">
         <option value="">Select an LGA first</option>
     </select>
+    <span data-valmsg-for="WardSelection" data-valmsg-replace="true" class="text-danger d-block" aria-live="polite"></span>
     <div id="CustomWardWrap" class="mt-2 d-none">
-        <input type="text" id="CustomWard" class="form-control form-control-lg"
+        <input type="text" id="CustomWard" name="CustomWard" class="form-control form-control-lg"
+               data-val="true" data-val-required="Enter the ward name."
                placeholder="Enter ward name" />
+        <span data-valmsg-for="CustomWard" data-valmsg-replace="true" class="text-danger d-block" aria-live="polite"></span>
         <small class="text-muted">Enter the ward when it is not yet available in the list.</small>
     </div>
     <span asp-validation-for="Ward" class="text-danger"></span>

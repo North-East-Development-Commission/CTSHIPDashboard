@@ -13,47 +13,46 @@ namespace CTSHIPDashboard.Models
         public int Id { get; set; }
 
         // PERSONAL INFORMATION
-        [Required]
-        [StringLength(200)]
+        [Required(ErrorMessage = "Enter the enrollee's full name.")]
+        [StringLength(200, ErrorMessage = "Full name must be 200 characters or fewer.")]
         [Display(Name = "Full Name")]
         public string FullName { get; set; } = string.Empty;
 
         [Required]
-        [StringLength(30)]                    // INCREASED FROM 20 TO 30
+        [StringLength(30, ErrorMessage = "Enrollment number must be 30 characters or fewer.")]
         [Display(Name = "Enrollment Number")]
         public string EnrollmentNumber { get; set; } = string.Empty;
 
-        [Required]
-        [StringLength(10)]
+        [Required(ErrorMessage = "Select the enrollee's gender.")]
+        [StringLength(10, ErrorMessage = "Gender must be Male, Female, M, or F.")]
         public string Gender { get; set; } = string.Empty; // Male, Female
 
-        [Required]
+        [Required(ErrorMessage = "Enter the enrollee's date of birth.")]
         [DataType(DataType.Date)]
         [Display(Name = "Date of Birth")]
         public DateTime DateOfBirth { get; set; }
 
-        [Phone]
-        [StringLength(20)]
+        [Phone(ErrorMessage = "Enter a valid phone number, such as 08012345678, or leave it blank.")]
+        [StringLength(20, ErrorMessage = "Phone number must be 20 characters or fewer.")]
         [Display(Name = "Phone Number")]
         public string? Phone { get; set; }
 
-        [Required]
-        [StringLength(500)]
-        public string Address { get; set; } = string.Empty;
+        [StringLength(500, ErrorMessage = "Address must be 500 characters or fewer, or leave it blank.")]
+        public string? Address { get; set; } = string.Empty;
 
-        [Required]
-        [StringLength(50)]
+        [Required(ErrorMessage = "Select the enrollee's state.")]
+        [StringLength(50, ErrorMessage = "State must be 50 characters or fewer.")]
         public string State { get; set; } = string.Empty; // e.g. Lagos, Kano, FCT
-        [Required]
-        [StringLength(50)]
+        [Required(ErrorMessage = "Select a ward or enter its name.")]
+        [StringLength(50, ErrorMessage = "Ward must be 50 characters or fewer.")]
         public string Ward { get; set; } = string.Empty; // e.g. Lagos, Kano, FCT
 
-        [Range(1, long.MaxValue, ErrorMessage = "Must be a valid positive long integer.")]
+        [Range(1, long.MaxValue, ErrorMessage = "Enter a positive NIN using digits only, or leave it blank.")]
         [Display(Name = "NIN")]
         public long? NIN { get; set; }
 
-        [Required]
-        [StringLength(100)]
+        [Required(ErrorMessage = "Select an LGA for the selected state.")]
+        [StringLength(100, ErrorMessage = "LGA must be 100 characters or fewer.")]
         public string LGA { get; set; } = string.Empty; // Local Government Area
 
         [Display(Name = "Pregnant Woman")]
@@ -65,7 +64,7 @@ namespace CTSHIPDashboard.Models
         [Display(Name = "Internally Displaced Person (IDP)")]
         public bool IsIdp { get; set; }
 
-        [StringLength(100)]
+        [StringLength(100, ErrorMessage = "Other vulnerable category must be 100 characters or fewer.")]
         [Display(Name = "Other Vulnerable Category")]
         public string? OtherVulnerableCategory { get; set; }
 
@@ -83,8 +82,8 @@ namespace CTSHIPDashboard.Models
         public virtual Provider? provider { get; set; }
 
         // SYSTEM FIELDS
-        [Required]
-        [StringLength(20)]
+        [Required(ErrorMessage = "Select the enrollee's status.")]
+        [StringLength(20, ErrorMessage = "Status must be 20 characters or fewer.")]
         public string Status { get; set; } = "Active"; // Active, Inactive, Suspended
 
         [DataType(DataType.DateTime)]

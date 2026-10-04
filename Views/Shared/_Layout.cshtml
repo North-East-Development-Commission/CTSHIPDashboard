@@ -862,7 +862,8 @@
             });
 
             const successMessage = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(TempData["Success"]?.ToString()));
-            const errorMessage = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(TempData["Error"]?.ToString()));
+            const errorMessage = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(
+                ViewData["SuppressErrorPopup"] is true ? null : TempData["Error"]?.ToString()));
 
             if (successMessage) {
                 Swal.fire('Success!', successMessage, 'success');

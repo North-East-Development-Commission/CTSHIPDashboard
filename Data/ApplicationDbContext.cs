@@ -664,6 +664,11 @@ namespace CTSHIPDashboard.Data
                 .OnDelete(DeleteBehavior.SetNull)    // Safe because HmoId is nullable
                 .IsRequired(false);
 
+            // Optional addresses are stored as empty strings in the existing non-null column.
+            modelBuilder.Entity<Enrollee>()
+                .Property(e => e.Address)
+                .IsRequired();
+
             modelBuilder.Entity<Enrollee>()
                 .HasOne(e => e.provider)
                 .WithMany(p => p.Enrollees)

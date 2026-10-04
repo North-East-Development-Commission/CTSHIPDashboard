@@ -13,6 +13,8 @@ using OfficeOpenXml;
 using QRCoder;
 using System.Drawing;
 using System.Globalization;
+using System.ComponentModel.DataAnnotations;
+using System.Text.Json;
 using System.Diagnostics.Metrics;
 using static Bogus.DataSets.Name;
 using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
@@ -355,6 +357,8 @@ public class EnrolleesController : Controller
     [Authorize(Roles = EnrolleeManageRoles)]
     public async Task<IActionResult> Create(Enrollee enrollee)
     {
+        enrollee.Address = enrollee.Address?.Trim() ?? string.Empty;
+        enrollee.Gender = GenderClassification.Normalize(enrollee.Gender) ?? enrollee.Gender;
         enrollee.OtherVulnerableCategory = null;
         ModelState.Remove(nameof(Enrollee.OtherVulnerableCategory));
         // Remove EnrollmentNumber from validation (we generate it)
@@ -704,14 +708,14 @@ public class EnrolleesController : Controller
     private static void ApplyEditableFields(Enrollee target, Enrollee source)
     {
         target.FullName = source.FullName.Trim();
-        target.Gender = source.Gender;
+        target.Gender = GenderClassification.Normalize(source.Gender) ?? source.Gender;
         target.DateOfBirth = source.DateOfBirth;
         target.Phone = string.IsNullOrWhiteSpace(source.Phone) ? null : source.Phone.Trim();
         target.NIN = source.NIN;
         target.State = source.State;
         target.LGA = source.LGA.Trim();
         target.Ward = source.Ward.Trim();
-        target.Address = source.Address.Trim();
+        target.Address = source.Address?.Trim() ?? string.Empty;
         target.IsPregnant = source.IsPregnant;
         target.HasDisability = source.HasDisability;
         target.IsIdp = source.IsIdp;
@@ -1092,12 +1096,14 @@ public class EnrolleesController : Controller
         if (excelFile == null || excelFile.Length == 0)
         {
             TempData["Error"] = "Please select an Excel file.";
+            TempData["ExcelFileError"] = "Select an Excel file containing the enrollee records.";
             return RedirectToAction(nameof(BulkUpload));
         }
 
         if (!Path.GetExtension(excelFile.FileName).Equals(".xlsx", StringComparison.OrdinalIgnoreCase))
         {
             TempData["Error"] = "Only .xlsx files are allowed.";
+            TempData["ExcelFileError"] = "Select an .xlsx file. Other file formats cannot be imported.";
             return RedirectToAction(nameof(BulkUpload));
         }
 
@@ -1129,11 +1135,13 @@ public class EnrolleesController : Controller
         if (selectedHmo == null || selectedProvider == null)
         {
             TempData["Error"] = "Select a valid HMO and an active provider assigned to that HMO.";
+            if (selectedHmo == null) TempData["HmoIdError"] = "Select a valid assigned HMO.";
+            if (selectedProvider == null) TempData["ProviderIdError"] = "Select an active facility assigned to the selected HMO.";
             return RedirectToAction(nameof(BulkUpload));
         }
 
         List<Enrollee> enrollees = new();
-        List<string> errors = new();
+        List<BulkEnrolleeUploadError> errors = new();
         int rowNumber = 2;
 
         try
@@ -1147,6 +1155,7 @@ public class EnrolleesController : Controller
             if (worksheet?.Dimension == null)
             {
                 TempData["Error"] = "The workbook does not contain any enrollee data.";
+                TempData["ExcelFileError"] = "Add enrollee records to the template before uploading it.";
                 return RedirectToAction(nameof(BulkUpload));
             }
 
@@ -1171,6 +1180,9 @@ public class EnrolleesController : Controller
                 TempData["Error"] =
                     "The Excel columns do not match the upload template. Missing required columns: "
                     + string.Join(", ", missingHeaders);
+                TempData["BulkUploadErrors"] = JsonSerializer.Serialize(missingHeaders.Select(header =>
+                    new BulkEnrolleeUploadError(1, header, null, $"Add the required {header} column to the header row.")));
+                TempData["BulkUploadErrorCount"] = missingHeaders.Count;
                 return RedirectToAction(nameof(BulkUpload));
             }
 
@@ -1182,6 +1194,11 @@ public class EnrolleesController : Controller
 
             string OptionalCellText(int row, string header) =>
                 HasColumn(header) ? worksheet.Cells[row, Column(header)].Text.Trim() : string.Empty;
+
+            void AddRowError(string header, string message) => errors.Add(new(
+                rowNumber, header,
+                HasColumn(header) ? worksheet.Cells[rowNumber, Column(header)].Address : null,
+                message));
 
             static bool TryParseOptionalDateTime(ExcelRange cell, out DateTime? parsedDateTime)
             {
@@ -1286,6 +1303,7 @@ public class EnrolleesController : Controller
             {
                 try
                 {
+                    int rowErrorStart = errors.Count;
                     string fullName = worksheet.Cells[rowNumber, Column("FullName")].Text.Trim();
                     string genderValue = worksheet.Cells[rowNumber, Column("Gender")].Text.Trim();
                     ExcelRange dobCell = worksheet.Cells[rowNumber, Column("DateOfBirth")];
@@ -1304,8 +1322,7 @@ public class EnrolleesController : Controller
                         ExcelRange dateRegisteredCell = worksheet.Cells[rowNumber, Column("DateRegistered")];
                         if (!TryParseOptionalDateTime(dateRegisteredCell, out DateTime? providedDateRegistered))
                         {
-                            errors.Add($"Row {rowNumber}: DateRegistered must be a valid date/time or left blank.");
-                            continue;
+                            AddRowError("DateRegistered", "Enter a valid date/time, or leave it blank to use the upload time.");
                         }
 
                         if (providedDateRegistered.HasValue)
@@ -1321,30 +1338,10 @@ public class EnrolleesController : Controller
                         continue;
                     }
 
-                    List<string> emptyFields = new();
-                    if (string.IsNullOrWhiteSpace(fullName)) emptyFields.Add("FullName");
-                    if (string.IsNullOrWhiteSpace(genderValue)) emptyFields.Add("Gender");
-                    if (string.IsNullOrWhiteSpace(dobCell.Text)) emptyFields.Add("DateOfBirth");
-                    if (string.IsNullOrWhiteSpace(stateValue)) emptyFields.Add("State");
-                    if (string.IsNullOrWhiteSpace(lga)) emptyFields.Add("LGA");
-                    if (string.IsNullOrWhiteSpace(ward)) emptyFields.Add("Ward");
-                    if (emptyFields.Any())
+                    string? gender = GenderClassification.Normalize(genderValue);
+                    if (gender == null && !string.IsNullOrWhiteSpace(genderValue))
                     {
-                        errors.Add(
-                            $"Row {rowNumber}: Missing required values: {string.Join(", ", emptyFields)}.");
-                        continue;
-                    }
-
-                    string gender = genderValue.ToUpperInvariant() switch
-                    {
-                        "M" or "MALE" => "Male",
-                        "F" or "FEMALE" => "Female",
-                        _ => string.Empty
-                    };
-                    if (string.IsNullOrEmpty(gender))
-                    {
-                        errors.Add($"Row {rowNumber}: Gender must be M, F, Male, or Female.");
-                        continue;
+                        AddRowError("Gender", "Enter M, F, Male, or Female.");
                     }
 
                     DateTime dob;
@@ -1359,14 +1356,12 @@ public class EnrolleesController : Controller
                         DateTimeStyles.None,
                         out dob))
                     {
-                        errors.Add($"Row {rowNumber}: DateOfBirth must use dd/MM/yyyy.");
-                        continue;
+                        AddRowError("DateOfBirth", "Enter a valid date of birth using dd/MM/yyyy, such as 18/04/1992.");
                     }
 
                     if (dob.Date >= DateTime.Today)
                     {
-                        errors.Add($"Row {rowNumber}: DateOfBirth must be earlier than today.");
-                        continue;
+                        AddRowError("DateOfBirth", "Date of birth must be earlier than today.");
                     }
 
                     long? nin = null;
@@ -1377,31 +1372,23 @@ public class EnrolleesController : Controller
                             || !ninDigits.All(char.IsDigit)
                             || !long.TryParse(ninDigits, out long parsedNin))
                         {
-                            errors.Add($"Row {rowNumber}: NIN must contain exactly 11 digits when provided.");
-                            continue;
+                            AddRowError("NIN", "Enter exactly 11 digits, or leave it blank if the NIN is unavailable.");
                         }
-
-                        nin = parsedNin;
+                        else
+                        {
+                            nin = parsedNin;
+                        }
                     }
 
-                    if (!validStates.TryGetValue(stateValue, out string? state))
+                    bool validState = validStates.TryGetValue(stateValue, out string? state);
+                    if (!validState && !string.IsNullOrWhiteSpace(stateValue))
                     {
-                        errors.Add(
-                            $"Row {rowNumber}: State must be Adamawa, Bauchi, Borno, Gombe, Taraba, or Yobe.");
-                        continue;
+                        AddRowError("State", "Use Adamawa, Bauchi, Borno, Gombe, Taraba, or Yobe.");
                     }
 
-                    if (!NorthEastLocationData.IsValidLga(state, lga))
+                    if (validState && !string.IsNullOrWhiteSpace(lga) && !NorthEastLocationData.IsValidLga(state!, lga))
                     {
-                        errors.Add(
-                            $"Row {rowNumber}: LGA '{lga}' does not belong to {state}.");
-                        continue;
-                    }
-
-                    if (enrollmentNumber.Length > 30)
-                    {
-                        errors.Add($"Row {rowNumber}: EnrollmentNumber cannot exceed 30 characters.");
-                        continue;
+                        AddRowError("LGA", $"LGA '{lga}' does not belong to {state}. Select an LGA in that state.");
                     }
 
                     bool isPregnant = false;
@@ -1444,44 +1431,23 @@ public class EnrolleesController : Controller
 
                     if (nin.HasValue && knownNins.Contains(nin.Value))
                     {
-                        errors.Add(
-                            $"Row {rowNumber}: NIN {ninDigits} already exists or is repeated in this file.");
-                        continue;
+                        AddRowError("NIN", $"NIN {ninDigits} already exists or is repeated in this file. Check the number before uploading.");
                     }
 
                     bool hasProvidedEnrollmentNumber = !string.IsNullOrWhiteSpace(enrollmentNumber);
                     if (hasProvidedEnrollmentNumber && knownEnrollmentNumbers.Contains(enrollmentNumber))
                     {
-                        errors.Add(
-                            $"Row {rowNumber}: EnrollmentNumber {enrollmentNumber} already exists or is repeated in this file.");
-                        continue;
+                        AddRowError("EnrollmentNumber", $"Enrollment number {enrollmentNumber} already exists or is repeated in this file.");
                     }
-
-                    if (!hasProvidedEnrollmentNumber)
-                    {
-                        do
-                        {
-                            nextSequence++;
-                            enrollmentNumber =
-                                $"CTH-{DateTime.Now:yyyy}-{GetStateCode(state)}-{nextSequence:D6}";
-                        }
-                        while (knownEnrollmentNumbers.Contains(enrollmentNumber));
-                    }
-
-                    if (nin.HasValue)
-                    {
-                        knownNins.Add(nin.Value);
-                    }
-                    knownEnrollmentNumbers.Add(enrollmentNumber);
 
                     Enrollee enrollee = new()
                     {
                         FullName = fullName,
-                        EnrollmentNumber = enrollmentNumber,
-                        Gender = gender,
+                        EnrollmentNumber = hasProvidedEnrollmentNumber ? enrollmentNumber : "GENERATED",
+                        Gender = gender ?? genderValue,
                         DateOfBirth = dob,
                         Phone = string.IsNullOrWhiteSpace(phone) ? null : phone,
-                        State = state,
+                        State = state ?? stateValue,
                         LGA = lga,
                         Ward = ward,
                         Address = address,
@@ -1497,6 +1463,35 @@ public class EnrolleesController : Controller
                         DateRegistered = dateRegistered,
                         RegisteredBy = User.Identity?.Name ?? "Bulk Upload"
                     };
+                    List<ValidationResult> validationResults = new();
+                    Validator.TryValidateObject(enrollee, new ValidationContext(enrollee), validationResults, true);
+                    foreach (ValidationResult result in validationResults)
+                    {
+                        foreach (string field in result.MemberNames)
+                        {
+                            AddRowError(field, result.ErrorMessage ?? "Check this value.");
+                        }
+                    }
+                    if (errors.Count > rowErrorStart) continue;
+
+                    if (!hasProvidedEnrollmentNumber)
+                    {
+                        do
+                        {
+                            nextSequence++;
+                            enrollmentNumber =
+                                $"CTH-{DateTime.Now:yyyy}-{GetStateCode(enrollee.State)}-{nextSequence:D6}";
+                        }
+                        while (knownEnrollmentNumbers.Contains(enrollmentNumber));
+                    }
+
+                    if (nin.HasValue)
+                    {
+                        knownNins.Add(nin.Value);
+                    }
+                    knownEnrollmentNumbers.Add(enrollmentNumber);
+
+                    enrollee.EnrollmentNumber = enrollmentNumber;
 
                     if (hasProvidedEnrollmentNumber)
                     {
@@ -1509,17 +1504,18 @@ public class EnrolleesController : Controller
 
                     enrollees.Add(enrollee);
                 }
-                catch (Exception ex)
+                catch (Exception)
                 {
-                    errors.Add($"Row {rowNumber}: {ex.Message}");
+                    AddRowError("Row", "This row could not be read. Check its values and try again.");
                 }
             }
 
             if (errors.Any())
             {
                 TempData["Error"] =
-                    $"No enrollees were imported because {errors.Count} row error(s) were found.";
-                TempData["ErrorDetails"] = string.Join("<br>", errors.Take(20));
+                    $"No enrollees were imported. Fix {errors.Count} issue(s) across {errors.Select(error => error.Row).Distinct().Count()} row(s), then upload again.";
+                TempData["BulkUploadErrors"] = JsonSerializer.Serialize(errors.Take(50));
+                TempData["BulkUploadErrorCount"] = errors.Count;
             }
             else if (!enrollees.Any())
             {

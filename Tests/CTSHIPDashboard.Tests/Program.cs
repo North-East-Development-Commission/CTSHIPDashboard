@@ -19,6 +19,12 @@ void Check(bool condition, string name)
     checks++;
     Console.WriteLine("PASS " + name);
 }
+if (args.Contains("--enrollment") || args.Contains("--enrollment-address"))
+{
+    await EnrollmentAddressChecks.RunStandaloneAsync(Check, args.Contains("--preview"));
+    Console.WriteLine($"{checks} enrollment regression checks passed.");
+    return;
+}
 Check(VulnerabilityClassification.IsPregnant(false, " Pregnant Woman "), "legacy pregnancy category");
 Check(VulnerabilityClassification.IsPregnant(true, null), "pregnancy checkbox");
 Check(!VulnerabilityClassification.IsPregnant(false, "Not pregnant"), "negative pregnancy category");
@@ -87,6 +93,7 @@ created = await users.FindByIdAsync(created.Id) ?? throw new Exception("Created 
 Check(await users.IsLockedOutAsync(created), "disabled account is locked out");
 Check((await users.GetRolesAsync(created)).SequenceEqual(new[] { "Provider" }), "removed officer role is revoked");
 var sink = new TestNotifications();
+await EnrollmentAddressChecks.RunAsync(db, users, provider, owner, sink, Check);
 var referralService = new ReferralService(db, sink, sink);
 var hospital = new ReferredHospital { Name = "Facility One", State = "Borno" };
 var otherHospital = new ReferredHospital { Name = "Different Facility", State = "Borno" };

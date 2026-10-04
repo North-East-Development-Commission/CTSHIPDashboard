@@ -996,6 +996,33 @@ a:hover {
     font-weight: 700;
 }
 
+.ct-enrollment-form .input-validation-error {
+    border-color: var(--bs-danger);
+}
+
+.ct-enrollment-form .input-validation-error:focus {
+    box-shadow: 0 0 0 .2rem rgba(220, 53, 69, .15);
+}
+
+.ct-enrollment-form .field-validation-error {
+    font-size: .875rem;
+    margin-top: .25rem;
+}
+
+.ct-enrollment-form .validation-summary-valid {
+    display: none;
+}
+
+.ct-enrollment-form .validation-summary-errors {
+    border-left: 3px solid var(--bs-danger);
+    padding: .75rem 1rem;
+    background: rgba(220, 53, 69, .05);
+}
+
+.ct-enrollment-form .validation-summary-errors ul {
+    margin-bottom: 0;
+}
+
 .dashboard-card.kpi-card {
     --bg-start: var(--ct-green) !important;
     --bg-end: var(--ct-gold) !important;

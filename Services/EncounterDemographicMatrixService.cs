@@ -1,4 +1,5 @@
 using CTSHIPDashboard.Models;
+using CTSHIPDashboard.Helpers;
 using CTSHIPDashboard.Models.ViewModels;
 using Microsoft.EntityFrameworkCore;
 
@@ -149,19 +150,7 @@ namespace CTSHIPDashboard.Services
 
         private static string NormalizeGender(string? gender)
         {
-            if (string.Equals(gender, "Male", StringComparison.OrdinalIgnoreCase)
-                || string.Equals(gender, "M", StringComparison.OrdinalIgnoreCase))
-            {
-                return "Male";
-            }
-
-            if (string.Equals(gender, "Female", StringComparison.OrdinalIgnoreCase)
-                || string.Equals(gender, "F", StringComparison.OrdinalIgnoreCase))
-            {
-                return "Female";
-            }
-
-            return "Other / Unspecified";
+            return GenderClassification.Normalize(gender) ?? "Other / Unspecified";
         }
 
         private static string AgeBand(DateTime dateOfBirth, DateTime today)

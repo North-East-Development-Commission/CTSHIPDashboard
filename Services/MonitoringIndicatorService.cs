@@ -89,12 +89,8 @@ namespace CTSHIPDashboard.Services
             int total = enrollees.Count;
             int active = enrollees.Count(x =>
                 string.Equals(x.Status, "Active", StringComparison.OrdinalIgnoreCase));
-            int male = enrollees.Count(x =>
-                string.Equals(x.Gender, "Male", StringComparison.OrdinalIgnoreCase)
-                || string.Equals(x.Gender, "M", StringComparison.OrdinalIgnoreCase));
-            int female = enrollees.Count(x =>
-                string.Equals(x.Gender, "Female", StringComparison.OrdinalIgnoreCase)
-                || string.Equals(x.Gender, "F", StringComparison.OrdinalIgnoreCase));
+            int male = enrollees.Count(x => GenderClassification.IsMale(x.Gender));
+            int female = enrollees.Count(x => GenderClassification.IsFemale(x.Gender));
 
             int pregnant = enrollees.Count(x => VulnerabilityClassification.IsPregnant(x.IsPregnant, x.OtherVulnerableCategory) && IsFemale(x));
             int underFive = enrollees.Count(x => x.DateOfBirth > underFiveThreshold);
@@ -975,8 +971,7 @@ namespace CTSHIPDashboard.Services
 
         private static bool IsFemale(Enrollee enrollee)
         {
-            return string.Equals(enrollee.Gender, "Female", StringComparison.OrdinalIgnoreCase)
-                || string.Equals(enrollee.Gender, "F", StringComparison.OrdinalIgnoreCase);
+            return GenderClassification.IsFemale(enrollee.Gender);
         }
     }
 }
