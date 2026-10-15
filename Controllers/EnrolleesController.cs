@@ -1143,6 +1143,8 @@ public class EnrolleesController : Controller
         List<Enrollee> enrollees = new();
         List<BulkEnrolleeUploadError> errors = new();
         int rowNumber = 2;
+        string uploadStage = "reading the workbook";
+        bool importSaved = false;
 
         try
         {
@@ -1271,6 +1273,7 @@ public class EnrolleesController : Controller
                 }
             }
 
+            uploadStage = "checking existing enrollee records";
             HashSet<long> knownNins = await _context.Enrollees
                 .AsNoTracking()
                 .Where(enrollee => enrollee.NIN.HasValue)
@@ -1299,6 +1302,7 @@ public class EnrolleesController : Controller
                 ["Yobe"] = "Yobe"
             };
 
+            uploadStage = "validating enrollee rows";
             for (rowNumber = 2; rowNumber <= worksheet.Dimension.End.Row; rowNumber++)
             {
                 try
@@ -1391,44 +1395,8 @@ public class EnrolleesController : Controller
                         AddRowError("LGA", $"LGA '{lga}' does not belong to {state}. Select an LGA in that state.");
                     }
 
-                    bool isPregnant = false;
-                    bool hasDisability = false;
-                    bool isIdp = false;
-                    string? normalizedOtherVulnerableCategory = null;
-                    string normalizedVulnerability = BulkEnrolleeUploadSchema.NormalizeHeader(vulnerabilityCategory);
-                    if (!string.IsNullOrWhiteSpace(normalizedVulnerability))
-                    {
-                        switch (normalizedVulnerability)
-                        {
-                            case "PREGNANT":
-                            case "PREGNANTWOMAN":
-                                isPregnant = true;
-                                break;
-                            case "PLWD":
-                            case "DISABILITY":
-                            case "PERSONLIVINGWITHDISABILITY":
-                                hasDisability = true;
-                                break;
-                            case "IDP":
-                            case "INTERNALLYDISPLACEDPERSON":
-                                isIdp = true;
-                                break;
-                            case "NONE":
-                            case "NOTAPPLICABLE":
-                            case "NA":
-                                break;
-                            default:
-                                normalizedOtherVulnerableCategory = !string.IsNullOrWhiteSpace(otherVulnerableCategory)
-                                    ? otherVulnerableCategory.Trim()
-                                    : vulnerabilityCategory.Trim();
-                                break;
-                        }
-                    }
-                    else if (!string.IsNullOrWhiteSpace(otherVulnerableCategory))
-                    {
-                        normalizedOtherVulnerableCategory = otherVulnerableCategory.Trim();
-                    }
-
+                    var vulnerability = BulkEnrolleeUploadSchema.MergeVulnerabilityCategories(
+                        vulnerabilityCategory, otherVulnerableCategory);
                     if (nin.HasValue && knownNins.Contains(nin.Value))
                     {
                         AddRowError("NIN", $"NIN {ninDigits} already exists or is repeated in this file. Check the number before uploading.");
@@ -1455,10 +1423,10 @@ public class EnrolleesController : Controller
                         ProviderId = providerId,
                         NIN = nin,
                         Status = "Active",
-                        IsPregnant = isPregnant,
-                        HasDisability = hasDisability,
-                        IsIdp = isIdp,
-                        OtherVulnerableCategory = normalizedOtherVulnerableCategory,
+                        IsPregnant = vulnerability.IsPregnant,
+                        HasDisability = vulnerability.HasDisability,
+                        IsIdp = vulnerability.IsIdp,
+                        OtherVulnerableCategory = vulnerability.OtherCategory,
                         IsActive = true,
                         DateRegistered = dateRegistered,
                         RegisteredBy = User.Identity?.Name ?? "Bulk Upload"
@@ -1469,7 +1437,10 @@ public class EnrolleesController : Controller
                     {
                         foreach (string field in result.MemberNames)
                         {
-                            AddRowError(field, result.ErrorMessage ?? "Check this value.");
+                            AddRowError(field == nameof(Enrollee.OtherVulnerableCategory)
+                                && !string.IsNullOrWhiteSpace(vulnerabilityCategory)
+                                    ? "VulnerabilityCategory" : field,
+                                result.ErrorMessage ?? "Check this value.");
                         }
                     }
                     if (errors.Count > rowErrorStart) continue;
@@ -1524,7 +1495,10 @@ public class EnrolleesController : Controller
             else
             {
                 _context.Enrollees.AddRange(enrollees);
+                uploadStage = "saving enrollee records";
                 await _context.SaveChangesAsync();
+                importSaved = true;
+                uploadStage = "recording the upload audit";
                 await _auditService.LogAsync(
                     "Enrollee.BulkUploaded",
                     AuditActor.Format(currentUser, User.Identity?.Name),
@@ -1547,8 +1521,19 @@ public class EnrolleesController : Controller
         }
         catch (Exception ex)
         {
-            TempData["Error"] = "The Excel file could not be processed. Confirm that it uses the downloaded template.";
-            TempData["ErrorDetails"] = ex is InvalidDataException ? ex.Message : null;
+            HttpContext.RequestServices.GetService<ILogger<EnrolleesController>>()?
+                .LogError(ex, "Bulk enrollee upload failed while {UploadStage}. Reference: {Reference}",
+                    uploadStage, HttpContext.TraceIdentifier);
+            if (importSaved)
+            {
+                TempData["Success"] = $"{enrollees.Count} enrollees were imported, but the upload audit could not be recorded. Do not upload these records again. Contact support with reference {HttpContext.TraceIdentifier}.";
+                return RedirectAfterEnrollmentChange();
+            }
+
+            TempData["Error"] = uploadStage == "reading the workbook"
+                ? "The Excel workbook could not be opened. Save it as a valid .xlsx workbook and try again."
+                : $"The upload failed while {uploadStage}. Contact support with reference {HttpContext.TraceIdentifier}.";
+            TempData["ErrorDetails"] = "No enrollees were imported. The server log contains the underlying error.";
         }
 
         return RedirectToAction(nameof(BulkUpload));

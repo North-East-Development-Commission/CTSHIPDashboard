@@ -21,7 +21,9 @@ void Check(bool condition, string name)
 }
 if (args.Contains("--enrollment") || args.Contains("--enrollment-address"))
 {
-    await EnrollmentAddressChecks.RunStandaloneAsync(Check, args.Contains("--preview"));
+    int workbookArgument = Array.IndexOf(args, "--bulk-upload-file");
+    await EnrollmentAddressChecks.RunStandaloneAsync(Check, args.Contains("--preview"),
+        workbookArgument >= 0 ? args[workbookArgument + 1] : null);
     Console.WriteLine($"{checks} enrollment regression checks passed.");
     return;
 }

@@ -16,7 +16,7 @@ using OfficeOpenXml;
 
 static class EnrollmentAddressChecks
 {
-    public static async Task RunStandaloneAsync(Action<bool, string> check, bool preview = false)
+    public static async Task RunStandaloneAsync(Action<bool, string> check, bool preview = false, string? workbookPath = null)
     {
         using var connection = new SqliteConnection("Data Source=:memory:");
         await connection.OpenAsync();
@@ -37,6 +37,33 @@ static class EnrollmentAddressChecks
         await db.SaveChangesAsync();
         await users.CreateAsync(owner);
         await RunAsync(db, users, provider, owner, new TestNotifications(), check);
+        if (workbookPath != null)
+        {
+            var http = new DefaultHttpContext { RequestServices = provider,
+                User = new ClaimsPrincipal(new ClaimsIdentity(new[] {
+                    new System.Security.Claims.Claim(ClaimTypes.NameIdentifier, owner.Id), new System.Security.Claims.Claim(ClaimTypes.Role, "HMO") }, "test")) };
+            var controller = new EnrolleesController(db, users, null!, null!, new TestNotifications())
+            {
+                ControllerContext = new ControllerContext { HttpContext = http,
+                    RouteData = new Microsoft.AspNetCore.Routing.RouteData(),
+                    ActionDescriptor = new Microsoft.AspNetCore.Mvc.Controllers.ControllerActionDescriptor() },
+                TempData = new TempDataDictionary(http, new MemoryTempData())
+            };
+            using var stream = File.OpenRead(workbookPath);
+            int before = await db.Enrollees.CountAsync();
+            int previousId = await db.Enrollees.MaxAsync(e => e.Id);
+            await controller.BulkUpload(new FormFile(stream, 0, stream.Length, "excelFile", Path.GetFileName(workbookPath)), 1, 1);
+            Console.WriteLine("Workbook result: " + controller.TempData.Peek("Success"));
+            Console.WriteLine("Workbook error: " + controller.TempData.Peek("Error"));
+            Console.WriteLine("Workbook details: " + controller.TempData.Peek("ErrorDetails"));
+            var issues = JsonSerializer.Deserialize<List<BulkEnrolleeUploadError>>(
+                controller.TempData.Peek("BulkUploadErrors") as string ?? "[]")!;
+            Console.WriteLine("Workbook issue locations: " + string.Join(", ", issues.Select(e => e.Field + " " + e.Cell)));
+            check(controller.TempData.ContainsKey("Success") && await db.Enrollees.CountAsync() > before,
+                "supplied workbook imports into isolated database");
+            var imported = db.Enrollees.AsNoTracking().Where(e => e.Id > previousId);
+            Console.WriteLine($"Workbook imported: {await imported.CountAsync()}; pregnant: {await imported.CountAsync(e => e.IsPregnant)}; disability: {await imported.CountAsync(e => e.HasDisability)}; IDP: {await imported.CountAsync(e => e.IsIdp)}");
+        }
         if (preview) await PreviewHost.RunAsync(db);
     }
 
@@ -72,9 +99,9 @@ static class EnrollmentAddressChecks
             State = "Borno", LGA = "Jere", Ward = "Test Ward",
             HmoId = 1, ProviderId = 1, Address = address
         };
-        EnrolleesController Controller()
+        EnrolleesController Controller(IAuditService? uploadAudit = null)
         {
-            var controller = new EnrolleesController(db, users, null!, null!, audit) { ControllerContext = Context() };
+            var controller = new EnrolleesController(db, users, null!, null!, uploadAudit ?? audit) { ControllerContext = Context() };
             controller.TempData = new TempDataDictionary(controller.HttpContext, new MemoryTempData());
             return controller;
         }
@@ -175,6 +202,7 @@ static class EnrollmentAddressChecks
         var missingFile = Controller();
         await missingFile.BulkUpload(null!, 1, 1);
         check(missingFile.TempData.ContainsKey("ExcelFileError"), "missing file has an inline file-field error");
+        await BulkUploadChecks.RunAsync(db, Controller, check);
         await EnrollmentGenderChecks.RunAsync(db, check);
     }
 }
