@@ -3,6 +3,16 @@ bin/
 obj/
 artifacts/
 
+# Test-only and deployment-support files not needed in the production image
+Tests/
+docs/
+infra/
+azure-pipelines.yml
+docker-compose.yml
+seed-admin.sql
+seed_admin.sql
+update_hash.sql
+
 # Local IDE/runtime state
 .git/
 .github/
