@@ -25,6 +25,7 @@ public class EnrolleesController : Controller
     private const string EnrolleeManageRoles = "CTSHIPAdmin,HMO,HmoEnrollmentOfficer";
     private const string EnrolleeViewRoles = "Admin,CTSHIPAdmin,HMO,HmoEnrollmentOfficer,Provider,Monitoring,NHIA,SSHIA,IHSA,NEDCAdmin,StateOffice";
     private const string EnrolleeDashboardRoles = "HMO,HmoEnrollmentOfficer";
+    private const string EnrolleeDirectoryRoles = "CTSHIPAdmin,HMO,HmoEnrollmentOfficer,Monitoring,NHIA,SSHIA,IHSA,NEDCAdmin";
     private const int EnrolleePageSize = 30;
 
     private readonly ApplicationDbContext _context;
@@ -183,13 +184,14 @@ public class EnrolleesController : Controller
     }
     // INDEX — ALL ENROLLEES
     // GET: /Enrollee or /Enrollee/Index
-    [Authorize(Roles = "CTSHIPAdmin,HMO,HmoEnrollmentOfficer,Monitoring,NHIA,SSHIA,IHSA,NEDCAdmin")]
+    [Authorize(Roles = EnrolleeDirectoryRoles)]
     public async Task<IActionResult> Index(
         string search = "",      // Search by name, phone, NIN, or enrollment number
         string status = "",      // "Active", "Inactive", "Suspended", etc.
         string state = "",       // Optional: filter by state
         string hmo = "",         // Optional: filter by HMO
-        int page = 1)
+        int page = 1,
+        int? facility = null)
     {
         // Start building query
         var enrollees = _context.Enrollees
@@ -257,6 +259,14 @@ public class EnrolleesController : Controller
             enrollees = enrollees.Where(e => e.HmoId.ToString() == hmo || (e.Hmo != null && e.Hmo.Name == hmo));
         }
 
+        var facilityOptions = await GetDirectoryFacilitiesAsync(state, hmo, currentUser, HttpContext.RequestAborted);
+        if (facility.HasValue)
+        {
+            enrollees = facilityOptions.Any(option => option.Id == facility.Value)
+                ? enrollees.Where(e => e.ProviderId == facility.Value)
+                : enrollees.Where(e => false);
+        }
+
         // PAGINATION
         var totalRecords = await enrollees.CountAsync();
         var totalPages = (int)Math.Ceiling(totalRecords / (double)EnrolleePageSize);
@@ -287,6 +297,8 @@ public class EnrolleesController : Controller
         ViewBag.Status = status;
         ViewBag.State = state;
         ViewBag.Hmo = hmo;
+        ViewBag.Facility = facility?.ToString();
+        ViewBag.FacilityList = new SelectList(facilityOptions, "Id", "Name", facility);
 
         ViewBag.CurrentPage = page;
         ViewBag.TotalPages = totalPages;
@@ -333,6 +345,62 @@ public class EnrolleesController : Controller
 
         return View(model);
     }
+
+    [HttpGet]
+    [Authorize(Roles = EnrolleeDirectoryRoles)]
+    public async Task<IActionResult> DirectoryFacilities(string state = "", string hmo = "", CancellationToken cancellationToken = default)
+    {
+        var currentUser = await _userManager.GetUserAsync(User);
+        return Json(await GetDirectoryFacilitiesAsync(state, hmo, currentUser, cancellationToken));
+    }
+
+    private Task<List<EnrolleeFacilityOption>> GetDirectoryFacilitiesAsync(
+        string state, string hmo, ApplicationUser? currentUser, CancellationToken cancellationToken)
+    {
+        if (IsHmoEnrollmentScopedUser())
+        {
+            if (currentUser?.HmoId == null)
+            {
+                return Task.FromResult(new List<EnrolleeFacilityOption>());
+            }
+
+            hmo = currentUser.HmoId.Value.ToString();
+        }
+
+        if (User.IsInRole("SSHIA"))
+        {
+            if (string.IsNullOrWhiteSpace(currentUser?.State))
+            {
+                return Task.FromResult(new List<EnrolleeFacilityOption>());
+            }
+
+            state = currentUser.State.Trim();
+        }
+
+        var facilities = _context.Providers.AsNoTracking();
+        if (!string.IsNullOrWhiteSpace(state) && state != "all")
+        {
+            facilities = facilities.Where(p => p.State == state);
+        }
+
+        if (!string.IsNullOrWhiteSpace(hmo) && hmo != "all")
+        {
+            facilities = int.TryParse(hmo, out int hmoId)
+                ? facilities.Where(p => p.HmoId == hmoId)
+                : facilities.Where(p => _context.Hmos.Any(h => h.Id == p.HmoId && h.Name == hmo));
+        }
+
+        if (IsFacilityEnrollmentOfficer(currentUser))
+        {
+            facilities = facilities.Where(p => p.Id == currentUser!.ProviderId);
+        }
+
+        return facilities.OrderBy(p => p.Name).ThenBy(p => p.Id)
+            .Select(p => new EnrolleeFacilityOption(p.Id, p.Name))
+            .ToListAsync(cancellationToken);
+    }
+
+    private sealed record EnrolleeFacilityOption(int Id, string Name);
 
     // CREATE
     // GET: Enrollee/Create
@@ -1536,7 +1604,7 @@ public class EnrolleesController : Controller
     [ValidateAntiForgeryToken]
     [Authorize(Roles = "CTSHIPAdmin,HMO")]
     public async Task<IActionResult> DeleteSelected(
-        int[] ids, string search = "", string status = "", string state = "", string hmo = "", int page = 1)
+        int[] ids, string search = "", string status = "", string state = "", string hmo = "", int page = 1, int? facility = null)
     {
         if (!ModelState.IsValid)
         {
@@ -1564,7 +1632,7 @@ public class EnrolleesController : Controller
             _context, scope, ids, _auditService, AuditActor.Format(currentUser, User.Identity?.Name),
             HttpContext.RequestAborted);
         TempData[result.Succeeded ? "Success" : "Error"] = result.Message;
-        return RedirectToAction(nameof(Index), new { search, status, state, hmo, page });
+        return RedirectToAction(nameof(Index), new { search, status, state, hmo, page, facility });
     }
 
     // DELETE GET — SHOW CONFIRMATION

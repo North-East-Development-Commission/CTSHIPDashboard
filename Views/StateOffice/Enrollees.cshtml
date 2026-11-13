@@ -8,6 +8,7 @@
     {
         ["search"] = ViewBag.Search ?? "",
         ["state"] = ViewBag.State ?? "",
+        ["facility"] = ViewBag.Facility ?? "",
     };
     bool canSelectEnrollees = Model.Count > 0;
 }
@@ -31,12 +32,18 @@
             <form asp-action="Enrollees" method="get">
                 <input type="hidden" name="state" value="@ViewBag.State" />
                 <div class="row g-3">
-                    <div class="col-md-8">
+                    <div class="col-md-6">
                         <input type="text" name="search" value="@ViewBag.Search"
                                class="form-control form-control-lg rounded-3"
                                placeholder="Search by name, enrollment number, phone or NIN..." />
                     </div>
                     <div class="col-md-4">
+                        <select name="facility" class="form-select form-select-lg rounded-3"
+                                asp-items="ViewBag.FacilityList" aria-label="Facility">
+                            <option value="">All Facilities</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
                         <button type="submit" class="btn btn-success btn-lg w-100 rounded-3">Search</button>
                     </div>
                 </div>

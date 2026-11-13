@@ -125,7 +125,7 @@ public class StateOfficeController : Controller
     // ====================== ENROLLEES LIST ======================
     [HttpGet]
     [Authorize(Roles = EnrolleeListRoles)]
-    public async Task<IActionResult> Enrollees(string state = "", string search = "", int page = 1)
+    public async Task<IActionResult> Enrollees(string state = "", string search = "", int page = 1, int? facility = null)
     {
         var user = await _userManager.GetUserAsync(User);
         if (user == null || string.IsNullOrWhiteSpace(user.State))
@@ -160,6 +160,12 @@ public class StateOfficeController : Controller
                 (e.NIN.HasValue && EF.Functions.Like(e.NIN.Value.ToString(), s)));
         }
 
+        var facilities = _context.Providers.AsNoTracking().Where(p => p.State == state);
+        if (facility.HasValue)
+        {
+            query = query.Where(e => e.ProviderId == facility.Value && facilities.Any(p => p.Id == e.ProviderId));
+        }
+
         var totalItems = await query.CountAsync();
         var totalPages = (int)Math.Ceiling(totalItems / (double)EnrolleePageSize);
         page = Math.Clamp(page, 1, Math.Max(1, totalPages));
@@ -185,6 +191,9 @@ public class StateOfficeController : Controller
 
         ViewBag.State = state;
         ViewBag.Search = search;
+        ViewBag.Facility = facility?.ToString();
+        ViewBag.FacilityList = new SelectList(await facilities.OrderBy(p => p.Name).ThenBy(p => p.Id)
+            .Select(p => new { p.Id, p.Name }).ToListAsync(), "Id", "Name", facility);
         ViewBag.CurrentPage = page;
         ViewBag.TotalPages = totalPages;
         ViewBag.TotalEnrollees = totalItems;
@@ -195,7 +204,7 @@ public class StateOfficeController : Controller
     [HttpPost]
     [ValidateAntiForgeryToken]
     [Authorize(Roles = EnrolleeListRoles)]
-    public async Task<IActionResult> DeleteSelectedEnrollees(int[] ids, string state = "", string search = "", int page = 1)
+    public async Task<IActionResult> DeleteSelectedEnrollees(int[] ids, string state = "", string search = "", int page = 1, int? facility = null)
     {
         if (!ModelState.IsValid)
         {
@@ -222,7 +231,7 @@ public class StateOfficeController : Controller
             AuditActor.Format(user, User.Identity?.Name),
             HttpContext.RequestAborted);
         TempData[result.Succeeded ? "Success" : "Error"] = result.Message;
-        return RedirectToAction(nameof(Enrollees), new { state, search, page });
+        return RedirectToAction(nameof(Enrollees), new { state, search, page, facility });
     }
 
     // ====================== PROVIDERS LIST ======================

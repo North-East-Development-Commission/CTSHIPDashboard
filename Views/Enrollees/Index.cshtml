@@ -12,6 +12,7 @@
         ["status"] = ViewBag.Status ?? "",
         ["state"] = ViewBag.State ?? "",
         ["hmo"] = ViewBag.Hmo ?? "",
+        ["facility"] = ViewBag.Facility ?? "",
     };
     bool canSelectEnrollees = canDeleteEnrollees && Model.Count > 0;
 }
@@ -33,8 +34,9 @@
     </div>
 
     <!-- Search & Filter -->
-    <form asp-action="Index" method="get" class="row g-3 mb-4">
-        <div class="col-lg-4">
+    <form asp-action="Index" method="get" class="row g-3 mb-4"
+          id="enrollee-filters" data-facilities-url="@Url.Action("DirectoryFacilities")">
+        <div class="col-lg-2">
             <input type="text" name="search" value="@ViewBag.Search"
                    class="form-control form-control-lg" placeholder="Search name, phone, NIN, enrollment..." />
         </div>
@@ -44,14 +46,21 @@
             </select>
         </div>
         <div class="col-lg-2">
-            <select name="state" class="form-select form-select-lg" asp-items="ViewBag.StateList">
+            <select name="state" class="form-select form-select-lg" asp-items="ViewBag.StateList" aria-label="State">
                 <option value="">All States</option>
             </select>
         </div>
         <div class="col-lg-2">
-            <select name="hmo" class="form-select form-select-lg" asp-items="ViewBag.HmoList">
+            <select name="hmo" class="form-select form-select-lg" asp-items="ViewBag.HmoList" aria-label="HMO">
                 <option value="">All HMOs</option>
             </select>
+        </div>
+        <div class="col-lg-2">
+            <select name="facility" class="form-select form-select-lg" asp-items="ViewBag.FacilityList"
+                    aria-label="Facility" aria-describedby="facility-filter-status">
+                <option value="">All Facilities</option>
+            </select>
+            <div id="facility-filter-status" class="form-text" role="status"></div>
         </div>
         <div class="col-lg-2">
             <button type="submit" class="btn btn-success btn-lg w-100">
@@ -167,6 +176,7 @@
 </div>
 
 @section Scripts {
+    <script type="module" src="~/js/enrollee-facility-filter.js" asp-append-version="true"></script>
     @if (canSelectEnrollees)
     {
         <script type="module" src="~/js/enrollee-selection.js" asp-append-version="true"></script>
