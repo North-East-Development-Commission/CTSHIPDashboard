@@ -20,6 +20,8 @@ public class StateOfficeController : Controller
 {
     private const string ReferralProviderLevel = "Referral Hospital";
     private const string ReferralClaimPrefix = "RCLM-";
+    private const int EnrolleePageSize = 30;
+    private const string EnrolleeListRoles = "CTSHIPAdmin,StateOffice";
 
     private readonly ApplicationDbContext _context;
     private readonly UserManager<ApplicationUser> _userManager;
@@ -121,9 +123,9 @@ public class StateOfficeController : Controller
     }
 
     // ====================== ENROLLEES LIST ======================
-    [Authorize(Roles = "CTSHIPAdmin,StateOffice")]
-    [Authorize(Roles = "StateOffice,CTSHIPAdmin,Admin")]
-    public async Task<IActionResult> Enrollees(string state = "", string search = "", int page = 1, int pageSize = 25)
+    [HttpGet]
+    [Authorize(Roles = EnrolleeListRoles)]
+    public async Task<IActionResult> Enrollees(string state = "", string search = "", int page = 1)
     {
         var user = await _userManager.GetUserAsync(User);
         if (user == null || string.IsNullOrWhiteSpace(user.State))
@@ -145,9 +147,7 @@ public class StateOfficeController : Controller
             return RedirectToAction(nameof(Index));
         }
 
-        var query = _context.Enrollees
-            .Include(e => e.Hmo)
-            .Where(e => e.State == state);
+        var query = _context.Enrollees.AsNoTracking().Where(e => e.State == state);
 
         // Search
         if (!string.IsNullOrWhiteSpace(search))
@@ -157,15 +157,17 @@ public class StateOfficeController : Controller
                 EF.Functions.Like(e.FullName, s) ||
                 EF.Functions.Like(e.EnrollmentNumber, s) ||
                 EF.Functions.Like(e.Phone ?? "", s) ||
-                EF.Functions.Like((e.NIN ?? 0).ToString(), s));
+                (e.NIN.HasValue && EF.Functions.Like(e.NIN.Value.ToString(), s)));
         }
 
         var totalItems = await query.CountAsync();
+        var totalPages = (int)Math.Ceiling(totalItems / (double)EnrolleePageSize);
+        page = Math.Clamp(page, 1, Math.Max(1, totalPages));
 
         var enrollees = await query
-            .OrderByDescending(e => e.DateRegistered)
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
+            .OrderByDescending(e => e.Id)
+            .Skip((page - 1) * EnrolleePageSize)
+            .Take(EnrolleePageSize)
             .Select(e => new EnrolleeListViewModel
             {
                 Id = e.Id,
@@ -184,11 +186,43 @@ public class StateOfficeController : Controller
         ViewBag.State = state;
         ViewBag.Search = search;
         ViewBag.CurrentPage = page;
-        ViewBag.TotalPages = (int)Math.Ceiling(totalItems / (double)pageSize);
+        ViewBag.TotalPages = totalPages;
         ViewBag.TotalEnrollees = totalItems;
-        ViewBag.UserState = user.State;   // Useful for view logic
 
         return View(enrollees);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [Authorize(Roles = EnrolleeListRoles)]
+    public async Task<IActionResult> DeleteSelectedEnrollees(int[] ids, string state = "", string search = "", int page = 1)
+    {
+        if (!ModelState.IsValid)
+        {
+            return BadRequest();
+        }
+
+        var user = await _userManager.GetUserAsync(User);
+        if (string.IsNullOrWhiteSpace(user?.State))
+        {
+            return Forbid();
+        }
+
+        state = string.IsNullOrWhiteSpace(state) ? user.State : state;
+        if (!User.IsInRole("CTSHIPAdmin") && state != user.State)
+        {
+            return Forbid();
+        }
+
+        var result = await EnrolleeBulkDeletion.DeleteAsync(
+            _context,
+            _context.Enrollees.Where(e => e.State == state),
+            ids,
+            _auditService,
+            AuditActor.Format(user, User.Identity?.Name),
+            HttpContext.RequestAborted);
+        TempData[result.Succeeded ? "Success" : "Error"] = result.Message;
+        return RedirectToAction(nameof(Enrollees), new { state, search, page });
     }
 
     // ====================== PROVIDERS LIST ======================

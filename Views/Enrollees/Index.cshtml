@@ -4,10 +4,20 @@
 @{
     bool canEditEnrollees = User.IsInRole("CTSHIPAdmin") || User.IsInRole("HMO") || User.IsInRole("HmoEnrollmentOfficer");
     bool canDeleteEnrollees = User.IsInRole("CTSHIPAdmin") || User.IsInRole("HMO");
+    int currentPage = ViewBag.CurrentPage;
+    int totalPages = ViewBag.TotalPages;
+    var filters = new Dictionary<string, string>
+    {
+        ["search"] = ViewBag.Search ?? "",
+        ["status"] = ViewBag.Status ?? "",
+        ["state"] = ViewBag.State ?? "",
+        ["hmo"] = ViewBag.Hmo ?? "",
+    };
+    bool canSelectEnrollees = canDeleteEnrollees && Model.Count > 0;
 }
 
 <div class="container-fluid py-4">
-    <div class="d-flex justify-content-between align-items-center mb-4">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
         <h2 class="text-success fw-bold display-6">Enrollee Directory</h2>
         @if (canEditEnrollees)
         {
@@ -52,9 +62,24 @@
 
     <!-- Stats -->
     <div class="alert alert-success text-center fw-bold fs-5 mb-4">
-        Total Enrollees: @ViewBag.TotalRecords |
-        Showing Page @ViewBag.CurrentPage of @ViewBag.TotalPages
+        Total Enrollees: @ViewBag.TotalRecords
+        @if (totalPages > 0)
+        {
+            <span> | Showing page @currentPage of @totalPages</span>
+        }
     </div>
+
+    @if (canSelectEnrollees)
+    {
+        <form id="delete-selected-enrollees" asp-action="DeleteSelected" method="post" class="mb-3">
+            @foreach (var filter in filters)
+            {
+                <input type="hidden" name="@filter.Key" value="@filter.Value" />
+            }
+            <input type="hidden" name="page" value="@currentPage" />
+            <button type="submit" class="btn btn-outline-danger" disabled>Delete selected</button>
+        </form>
+    }
 
     <!-- Table -->
     <div class="card shadow-lg border-0">
@@ -62,6 +87,13 @@
             <table class="table table-hover align-middle mb-4">
                 <thead class="bg-success text-white">
                     <tr>
+                        @if (canSelectEnrollees)
+                        {
+                            <th scope="col">
+                                <input type="checkbox" class="form-check-input" id="select-page-enrollees"
+                                       aria-label="Select all enrollees on this page" />
+                            </th>
+                        }
                         <th>Photo</th>
                         <th>Name</th>
                         <th>Enrollment ID</th>
@@ -77,9 +109,20 @@
                     </tr>
                 </thead>
                 <tbody>
+                    @if (Model.Count == 0)
+                    {
+                        <tr><td colspan="12" class="text-center text-muted py-4">No enrollees found</td></tr>
+                    }
                     @foreach (var e in Model)
                     {
                         <tr>
+                            @if (canSelectEnrollees)
+                            {
+                                <td>
+                                    <input type="checkbox" class="form-check-input" form="delete-selected-enrollees"
+                                           name="ids" value="@e.Id" aria-label="Select @e.FullName (@e.EnrollmentNumber)" />
+                                </td>
+                            }
                             <td>
                                 <img src="@EnrolleePhotoStorage.ResolvePhotoPath(e.PhotoPath, e.EnrollmentNumber)"
                                      class="rounded-circle" style="width:50px;height:50px;object-fit:cover;" />
@@ -119,89 +162,13 @@
             
         </div>
 
-        <!-- Pagination -->
-        @if (ViewBag.TotalPages > 1)
-        {
-            <nav class="mt-5">
-                <ul class="pagination justify-content-center flex-wrap">
-
-                    <!-- Previous Button -->
-                    <li class="page-item @(ViewBag.CurrentPage == 1 ? "disabled" : "")">
-                        <a class="page-link rounded-start-3"
-                           asp-action="Index"
-                           asp-route-search="@ViewBag.Search"
-                           asp-route-status="@ViewBag.Status"
-                           asp-route-page="@(ViewBag.CurrentPage - 1)"
-                           tabindex="@(ViewBag.CurrentPage == 1 ? "-1" : null)">
-                            Previous
-                        </a>
-                    </li>
-
-                    <!-- First Page -->
-                    @if (ViewBag.CurrentPage > 4)
-                    {
-                        <li class="page-item">
-                            <a class="page-link"
-                               asp-action="Index"
-                               asp-route-search="@ViewBag.Search"
-                               asp-route-status="@ViewBag.Status"
-                               asp-route-page="1">1</a>
-                        </li>
-                        @if (ViewBag.CurrentPage > 5)
-                        {
-                            <li class="page-item disabled"><span class="page-link">...</span></li>
-                        }
-                    }
-
-                    <!-- Page Numbers Around Current -->
-                    @{
-                        int start = Math.Max(1, ViewBag.CurrentPage - 2);
-                        int end = Math.Min(ViewBag.TotalPages, ViewBag.CurrentPage + 2);
-                    }
-
-                    @for (int i = start; i <= end; i++)
-                    {
-                        <li class="page-item @(i == ViewBag.CurrentPage ? "active" : "")">
-                            <a class="page-link"
-                               asp-action="Index"
-                               asp-route-search="@ViewBag.Search"
-                               asp-route-status="@ViewBag.Status"
-                               asp-route-page="@i">@i</a>
-                        </li>
-                    }
-
-                    <!-- Last Page -->
-                    @if (ViewBag.CurrentPage < ViewBag.TotalPages - 3)
-                    {
-                        @if (ViewBag.CurrentPage < ViewBag.TotalPages - 4)
-                        {
-                            <li class="page-item disabled"><span class="page-link">...</span></li>
-                        }
-                        <li class="page-item">
-                            <a class="page-link"
-                               asp-action="Index"
-                               asp-route-search="@ViewBag.Search"
-                               asp-route-status="@ViewBag.Status"
-                               asp-route-page="@ViewBag.TotalPages">
-                                @ViewBag.TotalPages
-                            </a>
-                        </li>
-                    }
-
-                    <!-- Next Button -->
-                    <li class="page-item @(ViewBag.CurrentPage == ViewBag.TotalPages ? "disabled" : "")">
-                        <a class="page-link rounded-end-3"
-                           asp-action="Index"
-                           asp-route-search="@ViewBag.Search"
-                           asp-route-status="@ViewBag.Status"
-                           asp-route-page="@(ViewBag.CurrentPage + 1)"
-                           tabindex="@(ViewBag.CurrentPage == ViewBag.TotalPages ? "-1" : null)">
-                            Next
-                        </a>
-                    </li>
-                </ul>
-            </nav>
-        }
-       
+        @await Html.PartialAsync("_EnrolleePagination", (currentPage, totalPages, "Index", filters))
     </div>
 </div>
+
+@section Scripts {
+    @if (canSelectEnrollees)
+    {
+        <script type="module" src="~/js/enrollee-selection.js" asp-append-version="true"></script>
+    }
+}

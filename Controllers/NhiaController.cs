@@ -1,3 +1,4 @@
+using CTSHIPDashboard.Helpers;
 using CTSHIPDashboard.Data;
 using CTSHIPDashboard.Models.ViewModels;
 using CTSHIPDashboard.Services;
@@ -217,44 +218,40 @@ namespace CTSHIPDashboard.Controllers
                 .ToListAsync();
 
             var enrollmentByState = enrollmentGroups
-                .GroupBy(item => NormalizeState(item.State))
+                .GroupBy(item => NormalizeState(item.State), StringComparer.OrdinalIgnoreCase)
                 .ToDictionary(
                     group => group.Key,
-                    group => new { Count = group.Sum(item => item.Count), Active = group.Sum(item => item.Active) });
+                    group => new { Count = group.Sum(item => item.Count), Active = group.Sum(item => item.Active) }, StringComparer.OrdinalIgnoreCase);
 
             var claimsByState = claimGroups
-                .GroupBy(item => NormalizeState(item.State))
+                .GroupBy(item => NormalizeState(item.State), StringComparer.OrdinalIgnoreCase)
                 .ToDictionary(
                     group => group.Key,
-                    group => new { Count = group.Sum(item => item.Count), Amount = group.Sum(item => item.Amount) });
+                    group => new { Count = group.Sum(item => item.Count), Amount = group.Sum(item => item.Amount) }, StringComparer.OrdinalIgnoreCase);
 
             var providersByState = providerGroups
-                .GroupBy(item => NormalizeState(item.State))
-                .ToDictionary(group => group.Key, group => group.Sum(item => item.Count));
+                .GroupBy(item => NormalizeState(item.State), StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(group => group.Key, group => group.Sum(item => item.Count), StringComparer.OrdinalIgnoreCase);
 
             var hmosByState = hmoGroups
-                .GroupBy(item => NormalizeState(item.State))
-                .ToDictionary(group => group.Key, group => group.Sum(item => item.Count));
+                .SelectMany(item => (item.State ?? string.Empty)
+                    .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .Select(state => new { State = state, item.Count }))
+                .GroupBy(item => item.State, StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(group => group.Key, group => group.Sum(item => item.Count), StringComparer.OrdinalIgnoreCase);
 
             var encountersByState = encounterGroups
-                .GroupBy(item => NormalizeState(item.State))
+                .GroupBy(item => NormalizeState(item.State), StringComparer.OrdinalIgnoreCase)
                 .ToDictionary(
                     group => group.Key,
-                    group => new { Count = group.Sum(item => item.Count), UniqueEnrollees = group.Sum(item => item.UniqueEnrollees) });
+                    group => new { Count = group.Sum(item => item.Count), UniqueEnrollees = group.Sum(item => item.UniqueEnrollees) }, StringComparer.OrdinalIgnoreCase);
 
             var complaintsByState = complaintGroups
-                .GroupBy(item => NormalizeState(item.State))
-                .ToDictionary(group => group.Key, group => group.Sum(item => item.Count));
-
-            IEnumerable<string> states = enrollmentByState.Keys
-                .Union(claimsByState.Keys)
-                .Union(providersByState.Keys)
-                .Union(hmosByState.Keys)
-                .Union(encountersByState.Keys)
-                .Union(complaintsByState.Keys)
-                .OrderBy(state => state);
-
-            return states
+                .GroupBy(item => NormalizeState(item.State), StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(group => group.Key, group => group.Sum(item => item.Count), StringComparer.OrdinalIgnoreCase);
+
+            return NorthEastLocationData.States
                 .Select(state =>
                 {
                     enrollmentByState.TryGetValue(state, out var enrollment);

@@ -18,6 +18,10 @@ static class EnrollmentGenderChecks
             Gender = gender, State = "Taraba", LGA = "Jalingo", Ward = "Test Ward",
             DateOfBirth = new DateTime(1992, 4, 18), IsPregnant = index == 0 || index == 6
         }).ToList();
+        enrollees[0].DateOfBirth = DateTime.Today.AddYears(-4);
+        enrollees[1].DateOfBirth = DateTime.Today.AddYears(-5);
+        enrollees[2].DateOfBirth = DateTime.Today.AddYears(-59);
+        enrollees[3].DateOfBirth = DateTime.Today.AddYears(-60);
         db.Enrollees.AddRange(enrollees);
         db.Encounters.AddRange(enrollees.Select(enrollee => new Encounter
         {
@@ -40,8 +44,12 @@ static class EnrollmentGenderChecks
             check(row.Enrollees == 4 && row.Encounters == 4 && row.EnrolleesWithEncounters == 4,
                 $"{gender} demographic matrix includes abbreviated and full gender values");
         }
-        check(matrix.Rows.Single(r => r.Category == "Other / Unspecified").Enrollees == 1,
-            "unknown gender is not classified as Male or Female");
+        check(matrix.Rows.All(r => r.Category != "Other / Unspecified") && matrix.TotalEnrollees == 9,
+            "unknown gender has no separate row and remains in the enrollee total");
+        check(matrix.Rows.Single(r => r.Category == "Under 5").Encounters == 1
+            && matrix.Rows.Single(r => r.Category == "60+").Encounters == 1
+            && matrix.Rows.All(r => r.Category != "Children under 5" && r.Category != "Elderly (60+)"),
+            "under-5 and 60+ encounters appear once by age with the correct age boundaries");
         check(matrix.Rows.Single(r => r.Category == "Pregnant women").Enrollees == 1,
             "pregnancy matrix recognizes F and excludes Male pregnancy flags");
 

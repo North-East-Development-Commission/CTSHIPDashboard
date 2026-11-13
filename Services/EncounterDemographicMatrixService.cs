@@ -59,9 +59,9 @@ namespace CTSHIPDashboard.Services
 
             model.Rows.AddRange(BuildRows(
                 "Gender",
-                new[] { "Male", "Female", "Other / Unspecified" },
-                profile => NormalizeGender(profile.Gender),
-                fact => NormalizeGender(fact.Gender),
+                new[] { "Male", "Female" },
+                profile => GenderClassification.Normalize(profile.Gender) ?? string.Empty,
+                fact => GenderClassification.Normalize(fact.Gender) ?? string.Empty,
                 enrollees,
                 encounters,
                 totalEnrollees,
@@ -79,7 +79,7 @@ namespace CTSHIPDashboard.Services
 
             model.Rows.AddRange(BuildRows(
                 "Vulnerability",
-                new[] { "Pregnant women", "Children under 5", "Elderly (60+)", "PLWD", "IDP / Other", "Not flagged" },
+                new[] { "Pregnant women", "PLWD", "IDP / Other", "Not flagged" },
                 profile => VulnerabilityCategory(
                     profile.Gender,
                     profile.DateOfBirth,
@@ -148,11 +148,6 @@ namespace CTSHIPDashboard.Services
             }
         }
 
-        private static string NormalizeGender(string? gender)
-        {
-            return GenderClassification.Normalize(gender) ?? "Other / Unspecified";
-        }
-
         private static string AgeBand(DateTime dateOfBirth, DateTime today)
         {
             int age = CalculateAge(dateOfBirth, today);
@@ -161,7 +156,7 @@ namespace CTSHIPDashboard.Services
                 < 5 => "Under 5",
                 < 18 => "5-17",
                 < 36 => "18-35",
-                < 60 => "36-59",
+                < ElderlyAge => "36-59",
                 _ => "60+"
             };
         }
@@ -175,20 +170,16 @@ namespace CTSHIPDashboard.Services
             string? otherVulnerableCategory,
             DateTime today)
         {
-            if (VulnerabilityClassification.IsPregnant(isPregnant, otherVulnerableCategory) && NormalizeGender(gender) == "Female")
+            if (VulnerabilityClassification.IsPregnant(isPregnant, otherVulnerableCategory) && GenderClassification.IsFemale(gender))
             {
                 return "Pregnant women";
             }
 
             int age = CalculateAge(dateOfBirth, today);
-            if (age < 5)
+            // These age groups already have rows in the age bands.
+            if (age < 5 || age >= ElderlyAge)
             {
-                return "Children under 5";
-            }
-
-            if (age >= ElderlyAge)
-            {
-                return "Elderly (60+)";
+                return string.Empty;
             }
 
             if (VulnerabilityClassification.HasDisability(hasDisability, otherVulnerableCategory))

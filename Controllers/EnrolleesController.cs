@@ -25,6 +25,7 @@ public class EnrolleesController : Controller
     private const string EnrolleeManageRoles = "CTSHIPAdmin,HMO,HmoEnrollmentOfficer";
     private const string EnrolleeViewRoles = "Admin,CTSHIPAdmin,HMO,HmoEnrollmentOfficer,Provider,Monitoring,NHIA,SSHIA,IHSA,NEDCAdmin,StateOffice";
     private const string EnrolleeDashboardRoles = "HMO,HmoEnrollmentOfficer";
+    private const int EnrolleePageSize = 30;
 
     private readonly ApplicationDbContext _context;
     private readonly UserManager<ApplicationUser> _userManager;
@@ -188,8 +189,7 @@ public class EnrolleesController : Controller
         string status = "",      // "Active", "Inactive", "Suspended", etc.
         string state = "",       // Optional: filter by state
         string hmo = "",         // Optional: filter by HMO
-        int page = 1,
-        int pageSize = 15)
+        int page = 1)
     {
         // Start building query
         var enrollees = _context.Enrollees
@@ -233,7 +233,7 @@ public class EnrolleesController : Controller
 
             enrollees = enrollees.Where(e =>
                 e.FullName.ToLower().Contains(search) ||
-                e.EnrollmentNumber.Contains(search) ||
+                e.EnrollmentNumber.ToLower().Contains(search) ||
                 (e.Phone != null && e.Phone.Contains(search)) ||
                 (e.NIN.HasValue && e.NIN.Value.ToString().Contains(search))
             );
@@ -257,19 +257,15 @@ public class EnrolleesController : Controller
             enrollees = enrollees.Where(e => e.HmoId.ToString() == hmo || (e.Hmo != null && e.Hmo.Name == hmo));
         }
 
-        // SORT: Newest first (or by name if needed)
-        enrollees = enrollees.OrderByDescending(e => e.DateRegistered);
-
         // PAGINATION
         var totalRecords = await enrollees.CountAsync();
-        var totalPages = (int)Math.Ceiling(totalRecords / (double)pageSize);
-
-        if (page < 1) page = 1;
-        if (page > totalPages && totalPages > 0) page = totalPages;
+        var totalPages = (int)Math.Ceiling(totalRecords / (double)EnrolleePageSize);
+        page = Math.Clamp(page, 1, Math.Max(1, totalPages));
 
         var model = await enrollees
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
+            .OrderByDescending(e => e.Id)
+            .Skip((page - 1) * EnrolleePageSize)
+            .Take(EnrolleePageSize)
             .Select(e => new EnrolleeListViewModel
             {
                 Id = e.Id,
@@ -295,9 +291,6 @@ public class EnrolleesController : Controller
         ViewBag.CurrentPage = page;
         ViewBag.TotalPages = totalPages;
         ViewBag.TotalRecords = totalRecords;
-        ViewBag.HasPrevious = page > 1;
-        ViewBag.HasNext = page < totalPages;
-        ViewBag.PageSize = pageSize;
 
         // Dropdown data
         ViewBag.StatusList = new SelectList(new[]
@@ -1537,6 +1530,41 @@ public class EnrolleesController : Controller
         }
 
         return RedirectToAction(nameof(BulkUpload));
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [Authorize(Roles = "CTSHIPAdmin,HMO")]
+    public async Task<IActionResult> DeleteSelected(
+        int[] ids, string search = "", string status = "", string state = "", string hmo = "", int page = 1)
+    {
+        if (!ModelState.IsValid)
+        {
+            return BadRequest();
+        }
+
+        ApplicationUser? currentUser = await _userManager.GetUserAsync(User);
+        if (currentUser == null)
+        {
+            return Forbid();
+        }
+
+        IQueryable<Enrollee> scope = _context.Enrollees;
+        if (User.IsInRole("HMO"))
+        {
+            if (!currentUser.HmoId.HasValue)
+            {
+                return Forbid();
+            }
+
+            scope = scope.Where(e => e.HmoId == currentUser.HmoId.Value);
+        }
+
+        var result = await EnrolleeBulkDeletion.DeleteAsync(
+            _context, scope, ids, _auditService, AuditActor.Format(currentUser, User.Identity?.Name),
+            HttpContext.RequestAborted);
+        TempData[result.Succeeded ? "Success" : "Error"] = result.Message;
+        return RedirectToAction(nameof(Index), new { search, status, state, hmo, page });
     }
 
     // DELETE GET — SHOW CONFIRMATION

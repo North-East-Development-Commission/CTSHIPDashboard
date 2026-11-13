@@ -247,6 +247,30 @@ For normal app deployments, leave migrations off.
 
 ## Troubleshooting
 
+### Bulk enrollee upload fails while saving records
+
+If the server log reports `Cannot insert the value NULL into column 'NIN'`,
+the running application accepts optional NINs but the database still requires
+them. Rebuilding the image alone does not change the database schema.
+
+The required migration is
+`20260916232522_MakeEnrolleeNinAndPhoneOptional`. If startup reports
+`Cannot find the object "Enrollees" because it does not exist or you do not have permissions`
+while executing `ALTER TABLE`, run the migration using an authorised migration
+account. The application's ability to read and insert rows does not imply
+permission to alter the table.
+
+For an existing `dbo.Enrollees` table with this specific pending migration,
+run `Data/Scripts/RepairOptionalEnrolleeIdentityColumns.sql` against the
+application database as its SQL administrator. The script checks the existing
+column types, makes only Phone and NIN nullable, and records that migration in
+one transaction. It can be run again safely and does not insert, update, or
+delete enrollee records. It does not grant the application additional permissions.
+
+Verify that both returned `AllowsNull` values are `1`, then retry the upload
+after selecting the intended HMO and facility. No image rebuild or restart is
+required for this schema repair to take effect.
+
 ### `/alive` does not return JSON
 
 Check container logs:
