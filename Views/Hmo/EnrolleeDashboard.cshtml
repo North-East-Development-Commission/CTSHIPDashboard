@@ -2,6 +2,16 @@
 @model IEnumerable<CTSHIPDashboard.Models.Enrollee>
 @{
     ViewData["Title"] = $"{ViewBag.HmoName} - Enrollee Dashboard";
+    int currentPage = ViewBag.CurrentPage;
+    int totalPages = ViewBag.TotalPages;
+    var filters = new Dictionary<string, string>
+    {
+        ["search"] = ViewBag.Search ?? "",
+        ["status"] = ViewBag.Status ?? "All",
+        ["state"] = ViewBag.State ?? "All",
+        ["facility"] = ViewBag.Facility ?? "",
+        ["pageSize"] = ViewBag.EnrolleePageSize.ToString()
+    };
     bool canSelectEnrollees = User.IsInRole("HMO") && Model.Any();
 }
 
@@ -62,24 +72,24 @@
     <!-- SEARCH & FILTERS -->
     <div class="card border-0 shadow mb-4">
         <div class="card-body">
-            <form asp-action="EnrolleeDashboard" method="get">
+            <form asp-action="EnrolleeDashboard" method="get"
+                  id="enrollee-filters" data-facilities-url="@Url.Action("DirectoryFacilities", "Enrollees")">
+                <input type="hidden" name="pageSize" value="@filters["pageSize"]" />
                 <div class="row g-3">
-                    <div class="col-md-4">
+                    <div class="col-lg-3">
                         <input type="text" name="search" value="@ViewBag.Search"
                                class="form-control form-control-lg rounded-3"
                                placeholder="Search by name, ID, or phone..." />
                     </div>
-                    <div class="col-md-4">
-                        <div class="col-md-3">
-                            <select name="status" class="form-select form-select-lg rounded-3">
-                                <option value="All">All Status</option>
-                                <option value="Active" selected="@(ViewBag.Status == "Active")">Active Only</option>
-                                <option value="Inactive" selected="@(ViewBag.Status == "Inactive")">Inactive Only</option>
-                            </select>
-                        </div>
+                    <div class="col-lg-2">
+                        <select name="status" class="form-select form-select-lg rounded-3" aria-label="Status">
+                            <option value="All">All Status</option>
+                            <option value="Active" selected="@(ViewBag.Status == "Active")">Active Only</option>
+                            <option value="Inactive" selected="@(ViewBag.Status == "Inactive")">Inactive Only</option>
+                        </select>
                     </div>
-                    <div class="col-md-3">
-                        <select name="state" class="form-select form-select-lg rounded-3">
+                    <div class="col-lg-2">
+                        <select name="state" class="form-select form-select-lg rounded-3" aria-label="State">
                             <option value="All">All States</option>
                             @foreach (var state in NorthEastLocationData.States)
                             {
@@ -87,7 +97,14 @@
                             }
                         </select>
                     </div>
-                    <div class="col-md-1">
+                    <div class="col-lg-3">
+                        <select name="facility" class="form-select form-select-lg rounded-3" asp-items="ViewBag.FacilityList"
+                                aria-label="Facility" aria-describedby="facility-filter-status">
+                            <option value="">All Facilities</option>
+                        </select>
+                        <div id="facility-filter-status" class="form-text" role="status"></div>
+                    </div>
+                    <div class="col-lg-2">
                         <button type="submit" class="btn btn-success btn-lg w-100 rounded-3">
                             Filter
                         </button>
@@ -107,11 +124,11 @@
     @if (canSelectEnrollees)
     {
         <form id="delete-selected-enrollees" asp-action="DeleteSelectedEnrollees" method="post" class="mb-3">
-            <input type="hidden" name="search" value="@ViewBag.Search" />
-            <input type="hidden" name="status" value="@ViewBag.Status" />
-            <input type="hidden" name="state" value="@ViewBag.State" />
-            <input type="hidden" name="page" value="@ViewBag.CurrentPage" />
-            <input type="hidden" name="pageSize" value="@ViewBag.EnrolleePageSize" />
+            @foreach (var filter in filters)
+            {
+                <input type="hidden" name="@filter.Key" value="@filter.Value" />
+            }
+            <input type="hidden" name="page" value="@currentPage" />
             <button type="submit" class="btn btn-outline-danger" disabled>Delete selected</button>
         </form>
     }
@@ -194,93 +211,11 @@
         </div>
     </div>
 
-    <!-- PAGINATION -->
-    <!-- Pagination -->
-    @if (ViewBag.TotalPages > 1)
-    {
-        <nav class="mt-5">
-            <ul class="pagination justify-content-center flex-wrap">
-
-                <!-- Previous Button -->
-                <li class="page-item @(ViewBag.CurrentPage == 1 ? "disabled" : "")">
-                    <a class="page-link rounded-start-3"
-                       asp-action="EnrolleeDashboard"
-                       asp-route-search="@ViewBag.Search"
-                       asp-route-status="@ViewBag.Status"
-                       asp-route-page="@(ViewBag.CurrentPage - 1)"
-                       tabindex="@(ViewBag.CurrentPage == 1 ? "-1" : null)">
-                        Previous
-                    </a>
-                </li>
-
-                <!-- First Page -->
-                @if (ViewBag.CurrentPage > 4)
-                {
-                    <li class="page-item">
-                        <a class="page-link"
-                           asp-action="EnrolleeDashboard"
-                           asp-route-search="@ViewBag.Search"
-                           asp-route-status="@ViewBag.Status"
-                           asp-route-page="1">1</a>
-                    </li>
-                    @if (ViewBag.CurrentPage > 5)
-                    {
-                        <li class="page-item disabled"><span class="page-link">...</span></li>
-                    }
-                }
-
-                <!-- Page Numbers Around Current -->
-                @{
-                    int start = Math.Max(1, ViewBag.CurrentPage - 2);
-                    int end = Math.Min(ViewBag.TotalPages, ViewBag.CurrentPage + 2);
-                }
-
-                @for (int i = start; i <= end; i++)
-                {
-                    <li class="page-item @(i == ViewBag.CurrentPage ? "active" : "")">
-                        <a class="page-link"
-                           asp-action="EnrolleeDashboard"
-                           asp-route-search="@ViewBag.Search"
-                           asp-route-status="@ViewBag.Status"
-                           asp-route-page="@i">@i</a>
-                    </li>
-                }
-
-                <!-- Last Page -->
-                @if (ViewBag.CurrentPage < ViewBag.TotalPages - 3)
-                {
-                    @if (ViewBag.CurrentPage < ViewBag.TotalPages - 4)
-                    {
-                        <li class="page-item disabled"><span class="page-link">...</span></li>
-                    }
-                    <li class="page-item">
-                        <a class="page-link"
-                           asp-action="EnrolleeDashboard"
-                           asp-route-search="@ViewBag.Search"
-                           asp-route-status="@ViewBag.Status"
-                           asp-route-page="@ViewBag.TotalPages">
-                            @ViewBag.TotalPages
-                        </a>
-                    </li>
-                }
-
-                <!-- Next Button -->
-                <li class="page-item @(ViewBag.CurrentPage == ViewBag.TotalPages ? "disabled" : "")">
-                    <a asp-action="EnrolleeDashboard"
-                       asp-route-page="@(ViewBag.CurrentPage + 1)"
-                       asp-route-search="@ViewBag.Search"
-                       asp-route-status="@ViewBag.Status"
-                       asp-route-state="@ViewBag.State"
-                       class="btn btn-primary @(ViewBag.CurrentPage >= ViewBag.TotalPages ? "disabled" : "")">
-                        Next
-                    </a>
-                </li>
-            </ul>
-        </nav>
-    }
+    @await Html.PartialAsync("_EnrolleePagination", (currentPage, totalPages, "EnrolleeDashboard", filters))
 </div>
 
 @section Scripts {
+    <script type="module" src="~/js/enrollee-facility-filter.js" asp-append-version="true"></script>
     @if (canSelectEnrollees)
     {
         <script type="module" src="~/js/enrollee-selection.js" asp-append-version="true"></script>

@@ -17,7 +17,9 @@ async function refreshFacilities() {
 
     const url = new URL(filters.dataset.facilitiesUrl, window.location.href);
     url.searchParams.set("state", state.value);
-    url.searchParams.set("hmo", hmo.value);
+    if (hmo) {
+        url.searchParams.set("hmo", hmo.value);
+    }
     facility.disabled = true;
     facility.replaceChildren(new Option("All Facilities", ""));
     status.textContent = "Loading facilities…";
@@ -48,4 +50,4 @@ async function refreshFacilities() {
 }
 
 state.addEventListener("change", refreshFacilities);
-hmo.addEventListener("change", refreshFacilities);
+hmo?.addEventListener("change", refreshFacilities);

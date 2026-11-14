@@ -2239,7 +2239,7 @@ public class HmoController : Controller
     [ValidateAntiForgeryToken]
     [Authorize(Roles = "HMO")]
     public async Task<IActionResult> DeleteSelectedEnrollees(
-        int[] ids, string search = "", string status = "All", string state = "All", int page = 1, int pageSize = 10)
+        int[] ids, string search = "", string status = "All", string state = "All", int page = 1, int pageSize = 30, int? facility = null)
     {
         if (!ModelState.IsValid)
         {
@@ -2256,7 +2256,7 @@ public class HmoController : Controller
             _context, _context.Enrollees.Where(e => e.HmoId == currentUser.HmoId.Value), ids,
             _auditService, AuditActor.Format(currentUser, User.Identity?.Name), HttpContext.RequestAborted);
         TempData[result.Succeeded ? "Success" : "Error"] = result.Message;
-        return RedirectToAction(nameof(EnrolleeDashboard), new { search, status, state, page, pageSize });
+        return RedirectToAction(nameof(EnrolleeDashboard), new { search, status, state, page, pageSize, facility });
     }
 
     // DELETE GET — SHOW CONFIRMATION
@@ -2346,7 +2346,8 @@ public class HmoController : Controller
         string status = "All",
         string state = "All",
         int page = 1,
-        int pageSize = 10)
+        int pageSize = 30,
+        int? facility = null)
     {
         var currentUser = await _userManager.GetUserAsync(User);
         if (currentUser?.HmoId == null)
@@ -2369,7 +2370,7 @@ public class HmoController : Controller
         }
 
         // 3. Status (Ensure exact string match)
-        if (status != "All")
+        if (!string.IsNullOrWhiteSpace(status) && !status.Equals("all", StringComparison.OrdinalIgnoreCase))
         {
             query = query.Where(e => e.Status == status);
         }
@@ -2380,17 +2381,25 @@ public class HmoController : Controller
             query = query.Where(e => e.State == state);
         }
 
-        var totalItems = await query.CountAsync(); // Should now return the correct count
+        var facilities = _context.Providers.AsNoTracking().Where(p => p.HmoId == currentUser.HmoId.Value);
+        if (!string.IsNullOrWhiteSpace(state) && !state.Equals("all", StringComparison.OrdinalIgnoreCase))
+        {
+            facilities = facilities.Where(p => p.State == state);
+        }
 
+        if (facility.HasValue)
+        {
+            query = query.Where(e => e.ProviderId == facility.Value && facilities.Any(p => p.Id == e.ProviderId));
+        }
+
+        var totalItems = await query.CountAsync();
+        pageSize = pageSize > 0 ? pageSize : 30;
         var totalPages = (int)Math.Ceiling(totalItems / (double)pageSize);
-
-        // Ensure page is within valid range
-        if (page < 1) page = 1;
-        if (page > totalPages && totalPages > 0) page = totalPages;
+        page = Math.Clamp(page, 1, Math.Max(1, totalPages));
 
         // PAGINATION - OrderBy is mandatory for stable Skip/Take
         var enrollees = await query
-            .OrderByDescending(e => e.DateRegistered)
+            .OrderByDescending(e => e.Id)
             .Skip((page - 1) * pageSize)
             .Take(pageSize)
             .ToListAsync();
@@ -2413,6 +2422,9 @@ ViewBag.TotalClaims = await _context.Enrollees
         ViewBag.Search = search;
         ViewBag.Status = status;
         ViewBag.State = state;
+        ViewBag.Facility = facility?.ToString();
+        ViewBag.FacilityList = new SelectList(await facilities.OrderBy(p => p.Name).ThenBy(p => p.Id)
+            .Select(p => new { p.Id, p.Name }).ToListAsync(), "Id", "Name", facility);
         ViewBag.CurrentPage = page > 0 ? page : 1;
         ViewBag.TotalPages = totalPages;
         ViewBag.EnrolleePageSize = pageSize;

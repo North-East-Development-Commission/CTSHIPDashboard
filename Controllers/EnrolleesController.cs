@@ -377,7 +377,7 @@ public class EnrolleesController : Controller
         }
 
         var facilities = _context.Providers.AsNoTracking();
-        if (!string.IsNullOrWhiteSpace(state) && state != "all")
+        if (!string.IsNullOrWhiteSpace(state) && !state.Equals("all", StringComparison.OrdinalIgnoreCase))
         {
             facilities = facilities.Where(p => p.State == state);
         }
