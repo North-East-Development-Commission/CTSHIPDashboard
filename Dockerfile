@@ -1,14 +1,19 @@
 # Build stage
 FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
+ARG TARGETARCH
 WORKDIR /src
 
 COPY CTSHIPDashboard.csproj ./
-RUN dotnet restore CTSHIPDashboard.csproj
+RUN dotnet restore CTSHIPDashboard.csproj --arch "$TARGETARCH" -p:ContainerPublish=true
 
 COPY . ./
 RUN dotnet publish CTSHIPDashboard.csproj \
     --configuration Release \
+    --arch "$TARGETARCH" \
+    --no-self-contained \
     --no-restore \
+    -p:ContainerPublish=true \
+    -p:DebugType=None \
     --output /app/publish
 
 # Runtime stage
