@@ -1,12 +1,13 @@
 const deleteForm = document.getElementById("delete-selected-enrollees");
 const selectPage = document.getElementById("select-page-enrollees");
-const enrolleeCheckboxes = [...deleteForm.querySelectorAll('input[name="ids"]')];
+const enrolleeCheckboxes = [...deleteForm.elements].filter(element => element.name === "ids");
 const deleteButton = deleteForm.querySelector('button[type="submit"]');
 
 function updateSelection() {
     const count = enrolleeCheckboxes.filter(checkbox => checkbox.checked).length;
-    selectPage.checked = count === enrolleeCheckboxes.length;
+    selectPage.checked = count > 0 && count === enrolleeCheckboxes.length;
     selectPage.indeterminate = count > 0 && count < enrolleeCheckboxes.length;
+    deleteForm.hidden = count === 0;
     deleteButton.disabled = count === 0;
     deleteButton.textContent = count ? `Delete selected (${count})` : "Delete selected";
     return count;

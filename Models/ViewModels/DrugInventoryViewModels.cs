@@ -22,6 +22,7 @@ namespace CTSHIPDashboard.Models.ViewModels
         public decimal EncounterRatePerThousand { get; set; }
         public ComplaintMetricsViewModel ComplaintMetrics { get; set; } = new();
         public MonitoringDashboardViewModel Monitoring { get; set; } = new();
+        public int ProgrammeTargetEnrollees { get; set; }
         public List<ServiceFrequencyViewModel> TopServices { get; set; } = new();
         public List<SSHIAProgramActivityRow> ProgramActivities { get; set; } = new();
         public List<EnrolleeSummaryViewModel> RecentEnrollees { get; set; } = new();

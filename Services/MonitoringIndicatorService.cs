@@ -10,12 +10,26 @@ namespace CTSHIPDashboard.Services
     public class MonitoringIndicatorService : IMonitoringIndicatorService
     {
         private const int ElderlyAge = 60;
-        private const string CtsTargetScope = "CTSHIP";
+        internal const string CtsTargetScope = "CTSHIP";
         private readonly ApplicationDbContext _context;
 
         public MonitoringIndicatorService(ApplicationDbContext context)
         {
             _context = context;
+        }
+
+        internal static Task<int> GetEnrollmentTargetAsync(
+            ApplicationDbContext context,
+            string scope,
+            CancellationToken cancellationToken = default)
+        {
+            return context.ProgramMonitoringTargets
+                .AsNoTracking()
+                .Where(target => target.Scope == scope
+                    || (scope == CtsTargetScope && target.Scope == "National"))
+                .OrderByDescending(target => target.Scope == scope)
+                .Select(target => target.TargetEnrollees)
+                .FirstOrDefaultAsync(cancellationToken);
         }
 
         public async Task<MonitoringDashboardViewModel> BuildDashboardAsync(
@@ -107,13 +121,7 @@ namespace CTSHIPDashboard.Services
                 || x.IsIdp
                 || !string.IsNullOrWhiteSpace(x.OtherVulnerableCategory));
 
-            int target = await _context.ProgramMonitoringTargets
-                .AsNoTracking()
-                .Where(x => x.Scope == scope
-                    || (scope == CtsTargetScope && x.Scope == "National"))
-                .OrderByDescending(x => x.Scope == scope)
-                .Select(x => x.TargetEnrollees)
-                .FirstOrDefaultAsync(cancellationToken);
+            int target = await GetEnrollmentTargetAsync(_context, scope, cancellationToken);
 
             List<MonitoringCategoryViewModel> distribution = BuildExclusiveDistribution(
                 enrollees,

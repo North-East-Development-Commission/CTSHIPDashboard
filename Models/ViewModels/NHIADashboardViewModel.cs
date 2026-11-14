@@ -6,6 +6,10 @@ namespace CTSHIPDashboard.Models.ViewModels
     {
         public int TotalEnrollees { get; set; }
         public int ActiveEnrollees { get; set; }
+
+        public int TargetEnrollees { get; set; }
+
+        public decimal EnrollmentCoverage { get; set; }
         public int NewEnrollmentsThisMonth { get; set; }
         public decimal ActiveEnrolleeRate { get; set; }
 

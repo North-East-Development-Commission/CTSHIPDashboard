@@ -80,7 +80,7 @@
 
     @if (canSelectEnrollees)
     {
-        <form id="delete-selected-enrollees" asp-action="DeleteSelected" method="post" class="mb-3">
+        <form id="delete-selected-enrollees" asp-action="DeleteSelected" method="post" class="mb-3" hidden>
             @foreach (var filter in filters)
             {
                 <input type="hidden" name="@filter.Key" value="@filter.Value" />

@@ -70,6 +70,8 @@ namespace CTSHIPDashboard.Controllers
                     _context.Complaints.Where(complaint => complaint.State == state),
                     cancellationToken),
                 Monitoring = await _monitoringIndicatorService.BuildDashboardAsync(state, cancellationToken: cancellationToken),
+                ProgrammeTargetEnrollees = await MonitoringIndicatorService.GetEnrollmentTargetAsync(
+                    _context, MonitoringIndicatorService.CtsTargetScope, cancellationToken),
                 RecentEnrollees = await stateEnrollees
                     .AsNoTracking()
                     .OrderByDescending(enrollee => enrollee.DateRegistered)
@@ -213,7 +215,7 @@ namespace CTSHIPDashboard.Controllers
                     Count = model.Monitoring.TargetEnrollees,
                     Rate = model.Monitoring.CoveragePercentage,
                     Note = model.Monitoring.TargetEnrollees > 0
-                        ? $"{model.Monitoring.TotalEnrolled:N0} of {model.Monitoring.TargetEnrollees:N0} target enrollees"
+                        ? $"{model.Monitoring.ActiveEnrollees:N0} active of {model.Monitoring.TargetEnrollees:N0} target enrollees"
                         : "No state target configured yet"
                 }
             };

@@ -143,6 +143,14 @@
                 </div>
                 <div class="metric-value text-success">@Model.TotalEnrollees.ToString("N0")</div>
                 <div class="text-muted mt-2">@Model.ActiveEnrollees.ToString("N0") active (@Model.ActiveEnrolleeRate.ToString("N1")%) | @Model.NewEnrollmentsThisMonth.ToString("N0") this month</div>
+                @if (Model.TargetEnrollees > 0)
+                {
+                    <div class="text-muted mt-2">@Model.EnrollmentCoverage.ToString("N1")% coverage of @Model.TargetEnrollees.ToString("N0") CTSHIP programme target</div>
+                }
+                else
+                {
+                    <div class="text-muted mt-2">No CTSHIP programme target configured</div>
+                }
             </a>
         </div>
         <div class="col-xl-4 col-md-6">

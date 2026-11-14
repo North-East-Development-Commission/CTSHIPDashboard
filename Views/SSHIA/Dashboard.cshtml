@@ -134,11 +134,22 @@
         <div class="col-xl-4 col-md-6">
             <div class="metric-card h-100">
                 <div class="d-flex justify-content-between gap-3 mb-3">
-                    <div class="metric-label">Monitoring Coverage</div>
+                    <div class="metric-label">State Enrollment Coverage</div>
                     <div class="metric-icon"><i class="bi bi-clipboard-data-fill"></i></div>
                 </div>
-                <div class="metric-value text-primary">@Model.Monitoring.CoveragePercentage.ToString("N1")%</div>
-                <div class="text-muted mt-2">@Model.Monitoring.TotalEnrolled.ToString("N0") enrolled of @Model.Monitoring.TargetEnrollees.ToString("N0") target</div>
+                @if (Model.Monitoring.TargetEnrollees > 0)
+                {
+                    <div class="metric-value text-primary">@Model.Monitoring.CoveragePercentage.ToString("N1")%</div>
+                    <div class="text-muted mt-2">@Model.Monitoring.ActiveEnrollees.ToString("N0") active of @Model.Monitoring.TargetEnrollees.ToString("N0") state target</div>
+                }
+                else
+                {
+                    <div class="text-muted mt-2">No state target configured</div>
+                }
+                @if (Model.ProgrammeTargetEnrollees > 0)
+                {
+                    <div class="text-muted mt-2">CTSHIP programme target @Model.ProgrammeTargetEnrollees.ToString("N0")</div>
+                }
             </div>
         </div>
     </div>

@@ -33,6 +33,9 @@ namespace CTSHIPDashboard.Controllers
             vm.ActiveEnrollees = await _context.Enrollees.CountAsync(e => e.Status == "Active");
             vm.NewEnrollmentsThisMonth = await _context.Enrollees.CountAsync(e => e.DateRegistered >= startOfMonth);
             vm.ActiveEnrolleeRate = CalculateRate(vm.ActiveEnrollees, vm.TotalEnrollees);
+            vm.TargetEnrollees = await MonitoringIndicatorService.GetEnrollmentTargetAsync(
+                _context, MonitoringIndicatorService.CtsTargetScope, HttpContext.RequestAborted);
+            vm.EnrollmentCoverage = CalculateRate(vm.ActiveEnrollees, vm.TargetEnrollees);
 
             vm.TotalClaims = await _context.Claims.CountAsync();
             vm.PendingClaims = await _context.Claims.CountAsync(c => c.Status == "Submitted");
