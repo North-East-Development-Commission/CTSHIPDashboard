@@ -2,6 +2,7 @@
 @model IEnumerable<CTSHIPDashboard.Models.Enrollee>
 @{
     ViewData["Title"] = $"{ViewBag.HmoName} - Enrollee Dashboard";
+    bool canSelectEnrollees = User.IsInRole("HMO") && Model.Any();
 }
 
 <div class="container-fluid py-5">
@@ -103,6 +104,18 @@
         </a>
     </div>
 
+    @if (canSelectEnrollees)
+    {
+        <form id="delete-selected-enrollees" asp-action="DeleteSelectedEnrollees" method="post" class="mb-3">
+            <input type="hidden" name="search" value="@ViewBag.Search" />
+            <input type="hidden" name="status" value="@ViewBag.Status" />
+            <input type="hidden" name="state" value="@ViewBag.State" />
+            <input type="hidden" name="page" value="@ViewBag.CurrentPage" />
+            <input type="hidden" name="pageSize" value="@ViewBag.EnrolleePageSize" />
+            <button type="submit" class="btn btn-outline-danger" disabled>Delete selected</button>
+        </form>
+    }
+
     <!-- ENROLLEES TABLE -->
     <div class="card border-0 shadow-lg">
         <div class="card-header bg-primary text-white text-center py-4">
@@ -113,6 +126,13 @@
                 <table class="table table-hover mb-0">
                     <thead class="bg-light">
                         <tr>
+                            @if (canSelectEnrollees)
+                            {
+                                <th scope="col">
+                                    <input type="checkbox" class="form-check-input" id="select-page-enrollees"
+                                           aria-label="Select all enrollees on this page" />
+                                </th>
+                            }
                             <th>Photo</th>
                             <th>Name</th>
                             <th>ID</th>
@@ -137,6 +157,13 @@
                             @foreach (var e in Model)
                             {
                                 <tr>
+                                    @if (canSelectEnrollees)
+                                    {
+                                        <td>
+                                            <input type="checkbox" class="form-check-input" form="delete-selected-enrollees"
+                                                   name="ids" value="@e.Id" aria-label="Select @e.FullName (@e.EnrollmentNumber)" />
+                                        </td>
+                                    }
                                     <td>
                                         <img src="@EnrolleePhotoStorage.ResolvePhotoPath(e.PhotoPath, e.EnrollmentNumber)"
                                              class="rounded-circle shadow" style="width:50px;height:50px;object-fit:cover;" />
@@ -252,3 +279,10 @@
         </nav>
     }
 </div>
+
+@section Scripts {
+    @if (canSelectEnrollees)
+    {
+        <script type="module" src="~/js/enrollee-selection.js" asp-append-version="true"></script>
+    }
+}

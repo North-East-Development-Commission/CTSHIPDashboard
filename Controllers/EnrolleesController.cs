@@ -1635,11 +1635,23 @@ public class EnrolleesController : Controller
         return RedirectToAction(nameof(Index), new { search, status, state, hmo, page, facility });
     }
 
+    private IQueryable<Enrollee> EnrolleesForDeletion(ApplicationUser? currentUser)
+    {
+        if (!User.IsInRole("HMO"))
+        {
+            return _context.Enrollees;
+        }
+
+        int? hmoId = currentUser?.HmoId;
+        return _context.Enrollees.Where(e => hmoId.HasValue && e.HmoId == hmoId);
+    }
+
     // DELETE GET — SHOW CONFIRMATION
     [Authorize(Roles = "CTSHIPAdmin, HMO")]
     public async Task<IActionResult> Delete(int id)
     {
-        var enrollee = await _context.Enrollees
+        var currentUser = await _userManager.GetUserAsync(User);
+        var enrollee = await EnrolleesForDeletion(currentUser)
             .Include(e => e.Encounters)
             .Include(e => e.Claims)
             .FirstOrDefaultAsync(e => e.Id == id);
@@ -1665,7 +1677,7 @@ public class EnrolleesController : Controller
     public async Task<IActionResult> DeleteConfirmed(int id)
     {
         ApplicationUser? currentUser = await _userManager.GetUserAsync(User);
-        var enrollee = await _context.Enrollees
+        var enrollee = await EnrolleesForDeletion(currentUser)
             .Include(e => e.Encounters)
             .Include(e => e.Claims)
             .FirstOrDefaultAsync(e => e.Id == id);

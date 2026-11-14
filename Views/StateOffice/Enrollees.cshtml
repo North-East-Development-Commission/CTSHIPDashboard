@@ -10,7 +10,6 @@
         ["state"] = ViewBag.State ?? "",
         ["facility"] = ViewBag.Facility ?? "",
     };
-    bool canSelectEnrollees = Model.Count > 0;
 }
 
 <div class="container-fluid py-5">
@@ -51,31 +50,12 @@
         </div>
     </div>
 
-    @if (canSelectEnrollees)
-    {
-        <form id="delete-selected-enrollees" asp-action="DeleteSelectedEnrollees" method="post" class="mb-3">
-            @foreach (var filter in filters)
-            {
-                <input type="hidden" name="@filter.Key" value="@filter.Value" />
-            }
-            <input type="hidden" name="page" value="@currentPage" />
-            <button type="submit" class="btn btn-outline-danger" disabled>Delete selected</button>
-        </form>
-    }
-
     <!-- Table -->
     <div class="card shadow-lg rounded-4 overflow-hidden">
         <div class="table-responsive">
             <table class="table table-hover mb-0">
                 <thead class="table-success">
                     <tr>
-                        @if (canSelectEnrollees)
-                        {
-                            <th scope="col">
-                                <input type="checkbox" class="form-check-input" id="select-page-enrollees"
-                                       aria-label="Select all enrollees on this page" />
-                            </th>
-                        }
                         <th>Enrollment #</th>
                         <th>Full Name</th>
                         <th>HMO</th>
@@ -99,13 +79,6 @@
                         @foreach (var e in Model)
                         {
                             <tr>
-                                @if (canSelectEnrollees)
-                                {
-                                    <td>
-                                        <input type="checkbox" class="form-check-input" form="delete-selected-enrollees"
-                                               name="ids" value="@e.Id" aria-label="Select @e.FullName (@e.EnrollmentNumber)" />
-                                    </td>
-                                }
                                 <td><strong class="text-primary">@e.EnrollmentNumber</strong></td>
                                 <td><a asp-controller="Enrollees" asp-action="Details" asp-route-id="@e.Id">@e.FullName</a></td>
                                 <td>@e.HmoName</td>
@@ -129,10 +102,3 @@
         <div class="text-center text-muted mt-3">Showing page @currentPage of @totalPages</div>
     }
 </div>
-
-@section Scripts {
-    @if (canSelectEnrollees)
-    {
-        <script type="module" src="~/js/enrollee-selection.js" asp-append-version="true"></script>
-    }
-}

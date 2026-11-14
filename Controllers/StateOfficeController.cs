@@ -201,39 +201,6 @@ public class StateOfficeController : Controller
         return View(enrollees);
     }
 
-    [HttpPost]
-    [ValidateAntiForgeryToken]
-    [Authorize(Roles = EnrolleeListRoles)]
-    public async Task<IActionResult> DeleteSelectedEnrollees(int[] ids, string state = "", string search = "", int page = 1, int? facility = null)
-    {
-        if (!ModelState.IsValid)
-        {
-            return BadRequest();
-        }
-
-        var user = await _userManager.GetUserAsync(User);
-        if (string.IsNullOrWhiteSpace(user?.State))
-        {
-            return Forbid();
-        }
-
-        state = string.IsNullOrWhiteSpace(state) ? user.State : state;
-        if (!User.IsInRole("CTSHIPAdmin") && state != user.State)
-        {
-            return Forbid();
-        }
-
-        var result = await EnrolleeBulkDeletion.DeleteAsync(
-            _context,
-            _context.Enrollees.Where(e => e.State == state),
-            ids,
-            _auditService,
-            AuditActor.Format(user, User.Identity?.Name),
-            HttpContext.RequestAborted);
-        TempData[result.Succeeded ? "Success" : "Error"] = result.Message;
-        return RedirectToAction(nameof(Enrollees), new { state, search, page, facility });
-    }
-
     // ====================== PROVIDERS LIST ======================
     [Authorize(Roles = "CTSHIPAdmin,StateOffice")]
     [Authorize(Roles = "StateOffice,CTSHIPAdmin,Admin")]

@@ -2235,11 +2235,35 @@ public class HmoController : Controller
         return RedirectToAction(nameof(BulkUpload));
     }
 
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    [Authorize(Roles = "HMO")]
+    public async Task<IActionResult> DeleteSelectedEnrollees(
+        int[] ids, string search = "", string status = "All", string state = "All", int page = 1, int pageSize = 10)
+    {
+        if (!ModelState.IsValid)
+        {
+            return BadRequest();
+        }
+
+        var currentUser = await _userManager.GetUserAsync(User);
+        if (currentUser?.HmoId == null)
+        {
+            return Forbid();
+        }
+
+        var result = await EnrolleeBulkDeletion.DeleteAsync(
+            _context, _context.Enrollees.Where(e => e.HmoId == currentUser.HmoId.Value), ids,
+            _auditService, AuditActor.Format(currentUser, User.Identity?.Name), HttpContext.RequestAborted);
+        TempData[result.Succeeded ? "Success" : "Error"] = result.Message;
+        return RedirectToAction(nameof(EnrolleeDashboard), new { search, status, state, page, pageSize });
+    }
+
     // DELETE GET — SHOW CONFIRMATION
     [Authorize(Roles = "CTSHIPAdmin,HMO")]
     public async Task<IActionResult> DeleteEnrollee(int id)
     {
-        var enrollee = await _context.Enrollees
+        var enrollee = await (await GetEnrolleesForDeletionAsync())
             .Include(e => e.Encounters)
             .Include(e => e.Claims)
             .FirstOrDefaultAsync(e => e.Id == id);
@@ -2264,7 +2288,7 @@ public class HmoController : Controller
     [Authorize(Roles = "CTSHIPAdmin,HMO")]
     public async Task<IActionResult> DeleteEnrolleeConfirmed(int id)
     {
-        var enrollee = await _context.Enrollees
+        var enrollee = await (await GetEnrolleesForDeletionAsync())
             .Include(e => e.Encounters)
             .Include(e => e.Claims)
             .FirstOrDefaultAsync(e => e.Id == id);
@@ -2303,6 +2327,17 @@ public class HmoController : Controller
         }
 
         return RedirectToAction(nameof(EnrolleeDashboard));
+    }
+
+    private async Task<IQueryable<Enrollee>> GetEnrolleesForDeletionAsync()
+    {
+        if (!User.IsInRole("HMO"))
+        {
+            return _context.Enrollees;
+        }
+
+        var hmoId = (await _userManager.GetUserAsync(User))?.HmoId;
+        return _context.Enrollees.Where(e => hmoId.HasValue && e.HmoId == hmoId);
     }
 
     [Authorize(Roles = "HMO")]
@@ -2380,6 +2415,7 @@ ViewBag.TotalClaims = await _context.Enrollees
         ViewBag.State = state;
         ViewBag.CurrentPage = page > 0 ? page : 1;
         ViewBag.TotalPages = totalPages;
+        ViewBag.EnrolleePageSize = pageSize;
 
         return View(enrollees);
     }
