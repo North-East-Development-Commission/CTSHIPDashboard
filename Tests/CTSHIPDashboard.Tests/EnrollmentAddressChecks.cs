@@ -125,6 +125,39 @@ static class EnrollmentAddressChecks
         check(hmo.TryValidateModel(hmoEnrollee) && await hmo.AddEnrollee(hmoEnrollee) is RedirectToActionResult
             && hmoEnrollee.Id > 0 && hmoEnrollee.Address == "", "HMO create accepts and saves missing Address");
         check(hmoEnrollee.Gender == "Male", "HMO create normalizes M to Male");
+
+        var deletable = new[] { Input(null), Input(null), Input(null), Input(null), Input(null) };
+        for (int i = 0; i < deletable.Length; i++)
+        {
+            deletable[i].EnrollmentNumber = $"TEST-BULK-DELETE-{i}";
+            deletable[i].Address = "";
+        }
+        db.Enrollees.AddRange(deletable);
+        db.Encounters.Add(new Encounter { Enrollee = deletable[4], ProviderId = 1, ChiefComplaint = "Test encounter" });
+        await db.SaveChangesAsync();
+
+        var directory = Controller();
+        var directoryIds = deletable.Take(2).Select(e => e.Id).ToArray();
+        check(await directory.DeleteSelected(directoryIds) is RedirectToActionResult
+            && directory.TempData.ContainsKey("Success")
+            && !await db.Enrollees.AnyAsync(e => directoryIds.Contains(e.Id)),
+            "directory bulk delete removes both selected enrollees");
+
+        var blockedIds = new[] { deletable[2].Id, deletable[4].Id };
+        check(await hmo.DeleteSelectedEnrollees(blockedIds) is RedirectToActionResult
+            && hmo.TempData.ContainsKey("Error")
+            && await db.Enrollees.CountAsync(e => blockedIds.Contains(e.Id)) == 2,
+            "HMO bulk delete rolls back the batch when an enrollee has an encounter");
+
+        var hmoIds = deletable.Skip(2).Take(2).Select(e => e.Id).ToArray();
+        check(await hmo.DeleteSelectedEnrollees(hmoIds) is RedirectToActionResult
+            && hmo.TempData.ContainsKey("Success")
+            && !await db.Enrollees.AnyAsync(e => hmoIds.Contains(e.Id))
+            && await db.Enrollees.AnyAsync(e => e.Id == deletable[4].Id),
+            "HMO bulk delete removes only the selected enrollees");
+        await db.Encounters.Where(e => e.EnrolleeId == deletable[4].Id).ExecuteDeleteAsync();
+        await db.Enrollees.Where(e => e.Id == deletable[4].Id).ExecuteDeleteAsync();
+
         check(!Controller().TryValidateModel(Input(new string('a', 501))), "Address length limit remains enforced");
         var invalidPhone = Input(null);
         invalidPhone.Phone = "not-a-phone";
