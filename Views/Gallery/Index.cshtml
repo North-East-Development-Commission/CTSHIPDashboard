@@ -1,0 +1,109 @@
+@using CTSHIPDashboard.Controllers
+@using CTSHIPDashboard.Models.ViewModels
+@model GalleryPageViewModel
+
+@{
+    ViewData["Title"] = "Gallery";
+    bool canManage = GalleryController.ManagementRoles.Split(',').Any(User.IsInRole);
+}
+
+@section Styles {
+    <link rel="stylesheet" href="~/css/gallery.css" asp-append-version="true" />
+}
+
+<main class="gallery-page" aria-labelledby="gallery-heading">
+    <h1 id="gallery-heading" class="mb-4">Gallery</h1>
+
+    @if (canManage)
+    {
+        <details class="card gallery-upload mb-4" open="@(Model.EditingId is null && !ViewData.ModelState.IsValid)">
+            <summary class="fw-semibold">Upload photo</summary>
+            <form asp-action="Index" method="post" enctype="multipart/form-data" class="gallery-upload-form">
+                <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+                <div class="mb-3">
+                    <label asp-for="Upload.Photo" class="form-label fw-semibold"></label>
+                    <input asp-for="Upload.Photo" type="file" class="form-control" accept="image/jpeg,image/png" aria-describedby="photo-hint photo-error" required />
+                    <div id="photo-hint" class="form-text">JPEG or PNG, up to 5 MB. Published photos and descriptions are publicly visible.</div>
+                    <span id="photo-error" asp-validation-for="Upload.Photo" class="text-danger"></span>
+                </div>
+
+                <div class="mb-3">
+                    <label asp-for="Upload.Description" class="form-label fw-semibold"></label>
+                    <textarea asp-for="Upload.Description" class="form-control" rows="4" maxlength="@GalleryPhoto.MaxDescriptionLength" aria-describedby="description-hint description-error" required></textarea>
+                    <div id="description-hint" class="form-text">Describe what the photo shows in up to @GalleryPhoto.MaxDescriptionLength characters.</div>
+                    <span id="description-error" asp-validation-for="Upload.Description" class="text-danger"></span>
+                </div>
+
+                <button type="submit" class="btn btn-success">Publish photo</button>
+            </form>
+        </details>
+    }
+
+    @if (Model.Photos.Count == 0)
+    {
+        <div class="gallery-empty">
+            <i class="bi bi-images" aria-hidden="true"></i>
+            <p class="mb-0">No photos have been published yet.</p>
+        </div>
+    }
+    else
+    {
+        <div class="gallery-photos">
+            @foreach (var photo in Model.Photos)
+            {
+                <article class="gallery-photo">
+                    <figure class="m-0">
+                        <div class="gallery-photo-image">
+                            <img src="@Url.Action("Photo", new { id = photo.Id })" alt="" loading="lazy" decoding="async" />
+                        </div>
+                        <figcaption>@photo.Description</figcaption>
+                    </figure>
+
+                    @if (canManage)
+                    {
+                        bool editing = Model.EditingId == photo.Id && Model.Edit is not null;
+                        <div class="gallery-photo-actions">
+                            <details open="@editing">
+                                <summary>Edit photo</summary>
+                                <form asp-action="Edit" asp-route-id="@photo.Id" method="post" enctype="multipart/form-data" class="mt-2">
+                                    <input type="hidden" name="Edit.Version" value="@(editing ? Model.Edit!.Version : photo.Version)" />
+
+                                    <div class="mb-2">
+                                        <label for="description-@photo.Id" class="form-label">Description</label>
+                                        <textarea id="description-@photo.Id" name="Edit.Description" class="form-control" rows="3" maxlength="@GalleryPhoto.MaxDescriptionLength" required>@(editing ? Model.Edit!.Description : photo.Description)</textarea>
+                                        @if (editing)
+                                        {
+                                            @Html.ValidationMessage("Edit.Description", null, new { @class = "text-danger" })
+                                        }
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <label for="replacement-@photo.Id" class="form-label">Replace photo (optional)</label>
+                                        <input id="replacement-@photo.Id" name="Edit.Photo" type="file" class="form-control" accept="image/jpeg,image/png" />
+                                        <div class="form-text">JPEG or PNG, up to 5 MB.</div>
+                                        @if (editing)
+                                        {
+                                            @Html.ValidationMessage("Edit.Photo", null, new { @class = "text-danger" })
+                                        }
+                                    </div>
+
+                                    <button type="submit" class="btn btn-sm btn-success">Save changes</button>
+                                </form>
+                            </details>
+
+                            <details>
+                                <summary class="text-danger">Delete photo</summary>
+                                <form asp-action="Delete" asp-route-id="@photo.Id" method="post" class="mt-2">
+                                    <input type="hidden" name="version" value="@photo.Version" />
+                                    <p class="mb-2">Remove this photo and its description from the gallery?</p>
+                                    <button type="submit" class="btn btn-sm btn-danger">Confirm deletion</button>
+                                </form>
+                            </details>
+                        </div>
+                    }
+                </article>
+            }
+        </div>
+    }
+</main>

@@ -26,6 +26,7 @@ namespace CTSHIPDashboard.Data
         public DbSet<Complaint> Complaints { get; set; }
         public DbSet<Feedback> Feedbacks { get; set; }
         public DbSet<NewsUpdate> NewsUpdates { get; set; }
+        public DbSet<GalleryPhoto> GalleryPhotos { get; set; }
         public DbSet<ApplicationUser> ApplicationUsers { get; set; }
         public DbSet<AuditLog> AuditLogs { get; set; }
         public DbSet<UserActivity> UserActivities { get; set; }

@@ -372,6 +372,12 @@
                     <span class="ct-brand-subtitle d-md-none">Community Targeted Social Health Insurance Program</span>
                 </span>
             </a>
+            @if (!SignInManager.IsSignedIn(User))
+            {
+                <a asp-area="" asp-controller="Gallery" asp-action="Index" class="btn btn-sm btn-outline-light flex-shrink-0">
+                    Gallery
+                </a>
+            }
             <button type="button" class="btn ct-install-button ct-install-top d-none" data-pwa-install aria-label="Install CTSHIP app">
                 <i class="bi bi-download" aria-hidden="true"></i>
                 <span class="ct-install-label">Install App</span>
@@ -421,6 +427,9 @@
         </div>
         <div class="offcanvas-body p-0">
         <nav class="nav flex-column" aria-label="Main navigation">
+            <a asp-area="" asp-controller="Gallery" asp-action="Index" class="nav-link">
+                <i class="bi bi-images" aria-hidden="true"></i> Gallery
+            </a>
             @if (User.IsInRole("NHIA"))
             {
                 <a asp-controller="NHIA" asp-action="Dashboard" class="nav-link">
