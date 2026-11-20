@@ -19,6 +19,9 @@
             <a asp-action="PrimaryProviderEncountersReport" class="btn btn-outline-success btn-lg">
                 <i class="bi bi-clipboard2-pulse me-1"></i> Primary Encounter Register
             </a>
+            <a asp-controller="Encounters" asp-action="BulkUpload" asp-route-hmoId="@Model.Id" class="btn btn-outline-success btn-lg">
+                <i class="bi bi-file-earmark-excel me-1"></i> Bulk Encounter Upload
+            </a>
         </div>
     </div>
 

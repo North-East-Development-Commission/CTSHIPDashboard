@@ -1,0 +1,90 @@
+@using CTSHIPDashboard.Controllers
+@{
+    ViewData["Title"] = "Bulk Encounter Upload";
+    var facilities = (IReadOnlyList<EncountersController.EncounterUploadFacility>)ViewBag.Facilities;
+    int selectedProviderId = ViewBag.SelectedProviderId;
+    int selectedHmoId = ViewBag.SelectedHmoId;
+    var errors = ViewBag.UploadErrors as string[] ?? Array.Empty<string>();
+}
+
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 mb-4">
+        <h1 class="h3 mb-0">Bulk Encounter Upload</h1>
+        <a asp-action="DownloadBulkUploadTemplate" class="btn btn-outline-success">
+            <i class="bi bi-file-earmark-arrow-down" aria-hidden="true"></i> Download Excel template
+        </a>
+    </div>
+
+    @if (errors.Length > 0)
+    {
+        <div class="alert alert-danger" role="alert">
+            @if (ViewBag.UploadUnconfirmed is not true)
+            {
+                <p class="fw-semibold mb-2">No new encounters were imported.</p>
+            }
+            <ul class="mb-0">
+                @foreach (string error in errors)
+                {
+                    <li>@error</li>
+                }
+            </ul>
+            @if ((int)ViewBag.UploadErrorCount > errors.Length)
+            {
+                <p class="mt-2 mb-0">Showing the first @errors.Length of @ViewBag.UploadErrorCount issues.</p>
+            }
+        </div>
+    }
+
+    <form id="encounter-upload" asp-action="BulkUpload" method="post" enctype="multipart/form-data" class="card card-body">
+        <div class="row g-3">
+            <div class="col-md-6">
+                <label for="encounter-upload-hmo" class="form-label">HMO</label>
+                <select id="encounter-upload-hmo" name="hmoId" asp-items="ViewBag.Hmos" class="form-select" required>
+                    <option value="">Select an HMO</option>
+                </select>
+            </div>
+            <div class="col-md-6">
+                <label for="encounter-upload-facility" class="form-label">Facility</label>
+                <select id="encounter-upload-facility" name="providerId" class="form-select" required aria-describedby="encounter-facility-status">
+                    <option value="">Select a facility</option>
+                    @foreach (var facility in facilities.Where(facility => facility.HmoId == selectedHmoId))
+                    {
+                        <option value="@facility.Id" selected="@(facility.Id == selectedProviderId)">@facility.Name (@facility.Lga, @facility.State)</option>
+                    }
+                </select>
+                <div id="encounter-facility-status" class="form-text" aria-live="polite"></div>
+                <template id="encounter-facility-options">
+                    @foreach (var facility in facilities)
+                    {
+                        <option value="@facility.Id" data-hmo="@facility.HmoId">@facility.Name (@facility.Lga, @facility.State)</option>
+                    }
+                </template>
+            </div>
+            <div class="col-12">
+                <label for="encounter-upload-file" class="form-label">Excel workbook</label>
+                <input type="file" id="encounter-upload-file" name="excelFile" accept=".xlsx"
+                       class="form-control" aria-describedby="encounter-upload-help" required />
+                <div id="encounter-upload-help" class="form-text">
+                    Use one facility per workbook and one row per visit. Repeat the enrolment number for each visit by the same patient. Enter the visit date and time, especially for multiple visits on the same day. Upload up to 500 rows in a 5 MB .xlsx file.
+                </div>
+            </div>
+        </div>
+        <p class="small text-muted mt-3">
+            Use the template's Allowed values sheet and separate multiple services with semicolons.
+            Record referrals and medicine dispensing through the individual encounter form.
+        </p>
+        <p class="small">
+            <strong>Required fields</strong> are Enrolment Number, Visit Date, Chief Complaint, Diagnosis,
+            Treatment Given, Reason for Encounter, Service Setting and Services Provided.<br />
+            <strong>Optional fields</strong> are Patient Outcome and Notes. A blank Patient Outcome defaults to Treated.
+        </p>
+        <div class="d-flex flex-wrap gap-2">
+            <button type="submit" class="btn btn-success">Upload encounters</button>
+            <a asp-action="Index" class="btn btn-outline-secondary">Patient encounters</a>
+        </div>
+    </form>
+</div>
+
+@section Scripts {
+    <script type="module" src="~/js/encounter-upload.js" asp-append-version="true"></script>
+}

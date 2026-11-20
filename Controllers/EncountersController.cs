@@ -15,14 +15,28 @@ using System.Text.Json;
 
 namespace CTSHIPDashboard.Controllers
 {
-    [Authorize(Roles = "Provider,CTSHIPAdmin,Admin")]
-    public class EncountersController : Controller
+    [Authorize(Roles = "Provider,CTSHIPAdmin,Admin,HMO")]
+    public partial class EncountersController : Controller
     {
 
         private readonly ApplicationDbContext _context;
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly CTSHIPDashboard.Services.IAuditService _auditService;
         private readonly IAppNotificationService _notificationService;
+
+        public override async Task OnActionExecutionAsync(
+            Microsoft.AspNetCore.Mvc.Filters.ActionExecutingContext context,
+            Microsoft.AspNetCore.Mvc.Filters.ActionExecutionDelegate next)
+        {
+            if (!User.IsInRole("Provider") && !User.IsInRole("CTSHIPAdmin") && !User.IsInRole("Admin")
+                && context.ActionDescriptor.RouteValues["action"] is not (nameof(BulkUpload) or nameof(DownloadBulkUploadTemplate)))
+            {
+                context.Result = Forbid();
+                return;
+            }
+
+            await base.OnActionExecutionAsync(context, next);
+        }
 
         public EncountersController(
             ApplicationDbContext context,

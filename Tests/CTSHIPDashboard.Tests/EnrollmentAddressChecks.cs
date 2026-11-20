@@ -37,6 +37,7 @@ static class EnrollmentAddressChecks
         await db.SaveChangesAsync();
         await users.CreateAsync(owner);
         await RunAsync(db, users, provider, owner, new TestNotifications(), check);
+        await BulkEncounterChecks.RunAsync(db, users, provider, owner, check);
         if (workbookPath != null)
         {
             var http = new DefaultHttpContext { RequestServices = provider,
