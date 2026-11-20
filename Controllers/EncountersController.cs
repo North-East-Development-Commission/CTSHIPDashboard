@@ -24,12 +24,15 @@ namespace CTSHIPDashboard.Controllers
         private readonly CTSHIPDashboard.Services.IAuditService _auditService;
         private readonly IAppNotificationService _notificationService;
 
+        private bool IsHmoEncounterViewer => User.IsInRole("HMO")
+            && !User.IsInRole("CTSHIPAdmin") && !User.IsInRole("Admin");
+
         public override async Task OnActionExecutionAsync(
             Microsoft.AspNetCore.Mvc.Filters.ActionExecutingContext context,
             Microsoft.AspNetCore.Mvc.Filters.ActionExecutionDelegate next)
         {
             if (!User.IsInRole("Provider") && !User.IsInRole("CTSHIPAdmin") && !User.IsInRole("Admin")
-                && context.ActionDescriptor.RouteValues["action"] is not (nameof(BulkUpload) or nameof(DownloadBulkUploadTemplate)))
+                && context.ActionDescriptor.RouteValues["action"] is not (nameof(Index) or nameof(Details) or nameof(BulkUpload) or nameof(DownloadBulkUploadTemplate)))
             {
                 context.Result = Forbid();
                 return;
@@ -51,7 +54,7 @@ namespace CTSHIPDashboard.Controllers
         }
 
         // INDEX â€” FULL LIST WITH SEARCH & FILTER
-        public async Task<IActionResult> Index(string search = "", string status = "All", int page = 1, int pageSize = 10)
+        public async Task<IActionResult> Index(string search = "", string status = "All", int page = 1, int pageSize = 10, int? providerId = null)
         {
             var query = _context.Encounters
                 .Include(e => e.Enrollee)
@@ -62,6 +65,13 @@ namespace CTSHIPDashboard.Controllers
                 .AsQueryable();
 
             ApplicationUser? currentUser = await _userManager.GetUserAsync(User);
+            ViewBag.CanManageEncounters = !IsHmoEncounterViewer;
+            if (IsHmoEncounterViewer)
+            {
+                if (currentUser?.HmoId == null) return Forbid();
+                query = query.Where(encounter => encounter.Enrollee != null
+                    && encounter.Enrollee.HmoId == currentUser.HmoId.Value);
+            }
             if (User.IsInRole("Provider"))
             {
                 if (!currentUser?.ProviderId.HasValue ?? true)
@@ -80,6 +90,14 @@ namespace CTSHIPDashboard.Controllers
             {
                 ViewBag.CanUseClaims = true;
             }
+
+            var facilities = await query.Where(encounter => encounter.Provider != null)
+                .Select(encounter => new { encounter.Provider!.Id, encounter.Provider.Name })
+                .Distinct().OrderBy(facility => facility.Name).ToListAsync();
+            ViewBag.Facilities = new SelectList(facilities, "Id", "Name", providerId);
+            ViewBag.ProviderId = providerId;
+            if (providerId.HasValue)
+                query = query.Where(encounter => encounter.ProviderId == providerId.Value);
 
             if (!string.IsNullOrWhiteSpace(search))
             {
@@ -114,7 +132,7 @@ namespace CTSHIPDashboard.Controllers
         // DETAILS
         public async Task<IActionResult> Details(int id)
         {
-            var encounter = await _context.Encounters
+            var query = _context.Encounters
                 .Include(e => e.Enrollee).ThenInclude(e => e!.Hmo)
                 .Include(e => e.Provider)
                 .Include(e => e.Doctor)
@@ -123,9 +141,17 @@ namespace CTSHIPDashboard.Controllers
                 .Include(e => e.Prescriptions)
                 .Include(e => e.Queries)
                 .Include(e => e.AuditTrails)
-                .FirstOrDefaultAsync(e => e.Id == id);
+                .AsQueryable();
+            if (IsHmoEncounterViewer)
+            {
+                var user = await _userManager.GetUserAsync(User);
+                if (user?.HmoId == null) return Forbid();
+                query = query.Where(encounter => encounter.Enrollee != null
+                    && encounter.Enrollee.HmoId == user.HmoId.Value);
+            }
+            var encounter = await query.FirstOrDefaultAsync(e => e.Id == id);
             if (encounter == null) return NotFound();
-            if (!await CanAccessProviderAsync(encounter.ProviderId)) return Forbid();
+            if (!IsHmoEncounterViewer && !await CanAccessProviderAsync(encounter.ProviderId)) return Forbid();
             ViewBag.CanUseClaims = ProviderClaimAccessHelper.CanUseClaims(encounter.Provider);
             return View(encounter);
         }

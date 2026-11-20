@@ -50,9 +50,10 @@ internal static class BulkEncounterChecks
             };
         }
 
+        string uploadRole = "CTSHIPAdmin";
         async Task<IActionResult> UploadAsync(int hmoId, params string[] numbers)
         {
-            var controller = CreateController();
+            var controller = CreateController(uploadRole);
             var template = (FileContentResult)controller.DownloadBulkUploadTemplate();
             using var workbook = new ExcelPackage(new MemoryStream(template.FileContents));
             var sheet = workbook.Workbook.Worksheets["Encounters"];
@@ -103,6 +104,88 @@ internal static class BulkEncounterChecks
             "bulk encounter imports two visits from the template and submits them for HMO verification");
         check(await UploadAsync(1, local.EnrollmentNumber) is ViewResult && await imported.CountAsync() == 2,
             "re-uploading a previously imported encounter does not create duplicates");
+
+        db.Hmos.Add(new Hmo { Id = 2, Name = "Other HMO", RegistrationNumber = "OTHER-HMO" });
+        var otherHmoEnrollee = NewEnrollee("TEST-OTHER-HMO", 1);
+        otherHmoEnrollee.HmoId = 2;
+        db.Enrollees.Add(otherHmoEnrollee);
+        await db.SaveChangesAsync();
+        var otherHmoVisit = new Encounter { EnrolleeId = otherHmoEnrollee.Id, ProviderId = 1,
+            EncounterNumber = "OTHER-HMO-VISIT", ChiefComplaint = "Other HMO complaint" };
+        var otherFacilityVisit = new Encounter { EnrolleeId = foreign.Id, ProviderId = 2,
+            EncounterNumber = "OWN-HMO-OTHER-FACILITY", ChiefComplaint = "Own HMO complaint" };
+        db.Encounters.AddRange(otherHmoVisit, otherFacilityVisit);
+        await db.SaveChangesAsync();
+        owner.HmoId = 1;
+        await users.UpdateAsync(owner);
+        var hmoViewer = CreateController("HMO");
+        var list = (ViewResult)await hmoViewer.Index();
+        var visible = ((IEnumerable<Encounter>)list.Model!).ToArray();
+        check(visible.Length > 0 && visible.All(visit => visit.Enrollee!.HmoId == 1)
+            && visible.Any(visit => visit.Id == otherFacilityVisit.Id)
+            && (int)list.ViewData["TotalItems"]! == visible.Length,
+            "HMO encounter list and total include only its enrollees across facilities");
+        check(list.ViewData["CanManageEncounters"] is false, "HMO encounter list hides manual management controls");
+        var facilityList = (ViewResult)await hmoViewer.Index(providerId: 2);
+        var facilityVisits = ((IEnumerable<Encounter>)facilityList.Model!).ToArray();
+        check(facilityVisits.Length == 1 && facilityVisits[0].Id == otherFacilityVisit.Id
+            && (int)facilityList.ViewData["TotalItems"]! == 1
+            && (int)facilityList.ViewData["ProviderId"]! == 2,
+            "HMO facility filter scopes records and totals and retains the selection");
+        var facilitySearch = (ViewResult)await hmoViewer.Index(search: foreign.EnrollmentNumber, status: "Treated", providerId: 2);
+        check(((IEnumerable<Encounter>)facilitySearch.Model!).Single().Id == otherFacilityVisit.Id,
+            "HMO facility filter combines with enrollee search and patient outcome");
+        var unknownFacility = (ViewResult)await hmoViewer.Index(providerId: 999999);
+        check(!((IEnumerable<Encounter>)unknownFacility.Model!).Any(), "unknown facility filter returns no encounters");
+        owner.HmoId = 2;
+        await users.UpdateAsync(owner);
+        var otherHmoList = (ViewResult)await hmoViewer.Index(providerId: 2);
+        check(!((IEnumerable<Encounter>)otherHmoList.Model!).Any()
+            && !((Microsoft.AspNetCore.Mvc.Rendering.SelectList)otherHmoList.ViewData["Facilities"]!)
+                .Any(facility => facility.Value == "2"),
+            "HMO facility options and forged facility filters cannot expose another HMO's encounters");
+        owner.HmoId = 1;
+        await users.UpdateAsync(owner);
+        var searched = (ViewResult)await hmoViewer.Index("TEST-OTHER-HMO");
+        check(!((IEnumerable<Encounter>)searched.Model!).Any()
+            && (int)searched.ViewData["TotalItems"]! == 0, "HMO search cannot expose another HMO's enrollee");
+        check(await hmoViewer.Details(otherFacilityVisit.Id) is ViewResult,
+            "HMO can view encounter details for its enrollee at another facility");
+        check(await hmoViewer.Details(otherHmoVisit.Id) is NotFoundResult,
+            "HMO cannot open another HMO's encounter by ID even at the same facility");
+        var hmoUploadEnrollee = NewEnrollee("TEST-HMO-UPLOAD", 1);
+        db.Enrollees.Add(hmoUploadEnrollee);
+        await db.SaveChangesAsync();
+        uploadRole = "HMO";
+        check(await UploadAsync(1, hmoUploadEnrollee.EnrollmentNumber) is RedirectToActionResult
+            && await db.Encounters.AnyAsync(visit => visit.EnrolleeId == hmoUploadEnrollee.Id),
+            "HMO retains successful bulk encounter upload for its own enrollee");
+
+        foreach (var action in new[] { "Index", "Details", "BulkUpload", "DownloadBulkUploadTemplate", "Create", "Edit", "Delete", "RespondEncounterQuery", "SearchEnrollee" })
+        {
+            hmoViewer.ControllerContext.ActionDescriptor.RouteValues["action"] = action;
+            var filters = new List<Microsoft.AspNetCore.Mvc.Filters.IFilterMetadata>();
+            var executing = new Microsoft.AspNetCore.Mvc.Filters.ActionExecutingContext(
+                hmoViewer.ControllerContext, filters, new Dictionary<string, object?>(), hmoViewer);
+            bool reachedAction = false;
+            await hmoViewer.OnActionExecutionAsync(executing, () =>
+            {
+                reachedAction = true;
+                return Task.FromResult(new Microsoft.AspNetCore.Mvc.Filters.ActionExecutedContext(
+                    hmoViewer.ControllerContext, filters, hmoViewer));
+            });
+            bool allowed = action is "Index" or "Details" or "BulkUpload" or "DownloadBulkUploadTemplate";
+            check(reachedAction == allowed && (allowed || executing.Result is ForbidResult),
+                $"HMO action access: {action} {(allowed ? "allowed" : "blocked")}");
+        }
+        owner.HmoId = null;
+        await users.UpdateAsync(owner);
+        check(await hmoViewer.Index() is ForbidResult && await hmoViewer.Details(otherFacilityVisit.Id) is ForbidResult,
+            "HMO without an assignment cannot list or view patient encounters");
+        check(await CreateController().Details(otherHmoVisit.Id) is ViewResult,
+            "administrator retains cross-HMO encounter detail access");
+        owner.HmoId = originalHmoId;
+        await users.UpdateAsync(owner);
     }
 
     private static Enrollee NewEnrollee(string number, int facilityId) => new()
